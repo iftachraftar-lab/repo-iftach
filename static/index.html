@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>מעקב תזונה</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#10b981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans pb-10">
+  <div class="max-w-md mx-auto p-4 space-y-4">
+    
+    <!-- כותרת ראשית -->
+    <header class="flex justify-between items-center py-2 border-b border-slate-800">
+      <h1 class="text-xl font-bold text-emerald-400">מעקב תזונה יומי</h1>
+      <span id="currentDate" class="text-xs text-slate-400"></span>
+    </header>
+
+    <!-- קוביות מדדים יומיים -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/50">
+        <div class="text-xs text-slate-400">קלוריות שנצרכו</div>
+        <div class="text-2xl font-black mt-1 text-white" id="calConsumed">0</div>
+        <div class="text-xs text-slate-400 mt-1" id="calRemaining">יעד: 1800</div>
+      </div>
+      <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/50">
+        <div class="text-xs text-slate-400">חלבון כולל</div>
+        <div class="text-2xl font-black mt-1 text-emerald-400" id="proteinConsumed">0g</div>
+        <div class="text-xs text-slate-400 mt-1">מטרה יומית</div>
+      </div>
+    </div>
+
+    <!-- סרגל אחוז התקדמות -->
+    <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700/50 space-y-2">
+      <div class="flex justify-between text-xs text-slate-400">
+        <span>התקדמות יומית</span>
+        <span id="percentText">0%</span>
+      </div>
+      <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
+        <div id="progressBar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- היסטוריית ארוחות היום -->
+    <div class="space-y-2">
+      <h2 class="text-sm font-semibold text-slate-300">ארוחות היום</h2>
+      <div id="mealsList" class="space-y-2">
+        <div class="text-xs text-slate-500 text-center py-6">טוען נתונים...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/static/sw.js");
+    }
+
+    document.getElementById("currentDate").innerText = new Date().toLocaleDateString("he-IL");
+
+    async function loadData() {
+      try {
+        const res = await fetch("/api/today");
+        const data = await res.json();
+        
+        document.getElementById("calConsumed").innerText = data.total_calories;
+        document.getElementById("calRemaining").innerText = `נותר: ${data.remaining} מתוך ${data.target}`;
+        document.getElementById("proteinConsumed").innerText = `${Math.round(data.total_protein)}g`;
+
+        const pct = Math.min(100, Math.round((data.total_calories / data.target) * 100));
+        document.getElementById("percentText").innerText = `${pct}%`;
+        document.getElementById("progressBar").style.width = `${pct}%`;
+
+        const list = document.getElementById("mealsList");
+        if (!data.meals || data.meals.length === 0) {
+          list.innerHTML = '<div class="text-xs text-slate-500 text-center py-6">אין ארוחות מתועדות להיום</div>';
+          return;
+        }
+
+        list.innerHTML = data.meals.map(m => `
+          <div class="bg-slate-800/60 p-3 rounded-xl flex justify-between items-center border border-slate-800">
+            <div>
+              <div class="font-medium text-sm text-slate-200">${m.description}</div>
+              <div class="text-xs text-slate-500">${m.time}</div>
+            </div>
+            <div class="text-left">
+              <div class="text-sm font-bold text-amber-400">${m.calories} קק"ל</div>
+              <div class="text-xs text-emerald-400">${Math.round(m.protein_g)}g חלבון</div>
+            </div>
+          </div>
+        `).join("");
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadData();
+    setInterval(loadData, 10000); // עדכון חי כל 10 שניות
+  </script>
+</body>
+</html>
