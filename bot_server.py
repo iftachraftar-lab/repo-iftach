@@ -3,7 +3,7 @@ from datetime import date, datetime
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from telegram import Update
@@ -23,44 +23,35 @@ load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+APP_PASSWORD = os.getenv("APP_PASSWORD", "080413")  # הסיסמה לכניסה ל-PWA
 
 ai_client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
-# אתחול בטוח של Firestore
 try:
     db = firestore.Client()
 except Exception as e:
     print(f"Firestore init warning: {e}")
     db = None
 
-def get_today_target() -> int:
+def get_today_target(user_id: str = "default_user") -> int:
     if not db:
         return 1800
     try:
         today = str(date.today())
-        doc = db.collection("daily_targets").document(today).get()
+        doc = db.collection("users").document(user_id).collection("daily_targets").document(today).get()
         if doc.exists:
             return doc.to_dict().get("target_calories", 1800)
     except Exception as e:
         print(f"Error reading target: {e}")
     return 1800
 
-def set_today_target(calories: int):
-    if not db:
-        return
-    try:
-        today = str(date.today())
-        db.collection("daily_targets").document(today).set({"target_calories": calories})
-    except Exception as e:
-        print(f"Error setting target: {e}")
-
-def log_meal_db(description: str, calories: int, protein: float):
+def log_meal_db(description: str, calories: int, protein: float, user_id: str = "default_user"):
     if not db:
         return
     try:
         today = str(date.today())
         now_time = datetime.now().strftime("%H:%M")
-        db.collection("meals").add({
+        db.collection("users").document(user_id).collection("meals").add({
             "log_date": today,
             "log_time": now_time,
             "description": description,
@@ -71,7 +62,7 @@ def log_meal_db(description: str, calories: int, protein: float):
     except Exception as e:
         print(f"Error logging meal: {e}")
 
-def get_today_summary():
+def get_today_summary(user_id: str = "default_user"):
     today = str(date.today())
     total_cal = 0
     total_prot = 0.0
@@ -79,7 +70,7 @@ def get_today_summary():
     
     if db:
         try:
-            meals_ref = db.collection("meals").where("log_date", "==", today).stream()
+            meals_ref = db.collection("users").document(user_id).collection("meals").where("log_date", "==", today).stream()
             for m in meals_ref:
                 data = m.to_dict()
                 total_cal += data.get("calories", 0)
@@ -93,7 +84,7 @@ def get_today_summary():
         except Exception as e:
             print(f"Error reading summary: {e}")
             
-    target = get_today_target()
+    target = get_today_target(user_id)
     remaining = target - total_cal
     return total_cal, total_prot, target, remaining, meals_list
 
@@ -125,19 +116,21 @@ tg_app = ApplicationBuilder().token(BOT_TOKEN).build() if BOT_TOKEN else None
 
 if tg_app:
     async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text("היי! הבוט מחובר דרך Cloud Run 🚀\nשלח מה אכלת או השתמש ב-/status.")
+        await update.message.reply_text("היי! הבוט מחובר ומסונכרן עם ה-PWA 🚀\nשלח מה אכלת כדי לעדכן.")
 
     async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        cal, prot, target, rem, _ = get_today_summary()
+        user_id = str(update.effective_user.id)
+        cal, prot, target, rem, _ = get_today_summary(user_id)
         await update.message.reply_text(f"📊 צרכת: {cal}/{target} קק\"ל ({prot:.0f}g חלבון)\nנשאר: {rem} קק\"ל")
 
     async def text_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = str(update.effective_user.id)
         res = analyze_meal(update.message.text)
         if not res.is_meal:
             await update.message.reply_text("לא זיהיתי ארוחה. נסה שוב.")
             return
-        log_meal_db(res.summary, res.calories, res.protein_g)
-        _, _, target, rem, _ = get_today_summary()
+        log_meal_db(res.summary, res.calories, res.protein_g, user_id=user_id)
+        _, _, target, rem, _ = get_today_summary(user_id)
         await update.message.reply_text(
             f"✅ נרשם: {res.summary}\n🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n💰 נותר להיום: {rem}/{target} קק\"ל"
         )
@@ -170,8 +163,13 @@ def serve_pwa():
     return {"status": "ok", "bot_configured": tg_app is not None}
 
 @app.get("/api/today")
-def api_today():
-    cal, prot, target, rem, meals = get_today_summary()
+def api_today(x_app_password: str = Header(None, alias="X-App-Password"), user_id: str = "default_user"):
+    # אימות סיסמה
+    if x_app_password != APP_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    # שליפת נתונים
+    cal, prot, target, rem, meals = get_today_summary(user_id)
     return {
         "total_calories": cal,
         "total_protein": prot,
