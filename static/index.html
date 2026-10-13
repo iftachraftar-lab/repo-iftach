@@ -38,9 +38,14 @@
         <h1 class="text-xl font-bold text-emerald-400">מעקב תזונה יומי</h1>
         <span id="currentDate" class="text-xs text-slate-400"></span>
       </div>
-      <button onclick="logout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">
-        נעילה 🔒
-      </button>
+      <div class="flex space-x-2">
+        <button onclick="showHistory()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">
+          היסטוריה 📅
+        </button>
+        <button onclick="logout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">
+          נעילה 🔒
+        </button>
+      </div>
     </header>
 
     <!-- קוביות מדדים -->
@@ -79,6 +84,22 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- היסטוריית ימים -->
+  <div id="historyDashboard" class="max-w-md mx-auto p-4 space-y-4 hidden">
+    <header class="flex justify-between items-center py-2 border-b border-slate-800">
+      <div>
+        <h1 class="text-xl font-bold text-emerald-400">היסטוריית תזונה</h1>
+        <span class="text-xs text-slate-400">צפה בנתונים היסטוריים</span>
+      </div>
+      <button onclick="showMainDashboard()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">
+        חזור למגש הכלים
+      </button>
+    </header>
+    <div id="historyList" class="space-y-4">
+      <div class="text-xs text-slate-500 text-center py-6">טוען נתונים היסטוריים...</div>
+    </div>
   </div>
 
   <script>
@@ -137,9 +158,14 @@
               <div class="font-medium text-sm text-slate-200">${m.description}</div>
               <div class="text-xs text-slate-500">${m.time}</div>
             </div>
-            <div class="text-left">
-              <div class="text-sm font-bold text-amber-400">${m.calories} קק"ל</div>
-              <div class="text-xs text-emerald-400">${Math.round(m.protein_g)}g חלבון</div>
+            <div class="text-left flex items-center space-x-2">
+              <div>
+                <div class="text-sm font-bold text-amber-400">${m.calories} קק"ל</div>
+                <div class="text-xs text-emerald-400">${Math.round(m.protein_g)}g חלבון</div>
+              </div>
+              <button onclick="deleteMeal('${m.id}')" class="text-xs text-rose-400 hover:text-rose-500 p-1 rounded-full">
+                🗑️
+              </button>
             </div>
           </div>
         `).join("");
@@ -168,6 +194,135 @@
       savedPass = null;
       document.getElementById("passInput").value = "";
       showLogin(false);
+    }
+
+    async function loadHistoryData() {
+        const pass = getPassword();
+        if (!pass) {
+            showLogin();
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/history", {
+                headers: { "X-App-Password": pass }
+            });
+
+            if (res.status === 401) {
+                showLogin(true);
+                return;
+            }
+
+            const data = await res.json();
+            const historyList = document.getElementById("historyList");
+            historyList.innerHTML = ""; // Clear previous content
+
+            if (!data.history || data.history.length === 0) {
+                historyList.innerHTML = '<div class="text-xs text-slate-500 text-center py-6">אין נתונים היסטוריים</div>';
+                return;
+            }
+
+            // Group data by date
+            const groupedByDate = data.history.reduce((acc, item) => {
+                const date = new Date(item.date).toLocaleDateString("he-IL", {
+                    year: 'numeric',
+                    month: 'numeric',
+                    day: 'numeric'
+                });
+                if (!acc[date]) {
+                    acc[date] = [];
+                }
+                acc[date].push(item);
+                return acc;
+            }, {});
+
+            for (const date in groupedByDate) {
+                const dayData = groupedByDate[date];
+                const totalCalories = dayData.reduce((sum, item) => sum + item.total_calories, 0);
+                const totalProtein = dayData.reduce((sum, item) => sum + item.total_protein, 0);
+
+                historyList.innerHTML += `
+                    <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/50">
+                        <div class="text-sm font-bold text-emerald-400 mb-2">${date}</div>
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <div class="text-xs text-slate-400">קלוריות כולל</div>
+                                <div class="text-xl font-black mt-1 text-white">${totalCalories}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-slate-400">חלבון כולל</div>
+                                <div class="text-xl font-black mt-1 text-emerald-400">${Math.round(totalProtein)}g</div>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            ${dayData.map(meal => `
+                                <div class="bg-slate-700/60 p-3 rounded-xl flex justify-between items-center border border-slate-700">
+                                    <div>
+                                        <div class="font-medium text-sm text-slate-200">${meal.description}</div>
+                                        <div class="text-xs text-slate-500">${new Date(meal.time).toLocaleTimeString("he-IL", { hour: '2-digit', minute: '2-digit' })}</div>
+                                    </div>
+                                    <div class="text-left">
+                                        <div class="text-sm font-bold text-amber-400">${meal.calories} קק"ל</div>
+                                        <div class="text-xs text-emerald-400">${Math.round(meal.protein_g)}g חלבון</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+        } catch (err) {
+            console.error("Fetch history error:", err);
+            historyList.innerHTML = '<div class="text-xs text-rose-400 text-center py-6">שגיאה בטעינת היסטוריה</div>';
+        }
+    }
+
+    function showHistory() {
+      document.getElementById("mainDashboard").classList.add("hidden");
+      document.getElementById("historyDashboard").classList.remove("hidden");
+      loadHistoryData(); // Load history data when showing the history dashboard
+    }
+
+    function showMainDashboard() {
+      document.getElementById("historyDashboard").classList.add("hidden");
+      document.getElementById("mainDashboard").classList.remove("hidden");
+      loadData(); // Reload today's data when returning to the main dashboard
+    }
+
+    async function deleteMeal(mealId) {
+        if (!confirm("האם אתה בטוח שברצונך למחוק ארוחה זו?")) {
+            return;
+        }
+
+        const pass = getPassword();
+        if (!pass) {
+            showLogin();
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/meal/${mealId}`, {
+                method: 'DELETE',
+                headers: { "X-App-Password": pass }
+            });
+
+            if (res.status === 401) {
+                showLogin(true);
+                return;
+            }
+
+            if (res.ok) {
+                console.log(`Meal ${mealId} deleted successfully.`);
+                loadData(); // Refresh the meals list after deletion
+            } else {
+                console.error("Failed to delete meal:", await res.text());
+                alert("שגיאה במחיקת הארוחה.");
+            }
+        } catch (err) {
+            console.error("Delete meal error:", err);
+            alert("שגיאה בתקשורת עם השרת.");
+        }
     }
 
     if (savedPass) {
