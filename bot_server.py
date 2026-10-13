@@ -23,35 +23,42 @@ load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-APP_PASSWORD = os.getenv("APP_PASSWORD", "080413")  # הסיסמה לכניסה ל-PWA
+APP_PASSWORD = os.getenv("APP_PASSWORD", "1234")
+
+PROJECT_ID = "august-balancer-488508-k9"
 
 ai_client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
+# אתחול מפורש של Firestore עם הפרויקט ובסיס הנתונים (default)
 try:
-    db = firestore.Client()
+    db = firestore.Client(project=PROJECT_ID, database="(default)")
+    print(f"Firestore initialized successfully for project: {PROJECT_ID}")
 except Exception as e:
-    print(f"Firestore init warning: {e}")
+    print(f"CRITICAL: Firestore initialization failed: {e}")
     db = None
 
-def get_today_target(user_id: str = "default_user") -> int:
+def get_today_target() -> int:
     if not db:
+        print("WARN get_today_target: db client is None")
         return 1800
     try:
         today = str(date.today())
-        doc = db.collection("users").document(user_id).collection("daily_targets").document(today).get()
+        doc = db.collection("daily_targets").document(today).get()
         if doc.exists:
-            return doc.to_dict().get("target_calories", 1800)
+            val = doc.to_dict().get("target_calories", 1800)
+            return val
     except Exception as e:
-        print(f"Error reading target: {e}")
+        print(f"ERROR get_today_target: {type(e).__name__} - {e}")
     return 1800
 
-def log_meal_db(description: str, calories: int, protein: float, user_id: str = "default_user"):
+def log_meal_db(description: str, calories: int, protein: float):
     if not db:
+        print("ERROR log_meal_db: db client is None")
         return
     try:
         today = str(date.today())
         now_time = datetime.now().strftime("%H:%M")
-        db.collection("users").document(user_id).collection("meals").add({
+        update_time, doc_ref = db.collection("meals").add({
             "log_date": today,
             "log_time": now_time,
             "description": description,
@@ -59,10 +66,11 @@ def log_meal_db(description: str, calories: int, protein: float, user_id: str = 
             "protein_g": protein,
             "created_at": firestore.SERVER_TIMESTAMP
         })
+        print(f"SUCCESS: Logged meal '{description}' with doc ID: {doc_ref.id}")
     except Exception as e:
-        print(f"Error logging meal: {e}")
+        print(f"ERROR log_meal_db: {type(e).__name__} - {e}")
 
-def get_today_summary(user_id: str = "default_user"):
+def get_today_summary():
     today = str(date.today())
     total_cal = 0
     total_prot = 0.0
@@ -70,21 +78,26 @@ def get_today_summary(user_id: str = "default_user"):
     
     if db:
         try:
-            meals_ref = db.collection("users").document(user_id).collection("meals").where("log_date", "==", today).stream()
+            meals_ref = db.collection("meals").where("log_date", "==", today).stream()
             for m in meals_ref:
                 data = m.to_dict()
-                total_cal += data.get("calories", 0)
-                total_prot += data.get("protein_g", 0.0)
+                c = data.get("calories", 0)
+                p = data.get("protein_g", 0.0)
+                total_cal += c
+                total_prot += p
                 meals_list.append({
                     "description": data.get("description", ""),
-                    "calories": data.get("calories", 0),
-                    "protein_g": data.get("protein_g", 0.0),
+                    "calories": c,
+                    "protein_g": p,
                     "time": data.get("log_time", "")
                 })
+            print(f"DEBUG: Retrieved {len(meals_list)} meals for {today}. Total cal: {total_cal}")
         except Exception as e:
-            print(f"Error reading summary: {e}")
+            print(f"ERROR get_today_summary: {type(e).__name__} - {e}")
+    else:
+        print("WARN get_today_summary: db client is None")
             
-    target = get_today_target(user_id)
+    target = get_today_target()
     remaining = target - total_cal
     return total_cal, total_prot, target, remaining, meals_list
 
@@ -109,7 +122,7 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
         )
         return NutritionExtraction.model_validate_json(response.text)
     except Exception as e:
-        print(f"AI error: {e}")
+        print(f"ERROR analyze_meal: {type(e).__name__} - {e}")
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Analysis error")
 
 tg_app = ApplicationBuilder().token(BOT_TOKEN).build() if BOT_TOKEN else None
@@ -119,20 +132,20 @@ if tg_app:
         await update.message.reply_text("היי! הבוט מחובר ומסונכרן עם ה-PWA 🚀\nשלח מה אכלת כדי לעדכן.")
 
     async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = str(update.effective_user.id)
-        cal, prot, target, rem, _ = get_today_summary(user_id)
+        cal, prot, target, rem, _ = get_today_summary()
         await update.message.reply_text(f"📊 צרכת: {cal}/{target} קק\"ל ({prot:.0f}g חלבון)\nנשאר: {rem} קק\"ל")
 
     async def text_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = str(update.effective_user.id)
         res = analyze_meal(update.message.text)
         if not res.is_meal:
             await update.message.reply_text("לא זיהיתי ארוחה. נסה שוב.")
             return
-        log_meal_db(res.summary, res.calories, res.protein_g, user_id=user_id)
-        _, _, target, rem, _ = get_today_summary(user_id)
+        
+        log_meal_db(res.summary, res.calories, res.protein_g)
+        total_cal, _, target, rem, _ = get_today_summary()
+        
         await update.message.reply_text(
-            f"✅ נרשם: {res.summary}\n🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n💰 נותר להיום: {rem}/{target} קק\"ל"
+            f"✅ נרשם: {res.summary}\n🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n💰 נותר להיום: {rem}/{target} קק\"ל (סה\"כ נצרך: {total_cal})"
         )
 
     tg_app.add_handler(CommandHandler("start", start_cmd))
@@ -163,13 +176,11 @@ def serve_pwa():
     return {"status": "ok", "bot_configured": tg_app is not None}
 
 @app.get("/api/today")
-def api_today(x_app_password: str = Header(None, alias="X-App-Password"), user_id: str = "default_user"):
-    # אימות סיסמה
+def api_today(x_app_password: str = Header(None, alias="X-App-Password")):
     if x_app_password != APP_PASSWORD:
         raise HTTPException(status_code=401, detail="Unauthorized")
     
-    # שליפת נתונים
-    cal, prot, target, rem, meals = get_today_summary(user_id)
+    cal, prot, target, rem, meals = get_today_summary()
     return {
         "total_calories": cal,
         "total_protein": prot,
