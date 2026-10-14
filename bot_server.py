@@ -113,7 +113,7 @@ class NutritionExtraction(BaseModel):
 def analyze_meal(user_text: str) -> NutritionExtraction:
     if not ai_client:
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API Key missing")
-            prompt = f"המשתמש דיווח: \'{user_text}\'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך. הערך קלוריות וחלבון במדויק לישראל. אם זה משהו שאין לו ערך תזונתי, סמן is_meal=False."
+        prompt = f"המשתמש דיווח: \'{user_text}\'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך. הערך קלוריות וחלבון במדויק לישראל. אם זה משהו שאין לו ערך תזונתי, סמן is_meal=False."
     try:
         response = ai_client.models.generate_content(
             model="gemini-2.5-flash",
