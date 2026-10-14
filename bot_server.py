@@ -69,7 +69,7 @@ def log_meal_db(description: str, calories: int, protein: float):
             "protein_g": protein,
             "created_at": firestore.SERVER_TIMESTAMP
         })
-        print(f"SUCCESS: Logged meal \'{description}\' with doc ID: {doc_ref.id}")
+        print(f"SUCCESS: Logged meal '{description}' with doc ID: {doc_ref.id}")
     except Exception as e:
         print(f"ERROR log_meal_db: {type(e).__name__} - {e}")
 
@@ -113,10 +113,10 @@ class NutritionExtraction(BaseModel):
 def analyze_meal(user_text: str) -> NutritionExtraction:
     if not ai_client:
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API Key missing")
-        prompt = f"""המשתמש דיווח: \'{user_text}\'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך.
-        חשוב מאוד: קפה, קפוצ\'ינו, וכל משקאות החלב/שתייה הם פריטי צריכה תקפים לחלוטין וחייבים לקבל is_meal: true.
-        דוגמאות: "הפוך קטן", "קפוצ'ינו", "נס קפה", "אמריקנו עם חלב".
-        הערך קלוריות וחלבון במדויק לישראל. עבור הפוך קטן/קפוצ\'ינו ישראלי סטנדרטי, הערך כ-70-90 קק\"ל וכ-3-4 גרם חלבון (תלוי בחלב).
+    prompt = f"""המשתמש דיווח: \'{user_text}\'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך.
+        חשוב מאוד: קפה, קפוצ\'ינו, וכל משקאות החלב/שתייה הם פריטי צריכה תקפים לחלוטין. עבור פריטים אלו, הציבו תמיד is_meal: true.
+        דוגמאות לשתיה וקפה שחייבים לקבל is_meal: true: "הפוך קטן", "קפוצ\'ינו", "נס קפה", "אמריקנו עם חלב".
+        הערך קלוריות וחלבון במדויק לישראל. עבור הפוך קטן/קפוצ\'ינו ישראלי סטנדרטי, הערך כ-70-90 קק\"ל וכ-3-4 גרם חלבון (תלוי בחלב).\r
         אם זה משהו שאין לו ערך תזונתי, סמן is_meal=False."""
     try:
         response = ai_client.models.generate_content(
@@ -141,7 +141,7 @@ if tg_app:
 
     async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cal, prot, target, rem, _ = get_today_summary()
-        await update.message.reply_text(f"📊 צרכת: {cal}/{target} קק\\\"ל ({prot:.0f}g חלבון)\nנשאר: {rem} קק\\\"ל")
+        await update.message.reply_text(f"📊 צרכת: {cal}/{target} קק\\\\"ל ({prot:.0f}g חלבון)\nנשאר: {rem} קק\\\\"ל")
 
     async def text_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res = analyze_meal(update.message.text)
@@ -153,7 +153,7 @@ if tg_app:
         total_cal, _, target, rem, _ = get_today_summary()
         
         await update.message.reply_text(
-            f"✅ נרשם: {res.summary}\n🔥 +{res.calories} קק\\\"ל | 💪 +{res.protein_g:.0f}g חלבון\n💰 נותר להיום: {rem}/{target} קק\\\"ל (סה\\\"כ נצרך: {total_cal})"
+            f"✅ נרשם: {res.summary}\n🔥 +{res.calories} קק\\\\"ל | 💪 +{res.protein_g:.0f}g חלבון\n💰 נותר להיום: {rem}/{target} קק\\\\"ל (סה\\\\"כ נצרך: {total_cal})"
         )
 
     tg_app.add_handler(CommandHandler("start", start_cmd))
