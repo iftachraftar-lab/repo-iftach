@@ -113,7 +113,11 @@ class NutritionExtraction(BaseModel):
 def analyze_meal(user_text: str) -> NutritionExtraction:
     if not ai_client:
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API Key missing")
-        prompt = f"המשתמש דיווח: \'{user_text}\'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך. הערך קלוריות וחלבון במדויק לישראל. אם זה משהו שאין לו ערך תזונתי, סמן is_meal=False."
+        prompt = f"""המשתמש דיווח: \'{user_text}\'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך.
+        חשוב מאוד: קפה, קפוצ\'ינו, וכל משקאות החלב/שתייה הם פריטי צריכה תקפים לחלוטין וחייבים לקבל is_meal: true.
+        דוגמאות: "הפוך קטן", "קפוצ'ינו", "נס קפה", "אמריקנו עם חלב".
+        הערך קלוריות וחלבון במדויק לישראל. עבור הפוך קטן/קפוצ\'ינו ישראלי סטנדרטי, הערך כ-70-90 קק\"ל וכ-3-4 גרם חלבון (תלוי בחלב).
+        אם זה משהו שאין לו ערך תזונתי, סמן is_meal=False."""
     try:
         response = ai_client.models.generate_content(
             model="gemini-2.5-flash",
@@ -123,6 +127,7 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
                 response_schema=NutritionExtraction,
             )
         )
+        print(f"DEBUG: AI raw response: {response.text}")
         return NutritionExtraction.model_validate_json(response.text)
     except Exception as e:
         print(f"ERROR analyze_meal: {type(e).__name__} - {e}")
