@@ -1,341 +1,441 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>מעקב תזונה אישי</title>
-  <link rel="manifest" href="/static/manifest.json">
-  <meta name="theme-color" content="#10b981">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת מעקב תזונה</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Arial Hebrew', sans-serif;
+            direction: rtl;
+            text-align: right;
+        }
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans pb-10">
+<body class="bg-gray-50 flex flex-col min-h-screen" x-data="app()" x-init="init()">
 
-  <!-- מסך נעילה -->
-  <div id="loginScreen" class="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 z-50">
-    <div class="w-full max-w-xs space-y-4 text-center">
-      <div class="text-4xl mb-2">🔒</div>
-      <h2 class="text-xl font-bold text-white">אפליקציה פרטית</h2>
-      <p class="text-xs text-slate-400">הזן קוד גישה כדי להתחבר ליומן התזונה שלך</p>
-      
-      <input type="password" id="passInput" placeholder="הזן קוד גישה" 
-             class="w-full text-center tracking-widest text-lg bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500">
-      
-      <button onclick="handleLogin()" 
-              class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 font-semibold py-3 rounded-xl transition">
-        כניסה
-      </button>
-      <div id="loginError" class="text-xs text-rose-400 hidden">קוד שגוי, נסה שוב</div>
-    </div>
-  </div>
-
-  <!-- דשבורד ראשי -->
-  <div id="mainDashboard" class="max-w-md mx-auto p-4 space-y-4 hidden">
-    
-    <header class="flex justify-between items-center py-2 border-b border-slate-800">
-      <div>
-        <h1 class="text-xl font-bold text-emerald-400">מעקב תזונה יומי</h1>
-        <span id="currentDate" class="text-xs text-slate-400"></span>
-      </div>
-      <div class="flex space-x-2">
-        <button onclick="showHistory()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">
-          היסטוריה 📅
-        </button>
-        <button onclick="logout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">
-          נעילה 🔒
-        </button>
-      </div>
-    </header>
-
-    <!-- קוביות מדדים -->
-    <div class="grid grid-cols-2 gap-3">
-      <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/50">
-        <div class="text-xs text-slate-400">קלוריות שנצרכו</div>
-        <div class="text-2xl font-black mt-1 text-white" id="calConsumed">0</div>
-        <div class="text-xs text-slate-400 mt-1" id="calRemaining">יעד: 1800</div>
-      </div>
-      <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/50">
-        <div class="text-xs text-slate-400">חלבון כולל</div>
-        <div class="text-2xl font-black mt-1 text-emerald-400" id="proteinConsumed">0g</div>
-        <div class="text-xs text-slate-400 mt-1">מטרה יומית</div>
-      </div>
+    <!-- Mobile bottom navigation (visible on small screens) -->
+    <div class="fixed inset-x-0 bottom-0 bg-white shadow-lg md:hidden z-50">
+        <div class="flex justify-around text-gray-600 border-t border-gray-200">
+            <button @click="activeTab = 'summary'" :class="{'text-blue-600 border-blue-600': activeTab === 'summary', 'border-transparent': activeTab !== 'summary'}" class="flex-1 py-3 flex flex-col items-center text-sm border-t-2">
+                <i data-lucide="home" class="w-5 h-5"></i>
+                <span>סיכום יומי</span>
+            </button>
+            <button @click="activeTab = 'history'" :class="{'text-blue-600 border-blue-600': activeTab === 'history', 'border-transparent': activeTab !== 'history'}" class="flex-1 py-3 flex flex-col items-center text-sm border-t-2">
+                <i data-lucide="history" class="w-5 h-5"></i>
+                <span>היסטוריה</span>
+            </button>
+            <button @click="activeTab = 'recommendations'" :class="{'text-blue-600 border-blue-600': activeTab === 'recommendations', 'border-transparent': activeTab !== 'recommendations'}" class="flex-1 py-3 flex flex-col items-center text-sm border-t-2">
+                <i data-lucide="chef-hat" class="w-5 h-5"></i>
+                <span>מתכונים</span>
+            </button>
+        </div>
     </div>
 
-    <!-- סרגל התקדמות -->
-    <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700/50 space-y-2">
-      <div class="flex justify-between text-xs text-slate-400">
-        <span>התקדמות יומית</span>
-        <span id="percentText">0%</span>
-      </div>
-      <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
-        <div id="progressBar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
-      </div>
-    </div>
+    <div class="flex-1 flex flex-col md:flex-row">
+        <!-- Desktop Sidebar (visible on medium and large screens) -->
+        <aside class="hidden md:block w-64 bg-white shadow-md p-6 sticky top-0 h-screen">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">NutriTrack</h2>
+            <nav>
+                <ul>
+                    <li class="mb-4">
+                        <button @click="activeTab = 'summary'" :class="{'bg-blue-100 text-blue-700': activeTab === 'summary'}" class="w-full flex items-center p-3 rounded-lg text-lg hover:bg-gray-100 transition-colors duration-200">
+                            <i data-lucide="home" class="ml-3"></i>
+                            <span>סיכום יומי</span>
+                        </button>
+                    </li>
+                    <li class="mb-4">
+                        <button @click="activeTab = 'history'" :class="{'bg-blue-100 text-blue-700': activeTab === 'history'}" class="w-full flex items-center p-3 rounded-lg text-lg hover:bg-gray-100 transition-colors duration-200">
+                            <i data-lucide="history" class="ml-3"></i>
+                            <span>היסטוריה</span>
+                        </button>
+                    </li>
+                    <li class="mb-4">
+                        <button @click="activeTab = 'recommendations'" :class="{'bg-blue-100 text-blue-700': activeTab === 'recommendations'}" class="w-full flex items-center p-3 rounded-lg text-lg hover:bg-gray-100 transition-colors duration-200">
+                            <i data-lucide="chef-hat" class="ml-3"></i>
+                            <span>מתכונים והמלצות</span>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
 
-    <!-- רשימת ארוחות -->
-    <div class="space-y-2">
-      <div class="flex justify-between items-center">
-        <h2 class="text-sm font-semibold text-slate-300">ארוחות היום</h2>
-        <button onclick="loadData()" class="text-xs text-emerald-400 hover:underline">רענן ↻</button>
-      </div>
-      <div id="mealsList" class="space-y-2">
-        <div class="text-xs text-slate-500 text-center py-6">טוען נתונים...</div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- היסטוריית ימים -->
-  <div id="historyDashboard" class="max-w-md mx-auto p-4 space-y-4 hidden">
-    <header class="flex justify-between items-center py-2 border-b border-slate-800">
-      <div>
-        <h1 class="text-xl font-bold text-emerald-400">היסטוריית תזונה</h1>
-        <span class="text-xs text-slate-400">צפה בנתונים היסטוריים</span>
-      </div>
-      <button onclick="showMainDashboard()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">
-        חזור למגש הכלים
-      </button>
-    </header>
-    <div id="historyList" class="space-y-4">
-      <div class="text-xs text-slate-500 text-center py-6">טוען נתונים היסטוריים...</div>
-    </div>
-  </div>
-
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/static/sw.js");
-    }
-
-    document.getElementById("currentDate").innerText = new Date().toLocaleDateString("he-IL");
-
-    let savedPass = localStorage.getItem("app_password");
-
-    function getPassword() {
-      return savedPass || document.getElementById("passInput").value;
-    }
-
-    async function loadData() {
-      const pass = getPassword();
-      if (!pass) {
-        showLogin();
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/today", {
-          headers: { "X-App-Password": pass }
-        });
-
-        if (res.status === 401) {
-          showLogin(true);
-          return;
-        }
-
-        const data = await res.json();
-        
-        localStorage.setItem("app_password", pass);
-        document.getElementById("loginScreen").classList.add("hidden");
-        document.getElementById("mainDashboard").classList.remove("hidden");
-
-        document.getElementById("calConsumed").innerText = data.total_calories;
-        document.getElementById("calRemaining").innerText = `נותר: ${data.remaining} מתוך ${data.target}`;
-        document.getElementById("proteinConsumed").innerText = `${Math.round(data.total_protein)}g`;
-
-        const pct = Math.min(100, Math.round((data.total_calories / data.target) * 100));
-        document.getElementById("percentText").innerText = `${pct}%`;
-        document.getElementById("progressBar").style.width = `${pct}%`;
-
-        const list = document.getElementById("mealsList");
-        if (!data.meals || data.meals.length === 0) {
-          list.innerHTML = '<div class="text-xs text-slate-500 text-center py-6">אין ארוחות מתועדות להיום</div>';
-          return;
-        }
-
-        list.innerHTML = data.meals.map(m => `
-          <div class="bg-slate-800/60 p-3 rounded-xl flex justify-between items-center border border-slate-800">
-            <div>
-              <div class="font-medium text-sm text-slate-200">${m.description}</div>
-              <div class="text-xs text-slate-500">${m.time}</div>
-            </div>
-            <div class="text-left flex items-center space-x-2">
-              <div>
-                <div class="text-sm font-bold text-amber-400">${m.calories} קק"ל</div>
-                <div class="text-xs text-emerald-400">${Math.round(m.protein_g)}g חלבון</div>
-              </div>
-              <button onclick="deleteMeal('${m.id}')" class="text-xs text-rose-400 hover:text-rose-500 p-1 rounded-full">
-                🗑️
-              </button>
-            </div>
-          </div>
-        `).join("");
-      } catch (err) {
-        console.error("Fetch error:", err);
-      }
-    }
-
-    function showLogin(isError = false) {
-      document.getElementById("loginScreen").classList.remove("hidden");
-      document.getElementById("mainDashboard").classList.add("hidden");
-      if (isError) {
-        document.getElementById("loginError").classList.remove("hidden");
-        localStorage.removeItem("app_password");
-        savedPass = null;
-      }
-    }
-
-    function handleLogin() {
-      savedPass = document.getElementById("passInput").value;
-      loadData();
-    }
-
-    function logout() {
-      localStorage.removeItem("app_password");
-      savedPass = null;
-      document.getElementById("passInput").value = "";
-      showLogin(false);
-    }
-
-    async function loadHistoryData() {
-        const pass = getPassword();
-        if (!pass) {
-            showLogin();
-            return;
-        }
-
-        try {
-            const res = await fetch("/api/history", {
-                headers: { "X-App-Password": pass }
-            });
-
-            if (res.status === 401) {
-                showLogin(true);
-                return;
-            }
-
-            const data = await res.json();
-            const historyList = document.getElementById("historyList");
-            historyList.innerHTML = ""; // Clear previous content
-
-            if (!data.history || data.history.length === 0) {
-                historyList.innerHTML = '<div class="text-xs text-slate-500 text-center py-6">אין נתונים היסטוריים</div>';
-                return;
-            }
-
-            // Group data by date
-            const groupedByDate = data.history.reduce((acc, item) => {
-                const date = new Date(item.date).toLocaleDateString("he-IL", {
-                    year: 'numeric',
-                    month: 'numeric',
-                    day: 'numeric'
-                });
-                if (!acc[date]) {
-                    acc[date] = [];
-                }
-                acc[date].push(item);
-                return acc;
-            }, {});
-
-            for (const date in groupedByDate) {
-                const dayData = groupedByDate[date];
-                const totalCalories = dayData.reduce((sum, item) => sum + item.total_calories, 0);
-                const totalProtein = dayData.reduce((sum, item) => sum + item.total_protein, 0);
-
-                historyList.innerHTML += `
-                    <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/50">
-                        <div class="text-sm font-bold text-emerald-400 mb-2">${date}</div>
-                        <div class="grid grid-cols-2 gap-3 mb-4">
-                            <div>
-                                <div class="text-xs text-slate-400">קלוריות כולל</div>
-                                <div class="text-xl font-black mt-1 text-white">${totalCalories}</div>
+        <!-- Main Content Area -->
+        <main class="flex-1 p-4 md:p-8 pb-20 md:pb-4">
+            <!-- Header - Daily Summary -->
+            <template x-if="activeTab === 'summary'">
+                <section class="mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-6">סיכום יומי</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        <!-- Calorie Tracker Card -->
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">קלוריות היום</h3>
+                            <div class="flex items-center mb-2">
+                                <span class="text-4xl font-bold text-blue-600" x-text="totalCalories"></span>
+                                <span class="text-xl text-gray-500 mr-2"> / <span x-text="dailyTargetCalories"></span> קק"ל</span>
                             </div>
-                            <div>
-                                <div class="text-xs text-slate-400">חלבון כולל</div>
-                                <div class="text-xl font-black mt-1 text-emerald-400">${Math.round(totalProtein)}g</div>
+                            <div class="w-full bg-gray-200 rounded-full h-4 relative">
+                                <div class="bg-blue-500 h-4 rounded-full" :style="`width: ${Math.min(100, (totalCalories / dailyTargetCalories) * 100)}%;`"></div>
+                                <span class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-white"
+                                      x-text="`${Math.min(100, Math.round((totalCalories / dailyTargetCalories) * 100))}%`"></span>
                             </div>
+                            <p class="text-sm text-gray-500 mt-2" x-text="`נותרו: ${Math.max(0, dailyTargetCalories - totalCalories)} קק\"ל`"></p>
                         </div>
-                        <div class="space-y-2">
-                            ${dayData.map(meal => `
-                                <div class="bg-slate-700/60 p-3 rounded-xl flex justify-between items-center border border-slate-700">
-                                    <div>
-                                        <div class="font-medium text-sm text-slate-200">${meal.description}</div>
-                                        <div class="text-xs text-slate-500">${new Date(meal.time).toLocaleTimeString("he-IL", { hour: '2-digit', minute: '2-digit' })}</div>
-                                    </div>
-                                    <div class="text-left">
-                                        <div class="text-sm font-bold text-amber-400">${meal.calories} קק"ל</div>
-                                        <div class="text-xs text-emerald-400">${Math.round(meal.protein_g)}g חלבון</div>
-                                    </div>
-                                </div>
-                            `).join('')}
+
+                        <!-- Protein Tracker Card -->
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">חלבון היום</h3>
+                            <div class="flex items-center mb-2">
+                                <span class="text-4xl font-bold text-green-600" x-text="totalProtein.toFixed(0)"></span>
+                                <span class="text-xl text-gray-500 mr-2"> גרם</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-4">
+                                <div class="bg-green-500 h-4 rounded-full" :style="`width: ${Math.min(100, (totalProtein / 100) * 100)}%;`"></div> <!-- Assuming a generic 100g protein goal for visualization -->
+                            </div>
+                            <p class="text-sm text-gray-500 mt-2">התקדמות בחלבון (יעד ויזואלי 100ג)</p>
+                        </div>
+
+                        <!-- Add Meal Button (Mobile Floating Action Button) -->
+                        <div class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-blue-600 text-white rounded-full p-4 shadow-lg md:hidden z-40" @click="openMealModal = true">
+                            <i data-lucide="plus" class="w-8 h-8"></i>
                         </div>
                     </div>
-                `;
-            }
+                    
+                    <!-- Quick Add Meal Card (Desktop) -->
+                    <div class="bg-white rounded-lg shadow p-6 mb-8 hidden md:block">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4">הוסף ארוחה מהירה</h3>
+                        <form @submit.prevent="addMeal()" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input x-model="newMeal.description" type="text" placeholder="תיאור (לדוגמה: קפה הפוך)" class="p-3 border rounded-lg w-full">
+                            <input x-model.number="newMeal.calories" type="number" placeholder="קלוריות" class="p-3 border rounded-lg w-full">
+                            <input x-model.number="newMeal.protein_g" type="number" placeholder="חלבון (גרם)" class="p-3 border rounded-lg w-full">
+                            <div class="md:col-span-3 flex justify-end">
+                                <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">הוסף ארוחה</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </template>
 
-        } catch (err) {
-            console.error("Fetch history error:", err);
-            historyList.innerHTML = '<div class="text-xs text-rose-400 text-center py-6">שגיאה בטעינת היסטוריה</div>';
+            <!-- History Tab -->
+            <template x-if="activeTab === 'history'">
+                <section x-data="{ selectedDate: new Date().toISOString().slice(0, 10) }" x-init="fetchMeals()">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-6">היסטוריית ארוחות</h1>
+                    <div class="mb-6 flex flex-col md:flex-row justify-between items-center">
+                        <input type="date" x-model="selectedDate" @change="filterMealsByDate()" class="p-3 border rounded-lg mb-4 md:mb-0">
+                        <h2 class="text-2xl font-semibold text-gray-700" x-text="formatDate(selectedDate)"></h2>
+                    </div>
+
+                    <div x-show="filteredMeals.length === 0 && !loading" class="text-gray-600 text-center py-10">
+                        <p class="text-lg">אין ארוחות מתועדות לתאריך זה.</p>
+                    </div>
+                    
+                    <div x-show="loading" class="text-center py-10">
+                        <i data-lucide="loader" class="w-10 h-10 animate-spin text-blue-500"></i>
+                        <p class="text-blue-500 mt-2">טוען ארוחות...</p>
+                    </div>
+
+                    <div x-show="filteredMeals.length > 0 && !loading" class="grid grid-cols-1 gap-4">
+                        <template x-for="meal in filteredMeals" :key="meal.id">
+                            <div class="bg-white rounded-lg shadow p-4 flex justify-between items-center">
+                                <div>
+                                    <p class="text-lg font-semibold text-gray-800" x-text="meal.description"></p>
+                                    <p class="text-sm text-gray-600" x-text="`קלוריות: ${meal.calories} | חלבון: ${meal.protein_g.toFixed(1)}g | ${meal.log_time}`"></p>
+                                </div>
+                                <button @click="confirmDelete(meal.id)" class="text-red-500 hover:text-red-700 p-2 rounded-full focus:outline-none">
+                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+            </template>
+
+            <!-- Recommendations Tab -->
+            <template x-if="activeTab === 'recommendations'">
+                <section x-init="fetchRecommendations()">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-6">המלצות יומיות (1800 קק"ל)</h1>
+
+                    <div x-show="recommendationsLoading" class="text-center py-10">
+                        <i data-lucide="loader" class="w-10 h-10 animate-spin text-blue-500"></i>
+                        <p class="text-blue-500 mt-2">טוען המלצות...</p>
+                    </div>
+
+                    <div x-show="!recommendationsLoading && dailyPlan.length === 0" class="text-gray-600 text-center py-10">
+                        <p class="text-lg">אין המלצות זמינות כרגע.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" x-show="!recommendationsLoading && dailyPlan.length > 0">
+                        <template x-for="meal in dailyPlan" :key="meal.name">
+                            <div class="bg-white rounded-lg shadow p-6">
+                                <h3 class="text-xl font-semibold text-gray-800 mb-2" x-text="meal.name"></h3>
+                                <p class="text-gray-600 mb-4" x-text="meal.description"></p>
+                                <p class="text-sm text-gray-700 mb-2"><strong>קלוריות:</strong> <span x-text="meal.calories"></span> | <strong>חלבון:</strong> <span x-text="meal.protein_g.toFixed(1)"></span>g</p>
+                                
+                                <button @click="meal.showDetails = !meal.showDetails" class="text-blue-600 hover:underline mb-4 focus:outline-none">
+                                    <span x-text="meal.showDetails ? 'הסתר פרטים' : 'הצג פרטים'"></span>
+                                </button>
+
+                                <div x-show="meal.showDetails" x-collapse.duration.300ms class="mt-4 p-4 bg-gray-50 rounded-lg">
+                                    <h4 class="font-semibold text-gray-700 mb-2">מרכיבים:</h4>
+                                    <ul class="list-disc list-inside text-gray-600 mb-4">
+                                        <template x-for="ingredient in meal.ingredients" :key="ingredient">
+                                            <li x-text="ingredient"></li>
+                                        </template>
+                                    </ul>
+                                    <h4 class="font-semibold text-gray-700 mb-2">הוראות הכנה:</h4>
+                                    <ol class="list-decimal list-inside text-gray-600">
+                                        <template x-for="step in meal.preparation_steps" :key="step">
+                                            <li x-text="step"></li>
+                                        </template>
+                                    </ol>
+                                </div>
+
+                                <button @click="logRecommendedMeal(meal)" class="mt-4 px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200">
+                                    הוסף ארוחה זו ליומן
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+            </template>
+
+            <!-- Add Meal Modal (Mobile and Desktop) -->
+            <div x-cloak x-show="openMealModal" class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-40 flex items-center justify-center" @click.self="openMealModal = false">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md m-4 md:m-0" @click.stop>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">הוסף ארוחה חדשה</h3>
+                    <form @submit.prevent="addMeal(); openMealModal = false">
+                        <div class="mb-4">
+                            <label for="meal-description" class="block text-gray-700 text-sm font-bold mb-2">תיאור</label>
+                            <input type="text" id="meal-description" x-model="newMeal.description" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="קפה הפוך, סלט ירקות וטונה...">
+                        </div>
+                        <div class="mb-4">
+                            <label for="meal-calories" class="block text-gray-700 text-sm font-bold mb-2">קלוריות</label>
+                            <input type="number" id="meal-calories" x-model.number="newMeal.calories" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="70">
+                        </div>
+                        <div class="mb-6">
+                            <label for="meal-protein" class="block text-gray-700 text-sm font-bold mb-2">חלבון (גרם)</label>
+                            <input type="number" id="meal-protein" x-model.number="newMeal.protein_g" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="3.5">
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" @click="openMealModal = false" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">ביטול</button>
+                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">הוסף ארוחה</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Delete Confirmation Modal -->
+            <div x-cloak x-show="openDeleteModal" class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-40 flex items-center justify-center" @click.self="openDeleteModal = false">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm m-4 md:m-0" @click.stop>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">אשר מחיקה</h3>
+                    <p class="text-gray-700 mb-6">האם אתה בטוח שברצונך למחוק ארוחה זו?</p>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" @click="openDeleteModal = false" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">ביטול</button>
+                        <button type="button" @click="deleteMeal(mealToDeleteId); openDeleteModal = false" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">מחק</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast Notification -->
+            <div x-show="showToast" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-md shadow-lg text-lg z-50">
+                <span x-text="toastMessage"></span>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                activeTab: 'summary',
+                totalCalories: 0,
+                totalProtein: 0,
+                dailyTargetCalories: 1800,
+                meals: [],
+                filteredMeals: [],
+                recommendations: {},
+                dailyPlan: [],
+                openMealModal: false,
+                openDeleteModal: false,
+                mealToDeleteId: null,
+                newMeal: {
+                    description: '',
+                    calories: null,
+                    protein_g: null
+                },
+                loading: true,
+                recommendationsLoading: true,
+                showToast: false,
+                toastMessage: '',
+
+                async init() {
+                    await this.fetchDailySummary();
+                    await this.fetchMeals();
+                    lucide.createIcons(); // Initialize Lucide icons
+                },
+
+                showNotification(message) {
+                    this.toastMessage = message;
+                    this.showToast = true;
+                    setTimeout(() => {
+                        this.showToast = false;
+                    }, 3000);
+                },
+
+                async fetchDailySummary() {
+                    try {
+                        // In a real app, this would fetch from a /api/summary endpoint
+                        // For now, we'll calculate from fetched meals
+                        const today = new Date().toISOString().slice(0, 10);
+                        const todayMeals = this.meals.filter(meal => meal.log_date === today);
+                        this.totalCalories = todayMeals.reduce((sum, meal) => sum + meal.calories, 0);
+                        this.totalProtein = todayMeals.reduce((sum, meal) => sum + meal.protein_g, 0);
+                    } catch (error) {
+                        console.error('Error fetching daily summary:', error);
+                        this.showNotification('שגיאה בטעינת סיכום יומי.');
+                    }
+                },
+
+                async fetchMeals() {
+                    console.log('DEBUG: fetchMeals() called'); // Added log
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/meals/');
+                        console.log('DEBUG: /api/meals/ fetch response:', response);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        this.meals = await response.json();
+                        console.log('DEBUG: /api/meals/ data:', this.meals); // Added log
+                        this.filterMealsByDate(); // Filter initially for today
+                        await this.fetchDailySummary(); // Update summary after fetching meals
+                    } catch (error) {
+                        console.error('Error fetching meals:', error);
+                        this.showNotification('שגיאה בטעינת היסטוריית ארוחות.');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                filterMealsByDate() {
+                    const date = this.selectedDate || new Date().toISOString().slice(0, 10);
+                    this.filteredMeals = this.meals.filter(meal => meal.log_date === date);
+                },
+
+                async addMeal() {
+                    if (!this.newMeal.description || !this.newMeal.calories || !this.newMeal.protein_g) {
+                        this.showNotification('אנא מלא את כל השדות.');
+                        return;
+                    }
+                    try {
+                        const response = await fetch('/api/meals/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(this.newMeal),
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const addedMeal = await response.json();
+                        this.meals.unshift(addedMeal); // Add new meal to the beginning
+                        this.newMeal = { description: '', calories: null, protein_g: null }; // Reset form
+                        this.showNotification('ארוחה נוספה בהצלחה!');
+                        this.filterMealsByDate(); // Re-filter to show new meal if for today
+                        await this.fetchDailySummary();
+                    } catch (error) {
+                        console.error('Error adding meal:', error);
+                        this.showNotification('שגיאה בהוספת ארוחה.');
+                    }
+                },
+
+                confirmDelete(mealId) {
+                    this.mealToDeleteId = mealId;
+                    this.openDeleteModal = true;
+                },
+
+                async deleteMeal(mealId) {
+                    try {
+                        const response = await fetch(`/api/meals/${mealId}`, {
+                            method: 'DELETE',
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        this.meals = this.meals.filter(meal => meal.id !== mealId);
+                        this.showNotification('ארוחה נמחקה בהצלחה!');
+                        this.filterMealsByDate(); // Re-filter to update view
+                        await this.fetchDailySummary();
+                    } catch (error) {
+                        console.error('Error deleting meal:', error);
+                        this.showNotification('שגיאה במחיקת ארוחה.');
+                    }
+                },
+
+                async fetchRecommendations() {
+                    this.recommendationsLoading = true;
+                    try {
+                        const response = await fetch('/api/meals/recommendations/daily-plan');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        this.dailyPlan = data.plan.map(meal => ({ ...meal, showDetails: false })); // Add showDetails for toggling
+                    } catch (error) {
+                        console.error('Error fetching recommendations:', error);
+                        this.showNotification('שגיאה בטעינת המלצות יומיות.');
+                    } finally {
+                        this.recommendationsLoading = false;
+                    }
+                },
+
+                async logRecommendedMeal(meal) {
+                    const { name, calories, protein_g } = meal;
+                    const mealToLog = {
+                        description: `המלצה: ${name}`,
+                        calories: calories,
+                        protein_g: protein_g,
+                    };
+                    try {
+                        const response = await fetch('/api/meals/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(mealToLog),
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const addedMeal = await response.json();
+                        this.meals.unshift(addedMeal); // Add new meal to the beginning
+                        this.showNotification(`"${name}" נוספה ליומן בהצלחה!`);
+                        this.fetchDailySummary(); // Update summary
+                    } catch (error) {
+                        console.error('Error logging recommended meal:', error);
+                        this.showNotification('שגיאה בהוספת המלצה ליומן.');
+                    }
+                },
+
+                formatDate(dateString) {
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    return new Date(dateString).toLocaleDateString('he-IL', options);
+                }
+            };
         }
-    }
-
-    function showHistory() {
-      document.getElementById("mainDashboard").classList.add("hidden");
-      document.getElementById("historyDashboard").classList.remove("hidden");
-      loadHistoryData(); // Load history data when showing the history dashboard
-    }
-
-    function showMainDashboard() {
-      document.getElementById("historyDashboard").classList.add("hidden");
-      document.getElementById("mainDashboard").classList.remove("hidden");
-      loadData(); // Reload today's data when returning to the main dashboard
-    }
-
-    async function deleteMeal(mealId) {
-        if (!confirm("האם אתה בטוח שברצונך למחוק ארוחה זו?")) {
-            return;
-        }
-
-        const pass = getPassword();
-        if (!pass) {
-            showLogin();
-            return;
-        }
-
-        try {
-            const res = await fetch(`/api/meal/${mealId}`, {
-                method: 'DELETE',
-                headers: { "X-App-Password": pass }
-            });
-
-            if (res.status === 401) {
-                showLogin(true);
-                return;
-            }
-
-            if (res.ok) {
-                console.log(`Meal ${mealId} deleted successfully.`);
-                loadData(); // Refresh the meals list after deletion
-            } else {
-                console.error("Failed to delete meal:", await res.text());
-                alert("שגיאה במחיקת הארוחה.");
-            }
-        } catch (err) {
-            console.error("Delete meal error:", err);
-            alert("שגיאה בתקשורת עם השרת.");
-        }
-    }
-
-    if (savedPass) {
-      loadData();
-    } else {
-      showLogin();
-    }
-
-    setInterval(() => {
-      if (!document.getElementById("mainDashboard").classList.contains("hidden")) {
-        loadData();
-      }
-    }, 15000);
-  </script>
+    </script>
 </body>
 </html>
