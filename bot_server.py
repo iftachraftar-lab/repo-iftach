@@ -28,17 +28,13 @@ GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 APP_PASSWORD = os.getenv("APP_PASSWORD", "1234")
 
-PROJECT_ID = "august-balancer-488508-k9"
+project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or "august-balancer-488508-k9"
+db = firestore.Client(project=project_id)
 
 ai_client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
 # אתחול מפורש של Firestore עם הפרויקט ובסיס הנתונים (default)
-try:
-    db = firestore.Client(project=PROJECT_ID, database="(default)")
-    print(f"Firestore initialized successfully for project: {PROJECT_ID}")
-except Exception as e:
-    print(f"CRITICAL: Firestore initialization failed: {e}")
-    db = None
+# The try/except block for Firestore initialization is removed as per user's simplified initialization
 
 def get_today_target() -> int:
     if not db:
