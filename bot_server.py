@@ -51,6 +51,7 @@ def get_today_target() -> int:
     return 1800
 
 def log_meal_db(description: str, calories: int, protein: float):
+    print(f"DEBUG: log_meal_db called with description: {description}")
     if not db:
         print("ERROR log_meal_db: db client is None")
         return
@@ -70,7 +71,9 @@ def log_meal_db(description: str, calories: int, protein: float):
         print(f"ERROR log_meal_db: {type(e).__name__} - {e}")
 
 def get_today_summary():
+    print(f"DEBUG: get_today_summary called. Project ID: {project_id}")
     today = str(date.today())
+    print(f"DEBUG: Fetching summary for date: {today}")
     total_cal = 0
     total_prot = 0.0
     meals_list = []
@@ -90,7 +93,7 @@ def get_today_summary():
                     "protein_g": p,
                     "time": data.get("log_time", "")
                 })
-            print(f"DEBUG: Retrieved {len(meals_list)} meals for {today}. Total cal: {total_cal}")
+            print(f"DEBUG: Retrieved {len(meals_list)} meals for {today}. Total cal: {total_cal}. Meals: {meals_list}")
         except Exception as e:
             print(f"ERROR get_today_summary: {type(e).__name__} - {e}")
     else:
