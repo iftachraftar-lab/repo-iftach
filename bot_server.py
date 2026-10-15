@@ -69,7 +69,7 @@ def log_meal_db(description: str, calories: int, protein: float):
             "protein_g": protein,
             "created_at": firestore.SERVER_TIMESTAMP
         })
-        print(f"SUCCESS: Logged meal '{description}' with doc ID: {doc_ref.id}")
+        print(f"SUCCESS: Logged meal \'{description}\' with doc ID: {doc_ref.id}")
     except Exception as e:
         print(f"ERROR log_meal_db: {type(e).__name__} - {e}")
 
@@ -141,7 +141,7 @@ if tg_app:
 
     async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cal, prot, target, rem, _ = get_today_summary()
-        await update.message.reply_text(f"📊 צרכת: {cal}/{target} קק\\\\"ל ({prot:.0f}g חלבון)\nנשאר: {rem} קק\\\\"ל")
+        await update.message.reply_text(f"📊 צרכת: {cal}/{target} קק\"ל ({prot:.0f}g חלבון)\nנשאר: {rem} קק\"ל")
 
     async def text_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res = analyze_meal(update.message.text)
@@ -153,7 +153,7 @@ if tg_app:
         total_cal, _, target, rem, _ = get_today_summary()
         
         await update.message.reply_text(
-            f"✅ נרשם: {res.summary}\n🔥 +{res.calories} קק\\\\"ל | 💪 +{res.protein_g:.0f}g חלבון\n💰 נותר להיום: {rem}/{target} קק\\\\"ל (סה\\\\"כ נצרך: {total_cal})"
+            f"✅ נרשם: {res.summary}\n🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n💰 נותר להיום: {rem}/{target} קק\"ל (סה\"כ נצרך: {total_cal})"
         )
 
     tg_app.add_handler(CommandHandler("start", start_cmd))
