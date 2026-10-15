@@ -196,6 +196,14 @@ def api_today(x_app_password: str = Header(None, alias="X-App-Password")):
         "meals": meals
     }
 
+@app.get("/api/meals/")
+def api_meals(x_app_password: str = Header(None, alias="X-App-Password")):
+    if x_app_password != APP_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    _, _, _, _, meals = get_today_summary() # Call get_today_summary to get meals
+    return {"meals": meals}
+
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     if not tg_app:
