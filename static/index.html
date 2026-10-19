@@ -68,7 +68,7 @@
                         <h1 class="text-lg font-bold tracking-tight text-slate-900">NutriAgent</h1>
                         <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            מסונכרן לטלגרם
+                            AI Coach 2.5
                         </span>
                     </div>
                     <p class="text-xs text-slate-500" x-text="formatHebrewDate(todayStr)"></p>
@@ -519,7 +519,7 @@
                     <div class="text-4xl">🥗</div>
                     <h3 class="text-base font-bold text-slate-800">עדיין לא תועדו ארוחות היום</h3>
                     <p class="text-xs text-slate-500 max-w-sm mx-auto">
-                        שלח הודעה או תמונה לבוט בטלגרם, או הקלד/צלם למעלה מה אכלת כדי להתחיל לעקוב אחרי היעד היומי שלך.
+                        הקלד למעלה מה אכלת, הקלט בקול 🎙️ או צלם את הצלחת 📸 כדי להתחיל לעקוב אחרי היעד היומי שלך.
                     </p>
                 </div>
 
@@ -600,7 +600,7 @@
                                       :class="weightData.weight_change <= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
                                       x-text="`${weightData.weight_change > 0 ? '+' : ''}${weightData.weight_change} ק״ג`"></span>
                             </div>
-                            <p class="text-xs text-slate-500">תעד שקילה יומית או שבועית (גם דרך הבוט בטלגרם: <code class="bg-slate-100 px-1 rounded">/weight 78.5</code>)</p>
+                            <p class="text-xs text-slate-500">תעד שקילה יומית או שבועית למעקב רציף אחר ההתקדמות שלך</p>
                         </div>
                     </div>
 
@@ -1241,35 +1241,17 @@
                                 <p class="text-sm font-bold text-slate-900 truncate" x-text="currentUser.name"></p>
                                 <p class="text-xs text-slate-500 truncate" x-text="currentUser.email"></p>
                                 <span class="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                                    ✓ חשבון Google מחובר ומסונכרן
+                                    ✓ חשבון Google אישי מחובר
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Telegram Account Linking Box -->
-                    <div class="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-indigo-950">✈️ קישור אישי לבוט הטלגרם:</span>
-                            <span class="text-[11px] font-mono bg-white px-2 py-0.5 rounded-md border border-indigo-200 text-indigo-700"
-                                  x-text="`/link ${currentUser.link_code || currentUser.email}`"></span>
-                        </div>
-                        <p class="text-[11px] text-indigo-900 leading-relaxed">
-                            כדי שההודעות, התמונות וההקלטות שלך בטלגרם יישמרו בחשבון האישי שלך, שלח לבוט את הפקודה:
-                        </p>
-                        <button type="button"
-                                @click="copyLinkCommand()"
-                                class="w-full py-2 px-3 rounded-xl bg-white hover:bg-indigo-100/60 text-indigo-700 border border-indigo-200 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer">
-                            <span>📋</span>
-                            <span x-text="`העתק פקודה: /link ${currentUser.link_code || currentUser.email}`"></span>
-                        </button>
-                    </div>
-
                     <!-- Claim Legacy Data Button -->
                     <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
-                        <p class="text-xs font-bold text-amber-950">📥 העברת נתונים קיימים לחשבון שלך</p>
+                        <p class="text-xs font-bold text-amber-950">📥 ייבוא היסטוריה קיימת</p>
                         <p class="text-[11px] text-amber-800">
-                            אם תיעדת ארוחות או שקילות לפני ההתחברות לחשבון, לחץ כאן כדי לשייך אותן לחשבון ה-Google האישי שלך.
+                            אם תיעדת ארוחות או שקילות במכשיר לפני ההתחברות, לחץ כאן כדי לשייך אותן לחשבון שלך.
                         </p>
                         <button type="button"
                                 @click="claimLegacyData()"
