@@ -1,12 +1,10 @@
-# verified by roo - second test trigger
-# CI/CD verification test
-# Trigger test after cleanup
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from typing import List, Optional
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from fastapi import FastAPI, Request, HTTPException, Header
+from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from telegram import Update
@@ -26,97 +24,264 @@ load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-APP_PASSWORD = os.getenv("APP_PASSWORD", "1234")
 
-project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or "august-balancer-488508-k9"
-db = firestore.Client(project=project_id)
+project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("PROJECT_ID") or "august-balancer-488508-k9"
+
+def _has_gcp_credentials() -> bool:
+    if os.environ.get("K_SERVICE") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        return True
+    appdata = os.environ.get("APPDATA", "")
+    adc_path = os.path.join(appdata, "gcloud", "application_default_credentials.json")
+    return os.path.exists(adc_path)
+
+db = None
+if _has_gcp_credentials():
+    try:
+        db = firestore.Client(project=project_id)
+        print(f"INFO: Firestore initialized for project: {project_id}")
+    except Exception as e:
+        print(f"ERROR: Firestore initialization failed: {e}")
+        db = None
+else:
+    print("INFO: No local GCP credentials found; using fast in-memory storage for local preview.")
 
 ai_client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
-# אתחול מפורש של Firestore עם הפרויקט ובסיס הנתונים (default)
-# The try/except block for Firestore initialization is removed as per user's simplified initialization
 
-def get_today_target() -> int:
-    if not db:
-        print("WARN get_today_target: db client is None")
-        return 1800
-    try:
-        today = str(date.today())
-        doc = db.collection("daily_targets").document(today).get()
-        if doc.exists:
-            val = doc.to_dict().get("target_calories", 1800)
-            return val
-    except Exception as e:
-        print(f"ERROR get_today_target: {type(e).__name__} - {e}")
-    return 1800
-
-def log_meal_db(description: str, calories: int, protein: float):
-    print(f"DEBUG: log_meal_db called with description: {description}")
-    if not db:
-        print("ERROR log_meal_db: db client is None")
-        return
-    try:
-        today = str(date.today())
-        now_time = datetime.now().strftime("%H:%M")
-        update_time, doc_ref = db.collection("meals").add({
-            "log_date": today,
-            "log_time": now_time,
-            "description": description,
-            "calories": calories,
-            "protein_g": protein,
-            "created_at": firestore.SERVER_TIMESTAMP
-        })
-        print(f"SUCCESS: Logged meal \'{description}\' with doc ID: {doc_ref.id}")
-    except Exception as e:
-        print(f"ERROR log_meal_db: {type(e).__name__} - {e}")
-
-def get_today_summary():
-    print(f"DEBUG: get_today_summary called. Project ID: {project_id}")
-    today = str(date.today())
-    print(f"DEBUG: Fetching summary for date: {today}")
-    total_cal = 0
-    total_prot = 0.0
-    meals_list = []
-    
-    if db:
-        try:
-            meals_ref = db.collection("meals").where("log_date", "==", today).stream()
-            for m in meals_ref:
-                data = m.to_dict()
-                c = data.get("calories", 0)
-                p = data.get("protein_g", 0.0)
-                total_cal += c
-                total_prot += p
-                meals_list.append({
-                    "description": data.get("description", ""),
-                    "calories": c,
-                    "protein_g": p,
-                    "time": data.get("log_time", "")
-                })
-            print(f"DEBUG: Retrieved {len(meals_list)} meals for {today}. Total cal: {total_cal}. Meals: {meals_list}")
-        except Exception as e:
-            print(f"ERROR get_today_summary: {type(e).__name__} - {e}")
-    else:
-        print("WARN get_today_summary: db client is None")
-            
-    target = get_today_target()
-    remaining = target - total_cal
-    return total_cal, total_prot, target, remaining, meals_list
+# ---------------------------------------------------------------------------
+# Pydantic Schemas
+# ---------------------------------------------------------------------------
 
 class NutritionExtraction(BaseModel):
     is_meal: bool = Field(description="האם מדובר בדיווח על אוכל/שתייה")
     calories: int = Field(description="הערכת קלוריות כוללת")
-    protein_g: float = Field(description="הערכת חלבון כוללת")
-    summary: str = Field(description="תיאור תמציתי של המנה")
+    protein_g: float = Field(description="הערכת חלבון כוללת בגרמים")
+    summary: str = Field(description="תיאור תמציתי וברור של המנה בעברית")
+
+
+class RecipeItem(BaseModel):
+    name: str = Field(description="שם המתכון בעברית")
+    category: str = Field(description="קטגוריה: בוקר / צהריים / ערב / נשנוש")
+    prep_time: str = Field(description="זמן הכנה (למשל: 10 דקות)")
+    description: str = Field(description="תיאור קצר ומגרה של המנה")
+    calories: int = Field(description="קלוריות למנה")
+    protein_g: float = Field(description="גרם חלבון למנה")
+    ingredients: List[str] = Field(description="רשימת מצרכים מדויקת")
+    preparation_steps: List[str] = Field(description="שלבי הכנה קצרים וברורים")
+
+
+class RecipeSuggestionList(BaseModel):
+    recipes: List[RecipeItem]
+
+
+class ManualMealRequest(BaseModel):
+    description: str
+    calories: int
+    protein_g: float
+    log_date: Optional[str] = None
+    log_time: Optional[str] = None
+
+
+class AIMealRequest(BaseModel):
+    text: str
+    log_date: Optional[str] = None
+
+
+class TargetUpdateRequest(BaseModel):
+    target_calories: int = Field(ge=500, le=10000)
+    target_protein: int = Field(default=120, ge=20, le=500)
+
+
+class RecipePromptRequest(BaseModel):
+    remaining_calories: int = 600
+    remaining_protein: float = 40.0
+    preference: Optional[str] = ""
+
+
+# ---------------------------------------------------------------------------
+# Firestore Helpers
+# ---------------------------------------------------------------------------
+
+# Local fallback state when running locally without GCP credentials
+_LOCAL_TARGETS = {"target_calories": 1800, "target_protein": 120}
+_LOCAL_MEALS: List[dict] = []
+
+
+def get_targets(target_date: Optional[str] = None) -> dict:
+    default_targets = dict(_LOCAL_TARGETS)
+    if not db:
+        return default_targets
+    try:
+        # Check global settings first, then date-specific override
+        global_doc = db.collection("daily_targets").document("default").get()
+        if global_doc.exists:
+            g_data = global_doc.to_dict()
+            default_targets["target_calories"] = g_data.get("target_calories", 1800)
+            default_targets["target_protein"] = g_data.get("target_protein", 120)
+
+        d_str = target_date or str(date.today())
+        doc = db.collection("daily_targets").document(d_str).get()
+        if doc.exists:
+            data = doc.to_dict()
+            return {
+                "target_calories": data.get("target_calories", default_targets["target_calories"]),
+                "target_protein": data.get("target_protein", default_targets["target_protein"]),
+            }
+    except Exception as e:
+        print(f"ERROR get_targets: {type(e).__name__} - {e}")
+    return default_targets
+
+
+def set_targets(target_calories: int, target_protein: int, target_date: Optional[str] = None) -> dict:
+    _LOCAL_TARGETS["target_calories"] = target_calories
+    _LOCAL_TARGETS["target_protein"] = target_protein
+    if not db:
+        return dict(_LOCAL_TARGETS)
+    d_str = target_date or str(date.today())
+    payload = {
+        "target_calories": target_calories,
+        "target_protein": target_protein,
+        "updated_at": firestore.SERVER_TIMESTAMP,
+    }
+    db.collection("daily_targets").document("default").set(payload, merge=True)
+    db.collection("daily_targets").document(d_str).set(payload, merge=True)
+    return {"target_calories": target_calories, "target_protein": target_protein}
+
+
+def log_meal_db(
+    description: str,
+    calories: int,
+    protein: float,
+    log_date: Optional[str] = None,
+    log_time: Optional[str] = None,
+    source: str = "web",
+) -> Optional[dict]:
+    d_str = log_date or str(date.today())
+    t_str = log_time or datetime.now().strftime("%H:%M")
+    if not db:
+        entry = {
+            "id": f"local-{int(datetime.now().timestamp() * 1000)}",
+            "log_date": d_str,
+            "log_time": t_str,
+            "description": description,
+            "calories": int(calories),
+            "protein_g": round(float(protein), 1),
+            "source": source,
+        }
+        _LOCAL_MEALS.insert(0, entry)
+        return entry
+    try:
+        doc_data = {
+            "log_date": d_str,
+            "log_time": t_str,
+            "description": description,
+            "calories": int(calories),
+            "protein_g": round(float(protein), 1),
+            "source": source,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        }
+        _, doc_ref = db.collection("meals").add(doc_data)
+        return {
+            "id": doc_ref.id,
+            "log_date": d_str,
+            "log_time": t_str,
+            "description": description,
+            "calories": int(calories),
+            "protein_g": round(float(protein), 1),
+            "source": source,
+        }
+    except Exception as e:
+        print(f"ERROR log_meal_db: {type(e).__name__} - {e}")
+        return None
+
+
+def get_day_summary(target_date: Optional[str] = None):
+    d_str = target_date or str(date.today())
+    total_cal = 0
+    total_prot = 0.0
+    meals_list = []
+
+    if db:
+        try:
+            meals_ref = db.collection("meals").where("log_date", "==", d_str).stream()
+            for m in meals_ref:
+                data = m.to_dict()
+                c = int(data.get("calories", 0))
+                p = float(data.get("protein_g", 0.0))
+                total_cal += c
+                total_prot += p
+                meals_list.append({
+                    "id": m.id,
+                    "description": data.get("description", ""),
+                    "calories": c,
+                    "protein_g": round(p, 1),
+                    "log_date": data.get("log_date", d_str),
+                    "log_time": data.get("log_time", ""),
+                    "source": data.get("source", "telegram"),
+                })
+            # Sort by log_time descending so newest is first
+            meals_list.sort(key=lambda x: x.get("log_time", ""), reverse=True)
+        except Exception as e:
+            print(f"ERROR get_day_summary: {type(e).__name__} - {e}")
+    else:
+        for m in _LOCAL_MEALS:
+            if m.get("log_date") == d_str:
+                total_cal += m["calories"]
+                total_prot += m["protein_g"]
+                meals_list.append(m)
+
+    targets = get_targets(d_str)
+    target_cal = targets["target_calories"]
+    target_prot = targets["target_protein"]
+    remaining_cal = target_cal - total_cal
+    return {
+        "date": d_str,
+        "total_calories": total_cal,
+        "total_protein": round(total_prot, 1),
+        "target_calories": target_cal,
+        "target_protein": target_prot,
+        "remaining_calories": remaining_cal,
+        "meals": meals_list,
+    }
+
+
+def get_today_summary():
+    s = get_day_summary(str(date.today()))
+    return (
+        s["total_calories"],
+        s["total_protein"],
+        s["target_calories"],
+        s["remaining_calories"],
+        s["meals"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Gemini AI Functions
+# ---------------------------------------------------------------------------
 
 def analyze_meal(user_text: str) -> NutritionExtraction:
     if not ai_client:
-        return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API Key missing")
-    prompt = f"""המשתמש דיווח: \'{user_text}\'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך.
-        חשוב מאוד: קפה, קפוצ\'ינו, וכל משקאות החלב/שתייה הם פריטי צריכה תקפים לחלוטין. עבור פריטים אלו, הציבו תמיד is_meal: true.
-        דוגמאות לשתיה וקפה שחייבים לקבל is_meal: true: "הפוך קטן", "קפוצ\'ינו", "נס קפה", "אמריקנו עם חלב".
-        הערך קלוריות וחלבון במדויק לישראל. עבור הפוך קטן/קפוצ\'ינו ישראלי סטנדרטי, הערך כ-70-90 קק\"ל וכ-3-4 גרם חלבון (תלוי בחלב).\r
-        אם זה משהו שאין לו ערך תזונתי, סמן is_meal=False."""
+        # Local preview estimation when GEMINI_API_KEY is not set in local environment
+        txt = user_text.strip()
+        cal, prot = 250, 15.0
+        if any(w in txt for w in ["קפה", "הפוך", "קפוצ'ינו", "נס", "אמריקנו"]):
+            cal, prot = 80, 4.0
+        elif any(w in txt for w in ["ביצה", "ביצים", "חביתה", "שקשוקה"]):
+            cal, prot = 320, 22.0
+        elif any(w in txt for w in ["עוף", "שניצל", "בשר", "סטייק", "הודו"]):
+            cal, prot = 480, 42.0
+        elif any(w in txt for w in ["טונה", "סלמון", "דג"]):
+            cal, prot = 360, 35.0
+        elif any(w in txt for w in ["יוגורט", "שייק", "קוטג"]):
+            cal, prot = 180, 20.0
+        return NutritionExtraction(is_meal=True, calories=cal, protein_g=prot, summary=txt)
+    prompt = f"""המשתמש דיווח: '{user_text}'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך.
+חשוב מאוד: קפה, קפוצ'ינו, וכל משקאות החלב/שתייה הם פריטי צריכה תקפים לחלוטין. עבור פריטים אלו, הציבו תמיד is_meal: true.
+דוגמאות לשתיה וקפה שחייבים לקבל is_meal: true: "הפוך קטן", "קפוצ'ינו", "נס קפה", "אמריקנו עם חלב".
+הערך קלוריות וחלבון במדויק לישראל. עבור הפוך קטן/קפוצ'ינו ישראלי סטנדרטי, הערך כ-70-90 קק"ל וכ-3-4 גרם חלבון (תלוי בחלב).
+אם יש מספר פריטים בדיווח אחד, סכם את סך הקלוריות והחלבון של כולם יחד ותן תיאור תמציתי וברור בעברית.
+אם זה משהו שאין לו שום קשר לאוכל או שתייה, סמן is_meal=False."""
     try:
         response = ai_client.models.generate_content(
             model="gemini-2.5-flash",
@@ -124,40 +289,250 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=NutritionExtraction,
-            )
+            ),
         )
-        print(f"DEBUG: AI raw response: {response.text}")
         return NutritionExtraction.model_validate_json(response.text)
     except Exception as e:
         print(f"ERROR analyze_meal: {type(e).__name__} - {e}")
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Analysis error")
 
+
+def generate_ai_recipes(remaining_cal: int, remaining_prot: float, preference: str = "") -> List[dict]:
+    budget_cal = max(150, min(remaining_cal, 1200))
+    budget_prot = max(10, round(remaining_prot))
+    if not ai_client:
+        # Local preview fallback when GEMINI_API_KEY is not set locally
+        pref_label = f" ({preference})" if preference else ""
+        return [
+            {
+                "name": f"ראפ טורטייה עתיר חלבון{pref_label}",
+                "category": "מותאם אישית",
+                "prep_time": "8 דקות",
+                "description": f"טורטייה קלה במילוי חלבון מותאמת ליתרה של כ-{budget_cal} קק״ל.",
+                "calories": min(budget_cal, 410),
+                "protein_g": float(min(budget_prot, 36)),
+                "ingredients": [
+                    "טורטייה מחיטה מלאה / קלה",
+                    "120 גרם חזה עוף צלוי או טונה במים",
+                    "כף גבינת שמנת 5% או כפית טחינה",
+                    "חסה, עגבנייה ומלפפון חמוץ",
+                ],
+                "preparation_steps": [
+                    "מחממים קלות את הטורטייה על מחבת יבשה.",
+                    "מורחים את הממרח, מניחים את מקור החלבון והירקות ומגלגלים הדוק.",
+                ],
+            },
+            {
+                "name": f"פנקייק חלבון שיבולת שועל{pref_label}",
+                "category": "מותאם אישית",
+                "prep_time": "10 דקות",
+                "description": "פנקייק משביע וטעים מ-3 מרכיבים בלבד, מעולה לארוחה קלה או נשנוש.",
+                "calories": min(budget_cal, 330),
+                "protein_g": float(min(budget_prot, 28)),
+                "ingredients": [
+                    "2 ביצים (או ביצה + סקופ חלבון)",
+                    "חצי גביע גבינה לבנה 5% / קוטג׳",
+                    "3 כפות שיבולת שועל דקה",
+                    "חצי כפית תמצית וניל וקינמון",
+                ],
+                "preparation_steps": [
+                    "מערבבים את כל המרכיבים לבלילה אחידה.",
+                    "מטגנים על מחבת נון-סטיק חמה כ-2 דקות מכל צד עד להזהבה.",
+                ],
+            },
+        ]
+    pref_text = f"העדפת המשתמש: {preference}." if preference else "מותאם למטבח הישראלי (מוצרים זמינים בסופר בישראל)."
+    prompt = f"""הצע 3 מתכונים מעולים, טעימים ופרקטיים בעברית שמתאימים ליתרה היומית של המשתמש:
+יתרת קלוריות רצויה למנה: עד סביבות {budget_cal} קק"ל (או חלוקה הגיונית של היתרה).
+יתרת חלבון רצויה: דגש על חלבון גבוה (יעד: כ-{budget_prot} גרם חלבון).
+{pref_text}
+הקפד על ערכים תזונתיים מציאותיים ומדויקים למוצרים ישראליים (כגון קוטג' תנובה, טונה, חזה עוף, לחם קל, יוגורט PRO, ביצים וכו')."""
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=RecipeSuggestionList,
+            ),
+        )
+        parsed = RecipeSuggestionList.model_validate_json(response.text)
+        return [r.model_dump() for r in parsed.recipes]
+    except Exception as e:
+        print(f"ERROR generate_ai_recipes: {type(e).__name__} - {e}")
+        return []
+
+
+# ---------------------------------------------------------------------------
+# Curated Israeli High-Protein Recipes
+# ---------------------------------------------------------------------------
+
+CURATED_RECIPES = [
+    {
+        "name": "בוקר ישראלי עתיר חלבון",
+        "category": "בוקר",
+        "prep_time": "7 דקות",
+        "description": "חביתה מ-2 ביצים עם קוטג' 5%, 2 פרוסות לחם כוסמין קל וירקות טריים.",
+        "calories": 390,
+        "protein_g": 34.0,
+        "ingredients": [
+            "2 ביצים (L)",
+            "חצי גביע קוטג' 5% (125 גרם)",
+            "2 פרוסות לחם קל מחיטה מלאה / כוסמין",
+            "מלפפון, עגבנייה ופלפל חתוכים",
+            "תרסיס שמן זית למחבת",
+        ],
+        "preparation_steps": [
+            "מחממים מחבת נון-סטיק עם מעט תרסיס שמן ומכינים חביתה או מקושקשת מ-2 ביצים.",
+            "מורחים את הקוטג' על פרוסות הלחם הקל או מגישים לצד החביתה.",
+            "חותכים ירקות טריים, מתבלים במעט מלח ופלפל ומגישים.",
+        ],
+    },
+    {
+        "name": "קערת חזה עוף וקינואה ים-תיכונית",
+        "category": "צהריים",
+        "prep_time": "20 דקות",
+        "description": "חזה עוף עסיסי על הפלנצ'ה עם קינואה, עשבי תיבול וסלט קצוץ בלימון ושמן זית.",
+        "calories": 540,
+        "protein_g": 48.0,
+        "ingredients": [
+            "160 גרם חזה עוף פרוס",
+            "כוס קינואה מבושלת (כ-150 גרם)",
+            "מלפפון, עגבנייה, בצל סגול ופטרוזיליה קצוצה",
+            "כפית שמן זית ומיץ מחצי לימון",
+            "תבלינים: פפריקה מתוקה, שום גבישי, מלח ופלפל",
+        ],
+        "preparation_steps": [
+            "מתבלים את חזה העוף בפפריקה, שום גבישי, מלח ופלפל.",
+            "צולים על מחבת פסים חמה כ-3-4 דקות מכל צד עד להזהבה עסיסית.",
+            "מניחים בקערה את הקינואה החמה, הסלט הקצוץ ורצועות העוף ומתבלים בלימון ושמן זית.",
+        ],
+    },
+    {
+        "name": "שקשוקה ירוקה עשירה בחלבון",
+        "category": "ערב",
+        "prep_time": "15 דקות",
+        "description": "שקשוקה מתרד, קישואים ו-2 ביצים עם קוביות גבינה בולגרית 5% ופרוסת לחם מחמצת.",
+        "calories": 420,
+        "protein_g": 31.0,
+        "ingredients": [
+            "2 ביצים",
+            "2 כוסות עלי תרד טריים",
+            "קישוא בינוני מגורד או חתוך לקוביות",
+            "60 גרם גבינה בולגרית / פטה 5%",
+            "פרוסת לחם מחמצת או 2 פרוסות לחם קל",
+            "שן שום כתושה וכפית שמן זית",
+        ],
+        "preparation_steps": [
+            "מקפיצים את הקישוא והשום בכפית שמן זית למשך 4 דקות ומוסיפים את התרד עד שהוא מתרכך.",
+            "יוצרים 2 גומות, שוברים לתוכן את הביצים ומפזרים מעל את הבולגרית 5%.",
+            "מכסים ומבשלים 5-6 דקות עד שהחלבון מתייצב והחלמון במידת העשייה האהובה.",
+        ],
+    },
+    {
+        "name": "סלט טונה וביצה קשה ב-5 דקות",
+        "category": "ערב",
+        "prep_time": "5 דקות",
+        "description": "ארוחת ערב מהירה וסופר משביעה עם טונה במים, ביצה קשה, ירקות וטחינה גולמית.",
+        "calories": 430,
+        "protein_g": 41.0,
+        "ingredients": [
+            "קופסת טונה במים מסוננת (כ-110 גרם מסונן)",
+            "ביצה קשה אחת",
+            "כף טחינה מוכנה (או כפית טחינה גולמית)",
+            "חסה, מלפפון, עגבניות שרי וגמבה",
+            "2 פריכיות אורז מלא או 2 קרקרים מחיטה מלאה",
+        ],
+        "preparation_steps": [
+            "קוצצים את הירקות לקערה גדולה ומוסיפים את הטונה המסוננת.",
+            "חותכים את הביצה הקשה לרבעים ומניחים מעל.",
+            "מזלפים כף טחינה ומיץ לימון טרי ומגישים לצד הפריכיות.",
+        ],
+    },
+    {
+        "name": "מוזלי יוגורט PRO ופירות יער",
+        "category": "נשנוש",
+        "prep_time": "3 דקות",
+        "description": "נשנוש מתוק, מרענן ועשיר בחלבון שסוגר פינה אחרי אימון או אחר הצהריים.",
+        "calories": 240,
+        "protein_g": 23.0,
+        "ingredients": [
+            "גביע יוגורט חלבון טבעי / וניל (20 גרם חלבון)",
+            "חצי כוס פירות יער קפואים/טריים או חצי בננה",
+            "כף שיבולת שועל או גרנולה ללא סוכר",
+            "קורט קינמון",
+        ],
+        "preparation_steps": [
+            "מעבירים את היוגורט לקערה.",
+            "מפזרים מעל את פירות היער, שיבולת השועל והקינמון ואוכלים מיד.",
+        ],
+    },
+    {
+        "name": "טוסט פיתה קלה עם צהובה 9% וביצה",
+        "category": "בוקר",
+        "prep_time": "6 דקות",
+        "description": "טוסט ישראלי קלאסי בגרסה חטובה ומשביעה עם 30 גרם חלבון.",
+        "calories": 340,
+        "protein_g": 30.0,
+        "ingredients": [
+            "פיתה קלה (99 קק\"ל)",
+            "2 פרוסות גבינה צהובה 9% (50 גרם)",
+            "ביצה קשה פרוסה או כף קוטג' 5%",
+            "פרוסות עגבנייה, זיתים ואורגנו",
+        ],
+        "preparation_steps": [
+            "פותחים את הפיתה הקלה ומניחים בתוכה את הגבינה הצהובה, פרוסות העגבנייה והביצה.",
+            "מתבלים באורגנו וקולים בטוסטר לחיצה 3-4 דקות עד להשחמה קריספית.",
+        ],
+    },
+]
+
+
+# ---------------------------------------------------------------------------
+# Telegram Bot Handlers
+# ---------------------------------------------------------------------------
+
 tg_app = ApplicationBuilder().token(BOT_TOKEN).build() if BOT_TOKEN else None
 
 if tg_app:
     async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text("היי! הבוט מחובר ומסונכרן עם ה-PWA 🚀\nשלח מה אכלת כדי לעדכן.")
+        await update.message.reply_text(
+            "היי! הבוט מחובר ומסונכרן עם האפליקציה 🚀\n"
+            "• שלח בטקסט חופשי מה אכלת או שתית כדי לתעד.\n"
+            "• שלח /status לסיכום היומי שלך."
+        )
 
     async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        cal, prot, target, rem, _ = get_today_summary()
-        await update.message.reply_text(f"📊 צרכת: {cal}/{target} קק\"ל ({prot:.0f}g חלבון)\nנשאר: {rem} קק\"ל")
+        s = get_day_summary()
+        await update.message.reply_text(
+            f"📊 סיכום להיום:\n"
+            f"🔥 קלוריות: {s['total_calories']} / {s['target_calories']} קק\"ל (נותרו: {s['remaining_calories']})\n"
+            f"💪 חלבון: {s['total_protein']:.0f} / {s['target_protein']} גרם"
+        )
 
     async def text_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res = analyze_meal(update.message.text)
         if not res.is_meal:
-            await update.message.reply_text("לא זיהיתי ארוחה. נסה שוב.")
+            await update.message.reply_text("לא זיהיתי ארוחה או שתייה בהודעה 🤔 נסה לתאר שוב מה אכלת.")
             return
-        
-        log_meal_db(res.summary, res.calories, res.protein_g)
-        total_cal, _, target, rem, _ = get_today_summary()
-        
+
+        log_meal_db(res.summary, res.calories, res.protein_g, source="telegram")
+        s = get_day_summary()
+
         await update.message.reply_text(
-            f"✅ נרשם: {res.summary}\n🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n💰 נותר להיום: {rem}/{target} קק\"ל (סה\"כ נצרך: {total_cal})"
+            f"✅ נרשם: {res.summary}\n"
+            f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
+            f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
         )
 
     tg_app.add_handler(CommandHandler("start", start_cmd))
     tg_app.add_handler(CommandHandler("status", status_cmd))
     tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_msg))
+
+
+# ---------------------------------------------------------------------------
+# FastAPI Lifespan & Routes
+# ---------------------------------------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -165,16 +540,22 @@ async def lifespan(app: FastAPI):
         await tg_app.initialize()
         await tg_app.start()
         if WEBHOOK_URL:
-            await tg_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+            try:
+                await tg_app.bot.set_webhook(url=f"{WEBHOOK_URL.rstrip('/')}/webhook")
+                print(f"INFO: Telegram webhook set to {WEBHOOK_URL.rstrip('/')}/webhook")
+            except Exception as e:
+                print(f"WARN: Failed to set Telegram webhook: {e}")
     yield
     if tg_app:
         await tg_app.stop()
         await tg_app.shutdown()
 
-app = FastAPI(lifespan=lifespan)
+
+app = FastAPI(title="NutriAgent AI", lifespan=lifespan)
 
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @app.get("/")
 def serve_pwa():
@@ -182,27 +563,143 @@ def serve_pwa():
         return FileResponse("static/index.html")
     return {"status": "ok", "bot_configured": tg_app is not None}
 
-@app.get("/api/today")
-def api_today(x_app_password: str = Header(None, alias="X-App-Password")):
-    if x_app_password != APP_PASSWORD:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    cal, prot, target, rem, meals = get_today_summary()
+
+@app.get("/api/summary")
+def api_summary(target_date: Optional[str] = Query(default=None, alias="date")):
+    return get_day_summary(target_date)
+
+
+@app.get("/api/history")
+def api_history(days: int = Query(default=14, ge=1, le=90)):
+    today_date = date.today()
+    start_date_str = str(today_date - timedelta(days=days - 1))
+
+    all_meals = []
+    if db:
+        try:
+            docs = db.collection("meals").order_by("created_at", direction=firestore.Query.DESCENDING).limit(300).stream()
+            for doc in docs:
+                data = doc.to_dict()
+                all_meals.append({
+                    "id": doc.id,
+                    "description": data.get("description", ""),
+                    "calories": int(data.get("calories", 0)),
+                    "protein_g": round(float(data.get("protein_g", 0.0)), 1),
+                    "log_date": data.get("log_date", ""),
+                    "log_time": data.get("log_time", ""),
+                    "source": data.get("source", "telegram"),
+                })
+        except Exception as e:
+            print(f"ERROR api_history: {e}")
+    else:
+        all_meals = list(_LOCAL_MEALS)
+
+    targets = get_targets()
+    # Build daily trend for last 7 days
+    daily_trend = []
+    for i in range(6, -1, -1):
+        d = str(today_date - timedelta(days=i))
+        day_meals = [m for m in all_meals if m.get("log_date") == d]
+        cal = sum(m["calories"] for m in day_meals)
+        prot = round(sum(m["protein_g"] for m in day_meals), 1)
+        daily_trend.append({
+            "date": d,
+            "calories": cal,
+            "protein_g": prot,
+            "meal_count": len(day_meals),
+        })
+
     return {
-        "total_calories": cal,
-        "total_protein": prot,
-        "target": target,
-        "remaining": rem,
-        "meals": meals
+        "meals": all_meals,
+        "daily_trend": daily_trend,
+        "target_calories": targets["target_calories"],
+        "target_protein": targets["target_protein"],
+        "start_date": start_date_str,
     }
 
+
 @app.get("/api/meals/")
-def api_meals(x_app_password: str = Header(None, alias="X-App-Password")):
-    if x_app_password != APP_PASSWORD:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    _, _, _, _, meals = get_today_summary() # Call get_today_summary to get meals
-    return {"meals": meals}
+def api_meals_legacy():
+    """Backwards-compatible endpoint returning flat list of meals."""
+    return api_history(days=30)["meals"]
+
+
+@app.post("/api/meals/")
+def api_add_manual_meal(req: ManualMealRequest):
+    entry = log_meal_db(
+        description=req.description,
+        calories=req.calories,
+        protein=req.protein_g,
+        log_date=req.log_date,
+        log_time=req.log_time,
+        source="web",
+    )
+    if not entry:
+        raise HTTPException(status_code=500, detail="Failed to log meal to Firestore")
+    return entry
+
+
+@app.post("/api/meals/ai")
+def api_add_ai_meal(req: AIMealRequest):
+    if not req.text or not req.text.strip():
+        raise HTTPException(status_code=400, detail="נא להזין תיאור ארוחה")
+
+    extraction = analyze_meal(req.text.strip())
+    if not extraction.is_meal:
+        raise HTTPException(status_code=422, detail="לא זוהתה ארוחה או שתייה בטקסט שהוזן")
+
+    entry = log_meal_db(
+        description=extraction.summary,
+        calories=extraction.calories,
+        protein=extraction.protein_g,
+        log_date=req.log_date,
+        source="web-ai",
+    )
+    if not entry:
+        raise HTTPException(status_code=500, detail="Failed to save meal to Firestore")
+    return entry
+
+
+@app.delete("/api/meals/{meal_id}")
+def api_delete_meal(meal_id: str):
+    if not db:
+        global _LOCAL_MEALS
+        _LOCAL_MEALS = [m for m in _LOCAL_MEALS if m.get("id") != meal_id]
+        return {"status": "deleted", "id": meal_id}
+    try:
+        doc_ref = db.collection("meals").document(meal_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Meal not found")
+        doc_ref.delete()
+        return {"status": "deleted", "id": meal_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete meal: {e}")
+
+
+@app.put("/api/targets")
+def api_update_targets(req: TargetUpdateRequest):
+    return set_targets(req.target_calories, req.target_protein)
+
+
+@app.get("/api/recipes")
+def api_get_recipes():
+    return {"recipes": CURATED_RECIPES}
+
+
+@app.post("/api/recipes/suggest")
+def api_suggest_recipes(req: RecipePromptRequest):
+    suggestions = generate_ai_recipes(
+        remaining_cal=req.remaining_calories,
+        remaining_prot=req.remaining_protein,
+        preference=req.preference or "",
+    )
+    if not suggestions:
+        raise HTTPException(status_code=500, detail="לא ניתן היה לייצר מתכונים כרגע (בדוק מפתח Gemini)")
+    return {"recipes": suggestions}
+
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
