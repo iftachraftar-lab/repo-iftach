@@ -52,10 +52,116 @@
         }
     </style>
 </head>
-<body class="text-slate-800 min-h-screen flex flex-col pb-24 md:pb-8" x-data="nutritionApp()" x-init="init()">
+<body class="text-slate-800 min-h-screen flex flex-col" :class="currentUser ? 'pb-24 md:pb-8' : ''" x-data="nutritionApp()" x-init="init()">
 
-    <!-- Top Navigation / Header -->
-    <header class="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-200/80">
+    <!-- =============================================================== -->
+    <!-- FULL-SCREEN GOOGLE LOGIN GATE (SHOWN BEFORE AUTHENTICATION)     -->
+    <!-- =============================================================== -->
+    <div x-show="!currentUser" class="min-h-screen w-full bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 border border-slate-100">
+            <!-- Brand Header -->
+            <div class="text-center space-y-3">
+                <div class="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
+                    <svg class="w-9 h-9" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 mb-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        AI Coach 2.5
+                    </div>
+                    <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">NutriAgent AI</h1>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                        מעקב תזונה, קלוריות וחלבון חכם מבוסס בינה מלאכותית
+                    </p>
+                </div>
+            </div>
+
+            <!-- Feature Pills -->
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div class="text-lg">🎙️📸</div>
+                    <div class="text-[11px] font-bold text-slate-700 mt-1">זיהוי קול ותמונה</div>
+                </div>
+                <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div class="text-lg">🧠</div>
+                    <div class="text-[11px] font-bold text-slate-700 mt-1">מאמן AI יומי</div>
+                </div>
+                <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div class="text-lg">📊</div>
+                    <div class="text-[11px] font-bold text-slate-700 mt-1">פרופיל אישי</div>
+                </div>
+            </div>
+
+            <!-- Official Google Identity Services Sign-In Box -->
+            <div x-show="googleClientId" class="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center space-y-4 text-center">
+                <div class="space-y-1">
+                    <p class="text-sm font-bold text-slate-800">התחברות מאובטחת למערכת</p>
+                    <p class="text-xs text-slate-500">יש להתחבר עם חשבון Google כדי לגשת ליומן האישי שלך</p>
+                </div>
+                <div id="googleSignInGateBtnContainer" class="min-h-[44px] flex items-center justify-center"></div>
+                <p x-show="authLoading" class="text-xs text-indigo-600 font-semibold animate-pulse">
+                    מאמת חשבון מול שרתי Google...
+                </p>
+            </div>
+
+            <!-- 1-Time Setup Box when Google OAuth Client ID is not configured yet -->
+            <div x-show="!googleClientId" x-cloak class="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-3 text-xs text-slate-700 leading-relaxed">
+                <p class="font-bold text-indigo-950 text-sm">🔐 הגדרת התחברות Google (חד-פעמי - 30 שניות):</p>
+                <p>
+                    כדי להפעיל את כפתור וחלונית האימות הרשמית של Google, צור <strong>OAuth Client ID</strong> והדבק אותו כאן פעם אחת:
+                </p>
+                <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-slate-700 bg-white p-3 rounded-xl border border-indigo-100">
+                    <li>
+                        פתח את <a href="https://console.cloud.google.com/apis/credentials?project=august-balancer-488508-k9" target="_blank" class="text-indigo-600 font-bold underline">מסך ה-Credentials ב-Google Cloud</a>
+                    </li>
+                    <li>לחץ על <strong>+ CREATE CREDENTIALS</strong> ובחר <strong>OAuth client ID</strong> (סוג: <strong>Web application</strong>).</li>
+                    <li>
+                        תחת <strong>Authorized JavaScript origins</strong> הוסף את הכתובת:
+                        <code class="block mt-1 p-1.5 bg-slate-100 rounded text-[11px] font-mono text-left select-all" dir="ltr" x-text="window.location.origin"></code>
+                    </li>
+                    <li>לחץ <strong>Create</strong> והדבק כאן את ה-<strong>Client ID</strong> שנוצר:</li>
+                </ol>
+                <div class="space-y-2 pt-1">
+                    <input type="text"
+                           x-model="googleClientIdInput"
+                           placeholder="123456789-abcdefg.apps.googleusercontent.com"
+                           dir="ltr"
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-indigo-300 focus:border-indigo-600 text-xs outline-none text-left font-mono">
+                    <button type="button"
+                            @click="saveGoogleClientId()"
+                            class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm cursor-pointer transition">
+                        שמור והפעל כניסה עם Google
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin toggle to update Client ID if needed -->
+            <div x-show="googleClientId" class="pt-2 border-t border-slate-100 text-center">
+                <button type="button"
+                        @click="showClientIdConfig = !showClientIdConfig"
+                        class="text-[11px] text-slate-400 hover:text-slate-600 underline cursor-pointer">
+                    ⚙️ הגדרות Google OAuth Client ID (למנהל)
+                </button>
+                <div x-show="showClientIdConfig" x-cloak class="mt-2 space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-right">
+                    <input type="text"
+                           x-model="googleClientIdInput"
+                           placeholder="123456-abc.apps.googleusercontent.com"
+                           dir="ltr"
+                           class="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs outline-none text-left font-mono">
+                    <button type="button"
+                            @click="saveGoogleClientId()"
+                            class="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer">
+                        עדכן Google Client ID
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Navigation / Header (Only shown when logged in) -->
+    <header x-cloak x-show="currentUser" class="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-200/80">
         <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
@@ -155,8 +261,8 @@
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="flex-1 max-w-5xl w-full mx-auto px-4 pt-5 space-y-6">
+    <!-- Main Container (Only shown when logged in) -->
+    <main x-cloak x-show="currentUser" class="flex-1 max-w-5xl w-full mx-auto px-4 pt-5 space-y-6">
 
         <!-- =============================================================== -->
         <!-- TAB 1: DAILY SUMMARY & AI MEAL LOGGER                           -->
@@ -873,8 +979,8 @@
 
     </main>
 
-    <!-- Mobile Bottom Navigation Bar -->
-    <nav class="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 md:hidden">
+    <!-- Mobile Bottom Navigation Bar (Only shown when logged in) -->
+    <nav x-cloak x-show="currentUser" class="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 md:hidden">
         <div class="grid grid-cols-3 max-w-md mx-auto">
             <button @click="switchTab('summary')"
                     :class="activeTab === 'summary' ? 'text-emerald-600 font-bold' : 'text-slate-500'"
@@ -1484,8 +1590,17 @@
             let initialUser = null;
             try {
                 const raw = localStorage.getItem('nutri_user');
-                if (raw) initialUser = JSON.parse(raw);
-            } catch (e) {}
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && parsed.id && parsed.verified_oauth === true) {
+                        initialUser = parsed;
+                    } else {
+                        localStorage.removeItem('nutri_user');
+                    }
+                }
+            } catch (e) {
+                localStorage.removeItem('nutri_user');
+            }
 
             return {
                 activeTab: 'summary',
@@ -1659,14 +1774,16 @@
                 async init() {
                     this.setupPWAInstallListeners();
                     await this.initGoogleAuth();
-                    this.checkPushStatus();
-                    await Promise.all([
-                        this.fetchSummary(),
-                        this.fetchHistory(),
-                        this.fetchRecipes(),
-                        this.fetchFavorites(),
-                        this.fetchWeight()
-                    ]);
+                    if (this.currentUser) {
+                        this.checkPushStatus();
+                        await Promise.all([
+                            this.fetchSummary(),
+                            this.fetchHistory(),
+                            this.fetchRecipes(),
+                            this.fetchFavorites(),
+                            this.fetchWeight()
+                        ]);
+                    }
                     this.loading = false;
                 },
 
@@ -1677,7 +1794,7 @@
                         const cfg = await res.json();
                         this.googleClientId = cfg.google_client_id || '';
                         this.googleClientIdInput = this.googleClientId;
-                        if (this.googleClientId && window.google && window.google.accounts && window.google.accounts.id) {
+                        if (this.googleClientId) {
                             this.renderGoogleSignInButton();
                         }
                     } catch (e) {
@@ -1685,23 +1802,35 @@
                     }
                 },
 
-                renderGoogleSignInButton() {
-                    if (!this.googleClientId || !window.google?.accounts?.id) return;
+                renderGoogleSignInButton(retryCount = 0) {
+                    if (!this.googleClientId) return;
+                    if (!window.google?.accounts?.id) {
+                        if (retryCount < 25) {
+                            setTimeout(() => this.renderGoogleSignInButton(retryCount + 1), 250);
+                        }
+                        return;
+                    }
                     try {
                         window.google.accounts.id.initialize({
                             client_id: this.googleClientId,
                             callback: (resp) => this.handleGoogleCredentialResponse(resp)
                         });
-                        const container = document.getElementById('googleSignInBtnContainer');
-                        if (container) {
-                            container.innerHTML = '';
-                            window.google.accounts.id.renderButton(container, {
-                                theme: 'outline',
-                                size: 'large',
-                                shape: 'pill',
-                                text: 'signin_with',
-                                locale: 'he'
-                            });
+                        const btnOpts = {
+                            theme: 'outline',
+                            size: 'large',
+                            shape: 'pill',
+                            text: 'signin_with',
+                            locale: 'he'
+                        };
+                        const gateContainer = document.getElementById('googleSignInGateBtnContainer');
+                        if (gateContainer) {
+                            gateContainer.innerHTML = '';
+                            window.google.accounts.id.renderButton(gateContainer, btnOpts);
+                        }
+                        const modalContainer = document.getElementById('googleSignInBtnContainer');
+                        if (modalContainer) {
+                            modalContainer.innerHTML = '';
+                            window.google.accounts.id.renderButton(modalContainer, btnOpts);
                         }
                     } catch (e) {
                         console.warn('renderGoogleSignInButton warn:', e);
@@ -1739,46 +1868,22 @@
                     }
                 },
 
-                async signInWithGoogleForm() {
-                    const email = (this.authForm.email || '').trim().toLowerCase();
-                    if (!email || !email.includes('@')) {
-                        this.showToast('נא להזין כתובת אימייל תקינה', 'error');
-                        return;
-                    }
-                    this.authLoading = true;
-                    try {
-                        const res = await fetch('/api/auth/google', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                email,
-                                name: (this.authForm.name || '').trim()
-                            })
-                        });
-                        if (!res.ok) {
-                            const err = await res.json().catch(() => ({}));
-                            throw new Error(err.detail || 'שגיאה בהתחברות');
-                        }
-                        const user = await res.json();
-                        this.setLoggedInUser(user);
-                    } catch (e) {
-                        this.showToast(e.message || 'שגיאה בהתחברות', 'error');
-                    } finally {
-                        this.authLoading = false;
-                    }
-                },
-
                 async setLoggedInUser(user) {
-                    this.currentUser = user;
-                    localStorage.setItem('nutri_user', JSON.stringify(user));
+                    const verifiedUser = { ...user, verified_oauth: true };
+                    this.currentUser = verifiedUser;
+                    localStorage.setItem('nutri_user', JSON.stringify(verifiedUser));
+                    this.openAuthModal = false;
                     this.coachInsight = null;
+                    this.loading = true;
                     await Promise.all([
                         this.fetchSummary(),
                         this.fetchHistory(),
+                        this.fetchRecipes(),
                         this.fetchFavorites(),
                         this.fetchWeight(),
                         this.checkPushStatus()
                     ]);
+                    this.loading = false;
                     const claimedMeals = user.claimed?.claimed_meals || 0;
                     if (claimedMeals > 0) {
                         this.showToast(`🎉 ברוך הבא ${user.name}! שויכו ${claimedMeals} ארוחות קיימות לחשבונך.`);
@@ -1836,13 +1941,11 @@
                     localStorage.removeItem('nutri_user');
                     this.coachInsight = null;
                     this.openAuthModal = false;
-                    await Promise.all([
-                        this.fetchSummary(),
-                        this.fetchHistory(),
-                        this.fetchFavorites(),
-                        this.fetchWeight()
-                    ]);
-                    this.showToast('התנתקת מהחשבון האישי');
+                    try {
+                        window.google?.accounts?.id?.disableAutoSelect();
+                    } catch (e) {}
+                    this.$nextTick(() => this.renderGoogleSignInButton());
+                    this.showToast('התנתקת מהמערכת');
                 },
 
                 copyLinkCommand() {

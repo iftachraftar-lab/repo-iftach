@@ -396,6 +396,7 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
         "name": display_name,
         "picture": (picture or "").strip(),
         "link_code": link_code,
+        "verified_oauth": True,
     }
 
     is_first_user = False
