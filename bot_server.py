@@ -1,4 +1,5 @@
 import os
+import base64
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 from contextlib import asynccontextmanager
@@ -84,6 +85,13 @@ class ManualMealRequest(BaseModel):
 
 class AIMealRequest(BaseModel):
     text: str
+    log_date: Optional[str] = None
+
+
+class PhotoMealRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/jpeg"
+    caption: Optional[str] = ""
     log_date: Optional[str] = None
 
 
@@ -297,6 +305,36 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Analysis error")
 
 
+def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "") -> NutritionExtraction:
+    if not ai_client:
+        label = caption.strip() if caption and caption.strip() else "ארוחה מצולמת (ניתוח תמונה)"
+        return NutritionExtraction(is_meal=True, calories=420, protein_g=32.0, summary=label)
+
+    caption_note = f"\nהערת המשתמש לתמונה: '{caption.strip()}'." if caption and caption.strip() else ""
+    prompt = f"""נתח את התמונה המצורפת עבור מעקב תזונה ישראלי.{caption_note}
+התמונה יכולה להיות:
+1. צילום של מנה / צלחת אוכל / משקה / חטיף — זהה את המרכיבים, הערך את גודל המנה בצורה מציאותית, וחשב סך קלוריות וחלבון בגרמים.
+2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד — קרא את טבלת הערכים התזונתיים או שם המוצר וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה (או לפי הערת המשתמש אם צוינה כמות).
+החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף עם אורז וסלט ירקות" או "יוגורט חלבון PRO תנובה 200 ג'").
+אם התמונה אינה קשורה כלל לאוכל, שתייה או מוצר מזון, סמן is_meal=False."""
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type or "image/jpeg"),
+                prompt,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=NutritionExtraction,
+            ),
+        )
+        return NutritionExtraction.model_validate_json(response.text)
+    except Exception as e:
+        print(f"ERROR analyze_meal_image: {type(e).__name__} - {e}")
+        return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Image analysis error")
+
+
 def generate_ai_recipes(remaining_cal: int, remaining_prot: float, preference: str = "") -> List[dict]:
     budget_cal = max(150, min(remaining_cal, 1200))
     budget_prot = max(10, round(remaining_prot))
@@ -499,6 +537,7 @@ if tg_app:
         await update.message.reply_text(
             "היי! הבוט מחובר ומסונכרן עם האפליקציה 🚀\n"
             "• שלח בטקסט חופשי מה אכלת או שתית כדי לתעד.\n"
+            "• שלח 📸 תמונה של הצלחת או של תווית המוצר לניתוח אוטומטי.\n"
             "• שלח /status לסיכום היומי שלך."
         )
 
@@ -525,8 +564,33 @@ if tg_app:
             f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
         )
 
+    async def photo_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not update.message or not update.message.photo:
+            return
+        status_reply = await update.message.reply_text("📸 מנתח את התמונה ב-AI...")
+        try:
+            photo_file = await update.message.photo[-1].get_file()
+            img_bytes = bytes(await photo_file.download_as_bytearray())
+            caption = update.message.caption or ""
+            res = analyze_meal_image(img_bytes, mime_type="image/jpeg", caption=caption)
+            if not res.is_meal:
+                await status_reply.edit_text("לא זיהיתי אוכל, משקה או תווית מזון בתמונה 🤔 נסה לצלם שוב או להוסיף כיתוב.")
+                return
+
+            log_meal_db(res.summary, res.calories, res.protein_g, source="telegram-photo")
+            s = get_day_summary()
+            await status_reply.edit_text(
+                f"📸 נרשם מתמונה: {res.summary}\n"
+                f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
+                f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
+            )
+        except Exception as e:
+            print(f"ERROR photo_msg: {type(e).__name__} - {e}")
+            await status_reply.edit_text("שגיאה בניתוח התמונה, נסה שוב מאוחר יותר.")
+
     tg_app.add_handler(CommandHandler("start", start_cmd))
     tg_app.add_handler(CommandHandler("status", status_cmd))
+    tg_app.add_handler(MessageHandler(filters.PHOTO, photo_msg))
     tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_msg))
 
 
@@ -569,6 +633,31 @@ def serve_pwa():
             },
         )
     return {"status": "ok", "bot_configured": tg_app is not None}
+
+
+@app.get("/sw.js")
+def serve_service_worker():
+    if os.path.exists("static/sw.js"):
+        return FileResponse(
+            "static/sw.js",
+            media_type="application/javascript",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Service-Worker-Allowed": "/",
+            },
+        )
+    raise HTTPException(status_code=404, detail="sw.js not found")
+
+
+@app.get("/manifest.json")
+def serve_manifest():
+    if os.path.exists("static/manifest.json"):
+        return FileResponse(
+            "static/manifest.json",
+            media_type="application/manifest+json",
+            headers={"Cache-Control": "no-cache"},
+        )
+    raise HTTPException(status_code=404, detail="manifest.json not found")
 
 
 @app.get("/api/summary")
@@ -664,6 +753,39 @@ def api_add_ai_meal(req: AIMealRequest):
     )
     if not entry:
         raise HTTPException(status_code=500, detail="Failed to save meal to Firestore")
+    return entry
+
+
+@app.post("/api/meals/photo")
+def api_add_photo_meal(req: PhotoMealRequest):
+    raw_b64 = (req.image_base64 or "").strip()
+    if not raw_b64:
+        raise HTTPException(status_code=400, detail="נא להעלות או לצלם תמונה")
+
+    mime_type = req.mime_type or "image/jpeg"
+    if raw_b64.startswith("data:"):
+        header, _, raw_b64 = raw_b64.partition(",")
+        if ";" in header and ":" in header:
+            mime_type = header.split(":")[1].split(";")[0] or mime_type
+
+    try:
+        image_bytes = base64.b64decode(raw_b64)
+    except Exception:
+        raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
+
+    extraction = analyze_meal_image(image_bytes, mime_type=mime_type, caption=req.caption or "")
+    if not extraction.is_meal:
+        raise HTTPException(status_code=422, detail="לא זוהו אוכל, משקה או תווית מזון בתמונה")
+
+    entry = log_meal_db(
+        description=extraction.summary,
+        calories=extraction.calories,
+        protein=extraction.protein_g,
+        log_date=req.log_date,
+        source="web-photo",
+    )
+    if not entry:
+        raise HTTPException(status_code=500, detail="Failed to save photo meal to Firestore")
     return entry
 
 

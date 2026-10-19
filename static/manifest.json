@@ -1,20 +1,28 @@
 {
-  "name": "מעקב תזונה אישי",
-  "short_name": "תזונה",
-  "start_url": "/",
+  "id": "/",
+  "name": "NutriAgent AI — מעקב תזונה חכם",
+  "short_name": "NutriAgent",
+  "description": "מעקב קלוריות וחלבון חכם עם זיהוי ארוחות בתמונה ובטקסט וסנכרון מלא לטלגרם",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#10b981",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/2921/2921822.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
