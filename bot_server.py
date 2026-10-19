@@ -1730,25 +1730,20 @@ def api_set_auth_config(req: AuthConfigRequest):
 
 @app.post("/api/auth/google")
 def api_auth_google(req: GoogleAuthRequest):
-    if req.credential and req.credential.strip():
-        try:
-            verified = verify_google_id_token(req.credential)
-            return upsert_user_profile(
-                email=verified["email"],
-                name=verified["name"],
-                picture=verified["picture"],
-            )
-        except Exception as e:
-            raise HTTPException(status_code=401, detail=f"אימות Google נכשל: {e}")
-
-    email = (req.email or "").strip().lower()
-    if not email or "@" not in email:
-        raise HTTPException(status_code=400, detail="נא להזין כתובת אימייל תקינה של Google")
-    return upsert_user_profile(
-        email=email,
-        name=req.name or "",
-        picture=req.picture or "",
-    )
+    if not req.credential or not req.credential.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="נדרש אימות רשמי מול Google (לא התקבל אסימון אימות מ-Google)",
+        )
+    try:
+        verified = verify_google_id_token(req.credential)
+        return upsert_user_profile(
+            email=verified["email"],
+            name=verified["name"],
+            picture=verified["picture"],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"אימות Google נכשל: {e}")
 
 
 @app.post("/api/auth/claim-legacy-data")

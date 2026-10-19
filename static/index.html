@@ -1276,58 +1276,64 @@
                 </div>
             </template>
 
-            <!-- STATE B: Sign-In with Google -->
+            <!-- STATE B: Official Sign-In with Google (OAuth 2.0) -->
             <template x-if="!currentUser">
                 <div class="space-y-4">
                     <!-- Official Google Identity Services Button (when googleClientId is set) -->
-                    <div x-show="googleClientId" class="flex flex-col items-center justify-center py-2">
+                    <div x-show="googleClientId" class="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center space-y-3 text-center">
+                        <p class="text-xs font-medium text-slate-600">
+                            לחץ על הכפתור הרשמי של Google כדי לבחור חשבון ולאמת את זהותך באופן מאובטח:
+                        </p>
                         <div id="googleSignInBtnContainer" class="min-h-[44px] flex items-center justify-center"></div>
+                        <p x-show="authLoading" class="text-xs text-indigo-600 font-semibold animate-pulse">
+                            מאמת חשבון מול שרתי Google...
+                        </p>
                     </div>
 
-                    <!-- Fast Google Account Sign-In Form (works immediately with 0 config) -->
-                    <form @submit.prevent="signInWithGoogleForm()" class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">כתובת Gmail / Google שלך</label>
-                            <input type="email"
-                                   x-model="authForm.email"
-                                   required
-                                   placeholder="yourname@gmail.com"
-                                   dir="ltr"
-                                   class="w-full px-3.5 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 text-sm outline-none text-left">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">השם שלך (לתצוגה באפליקציה)</label>
+                    <!-- 1-Time Setup Box when Google OAuth Client ID is not configured yet -->
+                    <div x-show="!googleClientId" class="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-3 text-xs text-slate-700 leading-relaxed">
+                        <p class="font-bold text-indigo-950 text-sm">🔐 חיבור חד-פעמי לחלון ההתחברות של Google (30 שניות):</p>
+                        <p>
+                            כדי שגוגל תציג את חלון בחירת החשבון והאימות הרשמי שלה בדומיין שלך, יש ליצור <strong>OAuth Client ID</strong> בפרויקט ה-GCP שלך ולהדביק אותו כאן פעם אחת:
+                        </p>
+                        <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-slate-700 bg-white p-3 rounded-xl border border-indigo-100">
+                            <li>
+                                היכנס ל-<a href="https://console.cloud.google.com/apis/credentials?project=august-balancer-488508-k9" target="_blank" class="text-indigo-600 font-bold underline">מסך ה-Credentials ב-Google Cloud</a>
+                            </li>
+                            <li>לחץ למעלה על <strong>+ CREATE CREDENTIALS</strong> ובחר <strong>OAuth client ID</strong> (סוג: <strong>Web application</strong>).</li>
+                            <li>
+                                תחת <strong>Authorized JavaScript origins</strong> הוסף את כתובת האפליקציה שלך:
+                                <code class="block mt-1 p-1.5 bg-slate-100 rounded text-[11px] font-mono text-left select-all" dir="ltr" x-text="window.location.origin"></code>
+                            </li>
+                            <li>לחץ <strong>Create</strong>, העתק את ה-<strong>Client ID</strong> (מסתיים ב-<code>.apps.googleusercontent.com</code>) והדבק למטה:</li>
+                        </ol>
+                        <div class="space-y-2 pt-1">
                             <input type="text"
-                                   x-model="authForm.name"
-                                   placeholder="למשל: יפתח"
-                                   class="w-full px-3.5 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 text-sm outline-none">
+                                   x-model="googleClientIdInput"
+                                   placeholder="123456789-abcdefg.apps.googleusercontent.com"
+                                   dir="ltr"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-indigo-300 focus:border-indigo-600 text-xs outline-none text-left font-mono">
+                            <button type="button"
+                                    @click="saveGoogleClientId()"
+                                    class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm cursor-pointer transition">
+                                שמור והפעל התחברות רשמית עם Google
+                            </button>
                         </div>
-                        <button type="submit"
-                                :disabled="authLoading"
-                                class="w-full py-3.5 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2.5 transition cursor-pointer">
-                            <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
-                                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-                                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
-                                <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
-                                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
-                            </svg>
-                            <span x-text="authLoading ? 'מתחבר לחשבון...' : 'התחבר עם חשבון Google'"></span>
-                        </button>
-                    </form>
+                    </div>
 
-                    <!-- Optional OAuth Client ID Admin Config -->
-                    <div class="pt-2 border-t border-slate-100">
+                    <!-- Admin toggle to update Client ID later if needed -->
+                    <div x-show="googleClientId" class="pt-2 border-t border-slate-100">
                         <button type="button"
                                 @click="showClientIdConfig = !showClientIdConfig"
                                 class="text-[11px] text-slate-400 hover:text-slate-600 underline cursor-pointer">
-                            ⚙️ הגדרת Google OAuth Client ID (למנהל האפליקציה)
+                            ⚙️ עדכון Google OAuth Client ID (למנהל האפליקציה)
                         </button>
                         <div x-show="showClientIdConfig" class="mt-2 space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
                             <input type="text"
                                    x-model="googleClientIdInput"
                                    placeholder="123456-abc.apps.googleusercontent.com"
                                    dir="ltr"
-                                   class="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs outline-none text-left">
+                                   class="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs outline-none text-left font-mono">
                             <button type="button"
                                     @click="saveGoogleClientId()"
                                     class="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer">
