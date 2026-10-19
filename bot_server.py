@@ -1,5 +1,7 @@
 import os
+import json
 import base64
+import hashlib
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 from contextlib import asynccontextmanager
@@ -19,6 +21,9 @@ from telegram.ext import (
 from google import genai
 from google.genai import types
 from google.cloud import firestore
+from pywebpush import webpush, WebPushException
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
 
 load_dotenv()
 
@@ -125,6 +130,26 @@ class WeightLogRequest(BaseModel):
     note: Optional[str] = ""
 
 
+class PushKeys(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class PushSubscribeRequest(BaseModel):
+    endpoint: str
+    keys: PushKeys
+    user_agent: Optional[str] = ""
+
+
+class PushUnsubscribeRequest(BaseModel):
+    endpoint: str
+
+
+class PushMessageRequest(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # Firestore Helpers
 # ---------------------------------------------------------------------------
@@ -142,6 +167,8 @@ _LOCAL_TARGETS = {"target_calories": 1800, "target_protein": 120}
 _LOCAL_MEALS: List[dict] = []
 _LOCAL_FAVORITES: List[dict] = [dict(f) for f in DEFAULT_FAVORITES]
 _LOCAL_WEIGHTS: List[dict] = []
+_LOCAL_VAPID: Optional[dict] = None
+_LOCAL_PUSH_SUBS: List[dict] = []
 
 
 def get_targets(target_date: Optional[str] = None) -> dict:
@@ -568,6 +595,7 @@ if tg_app:
             "• שלח בטקסט חופשי מה אכלת או שתית כדי לתעד.\n"
             "• שלח 📸 תמונה של הצלחת או של תווית המוצר לניתוח אוטומטי.\n"
             "• שלח /weight 78.5 לתיעוד משקל יומי.\n"
+            "• שלח /push לשליחת התראת פוש לנייד.\n"
             "• שלח /status לסיכום היומי שלך."
         )
 
@@ -580,6 +608,23 @@ if tg_app:
             f"🔥 קלוריות: {s['total_calories']} / {s['target_calories']} קק\"ל (נותרו: {s['remaining_calories']})\n"
             f"💪 חלבון: {s['total_protein']:.0f} / {s['target_protein']} גרם{w_line}"
         )
+
+    async def push_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        s = get_day_summary()
+        custom_msg = " ".join(context.args).strip() if context.args else ""
+        title = "NutriAgent AI 🔔"
+        body = custom_msg or (
+            f"🔥 היום: {s['total_calories']}/{s['target_calories']} קק\"ל "
+            f"(נותרו {s['remaining_calories']}) | 💪 חלבון: {s['total_protein']:.0f}g"
+        )
+        result = send_web_push_to_all(title=title, body=body, tag="nutriagent-tg-push")
+        if result["sent"] > 0:
+            await update.message.reply_text(f"📲 נשלחה התראת פוש ל-{result['sent']} מכשירים מחוברים!")
+        else:
+            await update.message.reply_text(
+                "לא נמצאו מכשירים רשומים להתראות פוש 📱\n"
+                "היכנס לאפליקציה בנייד ולחץ על סמל הפעמון 🔔 בראש המסך כדי להפעיל התראות."
+            )
 
     async def weight_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.args:
@@ -600,6 +645,11 @@ if tg_app:
                 sign = "+" if w["weight_change"] > 0 else ""
                 diff_str = f" ({sign}{w['weight_change']} ק\"ג מההתחלה)"
             await update.message.reply_text(f"⚖️ המשקל עודכן בהצלחה: {val:.1f} ק\"ג{diff_str}")
+            send_web_push_to_all(
+                title="⚖️ שקילה חדשה נשמרה!",
+                body=f"משקל נוכחי: {val:.1f} ק\"ג{diff_str}",
+                tag="nutriagent-weight",
+            )
         except ValueError:
             await update.message.reply_text("נא להזין משקל תקין במספרים, למשל: /weight 78.5")
 
@@ -616,6 +666,11 @@ if tg_app:
             f"✅ נרשם: {res.summary}\n"
             f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
             f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
+        )
+        send_web_push_to_all(
+            title=f"✅ נרשם: {res.summary}",
+            body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
+            tag="nutriagent-meal",
         )
 
     async def photo_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -638,12 +693,18 @@ if tg_app:
                 f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
                 f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
             )
+            send_web_push_to_all(
+                title=f"📸 נרשם מתמונה: {res.summary}",
+                body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
+                tag="nutriagent-meal",
+            )
         except Exception as e:
             print(f"ERROR photo_msg: {type(e).__name__} - {e}")
             await status_reply.edit_text("שגיאה בניתוח התמונה, נסה שוב מאוחר יותר.")
 
     tg_app.add_handler(CommandHandler("start", start_cmd))
     tg_app.add_handler(CommandHandler("status", status_cmd))
+    tg_app.add_handler(CommandHandler("push", push_cmd))
     tg_app.add_handler(CommandHandler("weight", weight_cmd))
     tg_app.add_handler(MessageHandler(filters.PHOTO, photo_msg))
     tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_msg))
@@ -787,6 +848,161 @@ def delete_weight_db(entry_id: str) -> bool:
         return True
     db.collection("weight_logs").document(entry_id).delete()
     return True
+
+
+# ---------------------------------------------------------------------------
+# Web Push (VAPID) Helpers
+# ---------------------------------------------------------------------------
+
+def _generate_vapid_keypair() -> dict:
+    pk = ec.generate_private_key(ec.SECP256R1())
+    raw_priv = pk.private_numbers().private_value.to_bytes(32, "big")
+    raw_pub = pk.public_key().public_bytes(
+        serialization.Encoding.X962,
+        serialization.PublicFormat.UncompressedPoint,
+    )
+    priv_b64 = base64.urlsafe_b64encode(raw_priv).rstrip(b"=").decode("ascii")
+    pub_b64 = base64.urlsafe_b64encode(raw_pub).rstrip(b"=").decode("ascii")
+    return {"private_key": priv_b64, "public_key": pub_b64}
+
+
+def get_or_create_vapid_keys() -> dict:
+    global _LOCAL_VAPID
+    env_pub = os.getenv("VAPID_PUBLIC_KEY")
+    env_priv = os.getenv("VAPID_PRIVATE_KEY")
+    if env_pub and env_priv:
+        return {"public_key": env_pub.strip(), "private_key": env_priv.strip()}
+
+    if _LOCAL_VAPID:
+        return _LOCAL_VAPID
+
+    if db:
+        try:
+            doc_ref = db.collection("push_config").document("vapid")
+            doc = doc_ref.get()
+            if doc.exists:
+                data = doc.to_dict()
+                if data.get("public_key") and data.get("private_key"):
+                    _LOCAL_VAPID = {
+                        "public_key": data["public_key"],
+                        "private_key": data["private_key"],
+                    }
+                    return _LOCAL_VAPID
+            keys = _generate_vapid_keypair()
+            doc_ref.set({
+                "public_key": keys["public_key"],
+                "private_key": keys["private_key"],
+                "created_at": firestore.SERVER_TIMESTAMP,
+            })
+            _LOCAL_VAPID = keys
+            return _LOCAL_VAPID
+        except Exception as e:
+            print(f"ERROR get_or_create_vapid_keys: {e}")
+
+    _LOCAL_VAPID = _generate_vapid_keypair()
+    return _LOCAL_VAPID
+
+
+def _sub_doc_id(endpoint: str) -> str:
+    return hashlib.sha256(endpoint.encode("utf-8")).hexdigest()[:32]
+
+
+def save_push_subscription_db(endpoint: str, p256dh: str, auth: str, user_agent: str = "") -> dict:
+    sub_id = _sub_doc_id(endpoint)
+    record = {
+        "id": sub_id,
+        "endpoint": endpoint,
+        "keys": {"p256dh": p256dh, "auth": auth},
+        "user_agent": (user_agent or "")[:250],
+    }
+    global _LOCAL_PUSH_SUBS
+    _LOCAL_PUSH_SUBS = [s for s in _LOCAL_PUSH_SUBS if s.get("endpoint") != endpoint]
+    _LOCAL_PUSH_SUBS.append(record)
+
+    if db:
+        try:
+            db.collection("push_subscriptions").document(sub_id).set({
+                **record,
+                "updated_at": firestore.SERVER_TIMESTAMP,
+            }, merge=True)
+        except Exception as e:
+            print(f"ERROR save_push_subscription_db: {e}")
+    return record
+
+
+def remove_push_subscription_db(endpoint: str) -> bool:
+    sub_id = _sub_doc_id(endpoint)
+    global _LOCAL_PUSH_SUBS
+    _LOCAL_PUSH_SUBS = [s for s in _LOCAL_PUSH_SUBS if s.get("endpoint") != endpoint]
+    if db:
+        try:
+            db.collection("push_subscriptions").document(sub_id).delete()
+        except Exception as e:
+            print(f"ERROR remove_push_subscription_db: {e}")
+    return True
+
+
+def get_push_subscriptions_db() -> List[dict]:
+    if not db:
+        return list(_LOCAL_PUSH_SUBS)
+    try:
+        docs = db.collection("push_subscriptions").stream()
+        subs = []
+        for doc in docs:
+            d = doc.to_dict()
+            if d.get("endpoint") and d.get("keys"):
+                subs.append({
+                    "id": doc.id,
+                    "endpoint": d["endpoint"],
+                    "keys": d["keys"],
+                    "user_agent": d.get("user_agent", ""),
+                })
+        return subs
+    except Exception as e:
+        print(f"ERROR get_push_subscriptions_db: {e}")
+        return list(_LOCAL_PUSH_SUBS)
+
+
+def send_web_push_to_all(title: str, body: str, tag: str = "nutriagent-push", url: str = "/") -> dict:
+    subs = get_push_subscriptions_db()
+    if not subs:
+        return {"sent": 0, "failed": 0, "total_subscriptions": 0}
+
+    vapid = get_or_create_vapid_keys()
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+        "tag": tag,
+        "url": url,
+    }, ensure_ascii=False)
+
+    sent = 0
+    failed = 0
+    for sub in subs:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub["endpoint"],
+                    "keys": sub["keys"],
+                },
+                data=payload,
+                vapid_private_key=vapid["private_key"],
+                vapid_claims={"sub": "mailto:push@nutriagent.app"},
+                ttl=3600,
+            )
+            sent += 1
+        except WebPushException as ex:
+            failed += 1
+            status_code = getattr(getattr(ex, "response", None), "status_code", None)
+            if status_code in (404, 410):
+                remove_push_subscription_db(sub["endpoint"])
+            else:
+                print(f"WARN WebPushException ({status_code}): {ex}")
+        except Exception as e:
+            failed += 1
+            print(f"ERROR send_web_push_to_all: {type(e).__name__} - {e}")
+
+    return {"sent": sent, "failed": failed, "total_subscriptions": len(subs)}
 
 
 # ---------------------------------------------------------------------------
@@ -1097,6 +1313,68 @@ def api_suggest_recipes(req: RecipePromptRequest):
     if not suggestions:
         raise HTTPException(status_code=500, detail="לא ניתן היה לייצר מתכונים כרגע (בדוק מפתח Gemini)")
     return {"recipes": suggestions}
+
+
+@app.get("/api/push/vapid-public-key")
+def api_push_vapid_public_key():
+    vapid = get_or_create_vapid_keys()
+    subs = get_push_subscriptions_db()
+    return {
+        "public_key": vapid["public_key"],
+        "subscribers_count": len(subs),
+    }
+
+
+@app.post("/api/push/subscribe")
+def api_push_subscribe(req: PushSubscribeRequest):
+    if not req.endpoint or not req.keys.p256dh or not req.keys.auth:
+        raise HTTPException(status_code=400, detail="נתוני הרשמה להתראות חסרים")
+    sub = save_push_subscription_db(
+        endpoint=req.endpoint,
+        p256dh=req.keys.p256dh,
+        auth=req.keys.auth,
+        user_agent=req.user_agent or "",
+    )
+    return {"status": "subscribed", "id": sub["id"]}
+
+
+@app.post("/api/push/unsubscribe")
+def api_push_unsubscribe(req: PushUnsubscribeRequest):
+    if req.endpoint:
+        remove_push_subscription_db(req.endpoint)
+    return {"status": "unsubscribed"}
+
+
+@app.post("/api/push/test")
+def api_push_test(req: Optional[PushMessageRequest] = None):
+    s = get_day_summary()
+    title = (req.title if req and req.title else None) or "NutriAgent AI 🔔 התראת בדיקה!"
+    body = (req.body if req and req.body else None) or (
+        f"הפוש בנייד עובד מעולה! 🔥 היום: {s['total_calories']}/{s['target_calories']} קק\"ל "
+        f"(נותרו {s['remaining_calories']}) | 💪 חלבון: {s['total_protein']:.0f}g"
+    )
+    res = send_web_push_to_all(title=title, body=body, tag="nutriagent-test")
+    if res["total_subscriptions"] == 0:
+        raise HTTPException(status_code=404, detail="לא נמצאו מכשירים רשומים להתראות. הפעל תחילה התראות במכשיר זה.")
+    return res
+
+
+@app.post("/api/push/remind")
+def api_push_daily_reminder():
+    """Can be triggered manually or via Cloud Scheduler to send a smart daily status push."""
+    s = get_day_summary()
+    rem_cal = s["remaining_calories"]
+    rem_prot = max(0.0, s["target_protein"] - s["total_protein"])
+    if s["meal_count"] == 0:
+        title = "🥗 תזכורת יומית מ-NutriAgent"
+        body = f"עדיין לא תיעדת ארוחות היום! היעד שלך: {s['target_calories']} קק\"ל ו-{s['target_protein']}g חלבון."
+    elif rem_cal > 0:
+        title = "📊 סיכום ביניים להיום"
+        body = f"נותרו לך עוד {rem_cal} קק\"ל ו-{rem_prot:.0f}g חלבון להשלמת היעד היומי 💪"
+    else:
+        title = "🎯 הגעת ליעד הקלורי היומי!"
+        body = f"סה\"כ היום: {s['total_calories']} קק\"ל ו-{s['total_protein']:.0f}g חלבון. כל הכבוד!"
+    return send_web_push_to_all(title=title, body=body, tag="nutriagent-reminder")
 
 
 @app.post("/webhook")
