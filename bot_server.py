@@ -560,7 +560,14 @@ if os.path.exists("static"):
 @app.get("/")
 def serve_pwa():
     if os.path.exists("static/index.html"):
-        return FileResponse("static/index.html")
+        return FileResponse(
+            "static/index.html",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     return {"status": "ok", "bot_configured": tg_app is not None}
 
 
