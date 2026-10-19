@@ -366,29 +366,39 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
         label = caption.strip() if caption and caption.strip() else "ארוחה מצולמת (ניתוח תמונה)"
         return NutritionExtraction(is_meal=True, calories=420, protein_g=32.0, summary=label)
 
+    clean_mime = (mime_type or "image/jpeg").lower().strip()
+    if clean_mime not in ("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"):
+        clean_mime = "image/jpeg"
+
     caption_note = f"\nהערת המשתמש לתמונה: '{caption.strip()}'." if caption and caption.strip() else ""
     prompt = f"""נתח את התמונה המצורפת עבור מעקב תזונה ישראלי.{caption_note}
 התמונה יכולה להיות:
-1. צילום של מנה / צלחת אוכל / משקה / חטיף — זהה את המרכיבים, הערך את גודל המנה בצורה מציאותית, וחשב סך קלוריות וחלבון בגרמים.
-2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד — קרא את טבלת הערכים התזונתיים או שם המוצר וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה (או לפי הערת המשתמש אם צוינה כמות).
+1. צילום של מנה / צלחת אוכל / משקה / קפה / חטיף / פרי / כריך — זהה את המרכיבים, הערך את גודל המנה בצורה מציאותית, וחשב סך קלוריות וחלבון בגרמים.
+2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד / תפריט — קרא את הערכים התזונתיים או שם המוצר וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה (או לפי הערת המשתמש אם צוינה כמות).
+חשוב: אם יש בתמונה אוכל, שתייה, אריזת מזון, כוס שתייה או טבלת ערכים תזונתיים — סמן תמיד is_meal=True!
 החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף עם אורז וסלט ירקות" או "יוגורט חלבון PRO תנובה 200 ג'").
-אם התמונה אינה קשורה כלל לאוכל, שתייה או מוצר מזון, סמן is_meal=False."""
-    try:
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type=mime_type or "image/jpeg"),
-                prompt,
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=NutritionExtraction,
-            ),
-        )
-        return NutritionExtraction.model_validate_json(response.text)
-    except Exception as e:
-        print(f"ERROR analyze_meal_image: {type(e).__name__} - {e}")
-        return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Image analysis error")
+רק אם התמונה אינה קשורה כלל לאוכל, שתייה או מוצר מזון (למשל נוף ריק או חפץ אקראי), סמן is_meal=False."""
+
+    last_err = None
+    for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
+        try:
+            response = ai_client.models.generate_content(
+                model=model_name,
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type=clean_mime),
+                    prompt,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=NutritionExtraction,
+                ),
+            )
+            return NutritionExtraction.model_validate_json(response.text)
+        except Exception as e:
+            last_err = e
+            print(f"ERROR analyze_meal_image ({model_name}): {type(e).__name__} - {e}")
+
+    return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {type(last_err).__name__}")
 
 
 def generate_ai_recipes(remaining_cal: int, remaining_prot: float, preference: str = "") -> List[dict]:
@@ -1218,6 +1228,8 @@ def api_add_photo_meal(req: PhotoMealRequest):
         raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
 
     extraction = analyze_meal_image(image_bytes, mime_type=mime_type, caption=req.caption or "")
+    if extraction.summary and extraction.summary.startswith("API_ERROR:"):
+        raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם Gemini Vision ({extraction.summary}). נסה שוב.")
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהו אוכל, משקה או תווית מזון בתמונה")
 
