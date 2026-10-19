@@ -963,10 +963,26 @@ def get_push_subscriptions_db() -> List[dict]:
         return list(_LOCAL_PUSH_SUBS)
 
 
+def _is_mobile_ua(user_agent: str) -> bool:
+    ua = (user_agent or "").lower()
+    return any(k in ua for k in ("android", "iphone", "ipad", "ipod", "mobile"))
+
+
+def _detect_device_label(user_agent: str) -> str:
+    ua = (user_agent or "").lower()
+    if "iphone" in ua or "ipad" in ua or "ipod" in ua:
+        return "📱 אייפון / iOS"
+    if "android" in ua:
+        return "📱 נייד אנדרואיד"
+    if "macintosh" in ua or "mac os" in ua:
+        return "💻 מחשב Mac"
+    return "💻 מחשב PC"
+
+
 def send_web_push_to_all(title: str, body: str, tag: str = "nutriagent-push", url: str = "/") -> dict:
     subs = get_push_subscriptions_db()
     if not subs:
-        return {"sent": 0, "failed": 0, "total_subscriptions": 0}
+        return {"sent": 0, "failed": 0, "mobile_sent": 0, "total_subscriptions": 0, "devices": []}
 
     vapid = get_or_create_vapid_keys()
     payload = json.dumps({
@@ -977,8 +993,13 @@ def send_web_push_to_all(title: str, body: str, tag: str = "nutriagent-push", ur
     }, ensure_ascii=False)
 
     sent = 0
+    mobile_sent = 0
     failed = 0
+    devices_report = []
     for sub in subs:
+        ua = sub.get("user_agent", "")
+        label = _detect_device_label(ua)
+        is_mob = _is_mobile_ua(ua)
         try:
             webpush(
                 subscription_info={
@@ -989,20 +1010,32 @@ def send_web_push_to_all(title: str, body: str, tag: str = "nutriagent-push", ur
                 vapid_private_key=vapid["private_key"],
                 vapid_claims={"sub": "mailto:push@nutriagent.app"},
                 ttl=3600,
+                headers={"Urgency": "high"},
             )
             sent += 1
+            if is_mob:
+                mobile_sent += 1
+            devices_report.append({"id": sub["id"], "label": label, "is_mobile": is_mob, "status": "sent"})
         except WebPushException as ex:
             failed += 1
             status_code = getattr(getattr(ex, "response", None), "status_code", None)
-            if status_code in (404, 410):
+            if status_code in (400, 401, 403, 404, 410):
                 remove_push_subscription_db(sub["endpoint"])
             else:
                 print(f"WARN WebPushException ({status_code}): {ex}")
+            devices_report.append({"id": sub["id"], "label": label, "is_mobile": is_mob, "status": f"error-{status_code}"})
         except Exception as e:
             failed += 1
             print(f"ERROR send_web_push_to_all: {type(e).__name__} - {e}")
+            devices_report.append({"id": sub["id"], "label": label, "is_mobile": is_mob, "status": "error"})
 
-    return {"sent": sent, "failed": failed, "total_subscriptions": len(subs)}
+    return {
+        "sent": sent,
+        "mobile_sent": mobile_sent,
+        "failed": failed,
+        "total_subscriptions": len(subs),
+        "devices": devices_report,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1319,9 +1352,19 @@ def api_suggest_recipes(req: RecipePromptRequest):
 def api_push_vapid_public_key():
     vapid = get_or_create_vapid_keys()
     subs = get_push_subscriptions_db()
+    devices = [
+        {
+            "id": s["id"],
+            "label": _detect_device_label(s.get("user_agent", "")),
+            "is_mobile": _is_mobile_ua(s.get("user_agent", "")),
+        }
+        for s in subs
+    ]
     return {
         "public_key": vapid["public_key"],
         "subscribers_count": len(subs),
+        "mobile_subscribers_count": sum(1 for d in devices if d["is_mobile"]),
+        "devices": devices,
     }
 
 

@@ -923,7 +923,7 @@
                 <button @click="openPushModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
-            <!-- Status Banner -->
+            <!-- Status Banner for THIS device -->
             <div class="p-3.5 rounded-2xl border flex items-center justify-between"
                  :class="pushEnabled ? 'bg-emerald-50/80 border-emerald-200' : 'bg-slate-50 border-slate-200'">
                 <div class="flex items-center gap-2.5">
@@ -931,10 +931,37 @@
                           :class="pushEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'"></span>
                     <div>
                         <p class="text-xs font-bold text-slate-900"
-                           x-text="pushEnabled ? 'התראות פוש פעילות במכשיר זה ✅' : 'התראות פוש כבויות במכשיר זה'"></p>
+                           x-text="pushEnabled ? 'התראות פוש פעילות במכשיר הנוכחי ✅' : 'התראות פוש כבויות במכשיר הנוכחי'"></p>
                         <p class="text-[11px] text-slate-500"
-                           x-text="pushEnabled ? 'תקבל פוש על תיעוד ארוחות בטלגרם ותזכורות יומיות' : 'הפעל בלחיצה אחת כדי לקבל עדכונים ישירות לנייד'"></p>
+                           x-text="pushEnabled ? 'מכשיר זה רשום לקבלת התראות פוש' : 'לחץ על הכפתור הירוק למטה מתוך הנייד כדי לחבר אותו'"></p>
                     </div>
+                </div>
+                <button x-show="pushEnabled"
+                        @click="resyncPushSubscription()"
+                        :disabled="pushLoading"
+                        class="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition cursor-pointer"
+                        title="רענן חיבור פוש במכשיר זה">
+                    🔄 סנכרן מחדש
+                </button>
+            </div>
+
+            <!-- Connected Devices List -->
+            <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-800">מכשירים מחוברים בשרת:</span>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                          :class="mobileSubscribersCount > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                          x-text="`${pushDevices.length} מחוברים (${mobileSubscribersCount} נייד)`"></span>
+                </div>
+                <div x-show="pushDevices.length > 0" class="flex flex-wrap gap-1.5 pt-0.5">
+                    <template x-for="dev in pushDevices" :key="dev.id">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-medium border"
+                              :class="dev.is_mobile ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-white border-slate-200 text-slate-700'"
+                              x-text="dev.label"></span>
+                    </template>
+                </div>
+                <div x-show="mobileSubscribersCount === 0" class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-900 leading-relaxed">
+                    💡 <strong>שים לב:</strong> כרגע רק המחשב מחובר להתראות! כדי שהפוש יגיע לטלפון, <strong>פתח את האפליקציה בטלפון הנייד</strong>, לחץ על <strong>🔔 התראות</strong> בראש המסך, ולחץ על <strong>הפעל התראות פוש בנייד</strong>.
                 </div>
             </div>
 
@@ -949,16 +976,6 @@
                 הדפדפן הנוכחי אינו תומך ב-Web Push או שהאפליקציה עדיין לא הותקנה למסך הבית.
             </div>
 
-            <!-- Features List -->
-            <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 space-y-2 text-xs text-slate-600">
-                <p class="font-bold text-slate-800">מה תקבל בהתראות פוש?</p>
-                <ul class="space-y-1.5 list-disc list-inside">
-                    <li>אישור מיידי בנייד כשאתה שולח ארוחה או תמונה לבוט בטלגרם 📸</li>
-                    <li>עדכון שקילה חדשה ויתרת קלוריות/חלבון להיום 🎯</li>
-                    <li>אפשרות לשלוח פוש מטלגרם עם הפקודה <code class="bg-white px-1.5 py-0.5 rounded border">/push</code></li>
-                </ul>
-            </div>
-
             <!-- Action Buttons -->
             <div class="space-y-2.5 pt-1">
                 <button type="button"
@@ -966,17 +983,17 @@
                         :disabled="pushLoading || !pushSupported"
                         class="w-full py-3 rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                         :class="pushEnabled ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white'">
-                    <span x-show="!pushLoading" x-text="pushEnabled ? '🔕 כבה התראות במכשיר זה' : '🔔 הפעל התראות פוש בנייד'"></span>
+                    <span x-show="!pushLoading" x-text="pushEnabled ? '🔕 כבה התראות במכשיר זה' : '🔔 הפעל התראות פוש במכשיר זה'"></span>
                     <span x-show="pushLoading">מעדכן הגדרות פוש...</span>
                 </button>
 
-                <div x-show="pushEnabled" class="grid grid-cols-2 gap-2">
+                <div x-show="pushEnabled || pushDevices.length > 0" class="grid grid-cols-2 gap-2">
                     <button type="button"
                             @click="sendTestPush()"
                             :disabled="pushTesting"
                             class="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer">
                         <span>🚀</span>
-                        <span x-text="pushTesting ? 'שולח...' : 'התראת בדיקה'"></span>
+                        <span x-text="pushTesting ? 'שולח...' : 'התראת בדיקה לכולם'"></span>
                     </button>
                     <button type="button"
                             @click="sendDailyReminderPush()"
@@ -1008,6 +1025,9 @@
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js').then(reg => {
                     reg.update();
+                    if (reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
                 }).catch(err => console.warn('SW registration failed:', err));
             });
         }
@@ -1087,6 +1107,8 @@
                 pushLoading: false,
                 pushTesting: false,
                 isIOSNotStandalone: false,
+                pushDevices: [],
+                mobileSubscribersCount: 0,
 
                 summary: {
                     total_calories: 0,
@@ -1225,19 +1247,103 @@
                     this.loading = false;
                 },
 
+                async fetchPushDevices() {
+                    try {
+                        const res = await fetch('/api/push/vapid-public-key');
+                        if (!res.ok) return null;
+                        const data = await res.json();
+                        this.pushDevices = data.devices || [];
+                        this.mobileSubscribersCount = data.mobile_subscribers_count || 0;
+                        return data;
+                    } catch (e) {
+                        return null;
+                    }
+                },
+
                 async checkPushStatus() {
                     const ua = window.navigator.userAgent.toLowerCase();
                     const isIOS = /iphone|ipad|ipod/.test(ua);
                     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
                     this.isIOSNotStandalone = isIOS && !isStandalone;
                     this.pushSupported = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+                    await this.fetchPushDevices();
                     if (!this.pushSupported) return;
                     try {
                         const reg = await navigator.serviceWorker.ready;
+                        await reg.update().catch(() => {});
+                        if (reg.waiting) {
+                            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        }
                         const sub = await reg.pushManager.getSubscription();
                         this.pushEnabled = !!sub;
+                        // Auto-sync existing browser subscription to backend so mobile is always registered
+                        if (sub) {
+                            const subJson = sub.toJSON();
+                            if (subJson.endpoint && subJson.keys) {
+                                await fetch('/api/push/subscribe', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        endpoint: subJson.endpoint,
+                                        keys: subJson.keys,
+                                        user_agent: navigator.userAgent
+                                    })
+                                });
+                                await this.fetchPushDevices();
+                            }
+                        }
                     } catch (e) {
                         console.warn('checkPushStatus error:', e);
+                    }
+                },
+
+                async resyncPushSubscription() {
+                    if (!this.pushSupported) return;
+                    this.pushLoading = true;
+                    try {
+                        const reg = await navigator.serviceWorker.ready;
+                        await reg.update().catch(() => {});
+                        if (reg.waiting) {
+                            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                        const existingSub = await reg.pushManager.getSubscription();
+                        if (existingSub) {
+                            await fetch('/api/push/unsubscribe', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ endpoint: existingSub.endpoint })
+                            }).catch(() => {});
+                            await existingSub.unsubscribe().catch(() => {});
+                        }
+                        const permission = await Notification.requestPermission();
+                        if (permission !== 'granted') {
+                            throw new Error('יש לאשר הרשאת התראות בדפדפן');
+                        }
+                        const keyData = await this.fetchPushDevices();
+                        if (!keyData || !keyData.public_key) throw new Error('שגיאה בטעינת מפתח מהשרת');
+
+                        const newSub = await reg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(keyData.public_key)
+                        });
+                        const subJson = newSub.toJSON();
+                        await fetch('/api/push/subscribe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                endpoint: subJson.endpoint,
+                                keys: subJson.keys,
+                                user_agent: navigator.userAgent
+                            })
+                        });
+                        this.pushEnabled = true;
+                        await this.fetchPushDevices();
+                        this.showToast('🔄 החיבור רוענן! שולח התראת בדיקה...');
+                        await this.sendTestPush();
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בסנכרון התראות פוש', 'error');
+                    } finally {
+                        this.pushLoading = false;
                     }
                 },
 
@@ -1249,6 +1355,7 @@
                     this.pushLoading = true;
                     try {
                         const reg = await navigator.serviceWorker.ready;
+                        await reg.update().catch(() => {});
                         const existingSub = await reg.pushManager.getSubscription();
 
                         if (existingSub) {
@@ -1259,6 +1366,7 @@
                             });
                             await existingSub.unsubscribe();
                             this.pushEnabled = false;
+                            await this.fetchPushDevices();
                             this.showToast('🔕 התראות פוש כובו במכשיר זה');
                             return;
                         }
@@ -1268,13 +1376,12 @@
                             throw new Error('יש לאשר הרשאת התראות בדפדפן');
                         }
 
-                        const keyRes = await fetch('/api/push/vapid-public-key');
-                        if (!keyRes.ok) throw new Error('שגיאה בטעינת מפתח התראות מהשרת');
-                        const { public_key } = await keyRes.json();
+                        const keyData = await this.fetchPushDevices();
+                        if (!keyData || !keyData.public_key) throw new Error('שגיאה בטעינת מפתח התראות מהשרת');
 
                         const newSub = await reg.pushManager.subscribe({
                             userVisibleOnly: true,
-                            applicationServerKey: urlBase64ToUint8Array(public_key)
+                            applicationServerKey: urlBase64ToUint8Array(keyData.public_key)
                         });
 
                         const subJson = newSub.toJSON();
@@ -1290,7 +1397,9 @@
                         if (!saveRes.ok) throw new Error('שגיאה בשמירת המנוי בשרת');
 
                         this.pushEnabled = true;
-                        this.showToast('🔔 התראות פוש הופעלו בהצלחה!');
+                        await this.fetchPushDevices();
+                        this.showToast('🔔 התראות פוש הופעלו במכשיר זה!');
+                        await this.sendTestPush();
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בהגדרת התראות פוש', 'error');
                     } finally {
@@ -1310,7 +1419,13 @@
                             const err = await res.json().catch(() => ({}));
                             throw new Error(err.detail || 'שגיאה בשליחת התראת בדיקה');
                         }
-                        this.showToast('🚀 התראת בדיקה נשלחה לנייד!');
+                        const data = await res.json();
+                        await this.fetchPushDevices();
+                        if (data.mobile_sent > 0) {
+                            this.showToast(`🚀 נשלח בהצלחה ל-${data.sent} מכשירים (כולל 📱 נייד)!`);
+                        } else {
+                            this.showToast(`💻 נשלח למחשב בלבד. פתח את האפליקציה בנייד והפעל שם 🔔 התראות!`);
+                        }
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בשליחת פוש', 'error');
                     } finally {
@@ -1323,7 +1438,8 @@
                     try {
                         const res = await fetch('/api/push/remind', { method: 'POST' });
                         if (!res.ok) throw new Error('שגיאה בשליחת תזכורת');
-                        this.showToast('📊 התראת סיכום יומי נשלחה לנייד!');
+                        await this.fetchPushDevices();
+                        this.showToast('📊 התראת סיכום יומי נשלחה לכל המכשירים!');
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בשליחת תזכורת', 'error');
                     } finally {

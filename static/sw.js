@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutriagent-v5";
+const CACHE_NAME = "nutriagent-v6";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -18,6 +18,12 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 // Network-first strategy so deployments are always reflected immediately
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
@@ -29,7 +35,8 @@ self.addEventListener("fetch", (event) => {
           networkResponse &&
           networkResponse.status === 200 &&
           event.request.url.startsWith(self.location.origin) &&
-          !event.request.url.includes("/api/")
+          !event.request.url.includes("/api/") &&
+          !event.request.url.endsWith("/sw.js")
         ) {
           const cloned = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
@@ -40,7 +47,7 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Handle incoming Web Push Notifications on Mobile & Desktop
+// Handle incoming Web Push Notifications on Mobile (Android / iOS) & Desktop
 self.addEventListener("push", (event) => {
   let payload = {
     title: "NutriAgent AI 🔔",
@@ -60,19 +67,29 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: payload.body,
-    icon: "/static/icon.svg",
-    badge: "/static/icon.svg",
+    icon: "/static/icon-192.png",
+    badge: "/static/icon-192.png",
     dir: "rtl",
     lang: "he",
     tag: payload.tag || "nutriagent-push",
     renotify: true,
+    requireInteraction: false,
     vibrate: [200, 100, 200],
     data: {
       url: payload.url || "/?source=push",
     },
   };
 
-  event.waitUntil(self.registration.showNotification(payload.title, options));
+  event.waitUntil(
+    self.registration.showNotification(payload.title, options).catch(() =>
+      // Fallback for iOS / strict mobile browsers that reject extra notification options
+      self.registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: "/static/icon-192.png",
+        data: { url: payload.url || "/?source=push" },
+      })
+    )
+  );
 });
 
 // Open or focus the PWA when the user taps a push notification
