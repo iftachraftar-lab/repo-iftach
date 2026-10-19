@@ -1,4 +1,14 @@
 steps:
+  # 0. Build frontend static assets (Tailwind CSS)
+  - name: 'node'
+    entrypoint: npm
+    args: ['install']
+    dir: 'web_app_dashboard/frontend'
+  - name: 'node'
+    entrypoint: npx
+    args: ['tailwindcss', '-i', './assets/css/input.css', '-o', './assets/css/style.css']
+    dir: 'web_app_dashboard/frontend'
+
   # 1. Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/nutrition-service:$COMMIT_SHA', '.']
