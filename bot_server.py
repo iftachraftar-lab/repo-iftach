@@ -1,8 +1,11 @@
 import os
 import io
+import re
 import json
 import base64
 import hashlib
+import urllib.request
+import urllib.parse
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 from contextlib import asynccontextmanager
@@ -36,6 +39,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+ENV_GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("PROJECT_ID") or "august-balancer-488508-k9"
 
@@ -71,6 +75,14 @@ class NutritionExtraction(BaseModel):
     summary: str = Field(description="תיאור תמציתי וברור של המנה בעברית")
 
 
+class DailyCoachInsight(BaseModel):
+    score: int = Field(description="ציון תזונה יומי בין 0 ל-100 בהתאם לעמידה ביעד הקלוריות והחלבון")
+    headline: str = Field(description="כותרת קצרה, אישית ומעודדת בעברית")
+    feedback: str = Field(description="ניתוח תמציתי וחכם של היום הנוכחי והמגמה השבועית בעברית")
+    next_meal_suggestion: str = Field(description="המלצה קונקרטית לארוחה הבאה או להמשך היום בהתאם ליתרת הקלוריות והחלבון")
+    tip: str = Field(description="טיפ פרקטי אחד לשיפור או התמדה")
+
+
 class RecipeItem(BaseModel):
     name: str = Field(description="שם המתכון בעברית")
     category: str = Field(description="קטגוריה: בוקר / צהריים / ערב / נשנוש")
@@ -104,6 +116,28 @@ class PhotoMealRequest(BaseModel):
     mime_type: str = "image/jpeg"
     caption: Optional[str] = ""
     log_date: Optional[str] = None
+
+
+class VoiceMealRequest(BaseModel):
+    audio_base64: str
+    mime_type: str = "audio/webm"
+    caption: Optional[str] = ""
+    log_date: Optional[str] = None
+
+
+class CoachAnalyzeRequest(BaseModel):
+    log_date: Optional[str] = None
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    picture: Optional[str] = None
+
+
+class AuthConfigRequest(BaseModel):
+    google_client_id: str
 
 
 class TargetUpdateRequest(BaseModel):
@@ -157,7 +191,7 @@ class PushMessageRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Firestore Helpers
+# Multi-User & Auth Helpers
 # ---------------------------------------------------------------------------
 
 DEFAULT_FAVORITES = [
@@ -169,28 +203,306 @@ DEFAULT_FAVORITES = [
 ]
 
 # Local fallback state when running locally without GCP credentials
-_LOCAL_TARGETS = {"target_calories": 1800, "target_protein": 120}
+_LOCAL_TARGETS_BY_USER: dict = {"default": {"target_calories": 1800, "target_protein": 120}}
 _LOCAL_MEALS: List[dict] = []
-_LOCAL_FAVORITES: List[dict] = [dict(f) for f in DEFAULT_FAVORITES]
+_LOCAL_FAVORITES: List[dict] = [dict(f, user_id="default") for f in DEFAULT_FAVORITES]
 _LOCAL_WEIGHTS: List[dict] = []
 _LOCAL_VAPID: Optional[dict] = None
 _LOCAL_PUSH_SUBS: List[dict] = []
+_LOCAL_USERS: dict = {}
+_LOCAL_TG_LINKS: dict = {}
+_LOCAL_AUTH_CONFIG: dict = {"google_client_id": ENV_GOOGLE_CLIENT_ID, "primary_user_id": "default"}
 
 
-def get_targets(target_date: Optional[str] = None) -> dict:
-    default_targets = dict(_LOCAL_TARGETS)
+def _normalize_user_id(raw_uid: Optional[str]) -> str:
+    if not raw_uid:
+        return "default"
+    cleaned = re.sub(r"[^a-zA-Z0-9_\-]", "", raw_uid.strip())[:64]
+    return cleaned if cleaned else "default"
+
+
+def get_request_user_id(request: Optional[Request] = None) -> str:
+    if not request:
+        return "default"
+    header_uid = request.headers.get("X-User-Id") or request.query_params.get("user_id")
+    return _normalize_user_id(header_uid)
+
+
+def _doc_matches_user(doc_data: dict, user_id: str) -> bool:
+    uid = _normalize_user_id(user_id)
+    doc_uid = doc_data.get("user_id") or "default"
+    return doc_uid == uid
+
+
+def _make_user_id_from_email(email: str) -> str:
+    clean_email = email.strip().lower()
+    digest = hashlib.sha256(clean_email.encode("utf-8")).hexdigest()[:16]
+    prefix = re.sub(r"[^a-z0-9]", "", clean_email.split("@")[0])[:12] or "user"
+    return f"u_{prefix}_{digest}"
+
+
+def _make_link_code(user_id: str, email: str) -> str:
+    raw = f"{user_id}:{email.lower().strip()}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:6].upper()
+
+
+def get_auth_config_db() -> dict:
+    client_id = ENV_GOOGLE_CLIENT_ID or _LOCAL_AUTH_CONFIG.get("google_client_id", "")
+    primary_uid = _LOCAL_AUTH_CONFIG.get("primary_user_id", "default")
+    if db:
+        try:
+            doc = db.collection("app_config").document("auth").get()
+            if doc.exists:
+                data = doc.to_dict()
+                if not client_id and data.get("google_client_id"):
+                    client_id = data["google_client_id"].strip()
+                if data.get("primary_user_id"):
+                    primary_uid = data["primary_user_id"]
+        except Exception as e:
+            print(f"ERROR get_auth_config_db: {e}")
+    return {"google_client_id": client_id, "primary_user_id": primary_uid}
+
+
+def set_auth_config_db(google_client_id: str) -> dict:
+    clean_cid = (google_client_id or "").strip()
+    _LOCAL_AUTH_CONFIG["google_client_id"] = clean_cid
+    if db:
+        try:
+            db.collection("app_config").document("auth").set({
+                "google_client_id": clean_cid,
+                "updated_at": firestore.SERVER_TIMESTAMP,
+            }, merge=True)
+        except Exception as e:
+            print(f"ERROR set_auth_config_db: {e}")
+    return get_auth_config_db()
+
+
+def verify_google_id_token(id_token: str) -> dict:
+    url = f"https://oauth2.googleapis.com/tokeninfo?id_token={urllib.parse.quote(id_token.strip())}"
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    if not data.get("email"):
+        raise ValueError("Invalid Google token: missing email")
+    cfg = get_auth_config_db()
+    expected_cid = cfg.get("google_client_id", "").strip()
+    if expected_cid and data.get("aud") and data.get("aud") != expected_cid:
+        raise ValueError("Google token audience mismatch")
+    return {
+        "email": data["email"].strip().lower(),
+        "name": data.get("name") or data["email"].split("@")[0],
+        "picture": data.get("picture") or "",
+        "sub": data.get("sub") or "",
+    }
+
+
+def claim_legacy_data_for_user(user_id: str) -> dict:
+    uid = _normalize_user_id(user_id)
+    if uid == "default":
+        return {"claimed_meals": 0, "claimed_weights": 0, "claimed_favorites": 0}
+
+    claimed_meals = 0
+    claimed_weights = 0
+    claimed_favorites = 0
+
+    if not db:
+        for m in _LOCAL_MEALS:
+            if (m.get("user_id") or "default") == "default":
+                m["user_id"] = uid
+                claimed_meals += 1
+        for w in _LOCAL_WEIGHTS:
+            if (w.get("user_id") or "default") == "default":
+                w["user_id"] = uid
+                claimed_weights += 1
+        for f in _LOCAL_FAVORITES:
+            if (f.get("user_id") or "default") == "default":
+                f["user_id"] = uid
+                claimed_favorites += 1
+        if "default" in _LOCAL_TARGETS_BY_USER and uid not in _LOCAL_TARGETS_BY_USER:
+            _LOCAL_TARGETS_BY_USER[uid] = dict(_LOCAL_TARGETS_BY_USER["default"])
+        _LOCAL_AUTH_CONFIG["primary_user_id"] = uid
+        return {
+            "claimed_meals": claimed_meals,
+            "claimed_weights": claimed_weights,
+            "claimed_favorites": claimed_favorites,
+        }
+
+    try:
+        # 1. Migrate legacy meals (where user_id is missing or 'default')
+        for doc in db.collection("meals").stream():
+            d = doc.to_dict()
+            if (d.get("user_id") or "default") == "default":
+                doc.reference.set({"user_id": uid}, merge=True)
+                claimed_meals += 1
+
+        # 2. Migrate legacy weight_logs
+        for doc in db.collection("weight_logs").stream():
+            d = doc.to_dict()
+            if (d.get("user_id") or "default") == "default":
+                doc.reference.set({"user_id": uid}, merge=True)
+                claimed_weights += 1
+
+        # 3. Migrate legacy favorites
+        for doc in db.collection("favorites").stream():
+            d = doc.to_dict()
+            if (d.get("user_id") or "default") == "default":
+                doc.reference.set({"user_id": uid}, merge=True)
+                claimed_favorites += 1
+
+        # 4. Copy default daily_targets if user doesn't have custom targets yet
+        user_target_ref = db.collection("daily_targets").document(f"user_{uid}")
+        if not user_target_ref.get().exists:
+            def_doc = db.collection("daily_targets").document("default").get()
+            if def_doc.exists:
+                def_data = def_doc.to_dict()
+                user_target_ref.set({
+                    "user_id": uid,
+                    "target_calories": def_data.get("target_calories", 1800),
+                    "target_protein": def_data.get("target_protein", 120),
+                    "updated_at": firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+
+        # 5. Migrate legacy push_subscriptions
+        for doc in db.collection("push_subscriptions").stream():
+            d = doc.to_dict()
+            if (d.get("user_id") or "default") == "default":
+                doc.reference.set({"user_id": uid}, merge=True)
+
+        # Record primary user if not set
+        auth_ref = db.collection("app_config").document("auth")
+        auth_doc = auth_ref.get()
+        if not auth_doc.exists or not auth_doc.to_dict().get("primary_user_id") or auth_doc.to_dict().get("primary_user_id") == "default":
+            auth_ref.set({"primary_user_id": uid}, merge=True)
+            _LOCAL_AUTH_CONFIG["primary_user_id"] = uid
+    except Exception as e:
+        print(f"ERROR claim_legacy_data_for_user: {e}")
+
+    return {
+        "claimed_meals": claimed_meals,
+        "claimed_weights": claimed_weights,
+        "claimed_favorites": claimed_favorites,
+    }
+
+
+def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
+    clean_email = email.strip().lower()
+    uid = _make_user_id_from_email(clean_email)
+    display_name = (name or "").strip() or clean_email.split("@")[0]
+    link_code = _make_link_code(uid, clean_email)
+
+    profile = {
+        "id": uid,
+        "email": clean_email,
+        "name": display_name,
+        "picture": (picture or "").strip(),
+        "link_code": link_code,
+    }
+
+    is_first_user = False
+    if not db:
+        if not _LOCAL_USERS:
+            is_first_user = True
+        _LOCAL_USERS[uid] = profile
+    else:
+        try:
+            existing_users = list(db.collection("users").limit(2).stream())
+            if len(existing_users) == 0:
+                is_first_user = True
+            db.collection("users").document(uid).set({
+                **profile,
+                "updated_at": firestore.SERVER_TIMESTAMP,
+            }, merge=True)
+        except Exception as e:
+            print(f"ERROR upsert_user_profile: {e}")
+
+    # Automatically claim unowned legacy data for the very first user so nothing disappears on upgrade
+    claimed = {"claimed_meals": 0, "claimed_weights": 0, "claimed_favorites": 0}
+    if is_first_user:
+        claimed = claim_legacy_data_for_user(uid)
+
+    return {**profile, "claimed": claimed}
+
+
+def link_telegram_Account(tg_chat_id: int, code_or_email: str) -> Optional[dict]:
+    query = (code_or_email or "").strip().lower()
+    if not query:
+        return None
+    matched_user = None
+    if not db:
+        for u in _LOCAL_USERS.values():
+            if u["email"].lower() == query or u["link_code"].lower() == query or u["id"].lower() == query:
+                matched_user = u
+                break
+        if matched_user:
+            _LOCAL_TG_LINKS[str(tg_chat_id)] = matched_user["id"]
+        return matched_user
+
+    try:
+        for doc in db.collection("users").stream():
+            u = doc.to_dict()
+            if (
+                (u.get("email") or "").lower() == query
+                or (u.get("link_code") or "").lower() == query
+                or doc.id.lower() == query
+            ):
+                matched_user = u
+                matched_user["id"] = doc.id
+                break
+        if matched_user:
+            db.collection("telegram_links").document(str(tg_chat_id)).set({
+                "tg_chat_id": str(tg_chat_id),
+                "user_id": matched_user["id"],
+                "email": matched_user.get("email", ""),
+                "name": matched_user.get("name", ""),
+                "updated_at": firestore.SERVER_TIMESTAMP,
+            }, merge=True)
+            _LOCAL_TG_LINKS[str(tg_chat_id)] = matched_user["id"]
+    except Exception as e:
+        print(f"ERROR link_telegram_Account: {e}")
+    return matched_user
+
+
+def resolve_telegram_user_id(update: Update) -> str:
+    tg_id = str(update.effective_user.id) if (update and update.effective_user) else ""
+    if tg_id:
+        if tg_id in _LOCAL_TG_LINKS:
+            return _LOCAL_TG_LINKS[tg_id]
+        if db:
+            try:
+                doc = db.collection("telegram_links").document(tg_id).get()
+                if doc.exists and doc.to_dict().get("user_id"):
+                    uid = doc.to_dict()["user_id"]
+                    _LOCAL_TG_LINKS[tg_id] = uid
+                    return uid
+            except Exception as e:
+                print(f"ERROR resolve_telegram_user_id: {e}")
+    cfg = get_auth_config_db()
+    return cfg.get("primary_user_id") or "default"
+
+
+# ---------------------------------------------------------------------------
+# Firestore Helpers (Multi-User Aware)
+# ---------------------------------------------------------------------------
+
+def get_targets(target_date: Optional[str] = None, user_id: str = "default") -> dict:
+    uid = _normalize_user_id(user_id)
+    local_t = _LOCAL_TARGETS_BY_USER.get(uid) or _LOCAL_TARGETS_BY_USER.get("default") or {"target_calories": 1800, "target_protein": 120}
+    default_targets = dict(local_t)
     if not db:
         return default_targets
     try:
-        # Check global settings first, then date-specific override
-        global_doc = db.collection("daily_targets").document("default").get()
+        user_global_id = "default" if uid == "default" else f"user_{uid}"
+        global_doc = db.collection("daily_targets").document(user_global_id).get()
+        if not global_doc.exists and uid != "default":
+            global_doc = db.collection("daily_targets").document("default").get()
         if global_doc.exists:
             g_data = global_doc.to_dict()
             default_targets["target_calories"] = g_data.get("target_calories", 1800)
             default_targets["target_protein"] = g_data.get("target_protein", 120)
 
         d_str = target_date or str(date.today())
-        doc = db.collection("daily_targets").document(d_str).get()
+        date_doc_id = d_str if uid == "default" else f"{uid}_{d_str}"
+        doc = db.collection("daily_targets").document(date_doc_id).get()
         if doc.exists:
             data = doc.to_dict()
             return {
@@ -202,19 +514,22 @@ def get_targets(target_date: Optional[str] = None) -> dict:
     return default_targets
 
 
-def set_targets(target_calories: int, target_protein: int, target_date: Optional[str] = None) -> dict:
-    _LOCAL_TARGETS["target_calories"] = target_calories
-    _LOCAL_TARGETS["target_protein"] = target_protein
+def set_targets(target_calories: int, target_protein: int, target_date: Optional[str] = None, user_id: str = "default") -> dict:
+    uid = _normalize_user_id(user_id)
+    _LOCAL_TARGETS_BY_USER[uid] = {"target_calories": target_calories, "target_protein": target_protein}
     if not db:
-        return dict(_LOCAL_TARGETS)
+        return dict(_LOCAL_TARGETS_BY_USER[uid])
     d_str = target_date or str(date.today())
     payload = {
+        "user_id": uid,
         "target_calories": target_calories,
         "target_protein": target_protein,
         "updated_at": firestore.SERVER_TIMESTAMP,
     }
-    db.collection("daily_targets").document("default").set(payload, merge=True)
-    db.collection("daily_targets").document(d_str).set(payload, merge=True)
+    user_global_id = "default" if uid == "default" else f"user_{uid}"
+    date_doc_id = d_str if uid == "default" else f"{uid}_{d_str}"
+    db.collection("daily_targets").document(user_global_id).set(payload, merge=True)
+    db.collection("daily_targets").document(date_doc_id).set(payload, merge=True)
     return {"target_calories": target_calories, "target_protein": target_protein}
 
 
@@ -225,12 +540,15 @@ def log_meal_db(
     log_date: Optional[str] = None,
     log_time: Optional[str] = None,
     source: str = "web",
+    user_id: str = "default",
 ) -> Optional[dict]:
+    uid = _normalize_user_id(user_id)
     d_str = log_date or str(date.today())
     t_str = log_time or datetime.now().strftime("%H:%M")
     if not db:
         entry = {
             "id": f"local-{int(datetime.now().timestamp() * 1000)}",
+            "user_id": uid,
             "log_date": d_str,
             "log_time": t_str,
             "description": description,
@@ -242,6 +560,7 @@ def log_meal_db(
         return entry
     try:
         doc_data = {
+            "user_id": uid,
             "log_date": d_str,
             "log_time": t_str,
             "description": description,
@@ -253,6 +572,7 @@ def log_meal_db(
         _, doc_ref = db.collection("meals").add(doc_data)
         return {
             "id": doc_ref.id,
+            "user_id": uid,
             "log_date": d_str,
             "log_time": t_str,
             "description": description,
@@ -265,7 +585,8 @@ def log_meal_db(
         return None
 
 
-def get_day_summary(target_date: Optional[str] = None):
+def get_day_summary(target_date: Optional[str] = None, user_id: str = "default"):
+    uid = _normalize_user_id(user_id)
     d_str = target_date or str(date.today())
     total_cal = 0
     total_prot = 0.0
@@ -276,6 +597,8 @@ def get_day_summary(target_date: Optional[str] = None):
             meals_ref = db.collection("meals").where("log_date", "==", d_str).stream()
             for m in meals_ref:
                 data = m.to_dict()
+                if not _doc_matches_user(data, uid):
+                    continue
                 c = int(data.get("calories", 0))
                 p = float(data.get("protein_g", 0.0))
                 total_cal += c
@@ -295,28 +618,30 @@ def get_day_summary(target_date: Optional[str] = None):
             print(f"ERROR get_day_summary: {type(e).__name__} - {e}")
     else:
         for m in _LOCAL_MEALS:
-            if m.get("log_date") == d_str:
+            if m.get("log_date") == d_str and _doc_matches_user(m, uid):
                 total_cal += m["calories"]
                 total_prot += m["protein_g"]
                 meals_list.append(m)
 
-    targets = get_targets(d_str)
+    targets = get_targets(d_str, user_id=uid)
     target_cal = targets["target_calories"]
     target_prot = targets["target_protein"]
     remaining_cal = target_cal - total_cal
     return {
         "date": d_str,
+        "user_id": uid,
         "total_calories": total_cal,
         "total_protein": round(total_prot, 1),
         "target_calories": target_cal,
         "target_protein": target_prot,
         "remaining_calories": remaining_cal,
+        "meal_count": len(meals_list),
         "meals": meals_list,
     }
 
 
-def get_today_summary():
-    s = get_day_summary(str(date.today()))
+def get_today_summary(user_id: str = "default"):
+    s = get_day_summary(str(date.today()), user_id=user_id)
     return (
         s["total_calories"],
         s["total_protein"],
@@ -440,6 +765,149 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
             print(f"ERROR analyze_meal_image ({model_name}): {type(e).__name__} - {e}")
 
     return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {type(last_err).__name__}: {last_err}")
+
+
+def analyze_meal_audio(audio_bytes: bytes, mime_type: str = "audio/webm", caption: str = "") -> NutritionExtraction:
+    if not ai_client:
+        label = caption.strip() if caption and caption.strip() else "דיווח קולי על ארוחה"
+        return NutritionExtraction(is_meal=True, calories=350, protein_g=28.0, summary=label)
+
+    clean_mime = (mime_type or "audio/webm").split(";")[0].strip().lower()
+    if clean_mime not in (
+        "audio/webm",
+        "audio/ogg",
+        "audio/mp4",
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/wav",
+        "audio/aac",
+        "audio/x-m4a",
+        "video/webm",
+    ):
+        clean_mime = "audio/webm"
+    if clean_mime == "video/webm":
+        clean_mime = "audio/webm"
+
+    caption_note = f"\nהערת טקסט מצורפת: '{caption.strip()}'." if caption and caption.strip() else ""
+    prompt = f"""האזן להקלטה הקולית של המשתמש (בעברית) שבה הוא מדווח מה אכל או שתה.{caption_note}
+1. תמלל והבן בדיוק את המנות, המשקאות או המוצרים שהמשתמש ציין בהקלטה.
+2. חשב הערכת קלוריות כוללת וחלבון בגרמים בצורה מציאותית ומדויקת לישראל.
+3. החזר תיאור תמציתי, טבעי וברור בעברית בשדה summary (למשל: "שתי ביצים מקושקשות, חצי קוטג' והפוך קטן").
+4. אם בהקלטה מוזכר כל פריט אוכל או שתייה (כולל קפה, נשנוש, פרי או ארוחה) סמן תמיד is_meal=True. רק אם ההקלטה ריקה לחלוטין או אינה קשורה לאוכל/שתייה סמן is_meal=False."""
+
+    last_err = None
+    for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
+        try:
+            response = ai_client.models.generate_content(
+                model=model_name,
+                contents=[
+                    types.Part.from_bytes(data=audio_bytes, mime_type=clean_mime),
+                    prompt,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=NutritionExtraction,
+                ),
+            )
+            return NutritionExtraction.model_validate_json(response.text)
+        except Exception as e:
+            last_err = e
+            print(f"ERROR analyze_meal_audio ({model_name}): {type(e).__name__} - {e}")
+
+    return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {type(last_err).__name__}: {last_err}")
+
+
+def generate_daily_coach_insight(day_summary: dict, daily_trend: List[dict]) -> dict:
+    total_cal = int(day_summary.get("total_calories", 0))
+    target_cal = max(500, int(day_summary.get("target_calories", 1800)))
+    total_prot = float(day_summary.get("total_protein", 0.0))
+    target_prot = max(20.0, float(day_summary.get("target_protein", 120.0)))
+    rem_cal = int(day_summary.get("remaining_calories", target_cal - total_cal))
+    rem_prot = max(0.0, round(target_prot - total_prot, 1))
+    meals = day_summary.get("meals", [])
+
+    # Heuristic fallback calculation
+    cal_ratio = total_cal / target_cal if target_cal else 0
+    prot_ratio = min(1.15, total_prot / target_prot) if target_prot else 0
+    if total_cal == 0:
+        heuristic_score = 50
+    else:
+        cal_score = max(0, 100 - int(abs(1.0 - cal_ratio) * 90))
+        prot_score = min(100, int(prot_ratio * 100))
+        heuristic_score = max(15, min(100, int(cal_score * 0.55 + prot_score * 0.45)))
+
+    if not ai_client:
+        if total_cal == 0:
+            return {
+                "score": 60,
+                "headline": "היום שלך מוכן להמראה! 🚀",
+                "feedback": "עדיין לא תועדו ארוחות ליום זה. התחל בתיעוד ארוחת הבוקר או הקפה הראשון כדי שהמאמן יוכל לנתח את הקצב שלך.",
+                "next_meal_suggestion": f"מומלץ לפתוח בארוחה עשירה בחלבון (כ-30 גרם חלבון) כמו חביתה מ-2 ביצים וקוטג׳ 5%.",
+                "tip": "תיעוד בזמן אמת (מיד אחרי הארוחה או בהקלטה קולית קצרה) מעלה ב-80% את הסיכוי לעמוד ביעד היומי.",
+            }
+        return {
+            "score": heuristic_score,
+            "headline": "קצב מצוין! שומרים על מיקוד ביעדים 💪" if heuristic_score >= 75 else "ממשיכים לדייק את האיזון היומי 🎯",
+            "feedback": f"צרכת עד כה {total_cal} מתוך {target_cal} קק״ל ו-{total_prot:.0f} מתוך {target_prot:.0f} גרם חלבון ({len(meals)} ארוחות מתועדות).",
+            "next_meal_suggestion": (
+                f"נותרו לך {rem_cal} קק״ל ו-{rem_prot:.0f} גרם חלבון — מומלץ לבחור מנה ממוקדת חלבון כמו סלט טונה וביצה או יוגורט PRO."
+                if rem_cal > 150
+                else "הגעת קרוב מאוד ליעד הקלורי היומי — אם אתה רעב, העדף ירקות ירוקים או חלבון רזה ושתה מים."
+            ),
+            "tip": "שילוב מנת חלבון בכל ארוחה שומר על שובע ממושך ומונע נשנושים בשעות הערב.",
+        }
+
+    meals_desc = "\n".join(
+        f"- {m.get('log_time', '')}: {m.get('description', '')} ({m.get('calories', 0)} קק\"ל, {m.get('protein_g', 0)}g חלבון)"
+        for m in meals
+    ) or "טרם נרשמו ארוחות היום."
+
+    active_days = [d for d in (daily_trend or []) if d.get("calories", 0) > 0]
+    avg_cal = int(sum(d["calories"] for d in active_days) / len(active_days)) if active_days else 0
+    avg_prot = round(sum(d["protein_g"] for d in active_days) / len(active_days), 1) if active_days else 0.0
+
+    prompt = f"""אתה מאמן תזונה וכושר אישי חכם, מעודד ומקצועי בישראל.
+נתח את הנתונים של המשתמש ליום {day_summary.get('date')} והחזר משוב מובנה בעברית:
+
+נתוני היום:
+- קלוריות שנצרכו: {total_cal} מתוך יעד של {target_cal} קק"ל (יתרה: {rem_cal} קק"ל)
+- חלבון שנצרך: {total_prot:.1f} מתוך יעד של {target_prot:.0f} גרם (יתרה להשלמה: {rem_prot:.1f} גרם)
+- פירוט ארוחות היום:
+{meals_desc}
+
+מגמה ב-7 הימים האחרונים ({len(active_days)} ימים מתועדים):
+- ממוצע קלוריות יומי: {avg_cal} קק"ל
+- ממוצע חלבון יומי: {avg_prot} גרם
+
+הנחיות:
+1. קבע ציון תזונה יומי (score) בין 0 ל-100 המשקף את איכות העמידה ביעד הקלוריות, יחס החלבון ואיכות הבחירות (אם היום רק התחיל ויש מעט ארוחות אך הן טובות, תן ציון מעודד בהתאם לקצב).
+2. כתוב כותרת קצרה ואנרגטית (headline).
+3. תן משוב חכם ומדויק (feedback) שמתייחס לארוחות שנאכלו היום וליחס בין קלוריות לחלבון (ולמגמה השבועית אם רלוונטי).
+4. תן המלצה קונקרטית ומעשית לארוחה הבאה או להמשך היום (next_meal_suggestion) שתפגע בדיוק ביתרת הקלוריות ({rem_cal} קק"ל) והחלבון ({rem_prot:.0f}g) עם מאכלים ישראליים נפוצים.
+5. תן טיפ קצר ומנצח (tip)."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=DailyCoachInsight,
+            ),
+        )
+        parsed = DailyCoachInsight.model_validate_json(response.text)
+        data = parsed.model_dump()
+        data["score"] = max(0, min(100, int(data.get("score", heuristic_score))))
+        return data
+    except Exception as e:
+        print(f"ERROR generate_daily_coach_insight: {type(e).__name__} - {e}")
+        return {
+            "score": heuristic_score,
+            "headline": "המאמן האישי שלך מוכן 💪",
+            "feedback": f"עד כה תיעדת {total_cal}/{target_cal} קק״ל ו-{total_prot:.0f}/{target_prot:.0f} גרם חלבון.",
+            "next_meal_suggestion": f"נותרו {rem_cal} קק״ל ו-{rem_prot:.0f} גרם חלבון להשלמת היעד היומי.",
+            "tip": "הקפד על שתיית מים וחלוקת חלבון מאוזנת לאורך היום.",
+        }
 
 
 def generate_ai_recipes(remaining_cal: int, remaining_prot: float, preference: str = "") -> List[dict]:
@@ -634,7 +1102,7 @@ CURATED_RECIPES = [
 
 
 # ---------------------------------------------------------------------------
-# Telegram Bot Handlers
+# Telegram Bot Handlers (Multi-User + Voice + Photo + Text)
 # ---------------------------------------------------------------------------
 
 tg_app = ApplicationBuilder().token(BOT_TOKEN).build() if BOT_TOKEN else None
@@ -642,17 +1110,42 @@ tg_app = ApplicationBuilder().token(BOT_TOKEN).build() if BOT_TOKEN else None
 if tg_app:
     async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
-            "היי! הבוט מחובר ומסונכרן עם האפליקציה 🚀\n"
-            "• שלח בטקסט חופשי מה אכלת או שתית כדי לתעד.\n"
+            "היי! הבוט של NutriAgent AI מחובר ומסונכרן 🚀\n"
+            "• שלח בטקסט חופשי מה אכלת או שתית.\n"
+            "• שלח 🎙️ הודעה קולית ודבר חופשי — ה-AI יתמלל ויחשב קלוריות וחלבון!\n"
             "• שלח 📸 תמונה של הצלחת או של תווית המוצר לניתוח אוטומטי.\n"
+            "• שלח /link <קוד או אימייל> לקישור הבוט לחשבון האישי שלך באפליקציה.\n"
             "• שלח /weight 78.5 לתיעוד משקל יומי.\n"
             "• שלח /push לשליחת התראת פוש לנייד.\n"
             "• שלח /status לסיכום היומי שלך."
         )
 
+    async def link_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.args:
+            await update.message.reply_text(
+                "🔗 לקישור הטלגרם לחשבון שלך באפליקציה:\n"
+                "שלח `/link` ואחריו האימייל שלך או קוד הקישור שמופיע בפרופיל באפליקציה.\n"
+                "לדוגמה: `/link user@gmail.com`"
+            )
+            return
+        code_or_email = " ".join(context.args).strip()
+        tg_uid = update.effective_user.id if update.effective_user else 0
+        matched = link_telegram_Account(tg_uid, code_or_email)
+        if matched:
+            await update.message.reply_text(
+                f"✅ הטלגרם קושר בהצלחה לחשבון של {matched.get('name')} ({matched.get('email')})!\n"
+                "מעכשיו כל הודעה, תמונה או הקלטה קול שתשלח כאן יישמרו ישירות בחשבון האישי שלך."
+            )
+        else:
+            await update.message.reply_text(
+                "❌ לא נמצא חשבון מתאים.\n"
+                "היכנס תחילה לאפליקציית ה-Web, התחבר עם חשבון ה-Google שלך, ונסה שוב עם האימייל או קוד הקישור שלך."
+            )
+
     async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        s = get_day_summary()
-        w = get_weights_db(limit=5)
+        uid = resolve_telegram_user_id(update)
+        s = get_day_summary(user_id=uid)
+        w = get_weights_db(limit=5, user_id=uid)
         w_line = f"\n⚖️ משקל נוכחי: {w['latest_weight']} ק\"ג" if w.get("latest_weight") else ""
         await update.message.reply_text(
             f"📊 סיכום להיום:\n"
@@ -661,14 +1154,15 @@ if tg_app:
         )
 
     async def push_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        s = get_day_summary()
+        uid = resolve_telegram_user_id(update)
+        s = get_day_summary(user_id=uid)
         custom_msg = " ".join(context.args).strip() if context.args else ""
         title = "NutriAgent AI 🔔"
         body = custom_msg or (
             f"🔥 היום: {s['total_calories']}/{s['target_calories']} קק\"ל "
             f"(נותרו {s['remaining_calories']}) | 💪 חלבון: {s['total_protein']:.0f}g"
         )
-        result = send_web_push_to_all(title=title, body=body, tag="nutriagent-tg-push")
+        result = send_web_push_to_all(title=title, body=body, tag="nutriagent-tg-push", user_id=uid)
         if result["sent"] > 0:
             await update.message.reply_text(f"📲 נשלחה התראת פוש ל-{result['sent']} מכשירים מחוברים!")
         else:
@@ -678,8 +1172,9 @@ if tg_app:
             )
 
     async def weight_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        uid = resolve_telegram_user_id(update)
         if not context.args:
-            w = get_weights_db(limit=5)
+            w = get_weights_db(limit=5, user_id=uid)
             if w.get("latest_weight"):
                 await update.message.reply_text(f"⚖️ המשקל האחרון שתועד: {w['latest_weight']} ק\"ג\nלתיעוד שקילה חדשה שלח למשל: /weight 78.5")
             else:
@@ -689,8 +1184,8 @@ if tg_app:
             val = float(context.args[0].replace(",", "."))
             if val < 25 or val > 350:
                 raise ValueError()
-            log_weight_db(val)
-            w = get_weights_db(limit=60)
+            log_weight_db(val, user_id=uid)
+            w = get_weights_db(limit=60, user_id=uid)
             diff_str = ""
             if w.get("weight_change"):
                 sign = "+" if w["weight_change"] > 0 else ""
@@ -700,18 +1195,20 @@ if tg_app:
                 title="⚖️ שקילה חדשה נשמרה!",
                 body=f"משקל נוכחי: {val:.1f} ק\"ג{diff_str}",
                 tag="nutriagent-weight",
+                user_id=uid,
             )
         except ValueError:
             await update.message.reply_text("נא להזין משקל תקין במספרים, למשל: /weight 78.5")
 
     async def text_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        uid = resolve_telegram_user_id(update)
         res = analyze_meal(update.message.text)
         if not res.is_meal:
             await update.message.reply_text("לא זיהיתי ארוחה או שתייה בהודעה 🤔 נסה לתאר שוב מה אכלת.")
             return
 
-        log_meal_db(res.summary, res.calories, res.protein_g, source="telegram")
-        s = get_day_summary()
+        log_meal_db(res.summary, res.calories, res.protein_g, source="telegram", user_id=uid)
+        s = get_day_summary(user_id=uid)
 
         await update.message.reply_text(
             f"✅ נרשם: {res.summary}\n"
@@ -722,11 +1219,13 @@ if tg_app:
             title=f"✅ נרשם: {res.summary}",
             body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
             tag="nutriagent-meal",
+            user_id=uid,
         )
 
     async def photo_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message or not update.message.photo:
             return
+        uid = resolve_telegram_user_id(update)
         status_reply = await update.message.reply_text("📸 מנתח את התמונה ב-AI...")
         try:
             photo_file = await update.message.photo[-1].get_file()
@@ -737,8 +1236,8 @@ if tg_app:
                 await status_reply.edit_text("לא זיהיתי אוכל, משקה או תווית מזון בתמונה 🤔 נסה לצלם שוב או להוסיף כיתוב.")
                 return
 
-            log_meal_db(res.summary, res.calories, res.protein_g, source="telegram-photo")
-            s = get_day_summary()
+            log_meal_db(res.summary, res.calories, res.protein_g, source="telegram-photo", user_id=uid)
+            s = get_day_summary(user_id=uid)
             await status_reply.edit_text(
                 f"📸 נרשם מתמונה: {res.summary}\n"
                 f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
@@ -748,44 +1247,87 @@ if tg_app:
                 title=f"📸 נרשם מתמונה: {res.summary}",
                 body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
                 tag="nutriagent-meal",
+                user_id=uid,
             )
         except Exception as e:
             print(f"ERROR photo_msg: {type(e).__name__} - {e}")
             await status_reply.edit_text("שגיאה בניתוח התמונה, נסה שוב מאוחר יותר.")
 
+    async def voice_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not update.message:
+            return
+        voice_obj = update.message.voice or update.message.audio
+        if not voice_obj:
+            return
+        uid = resolve_telegram_user_id(update)
+        status_reply = await update.message.reply_text("🎙️ מאזין להקלטה ומחשב ערכים תזונתיים ב-AI...")
+        try:
+            tg_file = await voice_obj.get_file()
+            audio_bytes = bytes(await tg_file.download_as_bytearray())
+            mime_type = getattr(voice_obj, "mime_type", None) or "audio/ogg"
+            caption = update.message.caption or ""
+            res = analyze_meal_audio(audio_bytes, mime_type=mime_type, caption=caption)
+            if not res.is_meal:
+                await status_reply.edit_text("לא זיהיתי דיווח על אוכל או שתייה בהקלטה 🤔 נסה להקליט שוב בבירור.")
+                return
+
+            log_meal_db(res.summary, res.calories, res.protein_g, source="telegram-voice", user_id=uid)
+            s = get_day_summary(user_id=uid)
+            await status_reply.edit_text(
+                f"🎙️ נרשם מהקלטה קולית: {res.summary}\n"
+                f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
+                f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
+            )
+            send_web_push_to_all(
+                title=f"🎙️ נרשם מהקלטה: {res.summary}",
+                body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
+                tag="nutriagent-meal",
+                user_id=uid,
+            )
+        except Exception as e:
+            print(f"ERROR voice_msg: {type(e).__name__} - {e}")
+            await status_reply.edit_text("שגיאה בפענוח ההקלטה הקולית, נסה שוב.")
+
     tg_app.add_handler(CommandHandler("start", start_cmd))
+    tg_app.add_handler(CommandHandler("link", link_cmd))
     tg_app.add_handler(CommandHandler("status", status_cmd))
     tg_app.add_handler(CommandHandler("push", push_cmd))
     tg_app.add_handler(CommandHandler("weight", weight_cmd))
     tg_app.add_handler(MessageHandler(filters.PHOTO, photo_msg))
+    tg_app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, voice_msg))
     tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_msg))
 
 
 # ---------------------------------------------------------------------------
-# Favorites & Weight Firestore Helpers
+# Favorites & Weight Firestore Helpers (Multi-User Aware)
 # ---------------------------------------------------------------------------
 
-def get_favorites_db() -> List[dict]:
+def get_favorites_db(user_id: str = "default") -> List[dict]:
+    uid = _normalize_user_id(user_id)
     if not db:
-        return list(_LOCAL_FAVORITES)
+        user_favs = [f for f in _LOCAL_FAVORITES if _doc_matches_user(f, uid)]
+        return user_favs if user_favs else [dict(f) for f in DEFAULT_FAVORITES]
     try:
         docs = list(db.collection("favorites").order_by("created_at").stream())
-        if not docs:
-            # Seed default favorites on first use
+        user_docs = [doc for doc in docs if _doc_matches_user(doc.to_dict(), uid)]
+        if not user_docs:
+            # Seed default favorites for this user on first use
             seeded = []
             for f in DEFAULT_FAVORITES:
-                doc_ref = db.collection("favorites").document(f["id"])
+                doc_id = f["id"] if uid == "default" else f"{uid}_{f['id']}"
+                doc_ref = db.collection("favorites").document(doc_id)
                 doc_ref.set({
+                    "user_id": uid,
                     "icon": f["icon"],
                     "label": f["label"],
                     "calories": int(f["calories"]),
                     "protein_g": float(f["protein_g"]),
                     "created_at": firestore.SERVER_TIMESTAMP,
                 })
-                seeded.append(dict(f))
+                seeded.append({**f, "id": doc_id})
             return seeded
         result = []
-        for doc in docs:
+        for doc in user_docs:
             d = doc.to_dict()
             result.append({
                 "id": doc.id,
@@ -800,11 +1342,13 @@ def get_favorites_db() -> List[dict]:
         return list(DEFAULT_FAVORITES)
 
 
-def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "⭐") -> dict:
+def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "⭐", user_id: str = "default") -> dict:
+    uid = _normalize_user_id(user_id)
     clean_icon = (icon or "⭐").strip() or "⭐"
     if not db:
         entry = {
             "id": f"fav-{int(datetime.now().timestamp() * 1000)}",
+            "user_id": uid,
             "icon": clean_icon,
             "label": label.strip(),
             "calories": int(calories),
@@ -813,6 +1357,7 @@ def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "�
         _LOCAL_FAVORITES.append(entry)
         return entry
     doc_data = {
+        "user_id": uid,
         "icon": clean_icon,
         "label": label.strip(),
         "calories": int(calories),
@@ -829,7 +1374,7 @@ def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "�
     }
 
 
-def delete_favorite_db(fav_id: str) -> bool:
+def delete_favorite_db(fav_id: str, user_id: str = "default") -> bool:
     if not db:
         global _LOCAL_FAVORITES
         _LOCAL_FAVORITES = [f for f in _LOCAL_FAVORITES if f.get("id") != fav_id]
@@ -838,21 +1383,27 @@ def delete_favorite_db(fav_id: str) -> bool:
     return True
 
 
-def get_weights_db(limit: int = 60) -> dict:
+def get_weights_db(limit: int = 60, user_id: str = "default") -> dict:
+    uid = _normalize_user_id(user_id)
     entries = []
     if not db:
-        entries = sorted(_LOCAL_WEIGHTS, key=lambda x: x["log_date"])
+        user_w = [w for w in _LOCAL_WEIGHTS if _doc_matches_user(w, uid)]
+        entries = sorted(user_w, key=lambda x: x["log_date"])
     else:
         try:
-            docs = db.collection("weight_logs").order_by("log_date", direction=firestore.Query.DESCENDING).limit(limit).stream()
+            docs = db.collection("weight_logs").order_by("log_date", direction=firestore.Query.DESCENDING).limit(200).stream()
             for doc in docs:
                 d = doc.to_dict()
+                if not _doc_matches_user(d, uid):
+                    continue
                 entries.append({
                     "id": doc.id,
                     "log_date": d.get("log_date", doc.id),
                     "weight_kg": round(float(d.get("weight_kg", 0.0)), 1),
                     "note": d.get("note", ""),
                 })
+                if len(entries) >= limit:
+                    break
             entries.sort(key=lambda x: x["log_date"])
         except Exception as e:
             print(f"ERROR get_weights_db: {e}")
@@ -868,22 +1419,26 @@ def get_weights_db(limit: int = 60) -> dict:
     }
 
 
-def log_weight_db(weight_kg: float, log_date: Optional[str] = None, note: str = "") -> dict:
+def log_weight_db(weight_kg: float, log_date: Optional[str] = None, note: str = "", user_id: str = "default") -> dict:
+    uid = _normalize_user_id(user_id)
     d_str = log_date or str(date.today())
     w_val = round(float(weight_kg), 1)
+    doc_id = d_str if uid == "default" else f"{uid}_{d_str}"
     entry = {
-        "id": d_str,
+        "id": doc_id,
+        "user_id": uid,
         "log_date": d_str,
         "weight_kg": w_val,
         "note": (note or "").strip(),
     }
     if not db:
         global _LOCAL_WEIGHTS
-        _LOCAL_WEIGHTS = [w for w in _LOCAL_WEIGHTS if w.get("log_date") != d_str]
+        _LOCAL_WEIGHTS = [w for w in _LOCAL_WEIGHTS if not (w.get("log_date") == d_str and _doc_matches_user(w, uid))]
         _LOCAL_WEIGHTS.append(entry)
         return entry
 
-    db.collection("weight_logs").document(d_str).set({
+    db.collection("weight_logs").document(doc_id).set({
+        "user_id": uid,
         "log_date": d_str,
         "weight_kg": w_val,
         "note": (note or "").strip(),
@@ -892,7 +1447,7 @@ def log_weight_db(weight_kg: float, log_date: Optional[str] = None, note: str = 
     return entry
 
 
-def delete_weight_db(entry_id: str) -> bool:
+def delete_weight_db(entry_id: str, user_id: str = "default") -> bool:
     if not db:
         global _LOCAL_WEIGHTS
         _LOCAL_WEIGHTS = [w for w in _LOCAL_WEIGHTS if w.get("id") != entry_id and w.get("log_date") != entry_id]
@@ -958,10 +1513,12 @@ def _sub_doc_id(endpoint: str) -> str:
     return hashlib.sha256(endpoint.encode("utf-8")).hexdigest()[:32]
 
 
-def save_push_subscription_db(endpoint: str, p256dh: str, auth: str, user_agent: str = "") -> dict:
+def save_push_subscription_db(endpoint: str, p256dh: str, auth: str, user_agent: str = "", user_id: str = "default") -> dict:
+    uid = _normalize_user_id(user_id)
     sub_id = _sub_doc_id(endpoint)
     record = {
         "id": sub_id,
+        "user_id": uid,
         "endpoint": endpoint,
         "keys": {"p256dh": p256dh, "auth": auth},
         "user_agent": (user_agent or "")[:250],
@@ -993,17 +1550,23 @@ def remove_push_subscription_db(endpoint: str) -> bool:
     return True
 
 
-def get_push_subscriptions_db() -> List[dict]:
+def get_push_subscriptions_db(user_id: Optional[str] = None) -> List[dict]:
+    uid = _normalize_user_id(user_id) if user_id else None
     if not db:
-        return list(_LOCAL_PUSH_SUBS)
+        if not uid:
+            return list(_LOCAL_PUSH_SUBS)
+        return [s for s in _LOCAL_PUSH_SUBS if _doc_matches_user(s, uid)]
     try:
         docs = db.collection("push_subscriptions").stream()
         subs = []
         for doc in docs:
             d = doc.to_dict()
+            if uid and not _doc_matches_user(d, uid):
+                continue
             if d.get("endpoint") and d.get("keys"):
                 subs.append({
                     "id": doc.id,
+                    "user_id": d.get("user_id", "default"),
                     "endpoint": d["endpoint"],
                     "keys": d["keys"],
                     "user_agent": d.get("user_agent", ""),
@@ -1030,8 +1593,8 @@ def _detect_device_label(user_agent: str) -> str:
     return "💻 מחשב PC"
 
 
-def send_web_push_to_all(title: str, body: str, tag: str = "nutriagent-push", url: str = "/") -> dict:
-    subs = get_push_subscriptions_db()
+def send_web_push_to_all(title: str, body: str, tag: str = "nutriagent-push", url: str = "/", user_id: Optional[str] = None) -> dict:
+    subs = get_push_subscriptions_db(user_id=user_id)
     if not subs:
         return {"sent": 0, "failed": 0, "mobile_sent": 0, "total_subscriptions": 0, "devices": []}
 
@@ -1155,22 +1718,65 @@ def serve_manifest():
     raise HTTPException(status_code=404, detail="manifest.json not found")
 
 
+@app.get("/api/auth/config")
+def api_get_auth_config():
+    return get_auth_config_db()
+
+
+@app.put("/api/auth/config")
+def api_set_auth_config(req: AuthConfigRequest):
+    return set_auth_config_db(req.google_client_id)
+
+
+@app.post("/api/auth/google")
+def api_auth_google(req: GoogleAuthRequest):
+    if req.credential and req.credential.strip():
+        try:
+            verified = verify_google_id_token(req.credential)
+            return upsert_user_profile(
+                email=verified["email"],
+                name=verified["name"],
+                picture=verified["picture"],
+            )
+        except Exception as e:
+            raise HTTPException(status_code=401, detail=f"אימות Google נכשל: {e}")
+
+    email = (req.email or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="נא להזין כתובת אימייל תקינה של Google")
+    return upsert_user_profile(
+        email=email,
+        name=req.name or "",
+        picture=req.picture or "",
+    )
+
+
+@app.post("/api/auth/claim-legacy-data")
+def api_claim_legacy_data(request: Request):
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=400, detail="יש להתחבר לחשבון תחילה כדי לייבא נתונים")
+    return claim_legacy_data_for_user(uid)
+
+
 @app.get("/api/summary")
-def api_summary(target_date: Optional[str] = Query(default=None, alias="date")):
-    return get_day_summary(target_date)
+def api_summary(request: Request, target_date: Optional[str] = Query(default=None, alias="date")):
+    uid = get_request_user_id(request)
+    return get_day_summary(target_date, user_id=uid)
 
 
-@app.get("/api/history")
-def api_history(days: int = Query(default=14, ge=1, le=90)):
+def _fetch_user_history(uid: str, days: int = 14) -> dict:
     today_date = date.today()
     start_date_str = str(today_date - timedelta(days=days - 1))
 
     all_meals = []
     if db:
         try:
-            docs = db.collection("meals").order_by("created_at", direction=firestore.Query.DESCENDING).limit(300).stream()
+            docs = db.collection("meals").order_by("created_at", direction=firestore.Query.DESCENDING).limit(500).stream()
             for doc in docs:
                 data = doc.to_dict()
+                if not _doc_matches_user(data, uid):
+                    continue
                 all_meals.append({
                     "id": doc.id,
                     "description": data.get("description", ""),
@@ -1180,13 +1786,14 @@ def api_history(days: int = Query(default=14, ge=1, le=90)):
                     "log_time": data.get("log_time", ""),
                     "source": data.get("source", "telegram"),
                 })
+                if len(all_meals) >= 300:
+                    break
         except Exception as e:
-            print(f"ERROR api_history: {e}")
+            print(f"ERROR _fetch_user_history: {e}")
     else:
-        all_meals = list(_LOCAL_MEALS)
+        all_meals = [m for m in _LOCAL_MEALS if _doc_matches_user(m, uid)]
 
-    targets = get_targets()
-    # Build daily trend for last 7 days
+    targets = get_targets(user_id=uid)
     daily_trend = []
     for i in range(6, -1, -1):
         d = str(today_date - timedelta(days=i))
@@ -1209,14 +1816,22 @@ def api_history(days: int = Query(default=14, ge=1, le=90)):
     }
 
 
+@app.get("/api/history")
+def api_history(request: Request, days: int = Query(default=14, ge=1, le=90)):
+    uid = get_request_user_id(request)
+    return _fetch_user_history(uid=uid, days=days)
+
+
 @app.get("/api/meals/")
-def api_meals_legacy():
+def api_meals_legacy(request: Request):
     """Backwards-compatible endpoint returning flat list of meals."""
-    return api_history(days=30)["meals"]
+    uid = get_request_user_id(request)
+    return _fetch_user_history(uid=uid, days=30)["meals"]
 
 
 @app.post("/api/meals/")
-def api_add_manual_meal(req: ManualMealRequest):
+def api_add_manual_meal(req: ManualMealRequest, request: Request):
+    uid = get_request_user_id(request)
     entry = log_meal_db(
         description=req.description,
         calories=req.calories,
@@ -1224,6 +1839,7 @@ def api_add_manual_meal(req: ManualMealRequest):
         log_date=req.log_date,
         log_time=req.log_time,
         source="web",
+        user_id=uid,
     )
     if not entry:
         raise HTTPException(status_code=500, detail="Failed to log meal to Firestore")
@@ -1231,7 +1847,8 @@ def api_add_manual_meal(req: ManualMealRequest):
 
 
 @app.post("/api/meals/ai")
-def api_add_ai_meal(req: AIMealRequest):
+def api_add_ai_meal(req: AIMealRequest, request: Request):
+    uid = get_request_user_id(request)
     if not req.text or not req.text.strip():
         raise HTTPException(status_code=400, detail="נא להזין תיאור ארוחה")
 
@@ -1245,6 +1862,7 @@ def api_add_ai_meal(req: AIMealRequest):
         protein=extraction.protein_g,
         log_date=req.log_date,
         source="web-ai",
+        user_id=uid,
     )
     if not entry:
         raise HTTPException(status_code=500, detail="Failed to save meal to Firestore")
@@ -1252,7 +1870,8 @@ def api_add_ai_meal(req: AIMealRequest):
 
 
 @app.post("/api/meals/photo")
-def api_add_photo_meal(req: PhotoMealRequest):
+def api_add_photo_meal(req: PhotoMealRequest, request: Request):
+    uid = get_request_user_id(request)
     raw_b64 = (req.image_base64 or "").strip()
     if not raw_b64:
         raise HTTPException(status_code=400, detail="נא להעלות או לצלם תמונה")
@@ -1287,10 +1906,64 @@ def api_add_photo_meal(req: PhotoMealRequest):
         protein=extraction.protein_g,
         log_date=req.log_date,
         source="web-photo",
+        user_id=uid,
     )
     if not entry:
         raise HTTPException(status_code=500, detail="Failed to save photo meal to Firestore")
     return entry
+
+
+@app.post("/api/meals/voice")
+def api_add_voice_meal(req: VoiceMealRequest, request: Request):
+    uid = get_request_user_id(request)
+    raw_b64 = (req.audio_base64 or "").strip()
+    if not raw_b64:
+        raise HTTPException(status_code=400, detail="נא להקליט דיווח קולי תחילה")
+
+    mime_type = req.mime_type or "audio/webm"
+    if raw_b64.startswith("data:"):
+        header, _, raw_b64 = raw_b64.partition(",")
+        if ";" in header and ":" in header:
+            mime_type = header.split(":")[1].split(";")[0] or mime_type
+
+    raw_b64 = "".join(raw_b64.split())
+    pad = (4 - len(raw_b64) % 4) % 4
+    if pad:
+        raw_b64 += "=" * pad
+
+    try:
+        audio_bytes = base64.b64decode(raw_b64)
+        if not audio_bytes:
+            raise ValueError("Empty decoded audio")
+    except Exception:
+        raise HTTPException(status_code=400, detail="קובץ הקלטה לא תקין")
+
+    extraction = analyze_meal_audio(audio_bytes, mime_type=mime_type, caption=req.caption or "")
+    if extraction.summary and extraction.summary.startswith("API_ERROR:"):
+        raise HTTPException(status_code=502, detail=f"שגיאה בפענוח ההקלטה מול Gemini ({extraction.summary}). נסה שוב.")
+    if not extraction.is_meal:
+        raise HTTPException(status_code=422, detail="לא זוהה דיווח על אוכל או שתייה בהקלטה")
+
+    entry = log_meal_db(
+        description=extraction.summary,
+        calories=extraction.calories,
+        protein=extraction.protein_g,
+        log_date=req.log_date,
+        source="web-voice",
+        user_id=uid,
+    )
+    if not entry:
+        raise HTTPException(status_code=500, detail="Failed to save voice meal to Firestore")
+    return entry
+
+
+@app.post("/api/coach/analyze")
+def api_coach_analyze(request: Request, req: Optional[CoachAnalyzeRequest] = None):
+    uid = get_request_user_id(request)
+    d_str = (req.log_date if req and req.log_date else None) or str(date.today())
+    day_summary = get_day_summary(d_str, user_id=uid)
+    hist = _fetch_user_history(uid=uid, days=7)
+    return generate_daily_coach_insight(day_summary=day_summary, daily_trend=hist.get("daily_trend", []))
 
 
 @app.put("/api/meals/{meal_id}")
@@ -1353,42 +2026,49 @@ def api_delete_meal(meal_id: str):
 
 
 @app.get("/api/favorites")
-def api_get_favorites():
-    return {"favorites": get_favorites_db()}
+def api_get_favorites(request: Request):
+    uid = get_request_user_id(request)
+    return {"favorites": get_favorites_db(user_id=uid)}
 
 
 @app.post("/api/favorites")
-def api_add_favorite(req: FavoriteMealRequest):
+def api_add_favorite(req: FavoriteMealRequest, request: Request):
+    uid = get_request_user_id(request)
     if not req.label or not req.label.strip():
         raise HTTPException(status_code=400, detail="נא להזין שם לפריט המועדף")
-    return add_favorite_db(req.label, req.calories, req.protein_g, req.icon or "⭐")
+    return add_favorite_db(req.label, req.calories, req.protein_g, req.icon or "⭐", user_id=uid)
 
 
 @app.delete("/api/favorites/{fav_id}")
-def api_delete_favorite(fav_id: str):
-    delete_favorite_db(fav_id)
+def api_delete_favorite(fav_id: str, request: Request):
+    uid = get_request_user_id(request)
+    delete_favorite_db(fav_id, user_id=uid)
     return {"status": "deleted", "id": fav_id}
 
 
 @app.get("/api/weight")
-def api_get_weight():
-    return get_weights_db()
+def api_get_weight(request: Request):
+    uid = get_request_user_id(request)
+    return get_weights_db(user_id=uid)
 
 
 @app.post("/api/weight")
-def api_log_weight(req: WeightLogRequest):
-    return log_weight_db(req.weight_kg, req.log_date, req.note or "")
+def api_log_weight(req: WeightLogRequest, request: Request):
+    uid = get_request_user_id(request)
+    return log_weight_db(req.weight_kg, req.log_date, req.note or "", user_id=uid)
 
 
 @app.delete("/api/weight/{entry_id}")
-def api_delete_weight(entry_id: str):
-    delete_weight_db(entry_id)
+def api_delete_weight(entry_id: str, request: Request):
+    uid = get_request_user_id(request)
+    delete_weight_db(entry_id, user_id=uid)
     return {"status": "deleted", "id": entry_id}
 
 
 @app.put("/api/targets")
-def api_update_targets(req: TargetUpdateRequest):
-    return set_targets(req.target_calories, req.target_protein)
+def api_update_targets(req: TargetUpdateRequest, request: Request):
+    uid = get_request_user_id(request)
+    return set_targets(req.target_calories, req.target_protein, user_id=uid)
 
 
 @app.get("/api/recipes")
@@ -1409,9 +2089,10 @@ def api_suggest_recipes(req: RecipePromptRequest):
 
 
 @app.get("/api/push/vapid-public-key")
-def api_push_vapid_public_key():
+def api_push_vapid_public_key(request: Request):
+    uid = get_request_user_id(request)
     vapid = get_or_create_vapid_keys()
-    subs = get_push_subscriptions_db()
+    subs = get_push_subscriptions_db(user_id=uid)
     devices = [
         {
             "id": s["id"],
@@ -1429,7 +2110,8 @@ def api_push_vapid_public_key():
 
 
 @app.post("/api/push/subscribe")
-def api_push_subscribe(req: PushSubscribeRequest):
+def api_push_subscribe(req: PushSubscribeRequest, request: Request):
+    uid = get_request_user_id(request)
     if not req.endpoint or not req.keys.p256dh or not req.keys.auth:
         raise HTTPException(status_code=400, detail="נתוני הרשמה להתראות חסרים")
     sub = save_push_subscription_db(
@@ -1437,6 +2119,7 @@ def api_push_subscribe(req: PushSubscribeRequest):
         p256dh=req.keys.p256dh,
         auth=req.keys.auth,
         user_agent=req.user_agent or "",
+        user_id=uid,
     )
     return {"status": "subscribed", "id": sub["id"]}
 
@@ -1449,23 +2132,25 @@ def api_push_unsubscribe(req: PushUnsubscribeRequest):
 
 
 @app.post("/api/push/test")
-def api_push_test(req: Optional[PushMessageRequest] = None):
-    s = get_day_summary()
+def api_push_test(request: Request, req: Optional[PushMessageRequest] = None):
+    uid = get_request_user_id(request)
+    s = get_day_summary(user_id=uid)
     title = (req.title if req and req.title else None) or "NutriAgent AI 🔔 התראת בדיקה!"
     body = (req.body if req and req.body else None) or (
         f"הפוש בנייד עובד מעולה! 🔥 היום: {s['total_calories']}/{s['target_calories']} קק\"ל "
         f"(נותרו {s['remaining_calories']}) | 💪 חלבון: {s['total_protein']:.0f}g"
     )
-    res = send_web_push_to_all(title=title, body=body, tag="nutriagent-test")
+    res = send_web_push_to_all(title=title, body=body, tag="nutriagent-test", user_id=uid)
     if res["total_subscriptions"] == 0:
         raise HTTPException(status_code=404, detail="לא נמצאו מכשירים רשומים להתראות. הפעל תחילה התראות במכשיר זה.")
     return res
 
 
 @app.post("/api/push/remind")
-def api_push_daily_reminder():
+def api_push_daily_reminder(request: Request):
     """Can be triggered manually or via Cloud Scheduler to send a smart daily status push."""
-    s = get_day_summary()
+    uid = get_request_user_id(request)
+    s = get_day_summary(user_id=uid)
     rem_cal = s["remaining_calories"]
     rem_prot = max(0.0, s["target_protein"] - s["total_protein"])
     if s["meal_count"] == 0:
@@ -1477,7 +2162,7 @@ def api_push_daily_reminder():
     else:
         title = "🎯 הגעת ליעד הקלורי היומי!"
         body = f"סה\"כ היום: {s['total_calories']} קק\"ל ו-{s['total_protein']:.0f}g חלבון. כל הכבוד!"
-    return send_web_push_to_all(title=title, body=body, tag="nutriagent-reminder")
+    return send_web_push_to_all(title=title, body=body, tag="nutriagent-reminder", user_id=uid)
 
 
 @app.post("/webhook")
