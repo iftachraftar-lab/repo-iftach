@@ -106,13 +106,42 @@ class RecipePromptRequest(BaseModel):
     preference: Optional[str] = ""
 
 
+class MealUpdateRequest(BaseModel):
+    description: str
+    calories: int = Field(ge=0, le=10000)
+    protein_g: float = Field(ge=0.0, le=500.0)
+
+
+class FavoriteMealRequest(BaseModel):
+    label: str
+    calories: int = Field(ge=0, le=10000)
+    protein_g: float = Field(ge=0.0, le=500.0)
+    icon: Optional[str] = "⭐"
+
+
+class WeightLogRequest(BaseModel):
+    weight_kg: float = Field(ge=25.0, le=350.0)
+    log_date: Optional[str] = None
+    note: Optional[str] = ""
+
+
 # ---------------------------------------------------------------------------
 # Firestore Helpers
 # ---------------------------------------------------------------------------
 
+DEFAULT_FAVORITES = [
+    {"id": "fav-coffee", "icon": "☕", "label": "הפוך קטן", "calories": 80, "protein_g": 4.0},
+    {"id": "fav-eggs", "icon": "🥚", "label": "2 ביצים וקוטג׳", "calories": 260, "protein_g": 26.0},
+    {"id": "fav-chicken", "icon": "🍗", "label": "חזה עוף ואורז", "calories": 480, "protein_g": 45.0},
+    {"id": "fav-tuna", "icon": "🐟", "label": "סלט טונה וביצה", "calories": 350, "protein_g": 36.0},
+    {"id": "fav-pro", "icon": "🥤", "label": "יוגורט PRO / שייק", "calories": 160, "protein_g": 20.0},
+]
+
 # Local fallback state when running locally without GCP credentials
 _LOCAL_TARGETS = {"target_calories": 1800, "target_protein": 120}
 _LOCAL_MEALS: List[dict] = []
+_LOCAL_FAVORITES: List[dict] = [dict(f) for f in DEFAULT_FAVORITES]
+_LOCAL_WEIGHTS: List[dict] = []
 
 
 def get_targets(target_date: Optional[str] = None) -> dict:
@@ -538,16 +567,41 @@ if tg_app:
             "היי! הבוט מחובר ומסונכרן עם האפליקציה 🚀\n"
             "• שלח בטקסט חופשי מה אכלת או שתית כדי לתעד.\n"
             "• שלח 📸 תמונה של הצלחת או של תווית המוצר לניתוח אוטומטי.\n"
+            "• שלח /weight 78.5 לתיעוד משקל יומי.\n"
             "• שלח /status לסיכום היומי שלך."
         )
 
     async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         s = get_day_summary()
+        w = get_weights_db(limit=5)
+        w_line = f"\n⚖️ משקל נוכחי: {w['latest_weight']} ק\"ג" if w.get("latest_weight") else ""
         await update.message.reply_text(
             f"📊 סיכום להיום:\n"
             f"🔥 קלוריות: {s['total_calories']} / {s['target_calories']} קק\"ל (נותרו: {s['remaining_calories']})\n"
-            f"💪 חלבון: {s['total_protein']:.0f} / {s['target_protein']} גרם"
+            f"💪 חלבון: {s['total_protein']:.0f} / {s['target_protein']} גרם{w_line}"
         )
+
+    async def weight_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.args:
+            w = get_weights_db(limit=5)
+            if w.get("latest_weight"):
+                await update.message.reply_text(f"⚖️ המשקל האחרון שתועד: {w['latest_weight']} ק\"ג\nלתיעוד שקילה חדשה שלח למשל: /weight 78.5")
+            else:
+                await update.message.reply_text("לתיעוד שקילה חדשה שלח למשל: /weight 78.5")
+            return
+        try:
+            val = float(context.args[0].replace(",", "."))
+            if val < 25 or val > 350:
+                raise ValueError()
+            log_weight_db(val)
+            w = get_weights_db(limit=60)
+            diff_str = ""
+            if w.get("weight_change"):
+                sign = "+" if w["weight_change"] > 0 else ""
+                diff_str = f" ({sign}{w['weight_change']} ק\"ג מההתחלה)"
+            await update.message.reply_text(f"⚖️ המשקל עודכן בהצלחה: {val:.1f} ק\"ג{diff_str}")
+        except ValueError:
+            await update.message.reply_text("נא להזין משקל תקין במספרים, למשל: /weight 78.5")
 
     async def text_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res = analyze_meal(update.message.text)
@@ -590,8 +644,149 @@ if tg_app:
 
     tg_app.add_handler(CommandHandler("start", start_cmd))
     tg_app.add_handler(CommandHandler("status", status_cmd))
+    tg_app.add_handler(CommandHandler("weight", weight_cmd))
     tg_app.add_handler(MessageHandler(filters.PHOTO, photo_msg))
     tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_msg))
+
+
+# ---------------------------------------------------------------------------
+# Favorites & Weight Firestore Helpers
+# ---------------------------------------------------------------------------
+
+def get_favorites_db() -> List[dict]:
+    if not db:
+        return list(_LOCAL_FAVORITES)
+    try:
+        docs = list(db.collection("favorites").order_by("created_at").stream())
+        if not docs:
+            # Seed default favorites on first use
+            seeded = []
+            for f in DEFAULT_FAVORITES:
+                doc_ref = db.collection("favorites").document(f["id"])
+                doc_ref.set({
+                    "icon": f["icon"],
+                    "label": f["label"],
+                    "calories": int(f["calories"]),
+                    "protein_g": float(f["protein_g"]),
+                    "created_at": firestore.SERVER_TIMESTAMP,
+                })
+                seeded.append(dict(f))
+            return seeded
+        result = []
+        for doc in docs:
+            d = doc.to_dict()
+            result.append({
+                "id": doc.id,
+                "icon": d.get("icon", "⭐"),
+                "label": d.get("label", ""),
+                "calories": int(d.get("calories", 0)),
+                "protein_g": round(float(d.get("protein_g", 0.0)), 1),
+            })
+        return result
+    except Exception as e:
+        print(f"ERROR get_favorites_db: {e}")
+        return list(DEFAULT_FAVORITES)
+
+
+def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "⭐") -> dict:
+    clean_icon = (icon or "⭐").strip() or "⭐"
+    if not db:
+        entry = {
+            "id": f"fav-{int(datetime.now().timestamp() * 1000)}",
+            "icon": clean_icon,
+            "label": label.strip(),
+            "calories": int(calories),
+            "protein_g": round(float(protein_g), 1),
+        }
+        _LOCAL_FAVORITES.append(entry)
+        return entry
+    doc_data = {
+        "icon": clean_icon,
+        "label": label.strip(),
+        "calories": int(calories),
+        "protein_g": round(float(protein_g), 1),
+        "created_at": firestore.SERVER_TIMESTAMP,
+    }
+    _, doc_ref = db.collection("favorites").add(doc_data)
+    return {
+        "id": doc_ref.id,
+        "icon": clean_icon,
+        "label": label.strip(),
+        "calories": int(calories),
+        "protein_g": round(float(protein_g), 1),
+    }
+
+
+def delete_favorite_db(fav_id: str) -> bool:
+    if not db:
+        global _LOCAL_FAVORITES
+        _LOCAL_FAVORITES = [f for f in _LOCAL_FAVORITES if f.get("id") != fav_id]
+        return True
+    db.collection("favorites").document(fav_id).delete()
+    return True
+
+
+def get_weights_db(limit: int = 60) -> dict:
+    entries = []
+    if not db:
+        entries = sorted(_LOCAL_WEIGHTS, key=lambda x: x["log_date"])
+    else:
+        try:
+            docs = db.collection("weight_logs").order_by("log_date", direction=firestore.Query.DESCENDING).limit(limit).stream()
+            for doc in docs:
+                d = doc.to_dict()
+                entries.append({
+                    "id": doc.id,
+                    "log_date": d.get("log_date", doc.id),
+                    "weight_kg": round(float(d.get("weight_kg", 0.0)), 1),
+                    "note": d.get("note", ""),
+                })
+            entries.sort(key=lambda x: x["log_date"])
+        except Exception as e:
+            print(f"ERROR get_weights_db: {e}")
+
+    latest = entries[-1]["weight_kg"] if entries else None
+    start = entries[0]["weight_kg"] if entries else None
+    change = round(latest - start, 1) if (latest is not None and start is not None) else 0.0
+    return {
+        "entries": entries,
+        "latest_weight": latest,
+        "start_weight": start,
+        "weight_change": change,
+    }
+
+
+def log_weight_db(weight_kg: float, log_date: Optional[str] = None, note: str = "") -> dict:
+    d_str = log_date or str(date.today())
+    w_val = round(float(weight_kg), 1)
+    entry = {
+        "id": d_str,
+        "log_date": d_str,
+        "weight_kg": w_val,
+        "note": (note or "").strip(),
+    }
+    if not db:
+        global _LOCAL_WEIGHTS
+        _LOCAL_WEIGHTS = [w for w in _LOCAL_WEIGHTS if w.get("log_date") != d_str]
+        _LOCAL_WEIGHTS.append(entry)
+        return entry
+
+    db.collection("weight_logs").document(d_str).set({
+        "log_date": d_str,
+        "weight_kg": w_val,
+        "note": (note or "").strip(),
+        "updated_at": firestore.SERVER_TIMESTAMP,
+    }, merge=True)
+    return entry
+
+
+def delete_weight_db(entry_id: str) -> bool:
+    if not db:
+        global _LOCAL_WEIGHTS
+        _LOCAL_WEIGHTS = [w for w in _LOCAL_WEIGHTS if w.get("id") != entry_id and w.get("log_date") != entry_id]
+        return True
+    db.collection("weight_logs").document(entry_id).delete()
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -789,6 +984,46 @@ def api_add_photo_meal(req: PhotoMealRequest):
     return entry
 
 
+@app.put("/api/meals/{meal_id}")
+def api_update_meal(meal_id: str, req: MealUpdateRequest):
+    desc = req.description.strip()
+    if not desc:
+        raise HTTPException(status_code=400, detail="נא להזין תיאור ארוחה")
+
+    if not db:
+        for m in _LOCAL_MEALS:
+            if m.get("id") == meal_id:
+                m["description"] = desc
+                m["calories"] = int(req.calories)
+                m["protein_g"] = round(float(req.protein_g), 1)
+                return m
+        raise HTTPException(status_code=404, detail="Meal not found")
+
+    try:
+        doc_ref = db.collection("meals").document(meal_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Meal not found")
+        doc_ref.update({
+            "description": desc,
+            "calories": int(req.calories),
+            "protein_g": round(float(req.protein_g), 1),
+        })
+        updated = doc.to_dict()
+        updated.update({
+            "id": meal_id,
+            "description": desc,
+            "calories": int(req.calories),
+            "protein_g": round(float(req.protein_g), 1),
+        })
+        updated.pop("created_at", None)
+        return updated
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update meal: {e}")
+
+
 @app.delete("/api/meals/{meal_id}")
 def api_delete_meal(meal_id: str):
     if not db:
@@ -806,6 +1041,40 @@ def api_delete_meal(meal_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete meal: {e}")
+
+
+@app.get("/api/favorites")
+def api_get_favorites():
+    return {"favorites": get_favorites_db()}
+
+
+@app.post("/api/favorites")
+def api_add_favorite(req: FavoriteMealRequest):
+    if not req.label or not req.label.strip():
+        raise HTTPException(status_code=400, detail="נא להזין שם לפריט המועדף")
+    return add_favorite_db(req.label, req.calories, req.protein_g, req.icon or "⭐")
+
+
+@app.delete("/api/favorites/{fav_id}")
+def api_delete_favorite(fav_id: str):
+    delete_favorite_db(fav_id)
+    return {"status": "deleted", "id": fav_id}
+
+
+@app.get("/api/weight")
+def api_get_weight():
+    return get_weights_db()
+
+
+@app.post("/api/weight")
+def api_log_weight(req: WeightLogRequest):
+    return log_weight_db(req.weight_kg, req.log_date, req.note or "")
+
+
+@app.delete("/api/weight/{entry_id}")
+def api_delete_weight(entry_id: str):
+    delete_weight_db(entry_id)
+    return {"status": "deleted", "id": entry_id}
 
 
 @app.put("/api/targets")
