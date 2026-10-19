@@ -1116,14 +1116,14 @@
             });
         }
 
-        function compressImageFile(file, maxDim = 1024, quality = 0.82) {
+        function compressImageFile(file, maxDim = 1024, quality = 0.85) {
             return new Promise((resolve, reject) => {
                 const objectUrl = URL.createObjectURL(file);
                 const img = new Image();
                 img.onload = () => {
                     try {
-                        URL.revokeObjectURL(objectUrl);
-                        let { width, height } = img;
+                        let width = img.naturalWidth || img.width || 800;
+                        let height = img.naturalHeight || img.height || 600;
                         if (width > maxDim || height > maxDim) {
                             if (width > height) {
                                 height = Math.round((height * maxDim) / width);
@@ -1134,15 +1134,24 @@
                             }
                         }
                         const canvas = document.createElement('canvas');
-                        canvas.width = width || 800;
-                        canvas.height = height || 600;
+                        canvas.width = Math.max(1, width);
+                        canvas.height = Math.max(1, height);
                         const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                        URL.revokeObjectURL(objectUrl);
+                        if (!dataUrl || dataUrl.length < 200) {
+                            readRawFileAsDataUrl(file).then(resolve).catch(reject);
+                            return;
+                        }
                         resolve({
-                            dataUrl: canvas.toDataURL('image/jpeg', quality),
+                            dataUrl,
                             mimeType: 'image/jpeg'
                         });
                     } catch (err) {
+                        URL.revokeObjectURL(objectUrl);
                         readRawFileAsDataUrl(file).then(resolve).catch(reject);
                     }
                 };

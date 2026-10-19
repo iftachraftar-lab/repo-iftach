@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutriagent-v6";
+const CACHE_NAME = "nutriagent-v7";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -29,7 +29,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-cache" })
       .then((networkResponse) => {
         if (
           networkResponse &&

@@ -1,4 +1,5 @@
 import os
+import io
 import json
 import base64
 import hashlib
@@ -24,6 +25,11 @@ from google.cloud import firestore
 from pywebpush import webpush, WebPushException
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
+try:
+    from PIL import Image, ImageOps
+except ImportError:
+    Image = None
+    ImageOps = None
 
 load_dotenv()
 
@@ -361,23 +367,58 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Analysis error")
 
 
+def _normalize_image_bytes(image_bytes: bytes, fallback_mime: str = "image/jpeg") -> tuple[bytes, str]:
+    detected_mime = (fallback_mime or "image/jpeg").lower().strip()
+    if image_bytes.startswith(b"\xff\xd8\xff"):
+        detected_mime = "image/jpeg"
+    elif image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        detected_mime = "image/png"
+    elif image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+        detected_mime = "image/webp"
+    elif len(image_bytes) > 12 and image_bytes[4:8] == b"ftyp":
+        brand = image_bytes[8:12]
+        if brand in (b"heic", b"heix", b"hevc", b"mif1", b"msf1"):
+            detected_mime = "image/heic"
+
+    if Image is not None:
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as img:
+                if ImageOps is not None:
+                    img = ImageOps.exif_transpose(img)
+                if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+                    bg = Image.new("RGB", img.size, (255, 255, 255))
+                    rgba = img.convert("RGBA")
+                    bg.paste(rgba, mask=rgba.split()[3])
+                    img = bg
+                elif img.mode != "RGB":
+                    img = img.convert("RGB")
+                img.thumbnail((1280, 1280))
+                out = io.BytesIO()
+                img.save(out, format="JPEG", quality=85, optimize=True)
+                return out.getvalue(), "image/jpeg"
+        except Exception as e:
+            print(f"WARN _normalize_image_bytes PIL fallback ({detected_mime}): {e}")
+
+    if detected_mime not in ("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"):
+        detected_mime = "image/jpeg"
+    return image_bytes, detected_mime
+
+
 def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "") -> NutritionExtraction:
     if not ai_client:
         label = caption.strip() if caption and caption.strip() else "ארוחה מצולמת (ניתוח תמונה)"
         return NutritionExtraction(is_meal=True, calories=420, protein_g=32.0, summary=label)
 
-    clean_mime = (mime_type or "image/jpeg").lower().strip()
-    if clean_mime not in ("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"):
-        clean_mime = "image/jpeg"
+    norm_bytes, clean_mime = _normalize_image_bytes(image_bytes, mime_type)
 
     caption_note = f"\nהערת המשתמש לתמונה: '{caption.strip()}'." if caption and caption.strip() else ""
     prompt = f"""נתח את התמונה המצורפת עבור מעקב תזונה ישראלי.{caption_note}
 התמונה יכולה להיות:
-1. צילום של מנה / צלחת אוכל / משקה / קפה / חטיף / פרי / כריך — זהה את המרכיבים, הערך את גודל המנה בצורה מציאותית, וחשב סך קלוריות וחלבון בגרמים.
-2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד / תפריט — קרא את הערכים התזונתיים או שם המוצר וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה (או לפי הערת המשתמש אם צוינה כמות).
-חשוב: אם יש בתמונה אוכל, שתייה, אריזת מזון, כוס שתייה או טבלת ערכים תזונתיים — סמן תמיד is_meal=True!
+1. צילום של מנה / צלחת אוכל / משקה / קפה / חטיף / פרי / כריך / סלט / מרק / קינוח — זהה את המרכיבים, הערך את גודל המנה בצורה מציאותית, וחשב סך קלוריות וחלבון בגרמים.
+2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד / תפריט / צילום מסך של מתכון או מוצר — קרא את הערכים התזונתיים או שם המוצר וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה (או לפי הערת המשתמש אם צוינה כמות).
+חשוב מאוד: המשתמש העלה תמונה זו במיוחד כדי לתעד ארוחה או שתייה! אם יש בתמונה כל דבר שקשור לאוכל, שתייה, אריזת מזון, כוס, צלחת, קערה, פרי, ירק, או טבלת ערכים תזונתיים — סמן תמיד is_meal=True ותן הערכה מציאותית!
 החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף עם אורז וסלט ירקות" או "יוגורט חלבון PRO תנובה 200 ג'").
-רק אם התמונה אינה קשורה כלל לאוכל, שתייה או מוצר מזון (למשל נוף ריק או חפץ אקראי), סמן is_meal=False."""
+רק אם התמונה אינה קשורה בשום צורה לאוכל או שתייה, סמן is_meal=False."""
 
     last_err = None
     for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
@@ -385,7 +426,7 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
             response = ai_client.models.generate_content(
                 model=model_name,
                 contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type=clean_mime),
+                    types.Part.from_bytes(data=norm_bytes, mime_type=clean_mime),
                     prompt,
                 ],
                 config=types.GenerateContentConfig(
@@ -398,7 +439,7 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
             last_err = e
             print(f"ERROR analyze_meal_image ({model_name}): {type(e).__name__} - {e}")
 
-    return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {type(last_err).__name__}")
+    return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {type(last_err).__name__}: {last_err}")
 
 
 def generate_ai_recipes(remaining_cal: int, remaining_prot: float, preference: str = "") -> List[dict]:
@@ -1222,8 +1263,15 @@ def api_add_photo_meal(req: PhotoMealRequest):
         if ";" in header and ":" in header:
             mime_type = header.split(":")[1].split(";")[0] or mime_type
 
+    raw_b64 = "".join(raw_b64.split())
+    pad = (4 - len(raw_b64) % 4) % 4
+    if pad:
+        raw_b64 += "=" * pad
+
     try:
         image_bytes = base64.b64decode(raw_b64)
+        if not image_bytes:
+            raise ValueError("Empty decoded image")
     except Exception:
         raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
 
