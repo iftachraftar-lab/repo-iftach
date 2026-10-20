@@ -136,27 +136,6 @@
                     </button>
                 </div>
             </div>
-
-            <!-- Admin toggle to update Client ID if needed -->
-            <div x-show="googleClientId" class="pt-2 border-t border-slate-100 text-center">
-                <button type="button"
-                        @click="showClientIdConfig = !showClientIdConfig"
-                        class="text-[11px] text-slate-400 hover:text-slate-600 underline cursor-pointer">
-                    ⚙️ הגדרות Google OAuth Client ID (למנהל)
-                </button>
-                <div x-show="showClientIdConfig" x-cloak class="mt-2 space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-right">
-                    <input type="text"
-                           x-model="googleClientIdInput"
-                           placeholder="123456-abc.apps.googleusercontent.com"
-                           dir="ltr"
-                           class="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs outline-none text-left font-mono">
-                    <button type="button"
-                            @click="saveGoogleClientId()"
-                            class="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer">
-                        עדכן Google Client ID
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -185,18 +164,24 @@
             <nav class="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
                 <button @click="switchTab('summary')"
                     :class="activeTab === 'summary' ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'"
-                    class="px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2">
+                    class="px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 cursor-pointer">
                     <span>📊</span> סיכום יומי
                 </button>
                 <button @click="switchTab('history')"
                     :class="activeTab === 'history' ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'"
-                    class="px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2">
+                    class="px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 cursor-pointer">
                     <span>📅</span> היסטוריה ומגמות
                 </button>
                 <button @click="switchTab('recipes')"
                     :class="activeTab === 'recipes' ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'"
-                    class="px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2">
+                    class="px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 cursor-pointer">
                     <span>👨‍🍳</span> מתכונים ושף AI
+                </button>
+                <button x-cloak x-show="currentUser && currentUser.is_admin"
+                    @click="switchTab('admin')"
+                    :class="activeTab === 'admin' ? 'bg-indigo-600 text-white shadow-sm font-semibold' : 'text-indigo-700 hover:bg-indigo-50 font-medium'"
+                    class="px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 cursor-pointer">
+                    <span>👑</span> ניהול משתמשים
                 </button>
             </nav>
 
@@ -977,31 +962,340 @@
             </div>
         </div>
 
+        <!-- =============================================================== -->
+        <!-- TAB 4: ADMIN USER MANAGEMENT DASHBOARD (OWNER ONLY)             -->
+        <!-- =============================================================== -->
+        <div x-show="activeTab === 'admin' && currentUser && currentUser.is_admin" x-cloak x-transition.opacity class="space-y-6">
+
+            <!-- Admin Header Banner -->
+            <div class="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-3xl p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="space-y-1.5">
+                    <div class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                        <span>👑</span> גישת מנהל מערכת ראשית (Owner Only)
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-extrabold">ניהול משתמשים ובקרת מערכת</h2>
+                    <p class="text-xs sm:text-sm text-indigo-200">
+                        צפייה בכל המשתמשים המחוברים, ניהול יעדים אישיים, הוספה וחסימת הרשאות גישה
+                    </p>
+                </div>
+                <button @click="fetchAdminUsers()"
+                        :disabled="adminLoading"
+                        class="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold flex items-center gap-2 self-start sm:self-auto transition cursor-pointer">
+                    <span :class="{'animate-spin': adminLoading}">🔄</span>
+                    <span x-text="adminLoading ? 'טוען נתונים...' : 'רענן רשימת משתמשים'"></span>
+                </button>
+            </div>
+
+            <!-- System Overview Stats Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                <div class="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+                    <div class="text-xs font-semibold text-slate-500">👥 סה״כ משתמשים</div>
+                    <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1" x-text="adminData.stats.total_users">0</div>
+                </div>
+                <div class="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+                    <div class="text-xs font-semibold text-slate-500">🟢 פעילים היום</div>
+                    <div class="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-1" x-text="adminData.stats.active_today_users">0</div>
+                </div>
+                <div class="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+                    <div class="text-xs font-semibold text-slate-500">🍽️ סה״כ ארוחות במערכת</div>
+                    <div class="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-1" x-text="adminData.stats.total_meals_logged">0</div>
+                </div>
+                <div class="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+                    <div class="text-xs font-semibold text-slate-500">📱 מכשירי פוש מחוברים</div>
+                    <div class="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-1" x-text="adminData.stats.total_push_devices">0</div>
+                </div>
+            </div>
+
+            <!-- Pre-Add / Invite User Card -->
+            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">➕ הוספת משתמש חדש והגדרת יעדים מראש</h3>
+                        <p class="text-xs text-slate-500">הגדר משתמש לפי כתובת ה-Gmail שלו וקבע עבורו יעדי קלוריות וחלבון לפני או אחרי כניסתו הראשונה</p>
+                    </div>
+                </div>
+                <form @submit.prevent="adminCreateUser()" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                    <div class="sm:col-span-4">
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">כתובת אימייל (Google)</label>
+                        <input type="email" required dir="ltr"
+                               x-model="adminNewUser.email"
+                               placeholder="user@gmail.com"
+                               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-left font-mono focus:bg-white focus:border-indigo-500 outline-none">
+                    </div>
+                    <div class="sm:col-span-3">
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">שם מלא</label>
+                        <input type="text"
+                               x-model="adminNewUser.name"
+                               placeholder="למשל: דניאל כהן"
+                               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:bg-white focus:border-indigo-500 outline-none">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">יעד קלוריות</label>
+                        <input type="number" min="500" max="10000" required
+                               x-model.number="adminNewUser.target_calories"
+                               class="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:bg-white focus:border-indigo-500 outline-none">
+                    </div>
+                    <div class="sm:col-span-1">
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">חלבון (ג׳)</label>
+                        <input type="number" min="20" max="500" required
+                               x-model.number="adminNewUser.target_protein"
+                               class="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:bg-white focus:border-indigo-500 outline-none">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="submit"
+                                class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition cursor-pointer">
+                            + הוסף משתמש
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Users List & Search -->
+            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900">👥 משתמשים רשומים במערכת</h3>
+                        <p class="text-xs text-slate-500">ניהול פרופילים, יעדים יומיים, צפייה ביומני תזונה וחסימת גישה</p>
+                    </div>
+                    <input type="text"
+                           x-model="adminSearchQuery"
+                           placeholder="🔍 חפש לפי שם או אימייל..."
+                           class="w-full sm:w-64 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:bg-white focus:border-indigo-500 outline-none">
+                </div>
+
+                <div class="space-y-3">
+                    <template x-for="u in filteredAdminUsers" :key="u.id">
+                        <div class="p-4 rounded-2xl border transition flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                             :class="u.is_blocked ? 'bg-rose-50/40 border-rose-200' : 'bg-slate-50/70 border-slate-200/80 hover:border-indigo-200'">
+
+                            <!-- User Identity -->
+                            <div class="flex items-center gap-3.5 min-w-0">
+                                <template x-if="u.picture">
+                                    <img :src="u.picture" alt="" class="w-11 h-11 rounded-2xl object-cover border border-slate-200 flex-shrink-0">
+                                </template>
+                                <template x-if="!u.picture">
+                                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-bold text-base flex items-center justify-center flex-shrink-0"
+                                         x-text="(u.name || u.email || 'U').slice(0,1).toUpperCase()"></div>
+                                </template>
+
+                                <div class="min-w-0 space-y-1">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span class="font-bold text-sm text-slate-900 truncate" x-text="u.name"></span>
+                                        <span x-show="u.is_owner" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                                            👑 בעלים (אתה)
+                                        </span>
+                                        <span x-show="u.is_admin && !u.is_owner" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                                            🛡️ אדמין
+                                        </span>
+                                        <span x-show="u.is_blocked" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                                            🚫 חסום
+                                        </span>
+                                        <span x-show="!u.is_blocked" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                            ✓ פעיל
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-slate-500 font-mono truncate" dir="ltr" x-text="u.email"></div>
+                                    <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                                        <span>📅 פעילות אחרונה: <strong class="text-slate-700" x-text="u.last_active"></strong></span>
+                                        <span>🍽️ סה״כ ארוחות: <strong class="text-slate-700" x-text="u.total_meals_count"></strong></span>
+                                        <span x-show="u.latest_weight">⚖️ משקל: <strong class="text-slate-700" x-text="`${u.latest_weight} ק״ג`"></strong></span>
+                                        <span x-show="u.push_devices_count > 0">🔔 פוש: <strong class="text-slate-700" x-text="u.push_devices_count"></strong></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Today's Stats & Actions -->
+                            <div class="flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-200/60">
+                                <!-- Today's Macro Badge -->
+                                <div class="bg-white px-3.5 py-2 rounded-xl border border-slate-200 text-xs space-y-0.5 min-w-[145px]">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-[11px] text-slate-400">היום:</span>
+                                        <span class="font-extrabold text-slate-800" x-text="`${u.today_calories} / ${u.target_calories} קק״ל`"></span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-[11px] text-slate-400">חלבון:</span>
+                                        <span class="font-bold text-emerald-700" x-text="`${u.today_protein}g / ${u.target_protein}g`"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button"
+                                            @click="inspectUserAdmin(u)"
+                                            class="px-3 py-2 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 hover:border-indigo-200 text-xs font-bold transition cursor-pointer"
+                                            title="צפה ביומן הארוחות והשקילות של המשתמש">
+                                        👁️ יומן
+                                    </button>
+                                    <button type="button"
+                                            @click="openAdminTargetModal(u)"
+                                            class="px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-slate-200 hover:border-emerald-200 text-xs font-bold transition cursor-pointer"
+                                            title="ערוך יעדי קלוריות וחלבון למשתמש">
+                                        🎯 יעדים
+                                    </button>
+                                    <button type="button"
+                                            x-show="!u.is_owner"
+                                            @click="toggleBlockUserAdmin(u)"
+                                            class="px-3 py-2 rounded-xl text-xs font-bold border transition cursor-pointer"
+                                            :class="u.is_blocked ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' : 'bg-white hover:bg-amber-50 text-amber-700 border-slate-200 hover:border-amber-200'"
+                                            :title="u.is_blocked ? 'בטל חסימת משתמש' : 'חסום גישת משתמש למערכת'">
+                                        <span x-text="u.is_blocked ? '🔓 שחרר' : '🚫 חסום'"></span>
+                                    </button>
+                                    <button type="button"
+                                            x-show="!u.is_owner"
+                                            @click="deleteUserAdmin(u)"
+                                            class="p-2 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold transition cursor-pointer"
+                                            title="מחק משתמש וכל נתוניו">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- System & Google OAuth Settings Card (Admin Only) -->
+            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">🔐 הגדרות מערכת ו-Google OAuth Client ID</h3>
+                    <p class="text-xs text-slate-500">עדכון מפתח ה-OAuth של האפליקציה וייבוא נתונים היסטוריים</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2.5">
+                    <input type="text"
+                           x-model="googleClientIdInput"
+                           placeholder="123456789-abcdefg.apps.googleusercontent.com"
+                           dir="ltr"
+                           class="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-left focus:bg-white focus:border-indigo-500 outline-none">
+                    <button type="button"
+                            @click="saveGoogleClientId()"
+                            class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer">
+                        שמור Google Client ID
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Mobile Bottom Navigation Bar (Only shown when logged in) -->
     <nav x-cloak x-show="currentUser" class="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 md:hidden">
-        <div class="grid grid-cols-3 max-w-md mx-auto">
+        <div class="grid max-w-md mx-auto" :class="(currentUser && currentUser.is_admin) ? 'grid-cols-4' : 'grid-cols-3'">
             <button @click="switchTab('summary')"
                     :class="activeTab === 'summary' ? 'text-emerald-600 font-bold' : 'text-slate-500'"
-                    class="py-3 flex flex-col items-center justify-center gap-1 text-xs transition">
+                    class="py-3 flex flex-col items-center justify-center gap-1 text-xs transition cursor-pointer">
                 <span class="text-lg">📊</span>
                 <span>היום</span>
             </button>
             <button @click="switchTab('history')"
                     :class="activeTab === 'history' ? 'text-emerald-600 font-bold' : 'text-slate-500'"
-                    class="py-3 flex flex-col items-center justify-center gap-1 text-xs transition">
+                    class="py-3 flex flex-col items-center justify-center gap-1 text-xs transition cursor-pointer">
                 <span class="text-lg">📅</span>
                 <span>היסטוריה</span>
             </button>
             <button @click="switchTab('recipes')"
                     :class="activeTab === 'recipes' ? 'text-emerald-600 font-bold' : 'text-slate-500'"
-                    class="py-3 flex flex-col items-center justify-center gap-1 text-xs transition">
+                    class="py-3 flex flex-col items-center justify-center gap-1 text-xs transition cursor-pointer">
                 <span class="text-lg">👨‍🍳</span>
                 <span>מתכונים</span>
             </button>
+            <button x-cloak x-show="currentUser && currentUser.is_admin"
+                    @click="switchTab('admin')"
+                    :class="activeTab === 'admin' ? 'text-indigo-600 font-bold' : 'text-slate-500'"
+                    class="py-3 flex flex-col items-center justify-center gap-1 text-xs transition cursor-pointer">
+                <span class="text-lg">👑</span>
+                <span>אדמין</span>
+            </button>
         </div>
     </nav>
+
+    <!-- Admin User Details & Journal Modal -->
+    <div x-cloak x-show="adminInspectedUser"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+         @click.self="adminInspectedUser = null">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[88vh] overflow-y-auto" @click.stop>
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">
+                        👁️ יומן משתמש: <span class="text-indigo-600" x-text="adminInspectedUser?.name"></span>
+                    </h3>
+                    <p class="text-xs text-slate-500 font-mono" dir="ltr" x-text="adminInspectedUser?.email"></p>
+                </div>
+                <button @click="adminInspectedUser = null" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <div x-show="adminDetailsLoading" class="py-8 text-center text-xs text-slate-500 animate-pulse">
+                טוען היסטוריית ארוחות ושקילות של המשתמש...
+            </div>
+
+            <div x-show="!adminDetailsLoading && adminUserDetails" class="space-y-4">
+                <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 text-xs">
+                    <div>
+                        <span class="text-slate-500 block">קלוריות היום:</span>
+                        <strong class="text-sm text-slate-900" x-text="`${adminUserDetails?.today_summary?.total_calories || 0} / ${adminUserDetails?.targets?.target_calories || 1800} קק״ל`"></strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block">חלבון היום:</span>
+                        <strong class="text-sm text-emerald-700" x-text="`${adminUserDetails?.today_summary?.total_protein || 0}g / ${adminUserDetails?.targets?.target_protein || 120}g`"></strong>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold text-slate-700 mb-2">🍽️ ארוחות אחרונות שתועדו (עד 30 אחרונות):</h4>
+                    <div x-show="!adminUserDetails?.recent_meals?.length" class="text-xs text-slate-400 py-4 text-center bg-slate-50 rounded-2xl">
+                        המשתמש טרם תיעד ארוחות.
+                    </div>
+                    <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        <template x-for="m in (adminUserDetails?.recent_meals || [])" :key="m.id">
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between text-xs">
+                                <div>
+                                    <div class="font-bold text-slate-800" x-text="m.description"></div>
+                                    <div class="text-[10px] text-slate-400" x-text="`${m.log_date || ''} ${m.log_time || ''}`"></div>
+                                </div>
+                                <div class="text-left flex-shrink-0">
+                                    <div class="font-extrabold text-slate-900" x-text="`${m.calories} קק״ל`"></div>
+                                    <div class="text-[11px] text-emerald-700 font-semibold" x-text="`${m.protein_g}g חלבון`"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Edit User Targets Modal -->
+    <div x-cloak x-show="adminEditingTargetUser"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+         @click.self="adminEditingTargetUser = null">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4" @click.stop>
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-slate-900">
+                    🎯 יעדים עבור <span class="text-indigo-600" x-text="adminEditingTargetUser?.name"></span>
+                </h3>
+                <button @click="adminEditingTargetUser = null" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <form @submit.prevent="saveAdminUserTargets()" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">יעד קלוריות יומי (קק"ל)</label>
+                    <input type="number" min="500" max="10000" required
+                           x-model.number="adminTargetForm.calories"
+                           class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">יעד חלבון יומי (גרם)</label>
+                    <input type="number" min="20" max="500" required
+                           x-model.number="adminTargetForm.protein"
+                           class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-bold">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="adminEditingTargetUser = null"
+                            class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">ביטול</button>
+                    <button type="submit"
+                            class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer">שמור יעדים למשתמש</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Target Settings & Smart TDEE Calculator Modal -->
     <div x-cloak x-show="openTargetModal"
@@ -1634,6 +1928,33 @@
                 authLoading: false,
                 claimingLegacy: false,
 
+                // Admin User Management State (Owner Only)
+                adminLoading: false,
+                adminSearchQuery: '',
+                adminData: {
+                    stats: {
+                        total_users: 0,
+                        active_today_users: 0,
+                        total_meals_logged: 0,
+                        total_push_devices: 0
+                    },
+                    users: []
+                },
+                adminNewUser: {
+                    email: '',
+                    name: '',
+                    target_calories: 1800,
+                    target_protein: 120
+                },
+                adminInspectedUser: null,
+                adminUserDetails: null,
+                adminDetailsLoading: false,
+                adminEditingTargetUser: null,
+                adminTargetForm: {
+                    calories: 1800,
+                    protein: 120
+                },
+
                 canInstallPWA: false,
                 showIOSInstallButton: false,
                 openIOSInstallModal: false,
@@ -1771,9 +2092,22 @@
                     return this.recipes.filter(r => r.category === this.selectedRecipeCategory);
                 },
 
+                get filteredAdminUsers() {
+                    const q = (this.adminSearchQuery || '').trim().toLowerCase();
+                    const list = this.adminData?.users || [];
+                    if (!q) return list;
+                    return list.filter(u =>
+                        (u.name || '').toLowerCase().includes(q) ||
+                        (u.email || '').toLowerCase().includes(q)
+                    );
+                },
+
                 async init() {
                     this.setupPWAInstallListeners();
                     await this.initGoogleAuth();
+                    if (this.currentUser) {
+                        await this.verifyCurrentUserSession();
+                    }
                     if (this.currentUser) {
                         this.checkPushStatus();
                         await Promise.all([
@@ -1785,6 +2119,28 @@
                         ]);
                     }
                     this.loading = false;
+                },
+
+                async verifyCurrentUserSession() {
+                    try {
+                        const res = await fetch('/api/auth/me');
+                        if (res.status === 403 || res.status === 401) {
+                            this.currentUser = null;
+                            localStorage.removeItem('nutri_user');
+                            return;
+                        }
+                        if (res.ok) {
+                            const me = await res.json();
+                            this.currentUser = {
+                                ...this.currentUser,
+                                ...me,
+                                verified_oauth: true
+                            };
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        }
+                    } catch (e) {
+                        console.warn('verifyCurrentUserSession warn:', e);
+                    }
                 },
 
                 async initGoogleAuth() {
@@ -2459,10 +2815,150 @@
                 },
 
                 switchTab(tab) {
+                    if (tab === 'admin' && (!this.currentUser || !this.currentUser.is_admin)) {
+                        this.showToast('גישה חסומה: עמוד אדמין מורשה למנהל המערכת בלבד', 'error');
+                        return;
+                    }
                     this.activeTab = tab;
                     if (tab === 'history') {
                         this.fetchHistory();
                         this.fetchWeight();
+                    } else if (tab === 'admin') {
+                        this.fetchAdminUsers();
+                    }
+                },
+
+                async fetchAdminUsers() {
+                    if (!this.currentUser || !this.currentUser.is_admin) return;
+                    this.adminLoading = true;
+                    try {
+                        const res = await fetch('/api/admin/users');
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'שגיאה בטעינת משתמשים');
+                        }
+                        this.adminData = await res.json();
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בטעינת נתוני אדמין', 'error');
+                    } finally {
+                        this.adminLoading = false;
+                    }
+                },
+
+                async adminCreateUser() {
+                    const email = (this.adminNewUser.email || '').trim().toLowerCase();
+                    if (!email || !email.includes('@')) {
+                        this.showToast('נא להזין כתובת אימייל תקינה', 'error');
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/admin/users', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email,
+                                name: (this.adminNewUser.name || '').trim(),
+                                target_calories: Number(this.adminNewUser.target_calories) || 1800,
+                                target_protein: Number(this.adminNewUser.target_protein) || 120
+                            })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'שגיאה בהוספת משתמש');
+                        }
+                        this.adminNewUser = { email: '', name: '', target_calories: 1800, target_protein: 120 };
+                        await this.fetchAdminUsers();
+                        this.showToast(`✅ המשתמש ${email} נוסף והוגדר בהצלחה!`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בהוספת משתמש', 'error');
+                    }
+                },
+
+                async inspectUserAdmin(user) {
+                    this.adminInspectedUser = user;
+                    this.adminUserDetails = null;
+                    this.adminDetailsLoading = true;
+                    try {
+                        const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/details`);
+                        if (!res.ok) throw new Error('שגיאה בטעינת יומן המשתמש');
+                        this.adminUserDetails = await res.json();
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בטעינת פרטי המשתמש', 'error');
+                    } finally {
+                        this.adminDetailsLoading = false;
+                    }
+                },
+
+                openAdminTargetModal(user) {
+                    this.adminEditingTargetUser = user;
+                    this.adminTargetForm = {
+                        calories: user.target_calories || 1800,
+                        protein: user.target_protein || 120
+                    };
+                },
+
+                async saveAdminUserTargets() {
+                    if (!this.adminEditingTargetUser) return;
+                    try {
+                        const uid = this.adminEditingTargetUser.id;
+                        const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/targets`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                target_calories: Number(this.adminTargetForm.calories) || 1800,
+                                target_protein: Number(this.adminTargetForm.protein) || 120
+                            })
+                        });
+                        if (!res.ok) throw new Error('שגיאה בעדכון יעדי המשתמש');
+                        const userName = this.adminEditingTargetUser.name;
+                        this.adminEditingTargetUser = null;
+                        await this.fetchAdminUsers();
+                        if (this.currentUser && this.currentUser.id === uid) {
+                            await this.fetchSummary();
+                        }
+                        this.showToast(`🎯 היעדים של ${userName} עודכנו בהצלחה!`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בעדכון יעדים', 'error');
+                    }
+                },
+
+                async toggleBlockUserAdmin(user) {
+                    if (user.is_owner) return;
+                    const newBlocked = !user.is_blocked;
+                    try {
+                        const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ is_blocked: newBlocked })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'שגיאה בעדכון סטטוס המשתמש');
+                        }
+                        await this.fetchAdminUsers();
+                        this.showToast(newBlocked ? `🚫 המשתמש ${user.name} נחסם מגישה למערכת` : `🔓 החסימה של ${user.name} הוסרה`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בעדכון סטטוס', 'error');
+                    }
+                },
+
+                async deleteUserAdmin(user) {
+                    if (user.is_owner) return;
+                    if (!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש ${user.name} (${user.email}) ואת כל הארוחות והנתונים שלו?`)) {
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+                            method: 'DELETE'
+                        });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'שגיאה במחיקת המשתמש');
+                        }
+                        await this.fetchAdminUsers();
+                        this.showToast(`🗑️ המשתמש ${user.name} ונתוניו נמחקו מהמערכת`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה במחיקת המשתמש', 'error');
                     }
                 },
 
