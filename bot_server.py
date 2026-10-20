@@ -143,6 +143,7 @@ class AuthConfigRequest(BaseModel):
 class TargetUpdateRequest(BaseModel):
     target_calories: int = Field(ge=500, le=10000)
     target_protein: int = Field(default=120, ge=20, le=500)
+    daily_ai_limit: Optional[int] = Field(default=None, ge=0, le=1000)
 
 
 class RecipePromptRequest(BaseModel):
@@ -195,11 +196,14 @@ class AdminCreateUserRequest(BaseModel):
     name: Optional[str] = ""
     target_calories: int = Field(default=1800, ge=500, le=10000)
     target_protein: int = Field(default=120, ge=20, le=500)
+    daily_ai_limit: int = Field(default=15, ge=0, le=1000)
 
 
 class AdminUpdateUserStatusRequest(BaseModel):
     is_blocked: Optional[bool] = None
     is_admin: Optional[bool] = None
+    is_approved: Optional[bool] = None
+    daily_ai_limit: Optional[int] = Field(default=None, ge=0, le=1000)
 
 
 # ---------------------------------------------------------------------------
@@ -445,11 +449,94 @@ def is_admin_user_id(user_id: str) -> bool:
     return False
 
 
+DEFAULT_DAILY_AI_LIMIT = 15
+
+
 def require_admin_user(request: Request) -> str:
     uid = get_request_user_id(request)
     if not is_admin_user_id(uid):
         raise HTTPException(status_code=403, detail="גישה חסומה: עמוד זה מורשה למנהל המערכת בלבד")
     return uid
+
+
+def get_user_doc_db(user_id: str) -> dict:
+    uid = _normalize_user_id(user_id)
+    if not uid or uid == "default":
+        return {}
+    if not db:
+        return dict(_LOCAL_USERS.get(uid, {}))
+    try:
+        snap = db.collection("users").document(uid).get()
+        if snap.exists:
+            return snap.to_dict() or {}
+    except Exception as e:
+        print(f"ERROR get_user_doc_db: {e}")
+    return {}
+
+
+def require_approved_user(request: Request) -> str:
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר עם חשבון Google תחילה")
+    if is_admin_user_id(uid):
+        return uid
+    udoc = get_user_doc_db(uid)
+    if udoc.get("is_blocked"):
+        raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
+    if not udoc.get("is_approved", False):
+        raise HTTPException(status_code=403, detail="חשבונך ממתין לאישור מנהל המערכת")
+    return uid
+
+
+def check_and_increment_ai_quota(user_id: str) -> None:
+    uid = _normalize_user_id(user_id)
+    if is_admin_user_id(uid):
+        # Owner / Admin has unlimited AI quota, still track usage count for visibility
+        today_str = str(date.today())
+        udoc = get_user_doc_db(uid)
+        used = int(udoc.get("ai_calls_today") or 0) if udoc.get("ai_quota_date") == today_str else 0
+        if not db:
+            if uid in _LOCAL_USERS:
+                _LOCAL_USERS[uid]["ai_quota_date"] = today_str
+                _LOCAL_USERS[uid]["ai_calls_today"] = used + 1
+        else:
+            try:
+                db.collection("users").document(uid).set({
+                    "ai_quota_date": today_str,
+                    "ai_calls_today": used + 1,
+                }, merge=True)
+            except Exception:
+                pass
+        return
+
+    today_str = str(date.today())
+    udoc = get_user_doc_db(uid)
+    if udoc.get("is_blocked"):
+        raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
+    if not udoc.get("is_approved", False):
+        raise HTTPException(status_code=403, detail="חשבונך ממתין לאישור מנהל המערכת")
+
+    limit = int(udoc.get("daily_ai_limit") if udoc.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
+    used = int(udoc.get("ai_calls_today") or 0) if udoc.get("ai_quota_date") == today_str else 0
+
+    if used >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail=f"הגעת למכסת ניתוחי ה-AI היומית שלך ({limit} פעולות ליום). תוכל להמשיך להזין ארוחות ידנית או מהמועדפים!",
+        )
+
+    if not db:
+        if uid in _LOCAL_USERS:
+            _LOCAL_USERS[uid]["ai_quota_date"] = today_str
+            _LOCAL_USERS[uid]["ai_calls_today"] = used + 1
+    else:
+        try:
+            db.collection("users").document(uid).set({
+                "ai_quota_date": today_str,
+                "ai_calls_today": used + 1,
+            }, merge=True)
+        except Exception as e:
+            print(f"ERROR updating AI quota: {e}")
 
 
 def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
@@ -485,6 +572,14 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
     else:
         is_admin = bool(owner_flag or existing_doc_data.get("admin_granted_by_owner", False))
 
+    # Only admin/owner or explicitly approved users get immediate access!
+    is_approved = bool(is_admin or existing_doc_data.get("is_approved", False))
+    daily_ai_limit = int(existing_doc_data.get("daily_ai_limit") if existing_doc_data.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
+    today_str = str(date.today())
+    ai_calls_today = int(existing_doc_data.get("ai_calls_today") or 0) if existing_doc_data.get("ai_quota_date") == today_str else 0
+
+    was_already_known = bool(existing_doc_data)
+
     profile = {
         "id": uid,
         "email": clean_email,
@@ -493,8 +588,12 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
         "link_code": link_code,
         "verified_oauth": True,
         "is_admin": is_admin,
+        "is_approved": is_approved,
         "is_blocked": False,
-        "last_login_date": str(date.today()),
+        "daily_ai_limit": daily_ai_limit,
+        "ai_quota_date": today_str,
+        "ai_calls_today": ai_calls_today,
+        "last_login_date": today_str,
     }
 
     if not db:
@@ -507,6 +606,20 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
             }, merge=True)
         except Exception as e:
             print(f"ERROR upsert_user_profile: {e}")
+
+    # Notify admin via Web Push when a new unapproved user requests access
+    if not is_approved and not was_already_known:
+        try:
+            for owner_em in OWNER_ADMIN_EMAILS:
+                admin_uid = _make_user_id_from_email(owner_em)
+                send_web_push_to_all(
+                    title="🔔 בקשת הצטרפות חדשה ל-NutriAgent",
+                    body=f"{profile['name']} ({clean_email}) מבקש גישה לאפליקציה. היכנס ללשונית אדמין לאישור.",
+                    tag="nutriagent-new-user",
+                    user_id=admin_uid,
+                )
+        except Exception as e:
+            print(f"WARN admin push on signup: {e}")
 
     # Automatically claim unowned legacy data for the very first user or owner so nothing disappears
     claimed = {"claimed_meals": 0, "claimed_weights": 0, "claimed_favorites": 0}
@@ -1863,13 +1976,20 @@ def api_auth_me(request: Request):
     owner_flag = is_owner_email(email) and not bool(user_doc.get("admin_revoked", False))
     if user_doc.get("is_blocked") and not owner_flag:
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
+    is_approved = bool(admin_flag or owner_flag or user_doc.get("is_approved", False))
+    today_str = str(date.today())
+    daily_ai_limit = int(user_doc.get("daily_ai_limit") if user_doc.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
+    ai_calls_today = int(user_doc.get("ai_calls_today") or 0) if user_doc.get("ai_quota_date") == today_str else 0
     return {
         "id": uid,
         "email": email,
         "name": user_doc.get("name") or "",
         "picture": user_doc.get("picture") or "",
         "is_admin": bool(admin_flag),
+        "is_approved": is_approved,
         "is_blocked": False,
+        "daily_ai_limit": daily_ai_limit,
+        "ai_calls_today": ai_calls_today,
         "verified_oauth": True,
     }
 
@@ -1940,6 +2060,7 @@ def list_all_users_admin_db() -> dict:
 
     users_list = []
     active_today_count = 0
+    pending_approval_count = 0
 
     for uid, u in users_map.items():
         email = (u.get("email") or "").strip().lower()
@@ -1947,6 +2068,11 @@ def list_all_users_admin_db() -> dict:
         owner_flag = is_owner_email(email) and not revoked
         is_admin = False if revoked else bool(owner_flag or u.get("admin_granted_by_owner", False))
         is_blocked = bool(u.get("is_blocked", False)) and not is_admin
+        is_approved = bool(is_admin or u.get("is_approved", False))
+        if not is_approved and not is_blocked:
+            pending_approval_count += 1
+        daily_ai_limit = int(u.get("daily_ai_limit") if u.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
+        ai_calls_today = int(u.get("ai_calls_today") or 0) if u.get("ai_quota_date") == today_str else 0
         targets = get_targets(user_id=uid)
 
         u_meals = [m for m in all_meals if _doc_matches_user(m, uid)]
@@ -1973,7 +2099,10 @@ def list_all_users_admin_db() -> dict:
             "picture": u.get("picture") or "",
             "is_owner": owner_flag,
             "is_admin": is_admin,
+            "is_approved": is_approved,
             "is_blocked": is_blocked,
+            "daily_ai_limit": daily_ai_limit,
+            "ai_calls_today": ai_calls_today,
             "target_calories": int(targets.get("target_calories") or 1800),
             "target_protein": int(targets.get("target_protein") or 120),
             "today_calories": today_cal,
@@ -1985,11 +2114,13 @@ def list_all_users_admin_db() -> dict:
             "last_active": last_active,
         })
 
-    users_list.sort(key=lambda x: (not x["is_owner"], not x["is_admin"], -x["total_meals_count"], str(x["email"] or "")))
+    # Sort pending approval users first so the admin sees them immediately, then owner/admin
+    users_list.sort(key=lambda x: (x["is_approved"] and not x["is_owner"], not x["is_owner"], not x["is_admin"], -x["total_meals_count"], str(x["email"] or "")))
 
     return {
         "stats": {
             "total_users": len(users_list),
+            "pending_approval_users": pending_approval_count,
             "active_today_users": active_today_count,
             "total_meals_logged": len(all_meals),
             "total_push_devices": len(all_subs),
@@ -1998,7 +2129,7 @@ def list_all_users_admin_db() -> dict:
     }
 
 
-def admin_create_user_db(email: str, name: str = "", target_calories: int = 1800, target_protein: int = 120) -> dict:
+def admin_create_user_db(email: str, name: str = "", target_calories: int = 1800, target_protein: int = 120, daily_ai_limit: int = DEFAULT_DAILY_AI_LIMIT) -> dict:
     clean_email = (email or "").strip().lower()
     if not clean_email or "@" not in clean_email:
         raise ValueError("נא להזין כתובת אימייל תקינה")
@@ -2014,7 +2145,9 @@ def admin_create_user_db(email: str, name: str = "", target_calories: int = 1800
         "picture": "",
         "link_code": link_code,
         "is_admin": owner_flag,
+        "is_approved": True,
         "is_blocked": False,
+        "daily_ai_limit": int(daily_ai_limit),
         "last_login_date": "טרם התחבר",
     }
     if not db:
@@ -2045,21 +2178,40 @@ def get_user_details_admin_db(target_uid: str) -> dict:
     }
 
 
-def update_user_status_admin_db(target_uid: str, is_blocked: Optional[bool] = None, is_admin: Optional[bool] = None, caller_uid: str = "") -> dict:
+def update_user_status_admin_db(
+    target_uid: str,
+    is_blocked: Optional[bool] = None,
+    is_admin: Optional[bool] = None,
+    is_approved: Optional[bool] = None,
+    daily_ai_limit: Optional[int] = None,
+    caller_uid: str = "",
+) -> dict:
     uid = _normalize_user_id(target_uid)
     if caller_uid and uid == _normalize_user_id(caller_uid):
         if is_blocked:
             raise ValueError("לא ניתן לחסום את החשבון של עצמך")
         if is_admin is False:
             raise ValueError("לא ניתן להסיר הרשאת אדמין מהחשבון שממנו אתה מחובר כרגע")
+        if is_approved is False:
+            raise ValueError("לא ניתן לבטל אישור לחשבון של עצמך")
 
     updates = {}
     if is_blocked is not None:
         updates["is_blocked"] = bool(is_blocked)
+        if not is_blocked:
+            updates["is_approved"] = True
+    if is_approved is not None:
+        updates["is_approved"] = bool(is_approved)
+        if is_approved:
+            updates["is_blocked"] = False
     if is_admin is not None:
         updates["is_admin"] = bool(is_admin)
         updates["admin_granted_by_owner"] = bool(is_admin)
         updates["admin_revoked"] = not bool(is_admin)
+        if is_admin:
+            updates["is_approved"] = True
+    if daily_ai_limit is not None:
+        updates["daily_ai_limit"] = max(0, int(daily_ai_limit))
 
     if not db:
         if uid in _LOCAL_USERS:
@@ -2133,6 +2285,7 @@ def api_admin_create_user(req: AdminCreateUserRequest, request: Request):
             name=req.name or "",
             target_calories=req.target_calories,
             target_protein=req.target_protein,
+            daily_ai_limit=req.daily_ai_limit,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -2146,8 +2299,10 @@ def api_admin_user_details(target_uid: str, request: Request):
 
 @app.put("/api/admin/users/{target_uid}/targets")
 def api_admin_update_user_targets(target_uid: str, req: TargetUpdateRequest, request: Request):
-    require_admin_user(request)
+    admin_uid = require_admin_user(request)
     uid = _normalize_user_id(target_uid)
+    if req.daily_ai_limit is not None:
+        update_user_status_admin_db(uid, daily_ai_limit=req.daily_ai_limit, caller_uid=admin_uid)
     return set_targets(req.target_calories, req.target_protein, user_id=uid)
 
 
@@ -2155,7 +2310,14 @@ def api_admin_update_user_targets(target_uid: str, req: TargetUpdateRequest, req
 def api_admin_update_user_status(target_uid: str, req: AdminUpdateUserStatusRequest, request: Request):
     admin_uid = require_admin_user(request)
     try:
-        return update_user_status_admin_db(target_uid, is_blocked=req.is_blocked, is_admin=req.is_admin, caller_uid=admin_uid)
+        return update_user_status_admin_db(
+            target_uid,
+            is_blocked=req.is_blocked,
+            is_admin=req.is_admin,
+            is_approved=req.is_approved,
+            daily_ai_limit=req.daily_ai_limit,
+            caller_uid=admin_uid,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -2241,7 +2403,7 @@ def api_meals_legacy(request: Request):
 
 @app.post("/api/meals/")
 def api_add_manual_meal(req: ManualMealRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     entry = log_meal_db(
         description=req.description,
         calories=req.calories,
@@ -2258,10 +2420,11 @@ def api_add_manual_meal(req: ManualMealRequest, request: Request):
 
 @app.post("/api/meals/ai")
 def api_add_ai_meal(req: AIMealRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     if not req.text or not req.text.strip():
         raise HTTPException(status_code=400, detail="נא להזין תיאור ארוחה")
 
+    check_and_increment_ai_quota(uid)
     extraction = analyze_meal(req.text.strip())
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהתה ארוחה או שתייה בטקסט שהוזן")
@@ -2281,7 +2444,7 @@ def api_add_ai_meal(req: AIMealRequest, request: Request):
 
 @app.post("/api/meals/photo")
 def api_add_photo_meal(req: PhotoMealRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     raw_b64 = (req.image_base64 or "").strip()
     if not raw_b64:
         raise HTTPException(status_code=400, detail="נא להעלות או לצלם תמונה")
@@ -2304,6 +2467,7 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
 
+    check_and_increment_ai_quota(uid)
     extraction = analyze_meal_image(image_bytes, mime_type=mime_type, caption=req.caption or "")
     if extraction.summary and extraction.summary.startswith("API_ERROR:"):
         raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם Gemini Vision ({extraction.summary}). נסה שוב.")
@@ -2325,7 +2489,7 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
 
 @app.post("/api/meals/voice")
 def api_add_voice_meal(req: VoiceMealRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     raw_b64 = (req.audio_base64 or "").strip()
     if not raw_b64:
         raise HTTPException(status_code=400, detail="נא להקליט דיווח קולי תחילה")
@@ -2348,6 +2512,7 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="קובץ הקלטה לא תקין")
 
+    check_and_increment_ai_quota(uid)
     extraction = analyze_meal_audio(audio_bytes, mime_type=mime_type, caption=req.caption or "")
     if extraction.summary and extraction.summary.startswith("API_ERROR:"):
         raise HTTPException(status_code=502, detail=f"שגיאה בפענוח ההקלטה מול Gemini ({extraction.summary}). נסה שוב.")
@@ -2369,7 +2534,8 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
 
 @app.post("/api/coach/analyze")
 def api_coach_analyze(request: Request, req: Optional[CoachAnalyzeRequest] = None):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
+    check_and_increment_ai_quota(uid)
     d_str = (req.log_date if req and req.log_date else None) or str(date.today())
     day_summary = get_day_summary(d_str, user_id=uid)
     hist = _fetch_user_history(uid=uid, days=7)
@@ -2487,7 +2653,9 @@ def api_get_recipes():
 
 
 @app.post("/api/recipes/suggest")
-def api_suggest_recipes(req: RecipePromptRequest):
+def api_suggest_recipes(req: RecipePromptRequest, request: Request):
+    uid = require_approved_user(request)
+    check_and_increment_ai_quota(uid)
     suggestions = generate_ai_recipes(
         remaining_cal=req.remaining_calories,
         remaining_prot=req.remaining_protein,
