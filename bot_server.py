@@ -403,8 +403,6 @@ def claim_legacy_data_for_user(user_id: str) -> dict:
 OWNER_ADMIN_EMAILS = {
     "iftach.raftar@gmail.com",
     "iftachraftar@gmail.com",
-    "idf.iftach1@gmail.com",
-    "idfiftach1@gmail.com",
     *[e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()],
 }
 
