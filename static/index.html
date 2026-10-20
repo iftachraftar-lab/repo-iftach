@@ -1133,7 +1133,15 @@
                                         🎯 יעדים
                                     </button>
                                     <button type="button"
-                                            x-show="!u.is_owner"
+                                            x-show="currentUser && u.id !== currentUser.id"
+                                            @click="toggleAdminRole(u)"
+                                            class="px-3 py-2 rounded-xl text-xs font-bold border transition cursor-pointer"
+                                            :class="u.is_admin ? 'bg-indigo-50 text-indigo-800 border-indigo-200 hover:bg-indigo-100' : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'"
+                                            :title="u.is_admin ? 'הפוך למשתמש רגיל (הסר הרשאת אדמין)' : 'הענק הרשאת אדמין'">
+                                        <span x-text="u.is_admin ? '👤 הפוך לרגיל' : '👑 הפוך לאדמין'"></span>
+                                    </button>
+                                    <button type="button"
+                                            x-show="currentUser && u.id !== currentUser.id"
                                             @click="toggleBlockUserAdmin(u)"
                                             class="px-3 py-2 rounded-xl text-xs font-bold border transition cursor-pointer"
                                             :class="u.is_blocked ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' : 'bg-white hover:bg-amber-50 text-amber-700 border-slate-200 hover:border-amber-200'"
@@ -1141,7 +1149,7 @@
                                         <span x-text="u.is_blocked ? '🔓 שחרר' : '🚫 חסום'"></span>
                                     </button>
                                     <button type="button"
-                                            x-show="!u.is_owner"
+                                            x-show="currentUser && u.id !== currentUser.id"
                                             @click="deleteUserAdmin(u)"
                                             class="p-2 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold transition cursor-pointer"
                                             title="מחק משתמש וכל נתוניו">
@@ -2137,6 +2145,9 @@
                                 verified_oauth: true
                             };
                             localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                            if (!this.currentUser.is_admin && this.activeTab === 'admin') {
+                                this.activeTab = 'summary';
+                            }
                         }
                     } catch (e) {
                         console.warn('verifyCurrentUserSession warn:', e);
@@ -2228,6 +2239,9 @@
                     const verifiedUser = { ...user, verified_oauth: true };
                     this.currentUser = verifiedUser;
                     localStorage.setItem('nutri_user', JSON.stringify(verifiedUser));
+                    if (!verifiedUser.is_admin && this.activeTab === 'admin') {
+                        this.activeTab = 'summary';
+                    }
                     this.openAuthModal = false;
                     this.coachInsight = null;
                     this.loading = true;
@@ -2295,6 +2309,7 @@
                 async logoutUser() {
                     this.currentUser = null;
                     localStorage.removeItem('nutri_user');
+                    this.activeTab = 'summary';
                     this.coachInsight = null;
                     this.openAuthModal = false;
                     try {
@@ -2922,8 +2937,28 @@
                     }
                 },
 
+                async toggleAdminRole(user) {
+                    if (this.currentUser && user.id === this.currentUser.id) return;
+                    const newAdmin = !user.is_admin;
+                    try {
+                        const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ is_admin: newAdmin })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'שגיאה בעדכון הרשאת אדמין');
+                        }
+                        await this.fetchAdminUsers();
+                        this.showToast(newAdmin ? `👑 הוענקה הרשאת אדמין ל-${user.name}` : `👤 ${user.name} הוגדר כמשתמש רגיל (ללא גישה לאדמין)`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בעדכון הרשאה', 'error');
+                    }
+                },
+
                 async toggleBlockUserAdmin(user) {
-                    if (user.is_owner) return;
+                    if (this.currentUser && user.id === this.currentUser.id) return;
                     const newBlocked = !user.is_blocked;
                     try {
                         const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
@@ -2943,7 +2978,7 @@
                 },
 
                 async deleteUserAdmin(user) {
-                    if (user.is_owner) return;
+                    if (this.currentUser && user.id === this.currentUser.id) return;
                     if (!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש ${user.name} (${user.email}) ואת כל הארוחות והנתונים שלו?`)) {
                         return;
                     }

@@ -399,6 +399,8 @@ def claim_legacy_data_for_user(user_id: str) -> dict:
 OWNER_ADMIN_EMAILS = {
     "iftach.raftar@gmail.com",
     "iftachraftar@gmail.com",
+    "idf.iftach1@gmail.com",
+    "idfiftach1@gmail.com",
     *[e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()],
 }
 
@@ -420,23 +422,26 @@ def is_admin_user_id(user_id: str) -> bool:
     uid = _normalize_user_id(user_id)
     if not uid or uid == "default":
         return False
-    # Check if uid matches owner email hash directly
+    user_doc = {}
+    if not db:
+        user_doc = _LOCAL_USERS.get(uid, {})
+    else:
+        try:
+            doc = db.collection("users").document(uid).get()
+            if doc.exists:
+                user_doc = doc.to_dict() or {}
+        except Exception as e:
+            print(f"ERROR is_admin_user_id: {e}")
+
+    if user_doc.get("admin_revoked") is True:
+        return False
+    if user_doc.get("admin_granted_by_owner") is True:
+        return True
+    if is_owner_email(user_doc.get("email", "")):
+        return True
     for owner_em in OWNER_ADMIN_EMAILS:
         if _make_user_id_from_email(owner_em) == uid:
             return True
-    cfg = get_auth_config_db()
-    if cfg.get("primary_user_id") == uid:
-        return True
-    if not db:
-        u = _LOCAL_USERS.get(uid)
-        return bool(u and (u.get("is_admin") or is_owner_email(u.get("email", ""))))
-    try:
-        doc = db.collection("users").document(uid).get()
-        if doc.exists:
-            d = doc.to_dict()
-            return bool(d.get("is_admin") or is_owner_email(d.get("email", "")))
-    except Exception as e:
-        print(f"ERROR is_admin_user_id: {e}")
     return False
 
 
@@ -470,12 +475,15 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
         except Exception as e:
             print(f"ERROR checking existing user: {e}")
 
-    owner_flag = is_owner_email(clean_email)
+    owner_flag = is_owner_email(clean_email) and not bool(existing_doc_data.get("admin_revoked", False))
     is_blocked = bool(existing_doc_data.get("is_blocked", False)) and not owner_flag
     if is_blocked:
         raise ValueError("החשבון שלך נחסם על ידי מנהל המערכת")
 
-    is_admin = bool(owner_flag or existing_doc_data.get("is_admin", False) or is_first_user)
+    if existing_doc_data.get("admin_revoked") is True:
+        is_admin = False
+    else:
+        is_admin = bool(owner_flag or existing_doc_data.get("admin_granted_by_owner", False))
 
     profile = {
         "id": uid,
@@ -1852,7 +1860,7 @@ def api_auth_me(request: Request):
         except Exception as e:
             print(f"ERROR api_auth_me: {e}")
     email = (user_doc.get("email") or "").strip().lower()
-    owner_flag = is_owner_email(email)
+    owner_flag = is_owner_email(email) and not bool(user_doc.get("admin_revoked", False))
     if user_doc.get("is_blocked") and not owner_flag:
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
     return {
@@ -1860,7 +1868,7 @@ def api_auth_me(request: Request):
         "email": email,
         "name": user_doc.get("name") or "",
         "picture": user_doc.get("picture") or "",
-        "is_admin": bool(admin_flag or owner_flag or user_doc.get("is_admin", False)),
+        "is_admin": bool(admin_flag),
         "is_blocked": False,
         "verified_oauth": True,
     }
@@ -1935,24 +1943,25 @@ def list_all_users_admin_db() -> dict:
 
     for uid, u in users_map.items():
         email = (u.get("email") or "").strip().lower()
-        owner_flag = is_owner_email(email)
-        is_admin = bool(owner_flag or u.get("is_admin", False))
-        is_blocked = bool(u.get("is_blocked", False)) and not owner_flag
-        targets = get_daily_targets(user_id=uid)
+        revoked = bool(u.get("admin_revoked", False))
+        owner_flag = is_owner_email(email) and not revoked
+        is_admin = False if revoked else bool(owner_flag or u.get("admin_granted_by_owner", False))
+        is_blocked = bool(u.get("is_blocked", False)) and not is_admin
+        targets = get_targets(user_id=uid)
 
         u_meals = [m for m in all_meals if _doc_matches_user(m, uid)]
-        today_meals = [m for m in u_meals if m.get("log_date") == today_str]
-        today_cal = sum(int(m.get("calories", 0)) for m in today_meals)
-        today_prot = round(sum(float(m.get("protein_g", 0.0)) for m in today_meals), 1)
+        today_meals = [m for m in u_meals if str(m.get("log_date") or "") == today_str]
+        today_cal = sum(int(m.get("calories") or 0) for m in today_meals)
+        today_prot = round(sum(float(m.get("protein_g") or 0.0) for m in today_meals), 1)
 
-        if today_meals or u.get("last_login_date") == today_str:
+        if today_meals or str(u.get("last_login_date") or "") == today_str:
             active_today_count += 1
 
-        meal_dates = [m.get("log_date", "") for m in u_meals if m.get("log_date")]
-        last_active = max(meal_dates) if meal_dates else (u.get("last_login_date") or "—")
+        meal_dates = [str(m.get("log_date")) for m in u_meals if m.get("log_date")]
+        last_active = max(meal_dates) if meal_dates else str(u.get("last_login_date") or "—")
 
-        u_weights = [w for w in all_weights if _doc_matches_user(w, uid)]
-        u_weights.sort(key=lambda x: x.get("log_date", ""))
+        u_weights = [w for w in all_weights if _doc_matches_user(w, uid) and w.get("weight_kg") is not None]
+        u_weights.sort(key=lambda x: str(x.get("log_date") or ""))
         latest_weight = round(float(u_weights[-1]["weight_kg"]), 1) if u_weights else None
 
         u_subs = [s for s in all_subs if _doc_matches_user(s, uid)]
@@ -1965,8 +1974,8 @@ def list_all_users_admin_db() -> dict:
             "is_owner": owner_flag,
             "is_admin": is_admin,
             "is_blocked": is_blocked,
-            "target_calories": targets.get("target_calories", 1800),
-            "target_protein": targets.get("target_protein", 120),
+            "target_calories": int(targets.get("target_calories") or 1800),
+            "target_protein": int(targets.get("target_protein") or 120),
             "today_calories": today_cal,
             "today_protein": today_prot,
             "today_meals_count": len(today_meals),
@@ -1976,7 +1985,7 @@ def list_all_users_admin_db() -> dict:
             "last_active": last_active,
         })
 
-    users_list.sort(key=lambda x: (not x["is_owner"], not x["is_admin"], -x["total_meals_count"], x["email"]))
+    users_list.sort(key=lambda x: (not x["is_owner"], not x["is_admin"], -x["total_meals_count"], str(x["email"] or "")))
 
     return {
         "stats": {
@@ -2016,15 +2025,16 @@ def admin_create_user_db(email: str, name: str = "", target_calories: int = 1800
             "updated_at": firestore.SERVER_TIMESTAMP,
         }, merge=True)
 
-    set_daily_targets(target_calories, target_protein, user_id=uid)
+    set_targets(target_calories, target_protein, user_id=uid)
     return profile
 
 
 def get_user_details_admin_db(target_uid: str) -> dict:
     uid = _normalize_user_id(target_uid)
-    targets = get_daily_targets(user_id=uid)
+    targets = get_targets(user_id=uid)
     summary = get_day_summary(user_id=uid)
-    meals = get_all_meals_db(limit=30, user_id=uid)
+    history_data = _fetch_user_history(uid=uid, days=30)
+    meals = (history_data.get("meals") or [])[:30]
     weights = get_weights_db(limit=20, user_id=uid)
     return {
         "user_id": uid,
@@ -2035,20 +2045,21 @@ def get_user_details_admin_db(target_uid: str) -> dict:
     }
 
 
-def update_user_status_admin_db(target_uid: str, is_blocked: Optional[bool] = None, is_admin: Optional[bool] = None) -> dict:
+def update_user_status_admin_db(target_uid: str, is_blocked: Optional[bool] = None, is_admin: Optional[bool] = None, caller_uid: str = "") -> dict:
     uid = _normalize_user_id(target_uid)
-    for owner_em in OWNER_ADMIN_EMAILS:
-        if _make_user_id_from_email(owner_em) == uid:
-            if is_blocked:
-                raise ValueError("לא ניתן לחסום את מנהל המערכת הראשי")
-            if is_admin is False:
-                raise ValueError("לא ניתן להסיר הרשאת אדמין ממנהל המערכת הראשי")
+    if caller_uid and uid == _normalize_user_id(caller_uid):
+        if is_blocked:
+            raise ValueError("לא ניתן לחסום את החשבון של עצמך")
+        if is_admin is False:
+            raise ValueError("לא ניתן להסיר הרשאת אדמין מהחשבון שממנו אתה מחובר כרגע")
 
     updates = {}
     if is_blocked is not None:
         updates["is_blocked"] = bool(is_blocked)
     if is_admin is not None:
         updates["is_admin"] = bool(is_admin)
+        updates["admin_granted_by_owner"] = bool(is_admin)
+        updates["admin_revoked"] = not bool(is_admin)
 
     if not db:
         if uid in _LOCAL_USERS:
@@ -2063,11 +2074,10 @@ def update_user_status_admin_db(target_uid: str, is_blocked: Optional[bool] = No
     return snap.to_dict() if snap.exists else {"id": uid, **updates}
 
 
-def delete_user_admin_db(target_uid: str) -> dict:
+def delete_user_admin_db(target_uid: str, caller_uid: str = "") -> dict:
     uid = _normalize_user_id(target_uid)
-    for owner_em in OWNER_ADMIN_EMAILS:
-        if _make_user_id_from_email(owner_em) == uid:
-            raise ValueError("לא ניתן למחוק את חשבון מנהל המערכת הראשי")
+    if caller_uid and uid == _normalize_user_id(caller_uid):
+        raise ValueError("לא ניתן למחוק את החשבון שממנו אתה מחובר כרגע")
 
     deleted_meals = 0
     deleted_weights = 0
@@ -2138,23 +2148,23 @@ def api_admin_user_details(target_uid: str, request: Request):
 def api_admin_update_user_targets(target_uid: str, req: TargetUpdateRequest, request: Request):
     require_admin_user(request)
     uid = _normalize_user_id(target_uid)
-    return set_daily_targets(req.target_calories, req.target_protein, user_id=uid)
+    return set_targets(req.target_calories, req.target_protein, user_id=uid)
 
 
 @app.put("/api/admin/users/{target_uid}/status")
 def api_admin_update_user_status(target_uid: str, req: AdminUpdateUserStatusRequest, request: Request):
-    require_admin_user(request)
+    admin_uid = require_admin_user(request)
     try:
-        return update_user_status_admin_db(target_uid, is_blocked=req.is_blocked, is_admin=req.is_admin)
+        return update_user_status_admin_db(target_uid, is_blocked=req.is_blocked, is_admin=req.is_admin, caller_uid=admin_uid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.delete("/api/admin/users/{target_uid}")
 def api_admin_delete_user(target_uid: str, request: Request):
-    require_admin_user(request)
+    admin_uid = require_admin_user(request)
     try:
-        return delete_user_admin_db(target_uid)
+        return delete_user_admin_db(target_uid, caller_uid=admin_uid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
