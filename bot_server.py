@@ -481,7 +481,7 @@ def require_approved_user(request: Request) -> str:
     udoc = get_user_doc_db(uid)
     if udoc.get("is_blocked"):
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
-    if not udoc.get("is_approved", False):
+    if not udoc.get("approved_by_owner", False):
         raise HTTPException(status_code=403, detail="חשבונך ממתין לאישור מנהל המערכת")
     return uid
 
@@ -511,7 +511,7 @@ def check_and_increment_ai_quota(user_id: str) -> None:
     udoc = get_user_doc_db(uid)
     if udoc.get("is_blocked"):
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
-    if not udoc.get("is_approved", False):
+    if not udoc.get("approved_by_owner", False):
         raise HTTPException(status_code=403, detail="חשבונך ממתין לאישור מנהל המערכת")
 
     limit = int(udoc.get("daily_ai_limit") if udoc.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
@@ -570,8 +570,8 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
     else:
         is_admin = bool(owner_flag or existing_doc_data.get("admin_granted_by_owner", False))
 
-    # Only admin/owner or explicitly approved users get immediate access!
-    is_approved = bool(is_admin or existing_doc_data.get("is_approved", False))
+    # Only admin/owner or users explicitly approved by owner get immediate access!
+    is_approved = bool(is_admin or existing_doc_data.get("approved_by_owner", False))
     daily_ai_limit = int(existing_doc_data.get("daily_ai_limit") if existing_doc_data.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
     today_str = str(date.today())
     ai_calls_today = int(existing_doc_data.get("ai_calls_today") or 0) if existing_doc_data.get("ai_quota_date") == today_str else 0
@@ -1974,7 +1974,7 @@ def api_auth_me(request: Request):
     owner_flag = is_owner_email(email) and not bool(user_doc.get("admin_revoked", False))
     if user_doc.get("is_blocked") and not owner_flag:
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
-    is_approved = bool(admin_flag or owner_flag or user_doc.get("is_approved", False))
+    is_approved = bool(admin_flag or owner_flag or user_doc.get("approved_by_owner", False))
     today_str = str(date.today())
     daily_ai_limit = int(user_doc.get("daily_ai_limit") if user_doc.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
     ai_calls_today = int(user_doc.get("ai_calls_today") or 0) if user_doc.get("ai_quota_date") == today_str else 0
@@ -2066,7 +2066,7 @@ def list_all_users_admin_db() -> dict:
         owner_flag = is_owner_email(email) and not revoked
         is_admin = False if revoked else bool(owner_flag or u.get("admin_granted_by_owner", False))
         is_blocked = bool(u.get("is_blocked", False)) and not is_admin
-        is_approved = bool(is_admin or u.get("is_approved", False))
+        is_approved = bool(is_admin or u.get("approved_by_owner", False))
         if not is_approved and not is_blocked:
             pending_approval_count += 1
         daily_ai_limit = int(u.get("daily_ai_limit") if u.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
@@ -2144,6 +2144,7 @@ def admin_create_user_db(email: str, name: str = "", target_calories: int = 1800
         "link_code": link_code,
         "is_admin": owner_flag,
         "is_approved": True,
+        "approved_by_owner": True,
         "is_blocked": False,
         "daily_ai_limit": int(daily_ai_limit),
         "last_login_date": "טרם התחבר",
@@ -2198,8 +2199,10 @@ def update_user_status_admin_db(
         updates["is_blocked"] = bool(is_blocked)
         if not is_blocked:
             updates["is_approved"] = True
+            updates["approved_by_owner"] = True
     if is_approved is not None:
         updates["is_approved"] = bool(is_approved)
+        updates["approved_by_owner"] = bool(is_approved)
         if is_approved:
             updates["is_blocked"] = False
     if is_admin is not None:
@@ -2208,6 +2211,7 @@ def update_user_status_admin_db(
         updates["admin_revoked"] = not bool(is_admin)
         if is_admin:
             updates["is_approved"] = True
+            updates["approved_by_owner"] = True
     if daily_ai_limit is not None:
         updates["daily_ai_limit"] = max(0, int(daily_ai_limit))
 
