@@ -892,7 +892,10 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
         )
         return NutritionExtraction.model_validate_json(response.text)
     except Exception as e:
-        print(f"ERROR analyze_meal: {type(e).__name__} - {e}")
+        err_msg = str(e)
+        print(f"ERROR analyze_meal: {type(e).__name__} - {err_msg}")
+        if "402" in err_msg or "prepayment" in err_msg.lower() or "RESOURCE_EXHAUSTED" in err_msg:
+            return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API_ERROR: 402_PREPAYMENT_DEPLETED")
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Analysis error")
 
 
@@ -2428,6 +2431,11 @@ def api_add_ai_meal(req: AIMealRequest, request: Request):
 
     check_and_increment_ai_quota(uid)
     extraction = analyze_meal(req.text.strip())
+    if extraction.summary and "402_PREPAYMENT_DEPLETED" in extraction.summary:
+        raise HTTPException(
+            status_code=402,
+            detail="יתרת התשלום המוקדם (Prepayment Credits) בחשבון Google AI Studio אזלה. יש להיכנס ל-https://ai.studio/projects ולהטעין תקציב.",
+        )
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהתה ארוחה או שתייה בטקסט שהוזן")
 
@@ -2472,6 +2480,11 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
     check_and_increment_ai_quota(uid)
     extraction = analyze_meal_image(image_bytes, mime_type=mime_type, caption=req.caption or "")
     if extraction.summary and extraction.summary.startswith("API_ERROR:"):
+        if "402" in extraction.summary or "prepayment" in extraction.summary.lower():
+            raise HTTPException(
+                status_code=402,
+                detail="יתרת התשלום המוקדם (Prepayment Credits) ב-Google AI Studio אזלה. יש להיכנס ל-https://ai.studio/projects ולהטעין תקציב.",
+            )
         raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם Gemini Vision ({extraction.summary}). נסה שוב.")
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהו אוכל, משקה או תווית מזון בתמונה")
@@ -2517,6 +2530,11 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
     check_and_increment_ai_quota(uid)
     extraction = analyze_meal_audio(audio_bytes, mime_type=mime_type, caption=req.caption or "")
     if extraction.summary and extraction.summary.startswith("API_ERROR:"):
+        if "402" in extraction.summary or "prepayment" in extraction.summary.lower():
+            raise HTTPException(
+                status_code=402,
+                detail="יתרת התשלום המוקדם (Prepayment Credits) ב-Google AI Studio אזלה. יש להיכנס ל-https://ai.studio/projects ולהטעין תקציב.",
+            )
         raise HTTPException(status_code=502, detail=f"שגיאה בפענוח ההקלטה מול Gemini ({extraction.summary}). נסה שוב.")
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהה דיווח על אוכל או שתייה בהקלטה")
