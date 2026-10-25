@@ -68,11 +68,18 @@ ai_client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 # Pydantic Schemas
 # ---------------------------------------------------------------------------
 
+class MealItemDetail(BaseModel):
+    name: str = Field(description="שם הפריט הספציפי, למשל 'חזה עוף 200 גרם', 'כוס אורז', או 'סלט ירקות'")
+    calories: int = Field(description="הערכת קלוריות מדויקת לפריט זה")
+    protein_g: float = Field(default=0.0, description="הערכת חלבון בגרמים לפריט זה")
+
+
 class NutritionExtraction(BaseModel):
     is_meal: bool = Field(description="האם מדובר בדיווח על אוכל/שתייה")
     calories: int = Field(description="הערכת קלוריות כוללת")
     protein_g: float = Field(description="הערכת חלבון כוללת בגרמים")
     summary: str = Field(description="תיאור תמציתי וברור של המנה בעברית")
+    items: List[MealItemDetail] = Field(default_factory=list, description="פירוט של כל פריט בארוחה עם הקלוריות והחלבון הנפרדים שלו")
 
 
 class DailyCoachInsight(BaseModel):
@@ -741,6 +748,7 @@ def log_meal_db(
     description: str,
     calories: int,
     protein: float,
+    items: Optional[List[dict]] = None,
     log_date: Optional[str] = None,
     log_time: Optional[str] = None,
     source: str = "web",
@@ -749,6 +757,7 @@ def log_meal_db(
     uid = _normalize_user_id(user_id)
     d_str = log_date or str(date.today())
     t_str = log_time or datetime.now().strftime("%H:%M")
+    clean_items = items or []
     if not db:
         entry = {
             "id": f"local-{int(datetime.now().timestamp() * 1000)}",
@@ -758,6 +767,7 @@ def log_meal_db(
             "description": description,
             "calories": int(calories),
             "protein_g": round(float(protein), 1),
+            "items": clean_items,
             "source": source,
         }
         _LOCAL_MEALS.insert(0, entry)
@@ -770,6 +780,7 @@ def log_meal_db(
             "description": description,
             "calories": int(calories),
             "protein_g": round(float(protein), 1),
+            "items": clean_items,
             "source": source,
             "created_at": firestore.SERVER_TIMESTAMP,
         }
@@ -782,6 +793,7 @@ def log_meal_db(
             "description": description,
             "calories": int(calories),
             "protein_g": round(float(protein), 1),
+            "items": clean_items,
             "source": source,
         }
     except Exception as e:
@@ -812,6 +824,7 @@ def get_day_summary(target_date: Optional[str] = None, user_id: str = "default")
                     "description": data.get("description", ""),
                     "calories": c,
                     "protein_g": round(p, 1),
+                    "items": data.get("items") or [],
                     "log_date": data.get("log_date", d_str),
                     "log_time": data.get("log_time", ""),
                     "source": data.get("source", "telegram"),
@@ -879,7 +892,9 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
 חשוב מאוד: קפה, קפוצ'ינו, וכל משקאות החלב/שתייה הם פריטי צריכה תקפים לחלוטין. עבור פריטים אלו, הציבו תמיד is_meal: true.
 דוגמאות לשתיה וקפה שחייבים לקבל is_meal: true: "הפוך קטן", "קפוצ'ינו", "נס קפה", "אמריקנו עם חלב".
 הערך קלוריות וחלבון במדויק לישראל. עבור הפוך קטן/קפוצ'ינו ישראלי סטנדרטי, הערך כ-70-90 קק"ל וכ-3-4 גרם חלבון (תלוי בחלב).
-אם יש מספר פריטים בדיווח אחד, סכם את סך הקלוריות והחלבון של כולם יחד ותן תיאור תמציתי וברור בעברית.
+אם יש מספר פריטים בדיווח אחד, סכם את סך הקלוריות והחלבון של כולם יחד ותן תיאור תמציתי וברור בעברית בשדה summary.
+בנוסף, ברשימת items, פרט כל פריט בנפרד עם השם שלו (name), הקלוריות המדויקות של אותו פריט (calories) וגרם החלבון שלו (protein_g).
+אם יש פריט אחד בלבד, החזר פריט יחיד זה ב-items עם הערכים שלו. סכום הקלוריות והחלבון של ה-items צריך להיות תואם לסך הכולל (calories, protein_g).
 אם זה משהו שאין לו שום קשר לאוכל או שתייה, סמן is_meal=False."""
     try:
         response = ai_client.models.generate_content(
@@ -950,6 +965,7 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
 2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד / תפריט / צילום מסך של מתכון או מוצר — קרא את הערכים התזונתיים או שם המוצר וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה (או לפי הערת המשתמש אם צוינה כמות).
 חשוב מאוד: המשתמש העלה תמונה זו במיוחד כדי לתעד ארוחה או שתייה! אם יש בתמונה כל דבר שקשור לאוכל, שתייה, אריזת מזון, כוס, צלחת, קערה, פרי, ירק, או טבלת ערכים תזונתיים — סמן תמיד is_meal=True ותן הערכה מציאותית!
 החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף עם אורז וסלט ירקות" או "יוגורט חלבון PRO תנובה 200 ג'").
+ברשימת items, פרט כל פריט או רכיב בנפרד עם השם שלו (name), כמות הקלוריות שלו (calories) וגרם החלבון שלו (protein_g).
 רק אם התמונה אינה קשורה בשום צורה לאוכל או שתייה, סמן is_meal=False."""
 
     last_err = None
@@ -1000,7 +1016,8 @@ def analyze_meal_audio(audio_bytes: bytes, mime_type: str = "audio/webm", captio
 1. תמלל והבן בדיוק את המנות, המשקאות או המוצרים שהמשתמש ציין בהקלטה.
 2. חשב הערכת קלוריות כוללת וחלבון בגרמים בצורה מציאותית ומדויקת לישראל.
 3. החזר תיאור תמציתי, טבעי וברור בעברית בשדה summary (למשל: "שתי ביצים מקושקשות, חצי קוטג' והפוך קטן").
-4. אם בהקלטה מוזכר כל פריט אוכל או שתייה (כולל קפה, נשנוש, פרי או ארוחה) סמן תמיד is_meal=True. רק אם ההקלטה ריקה לחלוטין או אינה קשורה לאוכל/שתייה סמן is_meal=False."""
+4. ברשימת items, פרט כל פריט בנפרד עם שמו (name), כמות הקלוריות שלו (calories) וגרם החלבון שלו (protein_g).
+5. אם בהקלטה מוזכר כל פריט אוכל או שתייה (כולל קפה, נשנוש, פרי או ארוחה) סמן תמיד is_meal=True. רק אם ההקלטה ריקה לחלוטין או אינה קשורה לאוכל/שתייה סמן is_meal=False."""
 
     last_err = None
     for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
@@ -1414,12 +1431,19 @@ if tg_app:
             await update.message.reply_text("לא זיהיתי ארוחה או שתייה בהודעה 🤔 נסה לתאר שוב מה אכלת.")
             return
 
-        log_meal_db(res.summary, res.calories, res.protein_g, source="telegram", user_id=uid)
+        items_data = [item.model_dump() for item in res.items] if res.items else []
+        log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, source="telegram", user_id=uid)
         s = get_day_summary(user_id=uid)
+
+        breakdown_text = ""
+        if res.items and len(res.items) > 1:
+            breakdown_lines = "\n".join(f"  • {it.name}: {it.calories} קק\"ל ({it.protein_g:.0f}g חלבון)" for it in res.items)
+            breakdown_text = f"\n📋 פירוט רכיבים:\n{breakdown_lines}\n"
 
         await update.message.reply_text(
             f"✅ נרשם: {res.summary}\n"
             f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
+            f"{breakdown_text}"
             f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
         )
         send_web_push_to_all(
@@ -1443,11 +1467,19 @@ if tg_app:
                 await status_reply.edit_text("לא זיהיתי אוכל, משקה או תווית מזון בתמונה 🤔 נסה לצלם שוב או להוסיף כיתוב.")
                 return
 
-            log_meal_db(res.summary, res.calories, res.protein_g, source="telegram-photo", user_id=uid)
+            items_data = [item.model_dump() for item in res.items] if res.items else []
+            log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, source="telegram-photo", user_id=uid)
             s = get_day_summary(user_id=uid)
+
+            breakdown_text = ""
+            if res.items and len(res.items) > 1:
+                breakdown_lines = "\n".join(f"  • {it.name}: {it.calories} קק\"ל ({it.protein_g:.0f}g חלבון)" for it in res.items)
+                breakdown_text = f"\n📋 פירוט רכיבים:\n{breakdown_lines}\n"
+
             await status_reply.edit_text(
                 f"📸 נרשם מתמונה: {res.summary}\n"
                 f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
+                f"{breakdown_text}"
                 f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
             )
             send_web_push_to_all(
@@ -1478,11 +1510,19 @@ if tg_app:
                 await status_reply.edit_text("לא זיהיתי דיווח על אוכל או שתייה בהקלטה 🤔 נסה להקליט שוב בבירור.")
                 return
 
-            log_meal_db(res.summary, res.calories, res.protein_g, source="telegram-voice", user_id=uid)
+            items_data = [item.model_dump() for item in res.items] if res.items else []
+            log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, source="telegram-voice", user_id=uid)
             s = get_day_summary(user_id=uid)
+
+            breakdown_text = ""
+            if res.items and len(res.items) > 1:
+                breakdown_lines = "\n".join(f"  • {it.name}: {it.calories} קק\"ל ({it.protein_g:.0f}g חלבון)" for it in res.items)
+                breakdown_text = f"\n📋 פירוט רכיבים:\n{breakdown_lines}\n"
+
             await status_reply.edit_text(
                 f"🎙️ נרשם מהקלטה קולית: {res.summary}\n"
                 f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
+                f"{breakdown_text}"
                 f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
             )
             send_web_push_to_all(
@@ -2359,6 +2399,7 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
                     "description": data.get("description", ""),
                     "calories": int(data.get("calories", 0)),
                     "protein_g": round(float(data.get("protein_g", 0.0)), 1),
+                    "items": data.get("items") or [],
                     "log_date": data.get("log_date", ""),
                     "log_time": data.get("log_time", ""),
                     "source": data.get("source", "telegram"),
@@ -2439,10 +2480,12 @@ def api_add_ai_meal(req: AIMealRequest, request: Request):
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהתה ארוחה או שתייה בטקסט שהוזן")
 
+    items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
     entry = log_meal_db(
         description=extraction.summary,
         calories=extraction.calories,
         protein=extraction.protein_g,
+        items=items_data,
         log_date=req.log_date,
         source="web-ai",
         user_id=uid,
@@ -2489,10 +2532,12 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהו אוכל, משקה או תווית מזון בתמונה")
 
+    items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
     entry = log_meal_db(
         description=extraction.summary,
         calories=extraction.calories,
         protein=extraction.protein_g,
+        items=items_data,
         log_date=req.log_date,
         source="web-photo",
         user_id=uid,
@@ -2539,10 +2584,12 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהה דיווח על אוכל או שתייה בהקלטה")
 
+    items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
     entry = log_meal_db(
         description=extraction.summary,
         calories=extraction.calories,
         protein=extraction.protein_g,
+        items=items_data,
         log_date=req.log_date,
         source="web-voice",
         user_id=uid,
