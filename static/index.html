@@ -334,6 +334,9 @@
                                         חריגה של <strong x-text="Math.abs(summary.remaining_calories)"></strong> קק"ל
                                     </span>
                                 </div>
+                                <div x-show="summary.burned_calories > 0" class="px-3 py-1.5 rounded-2xl text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                    🏃‍♂️ נשרפו <strong x-text="summary.burned_calories"></strong> קק"ל
+                                </div>
                                 <span class="text-xs text-slate-400" x-text="`${todayMeals.length} ארוחות תועדו`"></span>
                             </div>
                         </div>
@@ -479,10 +482,16 @@
                             <p class="text-xs text-slate-500">כתוב, הקלט בקול או צלם את הצלחת / תווית המוצר וה-AI יחשב קלוריות וחלבון</p>
                         </div>
                     </div>
-                    <button @click="manualMode = !manualMode"
-                            class="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
-                        <span x-text="manualMode ? '✨ מעבר להזנת AI' : '✍️ הזנה ידנית'"></span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button @click="openWorkoutLogger()"
+                                class="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition cursor-pointer flex items-center gap-1.5">
+                            <span>🏃‍♂️</span> תעד אימון
+                        </button>
+                        <button @click="manualMode = !manualMode"
+                                class="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                            <span x-text="manualMode ? '✨ מעבר להזנת AI' : '✍️ הזנה ידנית'"></span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- AI Free-Text + Voice + Photo Form -->
@@ -647,6 +656,45 @@
                         </button>
                     </div>
                 </form>
+            </div>
+
+            <!-- Today's Workouts List (shown when workouts exist) -->
+            <div x-show="todayWorkouts.length > 0" class="bg-gradient-to-r from-indigo-50/80 to-violet-50/80 rounded-3xl p-5 border border-indigo-100/80 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">🏃‍♂️</span>
+                        <div>
+                            <h3 class="text-sm sm:text-base font-bold text-indigo-950">אימונים ופעילות שבוצעו היום</h3>
+                            <p class="text-xs text-indigo-600 font-semibold" x-text="`${summary.burned_calories} קק״ל נשרפו וקוזזו מהתקציב!`"></p>
+                        </div>
+                    </div>
+                    <button @click="openWorkoutLogger()" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition cursor-pointer">
+                        + אימון נוסף
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <template x-for="w in todayWorkouts" :key="w.id">
+                        <div class="bg-white rounded-2xl p-3.5 shadow-2xs border border-indigo-100/80 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex flex-col items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold" x-text="`-${w.burned_calories}`"></span>
+                                    <span class="text-[9px] text-indigo-400">קק"ל</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-slate-800 text-sm truncate" x-text="w.activity_name"></p>
+                                    <div class="flex items-center gap-2 text-xs text-slate-500">
+                                        <span x-show="w.duration_min" x-text="`⏱️ ${w.duration_min} דק׳`"></span>
+                                        <span x-show="w.distance_km" x-text="`• 📍 ${w.distance_km} ק״מ`"></span>
+                                        <span x-show="w.log_time" x-text="`• 🕒 ${w.log_time}`"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button @click="deleteWorkout(w.id)" class="p-2 text-slate-400 hover:text-rose-600 transition cursor-pointer" title="מחק אימון">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    </template>
+                </div>
             </div>
 
             <!-- Today's Logged Meals List -->
@@ -865,10 +913,16 @@
             <div class="space-y-3">
                 <div class="flex items-center justify-between px-1">
                     <h3 class="text-base font-bold text-slate-800" x-text="`ארוחות ב-${formatHebrewDate(selectedDate)}`"></h3>
-                    <button @click="showHistoryAddMeal = !showHistoryAddMeal"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs transition cursor-pointer">
-                        <span x-text="showHistoryAddMeal ? '✕ סגור' : '+ הוסף ארוחה לתאריך זה'"></span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button @click="openWorkoutLogger(selectedDate)"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition cursor-pointer">
+                            <span>🏃‍♂️</span> + אימון
+                        </button>
+                        <button @click="showHistoryAddMeal = !showHistoryAddMeal"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs transition cursor-pointer">
+                            <span x-text="showHistoryAddMeal ? '✕ סגור' : '+ הוסף ארוחה'"></span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Add Meal to History Box -->
@@ -978,9 +1032,33 @@
                     </form>
                 </div>
 
-                <div x-show="filteredHistoryMeals.length === 0"
+                <!-- Workouts for Selected Date -->
+                <div x-show="filteredHistoryWorkouts.length > 0" class="bg-gradient-to-r from-indigo-50/70 to-violet-50/70 rounded-2xl p-4 border border-indigo-100 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                            🏃‍♂️ אימונים שבוצעו בתאריך זה:
+                        </span>
+                        <span class="text-xs font-extrabold text-indigo-700" x-text="`${selectedDateBurnedCalories} קק״ל נשרפו`"></span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <template x-for="w in filteredHistoryWorkouts" :key="w.id">
+                            <div class="bg-white rounded-xl p-3 border border-indigo-100 flex items-center justify-between text-xs">
+                                <div>
+                                    <div class="font-bold text-slate-800" x-text="w.activity_name"></div>
+                                    <div class="text-[11px] text-slate-400 mt-0.5" x-text="`${w.duration_min ? w.duration_min + ' דק׳ ' : ''}${w.distance_km ? '• ' + w.distance_km + ' ק״מ' : ''}`"></div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold text-indigo-700" x-text="`-${w.burned_calories} קק״ל`"></span>
+                                    <button @click="deleteWorkout(w.id)" class="text-slate-400 hover:text-rose-600 p-1">✕</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div x-show="filteredHistoryMeals.length === 0 && filteredHistoryWorkouts.length === 0"
                      class="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
-                    אין ארוחות מתועדות לתאריך זה.
+                    אין ארוחות או אימונים מתועדים לתאריך זה.
                 </div>
 
                 <template x-for="meal in filteredHistoryMeals" :key="meal.id">
@@ -1702,6 +1780,111 @@
         </div>
     </div>
 
+    <!-- Workout Modal (Log Workout via AI / Manual / Google Fit) -->
+    <div x-cloak x-show="showWorkoutModal"
+         class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+         @click.self="showWorkoutModal = false">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4" @click.stop>
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🏃‍♂️</span>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">תיעוד אימון ופעילות</h3>
+                        <p class="text-xs text-slate-500" x-text="`לתאריך: ${formatHebrewDate(workoutTargetDate || todayStr)}`"></p>
+                    </div>
+                </div>
+                <button @click="showWorkoutModal = false" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">✕</button>
+            </div>
+
+            <!-- Mode Selector Tabs -->
+            <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl text-xs font-semibold">
+                <button type="button" @click="workoutMode = 'ai'"
+                        :class="workoutMode === 'ai' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
+                        class="py-2 rounded-xl transition cursor-pointer text-center">🤖 טקסט AI</button>
+                <button type="button" @click="workoutMode = 'manual'"
+                        :class="workoutMode === 'manual' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'"
+                        class="py-2 rounded-xl transition cursor-pointer text-center">⚡ ידני</button>
+                <button type="button" @click="workoutMode = 'google_fit'"
+                        :class="workoutMode === 'google_fit' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'"
+                        class="py-2 rounded-xl transition cursor-pointer text-center">🟢 Google Fit</button>
+            </div>
+
+            <!-- AI Form -->
+            <form x-show="workoutMode === 'ai'" @submit.prevent="submitAIWorkout()" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">ספר מה עשית באימון</label>
+                    <textarea x-model="workoutAiText" rows="3" required
+                              placeholder="למשל: רצתי 5 ק״מ ב-28 דקות, או אימון כוח גב וידיים 45 דק׳ בחדר כושר..."
+                              class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-indigo-500 outline-none resize-none"></textarea>
+                    <p class="text-[11px] text-slate-400 mt-1">Gemini AI מחשב שריפת קלוריות מדעית לפי משקל גופך</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="showWorkoutModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">ביטול</button>
+                    <button type="submit" :disabled="workoutAiAnalyzing"
+                            class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer flex items-center gap-2">
+                        <span x-show="!workoutAiAnalyzing">✨ חשב ושמור אימון</span>
+                        <span x-show="workoutAiAnalyzing">מנתח אימון ב-AI...</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Manual Form -->
+            <form x-show="workoutMode === 'manual'" @submit.prevent="submitManualWorkout()" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">שם הפעילות</label>
+                    <input type="text" x-model="newWorkout.activity_name" required placeholder="למשל: ריצה, משקולות, פילאטיס"
+                           class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-indigo-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">קלוריות שנשרפו</label>
+                        <input type="number" x-model.number="newWorkout.burned_calories" required min="1" max="10000" placeholder="קק״ל (למשל 350)"
+                               class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold focus:bg-white focus:border-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">משך זמן (דקות)</label>
+                        <input type="number" x-model.number="newWorkout.duration_min" min="1" max="1440" placeholder="דקות (למשל 40)"
+                               class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-indigo-500 outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">מרחק בק״מ (אופציונלי)</label>
+                        <input type="number" step="0.1" x-model.number="newWorkout.distance_km" min="0" placeholder="ק״מ (למשל 5.2)"
+                               class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">שעה (אופציונלי)</label>
+                        <input type="time" x-model="newWorkout.log_time"
+                               class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-indigo-500 outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="showWorkoutModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">ביטול</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer">שמור אימון</button>
+                </div>
+            </form>
+
+            <!-- Google Fit Sync Tab -->
+            <div x-show="workoutMode === 'google_fit'" class="space-y-4 py-2 text-center">
+                <div class="w-16 h-16 mx-auto rounded-3xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-3xl">
+                    🟢
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 text-base">סנכרון ישיר מ-Google Fit</h4>
+                    <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                        קריאת צעדים וקלוריות שנשרפו אוטומטית מחשבון ה-Google שלך, מהטלפון או מכל שעון שמחובר לגוגל.
+                    </p>
+                </div>
+                <button type="button" @click="triggerGoogleFitSync()" :disabled="googleFitSyncing"
+                        class="w-full py-3.5 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-md">
+                    <span x-show="!googleFitSyncing">🔄 סנכרן נתוני Google Fit להיום</span>
+                    <span x-show="googleFitSyncing">מסנכרן מול Google Fit...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Delete Confirmation Modal -->
     <div x-cloak x-show="mealToDelete"
          class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
@@ -2246,7 +2429,24 @@
                     meals: []
                 },
                 allMeals: [],
+                allWorkouts: [],
                 dailyTrend: [],
+                showWorkoutModal: false,
+                workoutMode: 'ai',
+                workoutTargetDate: '',
+                workoutAiText: '',
+                workoutAiAnalyzing: false,
+                newWorkout: {
+                    activity_name: '',
+                    burned_calories: null,
+                    duration_min: 30,
+                    distance_km: null,
+                    activity_type: 'other',
+                    notes: '',
+                    log_date: '',
+                    log_time: ''
+                },
+                googleFitSyncing: false,
                 showHistoryAddMeal: false,
                 historyAddMode: 'ai',
                 historyAiInputText: '',
@@ -2347,6 +2547,18 @@
 
                 get todayMeals() {
                     return this.summary.meals || [];
+                },
+
+                get todayWorkouts() {
+                    return this.summary.workouts || [];
+                },
+
+                get filteredHistoryWorkouts() {
+                    return (this.allWorkouts || []).filter(w => w.log_date === this.selectedDate);
+                },
+
+                get selectedDateBurnedCalories() {
+                    return this.filteredHistoryWorkouts.reduce((acc, w) => acc + (Number(w.burned_calories) || 0), 0);
                 },
 
                 get filteredHistoryMeals() {
@@ -3341,6 +3553,7 @@
                         if (!res.ok) throw new Error('Failed history');
                         const data = await res.json();
                         this.allMeals = data.meals || [];
+                        this.allWorkouts = data.workouts || [];
                         this.dailyTrend = data.daily_trend || [];
                     } catch (e) {
                         console.error(e);
@@ -3419,6 +3632,131 @@
                         this.showToast(`🔁 נוסף שוב להיום: ${meal.description} (+${meal.calories} קק"ל)`);
                     } catch (e) {
                         this.showToast('שגיאה בשכפול הארוחה', 'error');
+                    }
+                },
+
+                openWorkoutLogger(targetDate = null) {
+                    this.workoutTargetDate = targetDate || this.todayStr;
+                    this.workoutAiText = '';
+                    this.newWorkout = {
+                        activity_name: '',
+                        burned_calories: null,
+                        duration_min: 30,
+                        distance_km: null,
+                        activity_type: 'other',
+                        notes: '',
+                        log_date: this.workoutTargetDate,
+                        log_time: ''
+                    };
+                    this.showWorkoutModal = true;
+                },
+
+                async submitAIWorkout() {
+                    if (!this.workoutAiText.trim()) return;
+                    this.workoutAiAnalyzing = true;
+                    try {
+                        const res = await fetch('/api/workouts/ai', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                text: this.workoutAiText.trim(),
+                                log_date: this.workoutTargetDate || this.todayStr
+                            })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'שגיאה בניתוח האימון');
+                        }
+                        const data = await res.json();
+                        this.showWorkoutModal = false;
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`🏃‍♂️ נוסף אימון: ${data.summary} (-${data.total_burned_calories} קק"ל)`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בניתוח האימון', 'error');
+                    } finally {
+                        this.workoutAiAnalyzing = false;
+                    }
+                },
+
+                async submitManualWorkout() {
+                    if (!this.newWorkout.activity_name.trim() || !this.newWorkout.burned_calories) return;
+                    try {
+                        const res = await fetch('/api/workouts/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...this.newWorkout,
+                                log_date: this.workoutTargetDate || this.todayStr
+                            })
+                        });
+                        if (!res.ok) throw new Error('שגיאה בשמירת האימון');
+                        const added = await res.json();
+                        this.showWorkoutModal = false;
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`🏃‍♂️ נוסף: ${added.activity_name} (-${added.burned_calories} קק"ל)`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בשמירת האימון', 'error');
+                    }
+                },
+
+                async deleteWorkout(workoutId) {
+                    if (!confirm('האם למחוק אימון זה?')) return;
+                    try {
+                        const res = await fetch(`/api/workouts/${workoutId}`, { method: 'DELETE' });
+                        if (!res.ok) throw new Error('שגיאה במחיקת האימון');
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast('🗑️ האימון נמחק בהצלחה');
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה במחיקה', 'error');
+                    }
+                },
+
+                triggerGoogleFitSync() {
+                    const clientId = this.authConfig?.google_client_id;
+                    if (!clientId || !window.google?.accounts?.oauth2) {
+                        this.showToast('חיבור Google טרם הוגדר בדפדפן', 'error');
+                        return;
+                    }
+                    this.googleFitSyncing = true;
+                    try {
+                        const client = window.google.accounts.oauth2.initTokenClient({
+                            client_id: clientId,
+                            scope: 'https://www.googleapis.com/auth/fitness.activity.read',
+                            callback: async (tokenResponse) => {
+                                if (tokenResponse.error) {
+                                    this.googleFitSyncing = false;
+                                    this.showToast('אישור הגישה ל-Google Fit נדחה', 'error');
+                                    return;
+                                }
+                                try {
+                                    const res = await fetch('/api/google-fit/sync', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            access_token: tokenResponse.access_token,
+                                            log_date: this.workoutTargetDate || this.todayStr
+                                        })
+                                    });
+                                    const result = await res.json();
+                                    if (!res.ok) throw new Error(result.detail || 'שגיאה בסנכרון מ-Google Fit');
+                                    if (result.status === 'no_data') {
+                                        this.showToast(result.message, 'warning');
+                                    } else {
+                                        this.showWorkoutModal = false;
+                                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                                        this.showToast(`🟢 סונכרן מ-Google Fit: ${result.steps.toLocaleString()} צעדים (-${result.burned_calories} קק"ל)`);
+                                    }
+                                } catch (e) {
+                                    this.showToast(e.message || 'שגיאה בסנכרון מ-Google Fit', 'error');
+                                } finally {
+                                    this.googleFitSyncing = false;
+                                }
+                            }
+                        });
+                        client.requestAccessToken({ prompt: 'consent' });
+                    } catch (e) {
+                        this.googleFitSyncing = false;
+                        this.showToast('שגיאה באתחול Google Fit', 'error');
                     }
                 },
 

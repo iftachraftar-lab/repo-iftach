@@ -82,6 +82,44 @@ class NutritionExtraction(BaseModel):
     items: List[MealItemDetail] = Field(default_factory=list, description="פירוט של כל פריט בארוחה עם הקלוריות והחלבון הנפרדים שלו")
 
 
+class WorkoutItem(BaseModel):
+    activity_name: str = Field(description="שם הפעילות או האימון בעברית, למשל ריצה 5 ק״מ, אימון כוח משקולות, הליכה מהירה")
+    activity_type: str = Field(default="other", description="סוג הפעילות: run, strength, walk, cycling, swimming, hiit, other")
+    duration_min: int = Field(default=30, description="משך האימון בדקות")
+    distance_km: Optional[float] = Field(default=None, description="מרחק בקילומטרים אם רלוונטי, או null")
+    burned_calories: int = Field(description="הערכת קלוריות שנשרפו באימון על בסיס משקל המתאמן ועוצמת הפעילות")
+    notes: Optional[str] = Field(default="", description="הערות או דגש קצר")
+    is_workout: bool = Field(default=True, description="האם הטקסט אכן מתאר פעילות גופנית")
+
+
+class WorkoutExtraction(BaseModel):
+    workouts: List[WorkoutItem] = Field(default_factory=list, description="רשימת האימונים שזוהו בטקסט")
+    total_burned_calories: int = Field(default=0, description="סך הקלוריות שנשרפו בכל האימונים שזוהו")
+    summary: str = Field(description="סיכום תמציתי וברור של הפעילות הגופנית בעברית")
+    is_workout: bool = Field(default=True, description="האם זוהתה פעילות גופנית")
+
+
+class AIWorkoutRequest(BaseModel):
+    text: str
+    log_date: Optional[str] = None
+
+
+class ManualWorkoutRequest(BaseModel):
+    activity_name: str
+    burned_calories: int = Field(ge=1, le=10000)
+    duration_min: int = Field(default=30, ge=1, le=1440)
+    distance_km: Optional[float] = Field(default=None, ge=0.0, le=500.0)
+    activity_type: str = Field(default="other")
+    notes: Optional[str] = ""
+    log_date: Optional[str] = None
+    log_time: Optional[str] = None
+
+
+class GoogleFitSyncRequest(BaseModel):
+    access_token: str
+    log_date: Optional[str] = None
+
+
 class DailyCoachInsight(BaseModel):
     score: int = Field(description="ציון תזונה יומי בין 0 ל-100 בהתאם לעמידה ביעד הקלוריות והחלבון")
     headline: str = Field(description="כותרת קצרה, אישית ומעודדת בעברית")
@@ -231,6 +269,7 @@ DEFAULT_FAVORITES = [
 # Local fallback state when running locally without GCP credentials
 _LOCAL_TARGETS_BY_USER: dict = {"default": {"target_calories": 1800, "target_protein": 120}}
 _LOCAL_MEALS: List[dict] = []
+_LOCAL_WORKOUTS: List[dict] = []
 _LOCAL_FAVORITES: List[dict] = [dict(f, user_id="default") for f in DEFAULT_FAVORITES]
 _LOCAL_WEIGHTS: List[dict] = []
 _LOCAL_VAPID: Optional[dict] = None
@@ -804,6 +843,100 @@ def log_meal_db(
         return None
 
 
+def _get_user_latest_weight(uid: str) -> float:
+    try:
+        w_data = get_weights_db(user_id=uid)
+        if w_data and w_data.get("latest_weight"):
+            return float(w_data["latest_weight"])
+    except Exception:
+        pass
+    return 75.0
+
+
+def log_workout_db(
+    activity_name: str,
+    burned_calories: int,
+    duration_min: int = 30,
+    distance_km: Optional[float] = None,
+    activity_type: str = "other",
+    log_date: Optional[str] = None,
+    log_time: Optional[str] = None,
+    source: str = "web-ai",
+    user_id: str = "default",
+    notes: str = "",
+) -> Optional[dict]:
+    uid = _normalize_user_id(user_id)
+    d_str = log_date or str(date.today())
+    t_str = log_time or datetime.now().strftime("%H:%M")
+
+    if not db:
+        entry = {
+            "id": f"workout-local-{int(datetime.now().timestamp() * 1000)}",
+            "user_id": uid,
+            "log_date": d_str,
+            "log_time": t_str,
+            "activity_name": activity_name,
+            "burned_calories": int(burned_calories),
+            "duration_min": int(duration_min),
+            "distance_km": float(distance_km) if distance_km is not None else None,
+            "activity_type": activity_type,
+            "source": source,
+            "notes": notes,
+        }
+        _LOCAL_WORKOUTS.insert(0, entry)
+        return entry
+
+    try:
+        doc_data = {
+            "user_id": uid,
+            "log_date": d_str,
+            "log_time": t_str,
+            "activity_name": activity_name,
+            "burned_calories": int(burned_calories),
+            "duration_min": int(duration_min),
+            "distance_km": float(distance_km) if distance_km is not None else None,
+            "activity_type": activity_type,
+            "source": source,
+            "notes": notes,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        }
+        _, doc_ref = db.collection("workouts").add(doc_data)
+        return {
+            "id": doc_ref.id,
+            "user_id": uid,
+            "log_date": d_str,
+            "log_time": t_str,
+            "activity_name": activity_name,
+            "burned_calories": int(burned_calories),
+            "duration_min": int(duration_min),
+            "distance_km": float(distance_km) if distance_km is not None else None,
+            "activity_type": activity_type,
+            "source": source,
+            "notes": notes,
+        }
+    except Exception as e:
+        print(f"ERROR log_workout_db: {e}")
+        return None
+
+
+def delete_workout_db(workout_id: str, user_id: str = "default") -> bool:
+    uid = _normalize_user_id(user_id)
+    if not db:
+        global _LOCAL_WORKOUTS
+        _LOCAL_WORKOUTS = [w for w in _LOCAL_WORKOUTS if w.get("id") != workout_id]
+        return True
+    try:
+        doc_ref = db.collection("workouts").document(workout_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return False
+        doc_ref.delete()
+        return True
+    except Exception as e:
+        print(f"ERROR delete_workout_db: {e}")
+        return False
+
+
 def get_day_summary(target_date: Optional[str] = None, user_id: str = "default"):
     uid = _normalize_user_id(user_id)
     d_str = target_date or str(date.today())
@@ -843,20 +976,57 @@ def get_day_summary(target_date: Optional[str] = None, user_id: str = "default")
                 total_prot += m["protein_g"]
                 meals_list.append(m)
 
+    burned_cal = 0
+    workouts_list = []
+    if db:
+        try:
+            w_ref = db.collection("workouts").where("log_date", "==", d_str).stream()
+            for w in w_ref:
+                w_data = w.to_dict()
+                if not _doc_matches_user(w_data, uid):
+                    continue
+                bc = int(w_data.get("burned_calories", 0))
+                burned_cal += bc
+                workouts_list.append({
+                    "id": w.id,
+                    "activity_name": w_data.get("activity_name", ""),
+                    "activity_type": w_data.get("activity_type", "other"),
+                    "burned_calories": bc,
+                    "duration_min": int(w_data.get("duration_min", 0)),
+                    "distance_km": w_data.get("distance_km"),
+                    "log_date": w_data.get("log_date", d_str),
+                    "log_time": w_data.get("log_time", ""),
+                    "source": w_data.get("source", "manual"),
+                    "notes": w_data.get("notes", ""),
+                })
+            workouts_list.sort(key=lambda x: x.get("log_time", ""), reverse=True)
+        except Exception as e:
+            print(f"ERROR get_day_summary workouts: {e}")
+    else:
+        for w in _LOCAL_WORKOUTS:
+            if w.get("log_date") == d_str and _doc_matches_user(w, uid):
+                burned_cal += int(w.get("burned_calories", 0))
+                workouts_list.append(w)
+
     targets = get_targets(d_str, user_id=uid)
     target_cal = targets["target_calories"]
     target_prot = targets["target_protein"]
-    remaining_cal = target_cal - total_cal
+    net_cal = total_cal - burned_cal
+    remaining_cal = target_cal - total_cal + burned_cal
     return {
         "date": d_str,
         "user_id": uid,
         "total_calories": total_cal,
         "total_protein": round(total_prot, 1),
+        "burned_calories": burned_cal,
+        "net_calories": net_cal,
         "target_calories": target_cal,
         "target_protein": target_prot,
         "remaining_calories": remaining_cal,
         "meal_count": len(meals_list),
+        "workout_count": len(workouts_list),
         "meals": meals_list,
+        "workouts": workouts_list,
     }
 
 
@@ -915,6 +1085,52 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
         if "402" in err_msg or "prepayment" in err_msg.lower() or "RESOURCE_EXHAUSTED" in err_msg:
             return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API_ERROR: 402_PREPAYMENT_DEPLETED")
         return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Analysis error")
+
+
+def analyze_workout(text: str, user_weight_kg: float = 75.0) -> WorkoutExtraction:
+    if not ai_client:
+        return WorkoutExtraction(
+            workouts=[WorkoutItem(activity_name=text[:40], activity_type="other", duration_min=30, burned_calories=200, is_workout=True)],
+            total_burned_calories=200,
+            summary=f"אימון: {text[:40]} (200 קק״ל)",
+            is_workout=True
+        )
+
+    system_instruction = f"""אתה פיזיולוג מומחה ומאמן כושר בכיר.
+תפקידך לנתח את טקסט האימון שהזין המשתמש בעברית, ולחשב בצורה מדעית ומדויקת את הקלוריות שנשרפו באימון.
+משקל גוף המתאמן: {user_weight_kg:.1f} ק"ג.
+השתמש בנוסחאות MET מקובלות:
+- ריצה בקצב בינוני (כ-10 קמ"ש / קצב 6:00): MET ~ 9.8 (כ-1 קק"ל לק"ג לק"מ)
+- אימון כוח משקולות בחדר כושר: MET ~ 5.0 - 6.0 (כ-300-450 קק"ל לשעה למשקל 75 ק"ג)
+- הליכה מהירה: MET ~ 4.3 (כ-250-320 קק"ל לשעה)
+- רכיבת אופניים: MET ~ 7.5 - 8.5
+- אימון HIIT / קרוספיט: MET ~ 8.0 - 10.0
+- שחייה: MET ~ 7.0 - 8.0
+
+אם הטקסט אינו מתאר אימון גופני או פעילות ספורטיבית (למשל סתם שיחה או אוכל), החזר is_workout=False ו-total_burned_calories=0.
+וודא ש-total_burned_calories תואם בדיוק לסכום ה-burned_calories של כל האימונים שברשימה."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=text,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=WorkoutExtraction,
+                system_instruction=system_instruction,
+                temperature=0.2,
+            ),
+        )
+        data = json.loads(response.text)
+        return WorkoutExtraction(**data)
+    except Exception as e:
+        print(f"ERROR analyze_workout: {e}")
+        return WorkoutExtraction(
+            workouts=[WorkoutItem(activity_name=text[:40], activity_type="other", duration_min=30, burned_calories=200, is_workout=True)],
+            total_burned_calories=200,
+            summary=f"אימון: {text[:40]} (200 קק״ל)",
+            is_workout=True
+        )
 
 
 def _normalize_image_bytes(image_bytes: bytes, fallback_mime: str = "image/jpeg") -> tuple[bytes, str]:
@@ -2414,22 +2630,53 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
     else:
         all_meals = [m for m in _LOCAL_MEALS if _doc_matches_user(m, uid)]
 
+    all_workouts = []
+    if db:
+        try:
+            w_docs = db.collection("workouts").order_by("created_at", direction=firestore.Query.DESCENDING).limit(300).stream()
+            for w in w_docs:
+                w_data = w.to_dict()
+                if not _doc_matches_user(w_data, uid):
+                    continue
+                all_workouts.append({
+                    "id": w.id,
+                    "activity_name": w_data.get("activity_name", ""),
+                    "activity_type": w_data.get("activity_type", "other"),
+                    "burned_calories": int(w_data.get("burned_calories", 0)),
+                    "duration_min": int(w_data.get("duration_min", 0)),
+                    "distance_km": w_data.get("distance_km"),
+                    "log_date": w_data.get("log_date", ""),
+                    "log_time": w_data.get("log_time", ""),
+                    "source": w_data.get("source", "manual"),
+                    "notes": w_data.get("notes", ""),
+                })
+        except Exception as e:
+            print(f"ERROR _fetch_user_history workouts: {e}")
+    else:
+        all_workouts = [w for w in _LOCAL_WORKOUTS if _doc_matches_user(w, uid)]
+
     targets = get_targets(user_id=uid)
     daily_trend = []
     for i in range(6, -1, -1):
         d = str(today_date - timedelta(days=i))
         day_meals = [m for m in all_meals if m.get("log_date") == d]
+        day_workouts = [w for w in all_workouts if w.get("log_date") == d]
         cal = sum(m["calories"] for m in day_meals)
+        burned = sum(w["burned_calories"] for w in day_workouts)
         prot = round(sum(m["protein_g"] for m in day_meals), 1)
         daily_trend.append({
             "date": d,
             "calories": cal,
+            "burned_calories": burned,
+            "net_calories": cal - burned,
             "protein_g": prot,
             "meal_count": len(day_meals),
+            "workout_count": len(day_workouts),
         })
 
     return {
         "meals": all_meals,
+        "workouts": all_workouts,
         "daily_trend": daily_trend,
         "target_calories": targets["target_calories"],
         "target_protein": targets["target_protein"],
@@ -2709,6 +2956,160 @@ def api_delete_meal(meal_id: str):
 def api_get_favorites(request: Request):
     uid = get_request_user_id(request)
     return {"favorites": get_favorites_db(user_id=uid)}
+
+
+@app.post("/api/workouts/ai")
+def api_add_ai_workout(req: AIWorkoutRequest, request: Request):
+    uid = require_approved_user(request)
+    if not req.text or not req.text.strip():
+        raise HTTPException(status_code=400, detail="נא להזין תיאור אימון")
+
+    check_and_increment_ai_quota(uid)
+    weight_kg = _get_user_latest_weight(uid)
+    extraction = analyze_workout(req.text.strip(), user_weight_kg=weight_kg)
+    if not extraction.is_workout or extraction.total_burned_calories <= 0:
+        raise HTTPException(status_code=422, detail="לא זוהתה פעילות גופנית או אימון בטקסט שהוזן")
+
+    added_entries = []
+    d_str = req.log_date or str(date.today())
+    for item in extraction.workouts:
+        entry = log_workout_db(
+            activity_name=item.activity_name,
+            burned_calories=item.burned_calories,
+            duration_min=item.duration_min,
+            distance_km=item.distance_km,
+            activity_type=item.activity_type,
+            log_date=d_str,
+            source="web-ai",
+            user_id=uid,
+            notes=item.notes or "",
+        )
+        if entry:
+            added_entries.append(entry)
+
+    if not added_entries:
+        raise HTTPException(status_code=500, detail="שגיאה בשמירת האימון")
+
+    return {
+        "status": "success",
+        "summary": extraction.summary,
+        "total_burned_calories": extraction.total_burned_calories,
+        "workouts": added_entries,
+    }
+
+
+@app.post("/api/workouts/")
+def api_add_manual_workout(req: ManualWorkoutRequest, request: Request):
+    uid = require_approved_user(request)
+    entry = log_workout_db(
+        activity_name=req.activity_name.strip(),
+        burned_calories=req.burned_calories,
+        duration_min=req.duration_min,
+        distance_km=req.distance_km,
+        activity_type=req.activity_type,
+        log_date=req.log_date,
+        log_time=req.log_time,
+        source="manual",
+        user_id=uid,
+        notes=req.notes or "",
+    )
+    if not entry:
+        raise HTTPException(status_code=500, detail="שגיאה בשמירת האימון")
+    return entry
+
+
+@app.delete("/api/workouts/{workout_id}")
+def api_delete_workout(workout_id: str, request: Request):
+    uid = require_approved_user(request)
+    deleted = delete_workout_db(workout_id, user_id=uid)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="אימון לא נמצא")
+    return {"status": "deleted", "id": workout_id}
+
+
+@app.post("/api/google-fit/sync")
+def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
+    import urllib.request
+    uid = require_approved_user(request)
+    token = req.access_token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="נא לספק Google OAuth access token")
+
+    target_date_str = req.log_date or str(date.today())
+    try:
+        target_dt = datetime.strptime(target_date_str, "%Y-%m-%d")
+    except Exception:
+        target_dt = datetime.today()
+
+    start_ms = int(datetime(target_dt.year, target_dt.month, target_dt.day, 0, 0, 0).timestamp() * 1000)
+    end_ms = int(datetime(target_dt.year, target_dt.month, target_dt.day, 23, 59, 59).timestamp() * 1000)
+
+    url = "https://fitness.googleapis.com/fitness/v1/users/me/dataset:aggregate"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "aggregateBy": [
+            {"dataTypeName": "com.google.calories.expended"},
+            {"dataTypeName": "com.google.step_count.delta"},
+            {"dataTypeName": "com.google.activity.segment"},
+        ],
+        "bucketByTime": {"durationMillis": 86400000},
+        "startTimeMillis": start_ms,
+        "endTimeMillis": end_ms,
+    }
+
+    req_obj = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req_obj, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        print(f"ERROR Google Fit API: {e}")
+        raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם Google Fit API: {e}")
+
+    total_calories = 0
+    total_steps = 0
+    buckets = data.get("bucket", [])
+    for b in buckets:
+        for ds in b.get("dataset", []):
+            dtype = ds.get("dataSourceId", "")
+            for pt in ds.get("point", []):
+                val_list = pt.get("value", [])
+                if "calories" in dtype and val_list:
+                    total_calories += val_list[0].get("fpVal", 0)
+                elif "step_count" in dtype and val_list:
+                    total_steps += val_list[0].get("intVal", 0)
+
+    total_calories = int(round(total_calories))
+    if total_calories <= 0 and total_steps <= 0:
+        return {
+            "status": "no_data",
+            "message": f"לא נמצאו נתוני פעילות או צעדים מ-Google Fit לתאריך {target_date_str}",
+            "burned_calories": 0,
+            "steps": 0,
+        }
+
+    if total_calories <= 0 and total_steps > 0:
+        total_calories = int(round(total_steps * 0.04))
+
+    activity_name = f"Google Fit ({total_steps:,} צעדים)" if total_steps > 0 else "פעילות Google Fit"
+    entry = log_workout_db(
+        activity_name=activity_name,
+        burned_calories=total_calories,
+        duration_min=max(20, int(total_steps / 100)) if total_steps > 0 else 30,
+        activity_type="walk" if total_steps > 0 else "other",
+        log_date=target_date_str,
+        source="google-fit",
+        user_id=uid,
+        notes=f"סונכרן מ-Google Fit: {total_steps} צעדים",
+    )
+    return {
+        "status": "success",
+        "burned_calories": total_calories,
+        "steps": total_steps,
+        "workout": entry,
+    }
 
 
 @app.post("/api/favorites")
