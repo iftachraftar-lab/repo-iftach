@@ -862,8 +862,69 @@
             </div>
 
             <!-- Meals for Selected Date -->
-            <div class="space-y-2.5">
-                <h3 class="text-base font-bold text-slate-800 px-1" x-text="`ארוחות ב-${formatHebrewDate(selectedDate)}`"></h3>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between px-1">
+                    <h3 class="text-base font-bold text-slate-800" x-text="`ארוחות ב-${formatHebrewDate(selectedDate)}`"></h3>
+                    <button @click="showHistoryAddMeal = !showHistoryAddMeal"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs transition cursor-pointer">
+                        <span x-text="showHistoryAddMeal ? '✕ סגור' : '+ הוסף ארוחה לתאריך זה'"></span>
+                    </button>
+                </div>
+
+                <!-- Add Meal to History Box -->
+                <div x-show="showHistoryAddMeal" x-cloak class="bg-white rounded-3xl p-5 shadow-sm border border-emerald-200/80 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-emerald-600 font-bold text-sm">📅 הוספת ארוחה לתאריך:</span>
+                            <span class="font-extrabold text-slate-900 text-sm" x-text="formatHebrewDate(selectedDate)"></span>
+                        </div>
+                        <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-xs font-semibold">
+                            <button type="button" @click="historyAddMode = 'ai'"
+                                    :class="historyAddMode === 'ai' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'"
+                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer">🤖 בינה מלאכותית</button>
+                            <button type="button" @click="historyAddMode = 'manual'"
+                                    :class="historyAddMode === 'manual' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'"
+                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer">⚡ ידני</button>
+                        </div>
+                    </div>
+
+                    <!-- AI Input Form for History Date -->
+                    <form x-show="historyAddMode === 'ai'" @submit.prevent="submitHistoryAIMeal()" class="space-y-3">
+                        <div class="relative">
+                            <textarea x-model="historyAiInputText" rows="2"
+                                      placeholder="תאר מה אכלת בתאריך זה... (למשל: סלט קינואה, 200 גרם חזה עוף וכף טחינה)"
+                                      required
+                                      class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-emerald-500 outline-none resize-none"></textarea>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] text-slate-400">Gemini AI יפרק אוטומטית פריטים, קלוריות וחלבון</span>
+                            <button type="submit" :disabled="historyAiAnalyzing"
+                                    class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-2 transition cursor-pointer">
+                                <span x-show="!historyAiAnalyzing">✨ נתח והוסף לתאריך זה</span>
+                                <span x-show="historyAiAnalyzing" class="flex items-center gap-1">
+                                    <svg class="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                    מנתח ארוחה...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Manual Input Form for History Date -->
+                    <form x-show="historyAddMode === 'manual'" @submit.prevent="submitHistoryManualMeal()" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <input type="text" x-model="historyManualMeal.description" placeholder="תיאור הארוחה" required
+                               class="sm:col-span-2 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-emerald-500 outline-none">
+                        <input type="number" x-model.number="historyManualMeal.calories" placeholder="קלוריות (קק״ל)" required min="0" max="10000"
+                               class="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-emerald-500 outline-none">
+                        <div class="flex gap-2">
+                            <input type="number" step="0.1" x-model.number="historyManualMeal.protein_g" placeholder="חלבון (ג׳)" required min="0" max="500"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-emerald-500 outline-none">
+                            <button type="submit"
+                                    class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex-shrink-0 transition cursor-pointer">
+                                הוסף
+                            </button>
+                        </div>
+                    </form>
+                </div>
 
                 <div x-show="filteredHistoryMeals.length === 0"
                      class="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
@@ -1527,6 +1588,18 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">תאריך</label>
+                        <input type="date" x-model="editForm.log_date" required
+                               class="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold focus:bg-white focus:border-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">שעה</label>
+                        <input type="time" x-model="editForm.log_time"
+                               class="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold focus:bg-white focus:border-emerald-500 outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">קלוריות (קק"ל)</label>
                         <input type="number" x-model.number="editForm.calories" min="0" max="10000" required
                                class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-semibold focus:bg-white focus:border-emerald-500 outline-none">
@@ -2122,6 +2195,11 @@
                 },
                 allMeals: [],
                 dailyTrend: [],
+                showHistoryAddMeal: false,
+                historyAddMode: 'ai',
+                historyAiInputText: '',
+                historyAiAnalyzing: false,
+                historyManualMeal: { description: '', calories: null, protein_g: null },
                 recipes: [],
                 selectedRecipeCategory: 'all',
                 recipePreference: '',
@@ -2216,7 +2294,9 @@
                 },
 
                 get filteredHistoryMeals() {
-                    return this.allMeals.filter(m => m.log_date === this.selectedDate);
+                    return this.allMeals
+                        .filter(m => m.log_date === this.selectedDate)
+                        .sort((a, b) => (b.log_time || '').localeCompare(a.log_time || ''));
                 },
 
                 get selectedDateCalories() {
@@ -3292,8 +3372,61 @@
                         description: meal.description,
                         calories: meal.calories,
                         protein_g: meal.protein_g,
+                        log_date: meal.log_date || this.todayStr,
+                        log_time: meal.log_time || '',
                         items: (meal.items && meal.items.length > 0) ? JSON.parse(JSON.stringify(meal.items)) : []
                     };
+                },
+
+                async submitHistoryAIMeal() {
+                    if (!this.historyAiInputText.trim()) return;
+                    this.historyAiAnalyzing = true;
+                    try {
+                        const res = await fetch('/api/meals/ai', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                text: this.historyAiInputText.trim(),
+                                log_date: this.selectedDate
+                            })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'לא זוהתה ארוחה');
+                        }
+                        const added = await res.json();
+                        this.historyAiInputText = '';
+                        this.showHistoryAddMeal = false;
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`✅ נוסף ל-${this.formatHebrewDate(this.selectedDate)}: ${added.description} (${added.calories} קק"ל)`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בניתוח הארוחה', 'error');
+                    } finally {
+                        this.historyAiAnalyzing = false;
+                    }
+                },
+
+                async submitHistoryManualMeal() {
+                    if (!this.historyManualMeal.description || this.historyManualMeal.calories === null || this.historyManualMeal.protein_g === null) return;
+                    try {
+                        const res = await fetch('/api/meals/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                description: this.historyManualMeal.description,
+                                calories: this.historyManualMeal.calories,
+                                protein_g: this.historyManualMeal.protein_g,
+                                log_date: this.selectedDate
+                            })
+                        });
+                        if (!res.ok) throw new Error('שגיאה בהוספת הארוחה');
+                        this.historyManualMeal = { description: '', calories: null, protein_g: null };
+                        this.showHistoryAddMeal = false;
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`✅ הארוחה נוספה בהצלחה ל-${this.formatHebrewDate(this.selectedDate)}!`);
+                    } catch (e) {
+                        this.showToast('שגיאה בהוספת הארוחה', 'error');
+                    }
                 },
 
                 recalcTotalsFromItems() {

@@ -164,6 +164,8 @@ class MealUpdateRequest(BaseModel):
     calories: int = Field(ge=0, le=10000)
     protein_g: float = Field(ge=0.0, le=500.0)
     items: Optional[List[MealItemDetail]] = None
+    log_date: Optional[str] = None
+    log_time: Optional[str] = None
 
 
 class FavoriteMealRequest(BaseModel):
@@ -2625,6 +2627,10 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest):
                 m["description"] = desc
                 m["calories"] = cal
                 m["protein_g"] = prot
+                if req.log_date:
+                    m["log_date"] = req.log_date
+                if req.log_time:
+                    m["log_time"] = req.log_time
                 if req.items is not None:
                     m["items"] = [it.model_dump() for it in req.items]
                 elif len(m.get("items") or []) <= 1:
@@ -2664,6 +2670,10 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest):
             "protein_g": prot,
             "items": clean_items,
         }
+        if req.log_date:
+            update_payload["log_date"] = req.log_date
+        if req.log_time:
+            update_payload["log_time"] = req.log_time
         doc_ref.update(update_payload)
         updated = dict(doc_data)
         updated.update(update_payload)
