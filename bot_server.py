@@ -1012,7 +1012,7 @@ def get_day_summary(target_date: Optional[str] = None, user_id: str = "default")
     target_cal = targets["target_calories"]
     target_prot = targets["target_protein"]
     net_cal = total_cal - burned_cal
-    remaining_cal = target_cal - total_cal + burned_cal
+    remaining_cal = target_cal - total_cal
     return {
         "date": d_str,
         "user_id": uid,
