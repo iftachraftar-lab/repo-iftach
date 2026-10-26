@@ -11,7 +11,16 @@ from typing import List, Optional
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi import FastAPI, Request, Response, HTTPException, Query
+import time
+import secrets
+import hmac
+try:
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.transport import requests as google_requests
+except ImportError:
+    google_id_token = None
+    google_requests = None
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from telegram import Update
@@ -286,11 +295,134 @@ def _normalize_user_id(raw_uid: Optional[str]) -> str:
     return cleaned if cleaned else "default"
 
 
+SESSION_TOKEN_TTL_SECONDS = 60 * 86400  # 60 days
+TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+
+
+def get_server_session_secret() -> str:
+    env_sec = os.getenv("SESSION_SECRET", "").strip()
+    if env_sec:
+        return env_sec
+    sec = _LOCAL_AUTH_CONFIG.get("session_secret", "")
+    if sec:
+        return sec
+    if db:
+        try:
+            doc_ref = db.collection("app_config").document("auth")
+            doc = doc_ref.get()
+            if doc.exists and doc.to_dict().get("session_secret"):
+                sec = doc.to_dict()["session_secret"].strip()
+                _LOCAL_AUTH_CONFIG["session_secret"] = sec
+                return sec
+            new_sec = secrets.token_hex(32)
+            doc_ref.set({"session_secret": new_sec}, merge=True)
+            _LOCAL_AUTH_CONFIG["session_secret"] = new_sec
+            return new_sec
+        except Exception as e:
+            print(f"ERROR get_server_session_secret: {e}")
+    if not sec:
+        sec = secrets.token_hex(32)
+        _LOCAL_AUTH_CONFIG["session_secret"] = sec
+    return sec
+
+
+def create_session_token(user_id: str) -> str:
+    uid = _normalize_user_id(user_id)
+    now_ts = int(time.time())
+    secret = get_server_session_secret()
+    payload = f"{uid}:{now_ts}"
+    sig = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
+    return f"v1.{uid}.{now_ts}.{sig}"
+
+
+def verify_session_token(token: Optional[str]) -> Optional[str]:
+    if not token or not isinstance(token, str):
+        return None
+    token = token.strip()
+    if token.startswith("Bearer "):
+        token = token[7:].strip()
+    parts = token.split(".")
+    if len(parts) != 4 or parts[0] != "v1":
+        return None
+    _, uid, ts_str, sig = parts
+    try:
+        ts = int(ts_str)
+    except ValueError:
+        return None
+    if time.time() - ts > SESSION_TOKEN_TTL_SECONDS:
+        return None
+    secret = get_server_session_secret()
+    payload = f"{uid}:{ts}"
+    expected_sig = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
+    if hmac.compare_digest(sig, expected_sig):
+        return _normalize_user_id(uid)
+    return None
+
+
+def get_telegram_webhook_secret() -> str:
+    global TELEGRAM_WEBHOOK_SECRET
+    if TELEGRAM_WEBHOOK_SECRET:
+        return TELEGRAM_WEBHOOK_SECRET
+    sec = _LOCAL_AUTH_CONFIG.get("tg_webhook_secret", "")
+    if sec:
+        TELEGRAM_WEBHOOK_SECRET = sec
+        return sec
+    if db:
+        try:
+            doc_ref = db.collection("app_config").document("telegram")
+            doc = doc_ref.get()
+            if doc.exists and doc.to_dict().get("webhook_secret"):
+                sec = doc.to_dict()["webhook_secret"].strip()
+                _LOCAL_AUTH_CONFIG["tg_webhook_secret"] = sec
+                TELEGRAM_WEBHOOK_SECRET = sec
+                return sec
+            new_sec = secrets.token_hex(24)
+            doc_ref.set({"webhook_secret": new_sec}, merge=True)
+            _LOCAL_AUTH_CONFIG["tg_webhook_secret"] = new_sec
+            TELEGRAM_WEBHOOK_SECRET = new_sec
+            return new_sec
+        except Exception as e:
+            print(f"ERROR get_telegram_webhook_secret: {e}")
+    if not sec:
+        sec = secrets.token_hex(24)
+        _LOCAL_AUTH_CONFIG["tg_webhook_secret"] = sec
+        TELEGRAM_WEBHOOK_SECRET = sec
+    return sec
+
+
 def get_request_user_id(request: Optional[Request] = None) -> str:
     if not request:
         return "default"
-    header_uid = request.headers.get("X-User-Id") or request.query_params.get("user_id")
-    return _normalize_user_id(header_uid)
+
+    # 1. Check Authorization Bearer header
+    auth_hdr = request.headers.get("Authorization", "")
+    if auth_hdr.lower().startswith("bearer "):
+        uid = verify_session_token(auth_hdr[7:])
+        if uid and uid != "default":
+            return uid
+
+    # 2. Check X-Session-Token header
+    session_hdr = request.headers.get("X-Session-Token", "")
+    if session_hdr:
+        uid = verify_session_token(session_hdr)
+        if uid and uid != "default":
+            return uid
+
+    # 3. Check session_token cookie
+    cookie_token = request.cookies.get("session_token", "")
+    if cookie_token:
+        uid = verify_session_token(cookie_token)
+        if uid and uid != "default":
+            return uid
+
+    # 4. Check query param session_token fallback
+    param_token = request.query_params.get("session_token", "")
+    if param_token:
+        uid = verify_session_token(param_token)
+        if uid and uid != "default":
+            return uid
+
+    return "default"
 
 
 def _doc_matches_user(doc_data: dict, user_id: str) -> bool:
@@ -343,14 +475,35 @@ def set_auth_config_db(google_client_id: str) -> dict:
 
 
 def verify_google_id_token(id_token: str) -> dict:
+    cfg = get_auth_config_db()
+    expected_cid = cfg.get("google_client_id", "").strip()
+
+    if google_id_token and google_requests:
+        try:
+            req = google_requests.Request()
+            id_info = google_id_token.verify_oauth2_token(
+                id_token.strip(),
+                req,
+                audience=expected_cid if expected_cid else None,
+            )
+            if not id_info.get("email"):
+                raise ValueError("Invalid Google token: missing email")
+            return {
+                "email": id_info["email"].strip().lower(),
+                "name": id_info.get("name") or id_info["email"].split("@")[0],
+                "picture": id_info.get("picture") or "",
+                "sub": id_info.get("sub") or "",
+            }
+        except Exception as e:
+            # Fall back to tokeninfo if local cert cache fails
+            pass
+
     url = f"https://oauth2.googleapis.com/tokeninfo?id_token={urllib.parse.quote(id_token.strip())}"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=8) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     if not data.get("email"):
         raise ValueError("Invalid Google token: missing email")
-    cfg = get_auth_config_db()
-    expected_cid = cfg.get("google_client_id", "").strip()
     if expected_cid and data.get("aud") and data.get("aud") != expected_cid:
         raise ValueError("Google token audience mismatch")
     return {
@@ -923,12 +1076,16 @@ def delete_workout_db(workout_id: str, user_id: str = "default") -> bool:
     uid = _normalize_user_id(user_id)
     if not db:
         global _LOCAL_WORKOUTS
-        _LOCAL_WORKOUTS = [w for w in _LOCAL_WORKOUTS if w.get("id") != workout_id]
-        return True
+        orig_len = len(_LOCAL_WORKOUTS)
+        _LOCAL_WORKOUTS = [w for w in _LOCAL_WORKOUTS if not (w.get("id") == workout_id and (_doc_matches_user(w, uid) or is_admin_user_id(uid)))]
+        return len(_LOCAL_WORKOUTS) < orig_len
     try:
         doc_ref = db.collection("workouts").document(workout_id)
         doc = doc_ref.get()
         if not doc.exists:
+            return False
+        doc_data = doc.to_dict() or {}
+        if not _doc_matches_user(doc_data, uid) and not is_admin_user_id(uid):
             return False
         doc_ref.delete()
         return True
@@ -1841,12 +1998,25 @@ def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "�
 
 
 def delete_favorite_db(fav_id: str, user_id: str = "default") -> bool:
+    uid = _normalize_user_id(user_id)
     if not db:
         global _LOCAL_FAVORITES
-        _LOCAL_FAVORITES = [f for f in _LOCAL_FAVORITES if f.get("id") != fav_id]
+        orig_len = len(_LOCAL_FAVORITES)
+        _LOCAL_FAVORITES = [f for f in _LOCAL_FAVORITES if not (f.get("id") == fav_id and (_doc_matches_user(f, uid) or is_admin_user_id(uid)))]
+        return len(_LOCAL_FAVORITES) < orig_len
+    try:
+        doc_ref = db.collection("favorites").document(fav_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return False
+        doc_data = doc.to_dict() or {}
+        if not _doc_matches_user(doc_data, uid) and not is_admin_user_id(uid):
+            return False
+        doc_ref.delete()
         return True
-    db.collection("favorites").document(fav_id).delete()
-    return True
+    except Exception as e:
+        print(f"ERROR delete_favorite_db: {e}")
+        return False
 
 
 def get_weights_db(limit: int = 60, user_id: str = "default") -> dict:
@@ -1914,12 +2084,25 @@ def log_weight_db(weight_kg: float, log_date: Optional[str] = None, note: str = 
 
 
 def delete_weight_db(entry_id: str, user_id: str = "default") -> bool:
+    uid = _normalize_user_id(user_id)
     if not db:
         global _LOCAL_WEIGHTS
-        _LOCAL_WEIGHTS = [w for w in _LOCAL_WEIGHTS if w.get("id") != entry_id and w.get("log_date") != entry_id]
+        orig_len = len(_LOCAL_WEIGHTS)
+        _LOCAL_WEIGHTS = [w for w in _LOCAL_WEIGHTS if not ((w.get("id") == entry_id or w.get("log_date") == entry_id) and (_doc_matches_user(w, uid) or is_admin_user_id(uid)))]
+        return len(_LOCAL_WEIGHTS) < orig_len
+    try:
+        doc_ref = db.collection("weight_logs").document(entry_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return False
+        doc_data = doc.to_dict() or {}
+        if not _doc_matches_user(doc_data, uid) and not is_admin_user_id(uid):
+            return False
+        doc_ref.delete()
         return True
-    db.collection("weight_logs").document(entry_id).delete()
-    return True
+    except Exception as e:
+        print(f"ERROR delete_weight_db: {e}")
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -2129,8 +2312,13 @@ async def lifespan(app: FastAPI):
         await tg_app.start()
         if WEBHOOK_URL:
             try:
-                await tg_app.bot.set_webhook(url=f"{WEBHOOK_URL.rstrip('/')}/webhook")
-                print(f"INFO: Telegram webhook set to {WEBHOOK_URL.rstrip('/')}/webhook")
+                sec = get_telegram_webhook_secret()
+                await tg_app.bot.set_webhook(
+                    url=f"{WEBHOOK_URL.rstrip('/')}/webhook",
+                    allowed_updates=Update.ALL_TYPES,
+                    secret_token=sec,
+                )
+                print(f"INFO: Telegram webhook set to {WEBHOOK_URL.rstrip('/')}/webhook with secret_token")
             except Exception as e:
                 print(f"WARN: Failed to set Telegram webhook: {e}")
     yield
@@ -2140,6 +2328,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="NutriAgent AI", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -2186,7 +2384,8 @@ def serve_manifest():
 
 @app.get("/api/auth/config")
 def api_get_auth_config():
-    return get_auth_config_db()
+    cfg = get_auth_config_db()
+    return {"google_client_id": cfg.get("google_client_id", "")}
 
 
 @app.put("/api/auth/config")
@@ -2199,7 +2398,7 @@ def api_set_auth_config(req: AuthConfigRequest, request: Request):
 
 
 @app.post("/api/auth/google")
-def api_auth_google(req: GoogleAuthRequest):
+def api_auth_google(req: GoogleAuthRequest, response: Response):
     if not req.credential or not req.credential.strip():
         raise HTTPException(
             status_code=400,
@@ -2207,17 +2406,28 @@ def api_auth_google(req: GoogleAuthRequest):
         )
     try:
         verified = verify_google_id_token(req.credential)
-        return upsert_user_profile(
+        profile = upsert_user_profile(
             email=verified["email"],
             name=verified["name"],
             picture=verified["picture"],
         )
+        token = create_session_token(profile["id"])
+        profile["session_token"] = token
+        response.set_cookie(
+            key="session_token",
+            value=token,
+            max_age=SESSION_TOKEN_TTL_SECONDS,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+        )
+        return profile
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"אימות Google נכשל: {e}")
 
 
 @app.get("/api/auth/me")
-def api_auth_me(request: Request):
+def api_auth_me(request: Request, response: Response):
     uid = get_request_user_id(request)
     if uid == "default":
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -2240,6 +2450,15 @@ def api_auth_me(request: Request):
     today_str = str(date.today())
     daily_ai_limit = int(user_doc.get("daily_ai_limit") if user_doc.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
     ai_calls_today = int(user_doc.get("ai_calls_today") or 0) if user_doc.get("ai_quota_date") == today_str else 0
+    refreshed_token = create_session_token(uid)
+    response.set_cookie(
+        key="session_token",
+        value=refreshed_token,
+        max_age=SESSION_TOKEN_TTL_SECONDS,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
     return {
         "id": uid,
         "email": email,
@@ -2251,14 +2470,13 @@ def api_auth_me(request: Request):
         "daily_ai_limit": daily_ai_limit,
         "ai_calls_today": ai_calls_today,
         "verified_oauth": True,
+        "session_token": refreshed_token,
     }
 
 
 @app.post("/api/auth/claim-legacy-data")
 def api_claim_legacy_data(request: Request):
-    uid = get_request_user_id(request)
-    if uid == "default":
-        raise HTTPException(status_code=400, detail="יש להתחבר לחשבון תחילה כדי לייבא נתונים")
+    uid = require_admin_user(request)
     return claim_legacy_data_for_user(uid)
 
 
@@ -2597,7 +2815,7 @@ def api_admin_delete_user(target_uid: str, request: Request):
 
 @app.get("/api/summary")
 def api_summary(request: Request, target_date: Optional[str] = Query(default=None, alias="date")):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     return get_day_summary(target_date, user_id=uid)
 
 
@@ -2686,14 +2904,14 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
 
 @app.get("/api/history")
 def api_history(request: Request, days: int = Query(default=14, ge=1, le=90)):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     return _fetch_user_history(uid=uid, days=days)
 
 
 @app.get("/api/meals/")
 def api_meals_legacy(request: Request):
     """Backwards-compatible endpoint returning flat list of meals."""
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     return _fetch_user_history(uid=uid, days=30)["meals"]
 
 
@@ -2860,7 +3078,8 @@ def api_coach_analyze(request: Request, req: Optional[CoachAnalyzeRequest] = Non
 
 
 @app.put("/api/meals/{meal_id}")
-def api_update_meal(meal_id: str, req: MealUpdateRequest):
+def api_update_meal(meal_id: str, req: MealUpdateRequest, request: Request):
+    uid = require_approved_user(request)
     desc = req.description.strip()
     if not desc:
         raise HTTPException(status_code=400, detail="נא להזין תיאור ארוחה")
@@ -2871,6 +3090,8 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest):
     if not db:
         for m in _LOCAL_MEALS:
             if m.get("id") == meal_id:
+                if not _doc_matches_user(m, uid) and not is_admin_user_id(uid):
+                    raise HTTPException(status_code=403, detail="אין הרשאה לערוך ארוחה זו")
                 m["description"] = desc
                 m["calories"] = cal
                 m["protein_g"] = prot
@@ -2892,6 +3113,9 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest):
             raise HTTPException(status_code=404, detail="Meal not found")
 
         doc_data = doc.to_dict() or {}
+        if not _doc_matches_user(doc_data, uid) and not is_admin_user_id(uid):
+            raise HTTPException(status_code=403, detail="אין הרשאה לערוך ארוחה זו")
+
         existing_items = doc_data.get("items") or []
 
         if req.items is not None:
@@ -2934,16 +3158,27 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest):
 
 
 @app.delete("/api/meals/{meal_id}")
-def api_delete_meal(meal_id: str):
+def api_delete_meal(meal_id: str, request: Request):
+    uid = require_approved_user(request)
     if not db:
         global _LOCAL_MEALS
+        for m in _LOCAL_MEALS:
+            if m.get("id") == meal_id:
+                if not _doc_matches_user(m, uid) and not is_admin_user_id(uid):
+                    raise HTTPException(status_code=403, detail="אין הרשאה למחוק ארוחה זו")
+        orig_len = len(_LOCAL_MEALS)
         _LOCAL_MEALS = [m for m in _LOCAL_MEALS if m.get("id") != meal_id]
+        if len(_LOCAL_MEALS) == orig_len:
+            raise HTTPException(status_code=404, detail="Meal not found")
         return {"status": "deleted", "id": meal_id}
     try:
         doc_ref = db.collection("meals").document(meal_id)
         doc = doc_ref.get()
         if not doc.exists:
             raise HTTPException(status_code=404, detail="Meal not found")
+        doc_data = doc.to_dict() or {}
+        if not _doc_matches_user(doc_data, uid) and not is_admin_user_id(uid):
+            raise HTTPException(status_code=403, detail="אין הרשאה למחוק ארוחה זו")
         doc_ref.delete()
         return {"status": "deleted", "id": meal_id}
     except HTTPException:
@@ -2954,7 +3189,7 @@ def api_delete_meal(meal_id: str):
 
 @app.get("/api/favorites")
 def api_get_favorites(request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     return {"favorites": get_favorites_db(user_id=uid)}
 
 
@@ -3114,7 +3349,7 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
 
 @app.post("/api/favorites")
 def api_add_favorite(req: FavoriteMealRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     if not req.label or not req.label.strip():
         raise HTTPException(status_code=400, detail="נא להזין שם לפריט המועדף")
     return add_favorite_db(req.label, req.calories, req.protein_g, req.icon or "⭐", user_id=uid)
@@ -3122,33 +3357,37 @@ def api_add_favorite(req: FavoriteMealRequest, request: Request):
 
 @app.delete("/api/favorites/{fav_id}")
 def api_delete_favorite(fav_id: str, request: Request):
-    uid = get_request_user_id(request)
-    delete_favorite_db(fav_id, user_id=uid)
+    uid = require_approved_user(request)
+    deleted = delete_favorite_db(fav_id, user_id=uid)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="פריט מועדף לא נמצא או שאינו שייך לך")
     return {"status": "deleted", "id": fav_id}
 
 
 @app.get("/api/weight")
 def api_get_weight(request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     return get_weights_db(user_id=uid)
 
 
 @app.post("/api/weight")
 def api_log_weight(req: WeightLogRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     return log_weight_db(req.weight_kg, req.log_date, req.note or "", user_id=uid)
 
 
 @app.delete("/api/weight/{entry_id}")
 def api_delete_weight(entry_id: str, request: Request):
-    uid = get_request_user_id(request)
-    delete_weight_db(entry_id, user_id=uid)
+    uid = require_approved_user(request)
+    deleted = delete_weight_db(entry_id, user_id=uid)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="רשומת משקל לא נמצאה או שאינה שייכת לך")
     return {"status": "deleted", "id": entry_id}
 
 
 @app.put("/api/targets")
 def api_update_targets(req: TargetUpdateRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     return set_targets(req.target_calories, req.target_protein, user_id=uid)
 
 
@@ -3173,7 +3412,7 @@ def api_suggest_recipes(req: RecipePromptRequest, request: Request):
 
 @app.get("/api/push/vapid-public-key")
 def api_push_vapid_public_key(request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     vapid = get_or_create_vapid_keys()
     subs = get_push_subscriptions_db(user_id=uid)
     devices = [
@@ -3194,7 +3433,7 @@ def api_push_vapid_public_key(request: Request):
 
 @app.post("/api/push/subscribe")
 def api_push_subscribe(req: PushSubscribeRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     if not req.endpoint or not req.keys.p256dh or not req.keys.auth:
         raise HTTPException(status_code=400, detail="נתוני הרשמה להתראות חסרים")
     sub = save_push_subscription_db(
@@ -3216,7 +3455,7 @@ def api_push_unsubscribe(req: PushUnsubscribeRequest):
 
 @app.post("/api/push/test")
 def api_push_test(request: Request, req: Optional[PushMessageRequest] = None):
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     s = get_day_summary(user_id=uid)
     title = (req.title if req and req.title else None) or "NutriAgent AI 🔔 התראת בדיקה!"
     body = (req.body if req and req.body else None) or (
@@ -3232,7 +3471,7 @@ def api_push_test(request: Request, req: Optional[PushMessageRequest] = None):
 @app.post("/api/push/remind")
 def api_push_daily_reminder(request: Request):
     """Can be triggered manually or via Cloud Scheduler to send a smart daily status push."""
-    uid = get_request_user_id(request)
+    uid = require_approved_user(request)
     s = get_day_summary(user_id=uid)
     rem_cal = s["remaining_calories"]
     rem_prot = max(0.0, s["target_protein"] - s["total_protein"])
@@ -3250,8 +3489,13 @@ def api_push_daily_reminder(request: Request):
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
+    sec = get_telegram_webhook_secret()
+    if sec:
+        incoming_token = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if not incoming_token or not hmac.compare_digest(incoming_token, sec):
+            raise HTTPException(status_code=403, detail="Invalid Telegram webhook secret token")
     if not tg_app:
-        return {"error": "BOT_TOKEN not configured"}
+        raise HTTPException(status_code=503, detail="BOT_TOKEN not configured")
     req_data = await request.json()
     update = Update.de_json(req_data, tg_app.bot)
     await tg_app.process_update(update)

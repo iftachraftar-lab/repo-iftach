@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutriagent-v23";
+const CACHE_NAME = "nutriagent-v24";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -95,7 +95,16 @@ self.addEventListener("push", (event) => {
 // Open or focus the PWA when the user taps a push notification
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || "/";
+  let rawUrl = event.notification.data?.url || "/";
+  let targetUrl = "/";
+  try {
+    const parsed = new URL(rawUrl, self.location.origin);
+    if (parsed.origin === self.location.origin) {
+      targetUrl = parsed.pathname + parsed.search + parsed.hash;
+    }
+  } catch (e) {
+    targetUrl = "/";
+  }
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {

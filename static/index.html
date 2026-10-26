@@ -2306,7 +2306,7 @@
     </div>
 
     <script>
-        // Automatically attach X-User-Id header to all /api/ calls for multi-user isolation
+        // Automatically attach Authorization and X-Session-Token to all /api/ calls
         const _nativeFetch = window.fetch.bind(window);
         window.fetch = function(input, init = {}) {
             try {
@@ -2314,15 +2314,21 @@
                 if (urlStr.startsWith('/api/')) {
                     const savedUserRaw = localStorage.getItem('nutri_user');
                     let uid = 'default';
+                    let token = '';
                     if (savedUserRaw) {
                         const parsed = JSON.parse(savedUserRaw);
                         if (parsed && parsed.id) uid = parsed.id;
+                        if (parsed && parsed.session_token) token = parsed.session_token;
                     }
                     const headers = new Headers(init.headers || {});
+                    if (token) {
+                        if (!headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + token);
+                        if (!headers.has('X-Session-Token')) headers.set('X-Session-Token', token);
+                    }
                     if (!headers.has('X-User-Id')) {
                         headers.set('X-User-Id', uid);
                     }
-                    init = { ...init, headers };
+                    init = { ...init, headers, credentials: init.credentials || 'same-origin' };
                 }
             } catch (e) {
                 console.warn('Fetch interceptor warn:', e);
