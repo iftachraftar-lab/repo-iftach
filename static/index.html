@@ -718,7 +718,7 @@
                             </div>
 
                             <!-- Itemized Breakdown (shown when meal has multiple or detailed items) -->
-                            <div x-show="meal.items && meal.items.length > 0" class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
+                            <div x-show="meal.items && meal.items.length > 1" class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
                                 <template x-for="item in meal.items" :key="item.name">
                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-700">
                                         <span class="font-bold text-slate-900" x-text="item.name"></span>
@@ -913,7 +913,7 @@
                         </div>
 
                         <!-- Itemized Breakdown (when meal has items) -->
-                        <div x-show="meal.items && meal.items.length > 0" class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
+                        <div x-show="meal.items && meal.items.length > 1" class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
                             <template x-for="item in meal.items" :key="item.name">
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-700">
                                     <span class="font-bold text-slate-900" x-text="item.name"></span>
@@ -1352,7 +1352,7 @@
                                         <div class="text-[11px] text-emerald-700 font-semibold" x-text="`${m.protein_g}g חלבון`"></div>
                                     </div>
                                 </div>
-                                <div x-show="m.items && m.items.length > 0" class="pt-1 border-t border-slate-200/50 flex flex-wrap gap-1">
+                                <div x-show="m.items && m.items.length > 1" class="pt-1 border-t border-slate-200/50 flex flex-wrap gap-1">
                                     <template x-for="it in m.items" :key="it.name">
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-[10px]">
                                             <span class="text-slate-700 font-medium" x-text="it.name"></span>
@@ -1535,6 +1535,36 @@
                         <label class="block text-xs font-bold text-slate-700 mb-1">חלבון (גרם)</label>
                         <input type="number" step="0.1" x-model.number="editForm.protein_g" min="0" max="500" required
                                class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-semibold focus:bg-white focus:border-emerald-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- If meal has multiple items, let user edit each item -->
+                <div x-show="editForm.items && editForm.items.length > 1" class="space-y-2 pt-2 border-t border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-slate-700">פירוט פריטים</label>
+                        <button type="button" @click="recalcTotalsFromItems()" class="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold cursor-pointer">
+                            🔄 סנכרן סה״כ מהפריטים
+                        </button>
+                    </div>
+                    <div class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <template x-for="(item, idx) in editForm.items" :key="idx">
+                            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5 text-xs">
+                                <input type="text" x-model="item.name" placeholder="שם הפריט"
+                                       class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium outline-none">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-slate-400 text-[11px]">קק״ל:</span>
+                                        <input type="number" x-model.number="item.calories" @input="recalcTotalsFromItems()" min="0"
+                                               class="w-full px-2 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold outline-none">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-slate-400 text-[11px]">חלבון:</span>
+                                        <input type="number" step="0.1" x-model.number="item.protein_g" @input="recalcTotalsFromItems()" min="0"
+                                               class="w-full px-2 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold outline-none">
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
@@ -3261,13 +3291,28 @@
                     this.editForm = {
                         description: meal.description,
                         calories: meal.calories,
-                        protein_g: meal.protein_g
+                        protein_g: meal.protein_g,
+                        items: (meal.items && meal.items.length > 0) ? JSON.parse(JSON.stringify(meal.items)) : []
                     };
+                },
+
+                recalcTotalsFromItems() {
+                    if (!this.editForm.items || this.editForm.items.length <= 1) return;
+                    this.editForm.calories = this.editForm.items.reduce((s, it) => s + (Number(it.calories) || 0), 0);
+                    this.editForm.protein_g = Math.round(this.editForm.items.reduce((s, it) => s + (Number(it.protein_g) || 0), 0) * 10) / 10;
                 },
 
                 async saveEditedMeal() {
                     if (!this.mealToEdit) return;
                     const id = this.mealToEdit.id;
+                    // If single item or no items, ensure items matches the updated values
+                    if (!this.editForm.items || this.editForm.items.length <= 1) {
+                        this.editForm.items = [{
+                            name: this.editForm.description,
+                            calories: Number(this.editForm.calories) || 0,
+                            protein_g: Number(this.editForm.protein_g) || 0
+                        }];
+                    }
                     try {
                         const res = await fetch(`/api/meals/${id}`, {
                             method: 'PUT',

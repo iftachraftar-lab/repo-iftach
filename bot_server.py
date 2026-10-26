@@ -163,6 +163,7 @@ class MealUpdateRequest(BaseModel):
     description: str
     calories: int = Field(ge=0, le=10000)
     protein_g: float = Field(ge=0.0, le=500.0)
+    items: Optional[List[MealItemDetail]] = None
 
 
 class FavoriteMealRequest(BaseModel):
@@ -2615,12 +2616,19 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest):
     if not desc:
         raise HTTPException(status_code=400, detail="נא להזין תיאור ארוחה")
 
+    cal = int(req.calories)
+    prot = round(float(req.protein_g), 1)
+
     if not db:
         for m in _LOCAL_MEALS:
             if m.get("id") == meal_id:
                 m["description"] = desc
-                m["calories"] = int(req.calories)
-                m["protein_g"] = round(float(req.protein_g), 1)
+                m["calories"] = cal
+                m["protein_g"] = prot
+                if req.items is not None:
+                    m["items"] = [it.model_dump() for it in req.items]
+                elif len(m.get("items") or []) <= 1:
+                    m["items"] = [{"name": desc, "calories": cal, "protein_g": prot}]
                 return m
         raise HTTPException(status_code=404, detail="Meal not found")
 
@@ -2629,18 +2637,37 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest):
         doc = doc_ref.get()
         if not doc.exists:
             raise HTTPException(status_code=404, detail="Meal not found")
-        doc_ref.update({
+
+        doc_data = doc.to_dict() or {}
+        existing_items = doc_data.get("items") or []
+
+        if req.items is not None:
+            clean_items = [it.model_dump() for it in req.items]
+        elif len(existing_items) <= 1:
+            clean_items = [{"name": desc, "calories": cal, "protein_g": prot}]
+        else:
+            old_cal = sum(int(it.get("calories", 0)) for it in existing_items) or 1
+            old_prot = sum(float(it.get("protein_g", 0)) for it in existing_items) or 1.0
+            cal_ratio = cal / old_cal
+            prot_ratio = (prot / old_prot) if old_prot > 0 else 1.0
+            clean_items = []
+            for it in existing_items:
+                clean_items.append({
+                    "name": it.get("name", ""),
+                    "calories": int(round(it.get("calories", 0) * cal_ratio)),
+                    "protein_g": round(float(it.get("protein_g", 0)) * prot_ratio, 1),
+                })
+
+        update_payload = {
             "description": desc,
-            "calories": int(req.calories),
-            "protein_g": round(float(req.protein_g), 1),
-        })
-        updated = doc.to_dict()
-        updated.update({
-            "id": meal_id,
-            "description": desc,
-            "calories": int(req.calories),
-            "protein_g": round(float(req.protein_g), 1),
-        })
+            "calories": cal,
+            "protein_g": prot,
+            "items": clean_items,
+        }
+        doc_ref.update(update_payload)
+        updated = dict(doc_data)
+        updated.update(update_payload)
+        updated["id"] = meal_id
         updated.pop("created_at", None)
         return updated
     except HTTPException:
