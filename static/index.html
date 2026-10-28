@@ -2092,6 +2092,335 @@
                 </div>
             </div>
 
+            <!-- =============================================================== -->
+            <!-- VISION AI FORENSICS, HISTOGRAM & AGENT CALIBRATION STUDIO        -->
+            <!-- =============================================================== -->
+            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-indigo-200/90 space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div class="space-y-1">
+                        <div class="inline-flex items-center gap-1.5 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <span>🔬</span> מעבדת Vision AI וכיול סוכן התמונות
+                        </div>
+                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900">ניתוח תמונות לקוחות, היסטוגרמת RGB/בהירות ואימון הסוכן</h3>
+                        <p class="text-xs text-slate-500">
+                            בדוק את הטלמטריה האופטית של כל תמונה (היסטוגרמת 16 ערוצים, חשיפה, ניגודיות, חדות ואיזון צבעים), צפה בנימוקי המודל ודייק את חוקי הסוכן בזמן אמת
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <label class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-extrabold shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                            <span x-show="!visionTestingPhoto">📸 העלה תמונה לבדיקת עומק</span>
+                            <span x-show="visionTestingPhoto">⏳ מנתח היסטוגרמה ו-AI...</span>
+                            <input type="file" accept="image/*" class="hidden" :disabled="visionTestingPhoto" @change="runAdminVisionTest($event)">
+                        </label>
+                        <button type="button"
+                                @click="fetchVisionLogs()"
+                                :disabled="visionLoading"
+                                class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                            <span x-text="visionLoading ? 'טוען...' : '🔄 רענן ניתוחים'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Agent Calibration Rules (Memory Bank) -->
+                <div class="bg-gradient-to-br from-slate-50 to-indigo-50/40 rounded-2xl p-4 border border-indigo-100 space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <h4 class="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                                <span>🧠</span> חוקי הכיול הפעילים של סוכן ה-Vision (<span x-text="(visionCalibrationRules || []).length"></span> חוקים פעילים)
+                            </h4>
+                            <p class="text-[11px] text-slate-500">חוקים אלו מוזרקים אוטומטית לפרומפט של הסוכן בכל ניתוח תמונה של לקוח באתר או בטלגרם</p>
+                        </div>
+                    </div>
+
+                    <!-- Add New General Rule Form -->
+                    <form @submit.prevent="submitNewVisionRule()" class="flex flex-col sm:flex-row gap-2">
+                        <input type="text"
+                               x-model="newVisionRuleText"
+                               placeholder="הוסף הוראת דיוק קבועה לסוכן (למשל: 'קערת פוקי בינונית מכילה 160 גרם אורז מבושל ו-100 גרם דג = כ-520 קק״ל')..."
+                               class="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs focus:border-indigo-500 outline-none">
+                        <button type="submit"
+                                :disabled="!newVisionRuleText.trim() || visionSavingRule"
+                                class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-extrabold transition cursor-pointer whitespace-nowrap">
+                            + הוסף חוק לסוכן
+                        </button>
+                    </form>
+
+                    <!-- Active Rules Chips/List -->
+                    <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        <template x-for="rule in visionCalibrationRules" :key="rule.id">
+                            <div class="flex items-start justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200/80 text-xs">
+                                <div class="space-y-0.5">
+                                    <span class="inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 ml-1.5" x-text="rule.category || 'כיול אדמין'"></span>
+                                    <span class="text-slate-800 font-medium leading-relaxed" x-text="rule.rule_text"></span>
+                                </div>
+                                <button type="button"
+                                        @click="deleteVisionRule(rule.id)"
+                                        class="text-slate-400 hover:text-rose-600 font-bold px-1.5 py-0.5 rounded-lg hover:bg-rose-50 transition flex-shrink-0"
+                                        title="מחק חוק כיול">
+                                    ✕
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Analyzed Customer & Test Photos List -->
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs sm:text-sm font-extrabold text-slate-800">
+                            📊 ניתוחי תמונות אחרונים והיסטוגרמות (<span x-text="(visionLogs || []).length"></span>)
+                        </h4>
+                        <div class="flex items-center gap-1.5 text-[11px]">
+                            <span class="text-slate-500">ערוץ היסטוגרמה:</span>
+                            <button type="button" @click="visionHistChannel = 'luma'"
+                                    class="px-2 py-0.5 rounded-lg font-bold transition cursor-pointer"
+                                    :class="visionHistChannel === 'luma' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'">☀️ בהירות (Luma)</button>
+                            <button type="button" @click="visionHistChannel = 'rgb'"
+                                    class="px-2 py-0.5 rounded-lg font-bold transition cursor-pointer"
+                                    :class="visionHistChannel === 'rgb' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'">🌈 RGB משולב</button>
+                        </div>
+                    </div>
+
+                    <template x-if="!visionLogs || visionLogs.length === 0">
+                        <div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                            <div class="text-2xl">📷</div>
+                            <div class="text-xs font-bold text-slate-700">טרם נותחו תמונות בסשן זה</div>
+                            <div class="text-[11px] text-slate-500">העלה תמונה בכפתור "📸 העלה תמונה לבדיקת עומק" למעלה או צלם ארוחה מהמסך הראשי כדי לראות את ההיסטוגרמה המלאה וניתוח ה-AI</div>
+                        </div>
+                    </template>
+
+                    <div class="space-y-4">
+                        <template x-for="vlog in visionLogs" :key="vlog.id">
+                            <div class="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 space-y-4">
+                                <!-- Top Header: Thumbnail + AI Verdict + User Info -->
+                                <div class="flex flex-col md:flex-row gap-4">
+                                    <!-- Photo Thumbnail -->
+                                    <div class="w-full md:w-44 flex-shrink-0 flex flex-col items-center gap-2">
+                                        <template x-if="vlog.forensics && vlog.forensics.thumbnail_data_url">
+                                            <img :src="vlog.forensics.thumbnail_data_url"
+                                                 alt="Meal Thumbnail"
+                                                 class="w-full h-36 object-cover rounded-2xl border border-slate-200 shadow-xs bg-white">
+                                        </template>
+                                        <div class="w-full flex items-center justify-between text-[10px] text-slate-500 px-1 font-mono" dir="ltr">
+                                            <span x-text="`${vlog.forensics?.orig_width || 0}×${vlog.forensics?.orig_height || 0}px`"></span>
+                                            <span x-text="`${vlog.forensics?.size_kb || 0} KB`"></span>
+                                            <span x-text="vlog.forensics?.format || 'JPEG'"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- AI Extraction & Reasoning Summary -->
+                                    <div class="flex-1 min-w-0 space-y-2.5">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <div class="flex flex-wrap items-center gap-1.5">
+                                                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800"
+                                                      x-text="vlog.user_name || vlog.user_id"></span>
+                                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700"
+                                                      x-text="vlog.source === 'telegram-photo' ? '📱 טלגרם' : (vlog.source === 'admin-vision-lab' ? '🔬 מעבדת אדמין' : '🌐 אפליקציית Web')"></span>
+                                                <span class="text-[11px] text-slate-400 font-mono" dir="ltr" x-text="vlog.created_at_iso"></span>
+                                                <span x-show="vlog.calibrated" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                    ✓ כויל ע״י אדמין
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-extrabold px-2.5 py-1 rounded-xl border"
+                                                      :class="(vlog.ai_analysis?.confidence_score || 85) >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
+                                                      x-text="`🎯 ביטחון מודל: ${vlog.ai_analysis?.confidence_score || 88}%`"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white rounded-xl p-3 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <div>
+                                                <div class="text-sm font-extrabold text-slate-900" x-text="vlog.ai_analysis?.summary || 'ללא תיאור'"></div>
+                                                <div x-show="vlog.caption" class="text-[11px] text-indigo-600 mt-0.5" x-text="`💬 כיתוב משתמש: ${vlog.caption}`"></div>
+                                            </div>
+                                            <div class="flex items-center gap-2 flex-shrink-0">
+                                                <span class="px-3 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-extrabold"
+                                                      x-text="`🔥 ${vlog.ai_analysis?.calories || 0} קק״ל`"></span>
+                                                <span class="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-extrabold"
+                                                      x-text="`💪 ${vlog.ai_analysis?.protein_g || 0}g חלבון`"></span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Itemized AI Breakdown -->
+                                        <div x-show="vlog.ai_analysis?.items && vlog.ai_analysis.items.length > 0" class="flex flex-wrap gap-1.5">
+                                            <template x-for="(it, idx) in (vlog.ai_analysis?.items || [])" :key="idx">
+                                                <span class="text-[11px] bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700">
+                                                    <strong x-text="it.name"></strong>:
+                                                    <span class="text-amber-700 font-bold" x-text="`${it.calories} קק״ל`"></span> •
+                                                    <span class="text-emerald-700 font-bold" x-text="`${it.protein_g}g`"></span>
+                                                </span>
+                                            </template>
+                                        </div>
+
+                                        <!-- Agent Reasoning Details -->
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                                            <div class="bg-white p-2.5 rounded-xl border border-slate-200/70">
+                                                <span class="font-extrabold text-slate-700 block mb-0.5">📏 שיטת הערכת כמות ונפח:</span>
+                                                <span class="text-slate-600" x-text="vlog.ai_analysis?.portion_estimation_method || 'לפי פרופורציות הצלחת'"></span>
+                                            </div>
+                                            <div class="bg-white p-2.5 rounded-xl border border-slate-200/70">
+                                                <span class="font-extrabold text-slate-700 block mb-0.5">👁️ סימנים חזותיים שזוהו:</span>
+                                                <span class="text-slate-600" x-text="vlog.ai_analysis?.visual_cues || 'מרקם, צבע וצפיפות'"></span>
+                                            </div>
+                                            <div class="bg-white p-2.5 rounded-xl border border-slate-200/70">
+                                                <span class="font-extrabold text-slate-700 block mb-0.5">🫒 קלוריות סמויות (שמן/רוטב):</span>
+                                                <span class="text-slate-600" x-text="vlog.ai_analysis?.hidden_calories_note || 'ללא הערות מיוחדות'"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Middle Section: Visual 16-Bin Histogram + Optical Telemetry Metrics -->
+                                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-2 border-t border-slate-200/70">
+                                    <!-- 16-Bin Histogram Bar Chart -->
+                                    <div class="lg:col-span-6 bg-slate-900 text-white rounded-2xl p-4 space-y-2.5">
+                                        <div class="flex items-center justify-between text-[11px]">
+                                            <span class="font-extrabold text-slate-200">📊 היסטוגרמת תמונה (16 תחומי עוצמה 0–255)</span>
+                                            <span class="font-mono text-slate-400" dir="ltr"
+                                                  x-text="`Luma=${vlog.forensics?.mean_brightness || 128} | Std=${vlog.forensics?.contrast_std || 48}`"></span>
+                                        </div>
+
+                                        <!-- Histogram Bars (0..15) -->
+                                        <div class="h-28 flex items-end gap-1 pt-2 px-1 border-b border-slate-700" dir="ltr">
+                                            <template x-for="(binLabel, bIdx) in (vlog.forensics?.hist_bins || [])" :key="bIdx">
+                                                <div class="flex-1 h-full flex flex-col justify-end items-center group relative">
+                                                    <!-- Luma Single Bar Mode -->
+                                                    <template x-if="visionHistChannel === 'luma'">
+                                                        <div class="w-full rounded-t bg-gradient-to-t from-amber-500 to-yellow-300 transition-all"
+                                                             :style="`height: ${Math.max(4, Math.min(100, (vlog.forensics?.hist_luma?.[bIdx] || 0) * 3.2))}%`"
+                                                             :title="`${binLabel}: ${vlog.forensics?.hist_luma?.[bIdx] || 0}%`"></div>
+                                                    </template>
+                                                    <!-- RGB 3-Bar Mode -->
+                                                    <template x-if="visionHistChannel === 'rgb'">
+                                                        <div class="w-full h-full flex items-end justify-center gap-[1px]">
+                                                            <div class="w-1/3 bg-rose-500 rounded-t"
+                                                                 :style="`height: ${Math.max(4, Math.min(100, (vlog.forensics?.hist_r?.[bIdx] || 0) * 3.2))}%`"
+                                                                 :title="`R (${binLabel}): ${vlog.forensics?.hist_r?.[bIdx] || 0}%`"></div>
+                                                            <div class="w-1/3 bg-emerald-400 rounded-t"
+                                                                 :style="`height: ${Math.max(4, Math.min(100, (vlog.forensics?.hist_g?.[bIdx] || 0) * 3.2))}%`"
+                                                                 :title="`G (${binLabel}): ${vlog.forensics?.hist_g?.[bIdx] || 0}%`"></div>
+                                                            <div class="w-1/3 bg-sky-400 rounded-t"
+                                                                 :style="`height: ${Math.max(4, Math.min(100, (vlog.forensics?.hist_b?.[bIdx] || 0) * 3.2))}%`"
+                                                                 :title="`B (${binLabel}): ${vlog.forensics?.hist_b?.[bIdx] || 0}%`"></div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono" dir="ltr">
+                                            <span>0 (צללים כהים)</span>
+                                            <span>128 (גווני ביניים)</span>
+                                            <span>255 (שיאי אור)</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Optical Forensics Grid -->
+                                    <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
+                                            <div class="text-[10px] text-slate-400 font-bold">☀️ בהירות וחשיפה</div>
+                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`${vlog.forensics?.mean_brightness || 0} / 255`"></div>
+                                            <div class="text-[10px] text-indigo-600 font-semibold" x-text="vlog.forensics?.brightness_label || ''"></div>
+                                        </div>
+                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
+                                            <div class="text-[10px] text-slate-400 font-bold">🌗 ניגודיות וטווח דינמי</div>
+                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`Std ${vlog.forensics?.contrast_std || 0} (DR ${vlog.forensics?.dynamic_range || 0})`"></div>
+                                            <div class="text-[10px] text-slate-600" x-text="vlog.forensics?.contrast_label || ''"></div>
+                                        </div>
+                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
+                                            <div class="text-[10px] text-slate-400 font-bold">🔍 חדות ופרטים</div>
+                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`${vlog.forensics?.sharpness_score || 0} / 100`"></div>
+                                            <div class="text-[10px] text-emerald-700 font-semibold" x-text="vlog.forensics?.sharpness_label || ''"></div>
+                                        </div>
+                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
+                                            <div class="text-[10px] text-slate-400 font-bold">🌡️ טמפרטורת צבע (R/B)</div>
+                                            <div class="font-extrabold text-slate-800 mt-0.5" dir="ltr" x-text="`${vlog.forensics?.warm_cool_ratio || 1.0} (${vlog.forensics?.mean_r}/${vlog.forensics?.mean_g}/${vlog.forensics?.mean_b})`"></div>
+                                            <div class="text-[10px] text-amber-700 font-semibold" x-text="vlog.forensics?.lighting_temp_label || ''"></div>
+                                        </div>
+                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
+                                            <div class="text-[10px] text-slate-400 font-bold">🥗 פרופיל צבעי מזון</div>
+                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`ירוק: ${vlog.forensics?.green_fresh_pct || 0}% | חם: ${vlog.forensics?.warm_cooked_pct || 0}%`"></div>
+                                            <div class="text-[10px] text-slate-500" x-text="`רוויה: ${vlog.forensics?.saturation_score || 0}`"></div>
+                                        </div>
+                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
+                                            <div class="text-[10px] text-slate-400 font-bold">⚡ קטימת קצוות (Clipping)</div>
+                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`צל: ${vlog.forensics?.shadow_clipping_pct || 0}% | אור: ${vlog.forensics?.highlight_clipping_pct || 0}%`"></div>
+                                            <div class="text-[10px] text-slate-500" x-text="`חציון P50: ${vlog.forensics?.p50_luma || 128}`"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Optical Warnings if any -->
+                                <div x-show="vlog.forensics?.optical_warnings && vlog.forensics.optical_warnings.length > 0"
+                                     class="bg-amber-50 border border-amber-200/80 rounded-xl px-3.5 py-2 text-[11px] text-amber-900 flex items-start gap-2">
+                                    <span>⚠️</span>
+                                    <div>
+                                        <strong>התראות חיישן אופטי:</strong>
+                                        <span x-text="(vlog.forensics?.optical_warnings || []).join(' • ')"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Bottom Action Bar: Calibrate Agent on this Photo -->
+                                <div class="pt-2 border-t border-slate-200/60 flex flex-col gap-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-[11px] text-slate-500">רוצה לדייק את הסוכן על התמונה הזו כדי שילמד להבא ויתקן את הערכים?</span>
+                                        <button type="button"
+                                                @click="openVisionCalibrateForm(vlog)"
+                                                class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold transition cursor-pointer">
+                                            🎯 דייק וכוון את הסוכן על תמונה זו
+                                        </button>
+                                    </div>
+
+                                    <!-- Inline Calibration Editor -->
+                                    <div x-show="calibratingLogId === vlog.id" x-transition class="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 space-y-3">
+                                        <div class="text-xs font-extrabold text-indigo-950">🎯 כיול סוכן ה-Vision ותיקון ערכי התמונה</div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                            <div>
+                                                <label class="block text-[11px] font-bold text-slate-700 mb-1">תיאור מנה מדויק</label>
+                                                <input type="text" x-model="calibrateForm.corrected_summary"
+                                                       class="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs outline-none focus:border-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[11px] font-bold text-slate-700 mb-1">קלוריות מדויקות (קק״ל)</label>
+                                                <input type="number" x-model.number="calibrateForm.corrected_calories"
+                                                       class="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold outline-none focus:border-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[11px] font-bold text-slate-700 mb-1">חלבון מדויק (גרם)</label>
+                                                <input type="number" step="0.5" x-model.number="calibrateForm.corrected_protein_g"
+                                                       class="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold outline-none focus:border-indigo-500">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-slate-700 mb-1">כלל לקח לסוכן (נשמר בזיכרון הסוכן לכל התמונות הבאות — אם תשאיר ריק, יופק אוטומטית מהתיקון)</label>
+                                            <input type="text" x-model="calibrateForm.rule_text"
+                                                   placeholder="למשל: בצלחת עמוקה כזו כמות הפסטה היא 200 גרם מבושל (310 קק״ל) ולא 350 גרם..."
+                                                   class="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs outline-none focus:border-indigo-500">
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <label x-show="vlog.meal_id" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                                <input type="checkbox" x-model="calibrateForm.update_customer_meal" class="rounded text-indigo-600">
+                                                <span>עדכן גם את הארוחה ביומן הלקוח (<span x-text="vlog.user_name"></span>)</span>
+                                            </label>
+                                            <div class="flex items-center gap-2 mr-auto">
+                                                <button type="button" @click="calibratingLogId = null"
+                                                        class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold cursor-pointer">
+                                                    ביטול
+                                                </button>
+                                                <button type="button" @click="submitVisionCalibration(vlog)"
+                                                        :disabled="visionSavingRule"
+                                                        class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-xs cursor-pointer">
+                                                    💾 שמור תיקון ולמד את הסוכן
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
             <!-- System & Google OAuth Settings Card (Admin Only) -->
             <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
                 <div>
@@ -3272,6 +3601,21 @@
 
                 showAutocomplete: false,
                 showManualAutocomplete: false,
+                visionLogs: [],
+                visionCalibrationRules: [],
+                visionLoading: false,
+                visionTestingPhoto: false,
+                visionSavingRule: false,
+                visionHistChannel: 'rgb',
+                newVisionRuleText: '',
+                calibratingLogId: null,
+                calibrateForm: {
+                    corrected_summary: '',
+                    corrected_calories: 0,
+                    corrected_protein_g: 0,
+                    rule_text: '',
+                    update_customer_meal: true
+                },
                 israeliFoodCatalog: [
                     // גבינות ומוצרי חלב
                     { icon: '🧀', label: "קוטג' 3% (תנובה) - כף גדושה (30ג')", calories: 24, protein_g: 3.3, category: 'חלבי' },
@@ -4315,6 +4659,7 @@
                         this.fetchWeight();
                     } else if (tab === 'admin') {
                         this.fetchAdminUsers();
+                        this.fetchVisionLogs();
                     } else if (tab === 'recipes' && (!this.woltDishes || !this.woltDishes.length)) {
                         this.fetchWoltDishes();
                     }
@@ -4334,6 +4679,135 @@
                         this.showToast(e.message || 'שגיאה בטעינת נתוני אדמין', 'error');
                     } finally {
                         this.adminLoading = false;
+                    }
+                },
+
+                async fetchVisionLogs() {
+                    if (!this.currentUser || !this.currentUser.is_admin) return;
+                    this.visionLoading = true;
+                    try {
+                        const res = await fetch('/api/admin/vision-logs?limit=25');
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        this.visionLogs = data.logs || [];
+                        this.visionCalibrationRules = data.calibration_rules || [];
+                    } catch (e) {
+                        console.error('fetchVisionLogs error:', e);
+                    } finally {
+                        this.visionLoading = false;
+                    }
+                },
+
+                async runAdminVisionTest(event) {
+                    const file = event.target?.files?.[0];
+                    if (event.target) event.target.value = '';
+                    if (!file) return;
+                    this.visionTestingPhoto = true;
+                    try {
+                        const compressed = await compressImageFile(file, 1280, 0.85);
+                        const res = await fetch('/api/admin/vision-analyze-test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                image_base64: compressed.dataUrl,
+                                mime_type: compressed.mimeType || 'image/jpeg',
+                                caption: ''
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            throw new Error(data.detail || 'שגיאה בניתוח תמונת הבדיקה');
+                        }
+                        this.visionLogs = [data, ...(this.visionLogs || []).filter(x => x.id !== data.id)];
+                        this.showToast(`🔬 הניתוח הושלם: ${data.ai_analysis?.summary || 'תמונה נותחה'} (ביטחון: ${data.ai_analysis?.confidence_score || 88}%)`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בניתוח תמונה במעבדה', 'error');
+                    } finally {
+                        this.visionTestingPhoto = false;
+                    }
+                },
+
+                async submitNewVisionRule() {
+                    const txt = (this.newVisionRuleText || '').trim();
+                    if (!txt) return;
+                    this.visionSavingRule = true;
+                    try {
+                        const res = await fetch('/api/admin/vision-calibrate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                rule_text: txt,
+                                update_customer_meal: false
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.detail || 'שגיאה בשמירת חוק הכיול');
+                        this.newVisionRuleText = '';
+                        await this.fetchVisionLogs();
+                        this.showToast('🧠 חוק הכיול נשמר ויוזרק אוטומטית לכל ניתוחי התמונות הבאים!');
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בשמירת חוק הכיול', 'error');
+                    } finally {
+                        this.visionSavingRule = false;
+                    }
+                },
+
+                async deleteVisionRule(ruleId) {
+                    if (!ruleId) return;
+                    try {
+                        const res = await fetch(`/api/admin/vision-calibrate/${encodeURIComponent(ruleId)}`, {
+                            method: 'DELETE'
+                        });
+                        if (!res.ok) throw new Error('שגיאה במחיקת החוק');
+                        this.visionCalibrationRules = (this.visionCalibrationRules || []).filter(r => r.id !== ruleId);
+                        this.showToast('🗑️ חוק הכיול הוסר מהסוכן');
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה במחיקת החוק', 'error');
+                    }
+                },
+
+                openVisionCalibrateForm(vlog) {
+                    if (this.calibratingLogId === vlog.id) {
+                        this.calibratingLogId = null;
+                        return;
+                    }
+                    this.calibratingLogId = vlog.id;
+                    this.calibrateForm = {
+                        corrected_summary: vlog.ai_analysis?.summary || '',
+                        corrected_calories: vlog.ai_analysis?.calories || 0,
+                        corrected_protein_g: vlog.ai_analysis?.protein_g || 0,
+                        rule_text: '',
+                        update_customer_meal: Boolean(vlog.meal_id)
+                    };
+                },
+
+                async submitVisionCalibration(vlog) {
+                    if (!vlog) return;
+                    this.visionSavingRule = true;
+                    try {
+                        const res = await fetch('/api/admin/vision-calibrate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                log_id: vlog.id,
+                                meal_id: vlog.meal_id || '',
+                                target_user_id: vlog.user_id || '',
+                                corrected_summary: this.calibrateForm.corrected_summary,
+                                corrected_calories: Number(this.calibrateForm.corrected_calories) || 0,
+                                corrected_protein_g: Number(this.calibrateForm.corrected_protein_g) || 0,
+                                rule_text: this.calibrateForm.rule_text || '',
+                                update_customer_meal: Boolean(this.calibrateForm.update_customer_meal)
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.detail || 'שגיאה בכיול הסוכן');
+                        this.calibratingLogId = null;
+                        await Promise.all([this.fetchVisionLogs(), this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast('🎯 הסוכן כויל בהצלחה והערכים עודכנו!');
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בשמירת הכיול', 'error');
+                    } finally {
+                        this.visionSavingRule = false;
                     }
                 },
 

@@ -89,6 +89,11 @@ class NutritionExtraction(BaseModel):
     protein_g: float = Field(description="הערכת חלבון כוללת בגרמים")
     summary: str = Field(description="תיאור תמציתי וברור של המנה בעברית")
     items: List[MealItemDetail] = Field(default_factory=list, description="פירוט של כל פריט בארוחה עם הקלוריות והחלבון הנפרדים שלו")
+    confidence_score: int = Field(default=88, description="ציון ביטחון של המודל בזיהוי המנה והכמויות בין 0 ל-100")
+    portion_estimation_method: str = Field(default="", description="כיצד הוערך נפח/משקל המנה (למשל יחס לגודל צלחת סטנדרטית, כלי הגשה, סכו״ם, עומק קערה או משקל יחידה)")
+    visual_cues: str = Field(default="", description="סימנים חזותיים שזוהו בתמונה: מרקם, ברק שמן/רוטב, השחמה, צפיפות מרכיבים וזווית צילום")
+    hidden_calories_note: str = Field(default="", description="הערכת קלוריות סמויות שנלקחו בחשבון (כגון שמן בישול/טיגון, טחינה, רוטב או חמאה)")
+    applied_calibration_rules: List[str] = Field(default_factory=list, description="אילו חוקי כיול של האדמין הופעלו בניתוח תמונה זו")
 
 
 class WorkoutItem(BaseModel):
@@ -331,6 +336,45 @@ class AdminUpdateUserStatusRequest(BaseModel):
     daily_ai_limit: Optional[int] = Field(default=None, ge=0, le=1000)
 
 
+class VisionTestAnalyzeRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/jpeg"
+    caption: Optional[str] = ""
+
+
+class VisionCalibrateRequest(BaseModel):
+    log_id: Optional[str] = ""
+    meal_id: Optional[str] = ""
+    target_user_id: Optional[str] = ""
+    rule_text: Optional[str] = ""
+    corrected_summary: Optional[str] = ""
+    corrected_calories: Optional[int] = None
+    corrected_protein_g: Optional[float] = None
+    update_customer_meal: bool = True
+
+
+DEFAULT_VISION_CALIBRATION_RULES = [
+    {
+        "id": "rule-plate-scale",
+        "rule_text": "צלחת מנה עיקרית ישראלית סטנדרטית היא בקוטר 26-28 ס״מ: ערימת אורז/פחמימה שמכסה שליש צלחת שטוחה שווה לכ-150-180 גרם מבושל (כ-200-240 קק״ל), ולא 350 גרם.",
+        "category": "גודל מנה וצלחות",
+        "created_by": "system",
+    },
+    {
+        "id": "rule-hidden-oil-tahini",
+        "rule_text": "ברק חזק על ירקות קלויים/מוקפצים או שניצל מטוגן מעיד על ספיגת שמן: הוסף 60-110 קק״ל לשמן בישול/טיגון. זילוף טחינה מעל מנה שווה לכ-70-100 קק״ל לכף.",
+        "category": "שמן ורטבים סמויים",
+        "created_by": "system",
+    },
+    {
+        "id": "rule-israeli-packaging",
+        "rule_text": "במוצרי חלב ישראליים באריזה (גביע קוטג׳ תנובה/טרה = 250 גרם קופסה שלמה, יוגורט PRO = 150-200 גרם): אם מצולם גביע פתוח ליד צלחת ללא הערה אחרת, הערך לפי הכמות שנלקחה לצלחת או חצי גביע (125 גרם) אלא אם הגביע נאכל כולו.",
+        "category": "אריזות ומוצרים ישראליים",
+        "created_by": "system",
+    },
+]
+
+
 # ---------------------------------------------------------------------------
 # Multi-User & Auth Helpers
 # ---------------------------------------------------------------------------
@@ -354,6 +398,8 @@ _LOCAL_PUSH_SUBS: List[dict] = []
 _LOCAL_USERS: dict = {}
 _LOCAL_TG_LINKS: dict = {}
 _LOCAL_AUTH_CONFIG: dict = {"google_client_id": ENV_GOOGLE_CLIENT_ID, "primary_user_id": "default"}
+_LOCAL_VISION_RULES: List[dict] = [dict(r) for r in DEFAULT_VISION_CALIBRATION_RULES]
+_LOCAL_VISION_LOGS: List[dict] = []
 
 
 def _normalize_user_id(raw_uid: Optional[str]) -> str:
@@ -1515,22 +1561,339 @@ def analyze_workout_image(image_bytes: bytes, mime_type: str = "image/jpeg", cap
     return WorkoutExtraction(workouts=[], total_burned_calories=0, summary=f"API_ERROR: {last_err}", is_workout=False)
 
 
-def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "") -> NutritionExtraction:
+def get_vision_calibration_rules_db() -> List[dict]:
+    if not db:
+        return list(_LOCAL_VISION_RULES)
+    try:
+        docs = db.collection("vision_calibration_rules").limit(100).stream()
+        rules = []
+        for doc in docs:
+            d = doc.to_dict() or {}
+            d["id"] = doc.id
+            if d.get("rule_text"):
+                rules.append(d)
+        if not rules:
+            for r in DEFAULT_VISION_CALIBRATION_RULES:
+                db.collection("vision_calibration_rules").document(r["id"]).set({
+                    **r,
+                    "created_at": firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+            return list(DEFAULT_VISION_CALIBRATION_RULES)
+        rules.sort(key=lambda x: str(x.get("created_at_iso") or ""), reverse=True)
+        return rules
+    except Exception as e:
+        print(f"ERROR get_vision_calibration_rules_db: {e}")
+        return list(_LOCAL_VISION_RULES)
+
+
+def add_vision_calibration_rule_db(rule_text: str, category: str = "כיול אדמין", created_by: str = "admin") -> dict:
+    clean_text = (rule_text or "").strip()
+    if not clean_text:
+        raise ValueError("נא להזין כלל כיול לסוכן")
+    now_iso = datetime.now().strftime("%Y-%m-%d %H:%M")
+    rule_id = f"rule-{int(datetime.now().timestamp() * 1000)}"
+    entry = {
+        "id": rule_id,
+        "rule_text": clean_text,
+        "category": category or "כיול אדמין",
+        "created_by": created_by,
+        "created_at_iso": now_iso,
+    }
+    if not db:
+        _LOCAL_VISION_RULES.insert(0, entry)
+        return entry
+    try:
+        db.collection("vision_calibration_rules").document(rule_id).set({
+            **entry,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        })
+    except Exception as e:
+        print(f"ERROR add_vision_calibration_rule_db: {e}")
+    return entry
+
+
+def delete_vision_calibration_rule_db(rule_id: str) -> bool:
+    global _LOCAL_VISION_RULES
+    before = len(_LOCAL_VISION_RULES)
+    _LOCAL_VISION_RULES = [r for r in _LOCAL_VISION_RULES if r.get("id") != rule_id]
+    if not db:
+        return len(_LOCAL_VISION_RULES) < before
+    try:
+        db.collection("vision_calibration_rules").document(rule_id).delete()
+        return True
+    except Exception as e:
+        print(f"ERROR delete_vision_calibration_rule_db: {e}")
+        return False
+
+
+def compute_image_forensics_and_histogram(image_bytes: bytes) -> dict:
+    """Computes RGB & Luminance 16-bin histograms, exposure, contrast, sharpness, color balance, and a compact thumbnail."""
+    size_kb = round(len(image_bytes) / 1024.0, 1)
+    fallback = {
+        "size_kb": size_kb,
+        "orig_width": 0,
+        "orig_height": 0,
+        "aspect_ratio": "1:1",
+        "format": "JPEG",
+        "mean_brightness": 128.0,
+        "brightness_label": "תאורה מאוזנת",
+        "contrast_std": 48.0,
+        "contrast_label": "ניגודיות תקינה",
+        "dynamic_range": 140,
+        "p10_luma": 45,
+        "p50_luma": 128,
+        "p90_luma": 195,
+        "shadow_clipping_pct": 1.2,
+        "highlight_clipping_pct": 0.8,
+        "mean_r": 135.0,
+        "mean_g": 125.0,
+        "mean_b": 110.0,
+        "warm_cool_ratio": 1.22,
+        "lighting_temp_label": "תאורה חמה / פנים",
+        "saturation_score": 42.0,
+        "green_fresh_pct": 8.0,
+        "warm_cooked_pct": 34.0,
+        "sharpness_score": 68,
+        "sharpness_label": "חד וברור",
+        "hist_bins": [f"{i*16}-{i*16+15}" for i in range(16)],
+        "hist_r": [6.25] * 16,
+        "hist_g": [6.25] * 16,
+        "hist_b": [6.25] * 16,
+        "hist_luma": [6.25] * 16,
+        "thumbnail_data_url": "",
+        "optical_warnings": [],
+    }
+    if Image is None or not image_bytes:
+        return fallback
+
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as raw_img:
+            img_format = raw_img.format or "JPEG"
+            if ImageOps is not None:
+                img = ImageOps.exif_transpose(raw_img)
+            else:
+                img = raw_img
+            orig_w, orig_h = img.size
+            rgb = img.convert("RGB")
+            luma = rgb.convert("L")
+
+            # 256-bin histograms
+            rgb_hist_256 = rgb.histogram()
+            r_256 = rgb_hist_256[0:256]
+            g_256 = rgb_hist_256[256:512]
+            b_256 = rgb_hist_256[512:768]
+            l_256 = luma.histogram()[0:256]
+
+            total_px = max(1, sum(l_256))
+
+            def _to_16_bins(h256: list) -> List[float]:
+                bins16 = []
+                for bi in range(16):
+                    chunk = sum(h256[bi * 16 : (bi + 1) * 16])
+                    bins16.append(round((chunk * 100.0) / total_px, 2))
+                return bins16
+
+            hist_r = _to_16_bins(r_256)
+            hist_g = _to_16_bins(g_256)
+            hist_b = _to_16_bins(b_256)
+            hist_luma = _to_16_bins(l_256)
+
+            mean_r = round(sum(i * c for i, c in enumerate(r_256)) / total_px, 1)
+            mean_g = round(sum(i * c for i, c in enumerate(g_256)) / total_px, 1)
+            mean_b = round(sum(i * c for i, c in enumerate(b_256)) / total_px, 1)
+            mean_l = round(sum(i * c for i, c in enumerate(l_256)) / total_px, 1)
+
+            variance_l = sum(((i - mean_l) ** 2) * c for i, c in enumerate(l_256)) / total_px
+            contrast_std = round(variance_l ** 0.5, 1)
+
+            def _percentile(h256: list, pct: float) -> int:
+                target = total_px * pct
+                acc = 0
+                for val, count in enumerate(h256):
+                    acc += count
+                    if acc >= target:
+                        return val
+                return 255
+
+            p10 = _percentile(l_256, 0.10)
+            p50 = _percentile(l_256, 0.50)
+            p90 = _percentile(l_256, 0.90)
+            dyn_range = max(0, p90 - p10)
+
+            shadow_clip_pct = round((sum(l_256[:16]) * 100.0) / total_px, 1)
+            highlight_clip_pct = round((sum(l_256[240:]) * 100.0) / total_px, 1)
+
+            # Fast 64x64 grid analysis for sharpness, saturation, and food color cues
+            small_rgb = rgb.resize((64, 64))
+            small_l = luma.resize((64, 64))
+            px_rgb = list(small_rgb.getdata())
+            px_l = list(small_l.getdata())
+
+            sat_sum = 0
+            green_cnt = 0
+            warm_cooked_cnt = 0
+            for r_v, g_v, b_v in px_rgb:
+                sat_sum += (max(r_v, g_v, b_v) - min(r_v, g_v, b_v))
+                if g_v > r_v + 10 and g_v > b_v + 12 and g_v > 45:
+                    green_cnt += 1
+                if r_v > g_v > b_v and r_v > 85 and (r_v - b_v) > 25:
+                    warm_cooked_cnt += 1
+
+            n_small = max(1, len(px_rgb))
+            saturation_score = round(sat_sum / n_small, 1)
+            green_fresh_pct = round((green_cnt * 100.0) / n_small, 1)
+            warm_cooked_pct = round((warm_cooked_cnt * 100.0) / n_small, 1)
+
+            grad_sum = 0
+            grad_cnt = 0
+            for y in range(63):
+                row_off = y * 64
+                for x in range(63):
+                    idx = row_off + x
+                    c_val = px_l[idx]
+                    grad_sum += abs(c_val - px_l[idx + 1]) + abs(c_val - px_l[idx + 64])
+                    grad_cnt += 2
+            avg_grad = grad_sum / max(1, grad_cnt)
+            sharpness_score = int(min(100, max(5, round(avg_grad * 3.6))))
+
+            warm_cool_ratio = round((mean_r + 1.0) / (mean_b + 1.0), 2)
+
+            warnings = []
+            if mean_l < 75 or shadow_clip_pct > 22:
+                brightness_label = "כהה / תת-חשיפה"
+                warnings.append("התמונה כהה יחסית (תת-חשיפה) — ייתכן שרטבים כהים או עומק הצלחת מוסתרים בצללים.")
+            elif mean_l > 195 or highlight_clip_pct > 18:
+                brightness_label = "בהירה מאוד / חשיפת יתר"
+                warnings.append("חשיפת יתר באזורים בהירים (סינוור/פלאש) — עלול לטשטש מרקם של אורז, גבינות או ברק שמן.")
+            else:
+                brightness_label = "תאורה מאוזנת וטובה"
+
+            if contrast_std < 32:
+                contrast_label = "ניגודיות נמוכה (שטוחה)"
+                warnings.append("ניגודיות נמוכה — הפרדה חלשה בין מרכיבים בעלי צבע דומה.")
+            elif contrast_std > 72:
+                contrast_label = "ניגודיות גבוהה (צללים חדים)"
+            else:
+                contrast_label = "ניגודיות מיטבית"
+
+            if sharpness_score < 32:
+                sharpness_label = "מטושטשת / תנועה"
+                warnings.append("חדות נמוכה (טשטוש) — קשה יותר להעריך מרקם מדויק או כיתוב קטן על אריזה.")
+            elif sharpness_score < 55:
+                sharpness_label = "חדות בינונית"
+            else:
+                sharpness_label = "חדה וברורה"
+
+            if warm_cool_ratio > 1.32:
+                lighting_temp_label = "תאורה צהובה/חמה מאוד (פנים)"
+                warnings.append("תאורת חדר חמה/צהובה (יחס R/B גבוה) — עלולה לגרום למזון מאודה/אפוי להיראות מטוגן או שומני יותר.")
+            elif warm_cool_ratio < 0.92:
+                lighting_temp_label = "תאורה קרה / פלורסנט"
+            else:
+                lighting_temp_label = "איזון לבן טבעי (Daylight)"
+
+            # Compact thumbnail for Admin Vision Lab
+            thumb = rgb.copy()
+            thumb.thumbnail((220, 220))
+            t_out = io.BytesIO()
+            thumb.save(t_out, format="JPEG", quality=68, optimize=True)
+            thumb_b64 = base64.b64encode(t_out.getvalue()).decode("ascii")
+            thumb_data_url = f"data:image/jpeg;base64,{thumb_b64}"
+
+            return {
+                "size_kb": size_kb,
+                "orig_width": orig_w,
+                "orig_height": orig_h,
+                "aspect_ratio": f"{round(orig_w / max(1, orig_h), 2)}:1",
+                "format": img_format,
+                "mean_brightness": mean_l,
+                "brightness_label": brightness_label,
+                "contrast_std": contrast_std,
+                "contrast_label": contrast_label,
+                "dynamic_range": dyn_range,
+                "p10_luma": p10,
+                "p50_luma": p50,
+                "p90_luma": p90,
+                "shadow_clipping_pct": shadow_clip_pct,
+                "highlight_clipping_pct": highlight_clip_pct,
+                "mean_r": mean_r,
+                "mean_g": mean_g,
+                "mean_b": mean_b,
+                "warm_cool_ratio": warm_cool_ratio,
+                "lighting_temp_label": lighting_temp_label,
+                "saturation_score": saturation_score,
+                "green_fresh_pct": green_fresh_pct,
+                "warm_cooked_pct": warm_cooked_pct,
+                "sharpness_score": sharpness_score,
+                "sharpness_label": sharpness_label,
+                "hist_bins": [f"{i*16}-{i*16+15}" for i in range(16)],
+                "hist_r": hist_r,
+                "hist_g": hist_g,
+                "hist_b": hist_b,
+                "hist_luma": hist_luma,
+                "thumbnail_data_url": thumb_data_url,
+                "optical_warnings": warnings,
+            }
+    except Exception as e:
+        print(f"WARN compute_image_forensics_and_histogram: {e}")
+        return fallback
+
+
+def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "", forensics: Optional[dict] = None) -> NutritionExtraction:
     if not ai_client:
         label = caption.strip() if caption and caption.strip() else "ארוחה מצולמת (ניתוח תמונה)"
-        return NutritionExtraction(is_meal=True, calories=420, protein_g=32.0, summary=label)
+        return NutritionExtraction(
+            is_meal=True,
+            calories=420,
+            protein_g=32.0,
+            summary=label,
+            confidence_score=85,
+            portion_estimation_method="הערכת ברירת מחדל (ללא חיבור AI)",
+            visual_cues="מצב הדגמה מקומי",
+            hidden_calories_note="ללא",
+            applied_calibration_rules=[],
+        )
 
     norm_bytes, clean_mime = _normalize_image_bytes(image_bytes, mime_type)
+    if forensics is None:
+        forensics = compute_image_forensics_and_histogram(image_bytes)
+
+    active_rules = get_vision_calibration_rules_db()
+    rules_block = ""
+    if active_rules:
+        rules_lines = "\n".join(f"  - [{r.get('category', 'כיול')}]: {r.get('rule_text', '')}" for r in active_rules[:25])
+        rules_block = f"\n\n🎯 חוקי כיול ודיוק מחייבים של סוכן ה-Vision (הוגדרו ע״י מנהל המערכת — חובה ליישם במידת הרלוונטיות):\n{rules_lines}"
+
+    optical_context = (
+        f"\n\n📊 טלמטריה אופטית והיסטוגרמת התמונה (מחושב ע״י חיישן התמונה לפני הניתוח):\n"
+        f"- רזולוציה מקורית: {forensics.get('orig_width')}x{forensics.get('orig_height')} פיקסלים\n"
+        f"- בהירות ממוצעת (Luminance): {forensics.get('mean_brightness')}/255 ({forensics.get('brightness_label')}), חציון: {forensics.get('p50_luma')}\n"
+        f"- ניגודיות (StdDev): {forensics.get('contrast_std')} ({forensics.get('contrast_label')}), טווח דינמי P10-P90: {forensics.get('dynamic_range')}\n"
+        f"- קטימת צללים כהים: {forensics.get('shadow_clipping_pct')}%, קטימת שיאי אור ( פלאש/סינוור): {forensics.get('highlight_clipping_pct')}%\n"
+        f"- איזון צבעים ממוצע: R={forensics.get('mean_r')}, G={forensics.get('mean_g')}, B={forensics.get('mean_b')} | יחס חם/קר (R/B): {forensics.get('warm_cool_ratio')} ({forensics.get('lighting_temp_label')})\n"
+        f"- חדות פרטים (Edge Sharpness): {forensics.get('sharpness_score')}/100 ({forensics.get('sharpness_label')})\n"
+        f"- דומיננטיות ירוקים/טריים: {forensics.get('green_fresh_pct')}%, גוונים חמים/מבושלים/שחומים: {forensics.get('warm_cooked_pct')}%"
+    )
+    if forensics.get("optical_warnings"):
+        optical_context += "\n- דגשים אופטיים למודל: " + " | ".join(forensics["optical_warnings"])
 
     caption_note = f"\nהערת המשתמש לתמונה: '{caption.strip()}'." if caption and caption.strip() else ""
-    prompt = f"""נתח את התמונה המצורפת עבור מעקב תזונה ישראלי.{caption_note}
+    prompt = f"""אתה סוכן Vision AI מומחה לניתוח תמונות מזון, שקילת נפחים חזותית וזיהוי ערכים תזונתיים בישראל.{caption_note}{optical_context}{rules_block}
+
 התמונה יכולה להיות:
-1. צילום של מנה / צלחת אוכל / משקה / קפה / חטיף / פרי / כריך / סלט / מרק / קינוח — זהה את המרכיבים, הערך את גודל המנה בצורה מציאותית, וחשב סך קלוריות וחלבון בגרמים.
-2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד / תפריט / צילום מסך של מתכון או מוצר — קרא את הערכים התזונתיים או שם המוצר וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה (או לפי הערת המשתמש אם צוינה כמות).
-חשוב מאוד: המשתמש העלה תמונה זו במיוחד כדי לתעד ארוחה או שתייה! אם יש בתמונה כל דבר שקשור לאוכל, שתייה, אריזת מזון, כוס, צלחת, קערה, פרי, ירק, או טבלת ערכים תזונתיים — סמן תמיד is_meal=True ותן הערכה מציאותית!
-החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף עם אורז וסלט ירקות" או "יוגורט חלבון PRO תנובה 200 ג'").
-ברשימת items, פרט כל פריט או רכיב בנפרד עם השם שלו (name), כמות הקלוריות שלו (calories) וגרם החלבון שלו (protein_g).
-רק אם התמונה אינה קשורה בשום צורה לאוכל או שתייה, סמן is_meal=False."""
+1. צילום של מנה / צלחת אוכל / משקה / קפה / חטיף / פרי / כריך / סלט / מרק / קינוח — זהה את כל המרכיבים, הערך את גודל המנה בצורה מציאותית לפי קנה מידה חזותי (קוטר צלחת, סכו"ם, כוס, עומק קערה), התחשב בטלמטריה האופטית (למשל אל תבלבל בין תאורת חדר צהובה לבין טיגון עמוק), וחשב סך קלוריות וחלבון בגרמים.
+2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד / תפריט — קרא במדויק את הערכים התזונתיים או שם המוצר הישראלי וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה.
+
+חשוב מאוד:
+- אם יש בתמונה כל דבר שקשור לאוכל, שתייה, אריזת מזון, כוס, צלחת, קערה, פרי, ירק, או טבלת ערכים תזונתיים — סמן תמיד is_meal=True!
+- החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף 180 ג' עם אורז לבן וסלט קצוץ").
+- ברשימת items, פרט כל פריט או רכיב בנפרד (כולל שמן/רוטב משמעותי אם זוהה) עם השם שלו (name, כולל משקל משוער בגרמים/כפות), כמות הקלוריות שלו (calories) וגרם החלבון שלו (protein_g).
+- מלא את שדות הבקרה של הסוכן:
+  * confidence_score: ציון ביטחון (0-100) בזיהוי המנה והכמויות.
+  * portion_estimation_method: הסבר קצר בעברית איך הערכת את המשקל/נפח (למשל: "לפי צלחת מנה עיקרית 26 ס״מ וגובה ערימת האורז").
+  * visual_cues: סימנים חזותיים שזיהית בתמונה (ברק שמן, סימני צריבה על הגריל, מרקם, צפיפות, תאורה).
+  * hidden_calories_note: אילו קלוריות סמויות הוספת לחישוב (שמן בישול, טחינה, רוטב, חמאה) או "ללא קלוריות סמויות".
+  * applied_calibration_rules: רשימה קצרה של חוקי הכיול שהפעלת בתמונה זו (אם רלוונטי)."""
 
     last_err = None
     for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
@@ -1544,6 +1907,7 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=NutritionExtraction,
+                    temperature=0.15,
                 ),
             )
             return NutritionExtraction.model_validate_json(response.text)
@@ -1552,6 +1916,186 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
             print(f"ERROR analyze_meal_image ({model_name}): {type(e).__name__} - {e}")
 
     return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {type(last_err).__name__}: {last_err}")
+
+
+def save_vision_analysis_log_db(
+    user_id: str,
+    extraction: NutritionExtraction,
+    forensics: dict,
+    source: str = "web-photo",
+    caption: str = "",
+    meal_id: str = "",
+) -> dict:
+    uid = _normalize_user_id(user_id)
+    user_prof = get_user_profile_db(uid) or {}
+    now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_id = f"vlog-{int(datetime.now().timestamp() * 1000)}"
+    items_list = [it.model_dump() for it in (extraction.items or [])]
+    record = {
+        "id": log_id,
+        "user_id": uid,
+        "user_name": user_prof.get("name") or uid,
+        "user_email": user_prof.get("email") or "",
+        "source": source,
+        "meal_id": meal_id or "",
+        "caption": caption or "",
+        "created_at_iso": now_iso,
+        "forensics": forensics,
+        "ai_analysis": {
+            "is_meal": extraction.is_meal,
+            "summary": extraction.summary,
+            "calories": int(extraction.calories),
+            "protein_g": round(float(extraction.protein_g), 1),
+            "items": items_list,
+            "confidence_score": int(getattr(extraction, "confidence_score", 88) or 88),
+            "portion_estimation_method": getattr(extraction, "portion_estimation_method", "") or "הערכה חזותית לפי פרופורציות הצלחת והמרכיבים",
+            "visual_cues": getattr(extraction, "visual_cues", "") or "זיהוי צבעים, מרקם ונפח המנה",
+            "hidden_calories_note": getattr(extraction, "hidden_calories_note", "") or "ללא הערות מיוחדות",
+            "applied_calibration_rules": list(getattr(extraction, "applied_calibration_rules", []) or []),
+        },
+        "calibrated": False,
+        "admin_rule_added": "",
+        "corrected_calories": None,
+        "corrected_protein_g": None,
+    }
+    _LOCAL_VISION_LOGS.insert(0, record)
+    if len(_LOCAL_VISION_LOGS) > 60:
+        del _LOCAL_VISION_LOGS[60:]
+    if db:
+        try:
+            db.collection("vision_analysis_logs").document(log_id).set({
+                **record,
+                "created_at": firestore.SERVER_TIMESTAMP,
+            })
+        except Exception as e:
+            print(f"ERROR save_vision_analysis_log_db: {e}")
+    return record
+
+
+def get_vision_analysis_logs_db(limit: int = 25) -> dict:
+    rules = get_vision_calibration_rules_db()
+    logs = []
+    if db:
+        try:
+            docs = db.collection("vision_analysis_logs").order_by("created_at", direction=firestore.Query.DESCENDING).limit(limit).stream()
+            for doc in docs:
+                d = doc.to_dict() or {}
+                d["id"] = doc.id
+                d.pop("created_at", None)
+                logs.append(d)
+        except Exception as e:
+            print(f"ERROR get_vision_analysis_logs_db: {e}")
+            logs = list(_LOCAL_VISION_LOGS[:limit])
+    else:
+        logs = list(_LOCAL_VISION_LOGS[:limit])
+
+    return {
+        "logs": logs,
+        "calibration_rules": rules,
+    }
+
+
+def calibrate_vision_log_db(req: VisionCalibrateRequest) -> dict:
+    rule_saved = None
+    custom_rule = (req.rule_text or "").strip()
+
+    # Fetch log if log_id given
+    target_log = None
+    if req.log_id:
+        for lg in _LOCAL_VISION_LOGS:
+            if lg.get("id") == req.log_id:
+                target_log = lg
+                break
+        if not target_log and db:
+            try:
+                snap = db.collection("vision_analysis_logs").document(req.log_id).get()
+                if snap.exists:
+                    target_log = snap.to_dict() or {}
+                    target_log["id"] = snap.id
+            except Exception as e:
+                print(f"WARN fetch vision log: {e}")
+
+    # Auto-synthesize a calibration rule if the admin corrected calories/protein/summary without writing a full rule
+    if not custom_rule and target_log and (req.corrected_calories is not None or req.corrected_protein_g is not None or req.corrected_summary):
+        orig_ai = target_log.get("ai_analysis") or {}
+        orig_sum = orig_ai.get("summary", "מנה מצולמת")
+        orig_cal = orig_ai.get("calories", 0)
+        orig_prot = orig_ai.get("protein_g", 0)
+        new_sum = (req.corrected_summary or orig_sum).strip()
+        new_cal = req.corrected_calories if req.corrected_calories is not None else orig_cal
+        new_prot = req.corrected_protein_g if req.corrected_protein_g is not None else orig_prot
+        custom_rule = (
+            f"בזיהוי מנה מסוג '{new_sum}' (שזוהתה תחילה כ-'{orig_sum}' עם {orig_cal} קק״ל ו-{orig_prot}g חלבון): "
+            f"יש לדייק את ההערכה ל-{new_cal} קק״ל ו-{new_prot}g חלבון עבור גודל מנה דומה."
+        )
+
+    if custom_rule:
+        rule_saved = add_vision_calibration_rule_db(rule_text=custom_rule, category="כיול אדמין מתמונה", created_by="admin")
+
+    meal_updated = False
+    meal_id = (req.meal_id or (target_log.get("meal_id") if target_log else "") or "").strip()
+    target_uid = (req.target_user_id or (target_log.get("user_id") if target_log else "") or "").strip()
+
+    if req.update_customer_meal and meal_id and (req.corrected_calories is not None or req.corrected_protein_g is not None or req.corrected_summary):
+        orig_ai = (target_log.get("ai_analysis") if target_log else {}) or {}
+        final_desc = (req.corrected_summary or orig_ai.get("summary") or "ארוחה מצולמת (מכוילת)").strip()
+        final_cal = int(req.corrected_calories if req.corrected_calories is not None else orig_ai.get("calories", 0))
+        final_prot = round(float(req.corrected_protein_g if req.corrected_protein_g is not None else orig_ai.get("protein_g", 0.0)), 1)
+        if db:
+            try:
+                m_ref = db.collection("meals").document(meal_id)
+                m_snap = m_ref.get()
+                if m_snap.exists:
+                    m_ref.set({
+                        "description": final_desc,
+                        "calories": final_cal,
+                        "protein_g": final_prot,
+                        "calibrated_by_admin": True,
+                    }, merge=True)
+                    meal_updated = True
+            except Exception as e:
+                print(f"ERROR updating meal from vision calibration: {e}")
+        for m in _LOCAL_MEALS:
+            if m.get("id") == meal_id:
+                m["description"] = final_desc
+                m["calories"] = final_cal
+                m["protein_g"] = final_prot
+                meal_updated = True
+
+    if req.log_id:
+        updates = {
+            "calibrated": True,
+            "admin_rule_added": custom_rule,
+        }
+        if req.corrected_calories is not None:
+            updates["corrected_calories"] = int(req.corrected_calories)
+        if req.corrected_protein_g is not None:
+            updates["corrected_protein_g"] = round(float(req.corrected_protein_g), 1)
+        if req.corrected_summary:
+            updates["corrected_summary"] = req.corrected_summary.strip()
+        for lg in _LOCAL_VISION_LOGS:
+            if lg.get("id") == req.log_id:
+                lg.update(updates)
+                if "ai_analysis" in lg:
+                    if req.corrected_calories is not None:
+                        lg["ai_analysis"]["calories"] = int(req.corrected_calories)
+                    if req.corrected_protein_g is not None:
+                        lg["ai_analysis"]["protein_g"] = round(float(req.corrected_protein_g), 1)
+                    if req.corrected_summary:
+                        lg["ai_analysis"]["summary"] = req.corrected_summary.strip()
+        if db:
+            try:
+                doc_ref = db.collection("vision_analysis_logs").document(req.log_id)
+                doc_ref.set(updates, merge=True)
+            except Exception as e:
+                print(f"WARN updating vision_analysis_logs doc: {e}")
+
+    return {
+        "status": "calibrated",
+        "rule": rule_saved,
+        "meal_updated": meal_updated,
+        "target_user_id": target_uid,
+    }
 
 
 def analyze_meal_audio(audio_bytes: bytes, mime_type: str = "audio/webm", caption: str = "") -> NutritionExtraction:
@@ -2026,13 +2570,16 @@ if tg_app:
             photo_file = await update.message.photo[-1].get_file()
             img_bytes = bytes(await photo_file.download_as_bytearray())
             caption = update.message.caption or ""
-            res = analyze_meal_image(img_bytes, mime_type="image/jpeg", caption=caption)
+            forensics = compute_image_forensics_and_histogram(img_bytes)
+            res = analyze_meal_image(img_bytes, mime_type="image/jpeg", caption=caption, forensics=forensics)
             if not res.is_meal:
+                save_vision_analysis_log_db(uid, res, forensics, source="telegram-photo", caption=caption, meal_id="")
                 await status_reply.edit_text("לא זיהיתי אוכל, משקה או תווית מזון בתמונה 🤔 נסה לצלם שוב או להוסיף כיתוב.")
                 return
 
             items_data = [item.model_dump() for item in res.items] if res.items else []
-            log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, source="telegram-photo", user_id=uid)
+            entry = log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, source="telegram-photo", user_id=uid)
+            save_vision_analysis_log_db(uid, res, forensics, source="telegram-photo", caption=caption, meal_id=(entry or {}).get("id", ""))
             s = get_day_summary(user_id=uid)
 
             breakdown_text = ""
@@ -3001,6 +3548,66 @@ def api_admin_delete_user(target_uid: str, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/api/admin/vision-logs")
+def api_admin_get_vision_logs(request: Request, limit: int = Query(default=25, ge=1, le=60)):
+    require_admin_user(request)
+    return get_vision_analysis_logs_db(limit=limit)
+
+
+@app.post("/api/admin/vision-analyze-test")
+def api_admin_vision_analyze_test(req: VisionTestAnalyzeRequest, request: Request):
+    admin_uid = require_admin_user(request)
+    raw_b64 = (req.image_base64 or "").strip()
+    if not raw_b64:
+        raise HTTPException(status_code=400, detail="נא להעלות תמונה לבדיקת הסוכן")
+
+    mime_type = req.mime_type or "image/jpeg"
+    if raw_b64.startswith("data:"):
+        header, _, raw_b64 = raw_b64.partition(",")
+        if ";" in header and ":" in header:
+            mime_type = header.split(":")[1].split(";")[0] or mime_type
+
+    raw_b64 = "".join(raw_b64.split())
+    pad = (4 - len(raw_b64) % 4) % 4
+    if pad:
+        raw_b64 += "=" * pad
+
+    try:
+        image_bytes = base64.b64decode(raw_b64)
+        if not image_bytes:
+            raise ValueError("Empty image")
+    except Exception:
+        raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
+
+    forensics = compute_image_forensics_and_histogram(image_bytes)
+    extraction = analyze_meal_image(image_bytes, mime_type=mime_type, caption=req.caption or "", forensics=forensics)
+    log_record = save_vision_analysis_log_db(
+        user_id=admin_uid,
+        extraction=extraction,
+        forensics=forensics,
+        source="admin-vision-lab",
+        caption=req.caption or "",
+        meal_id="",
+    )
+    return log_record
+
+
+@app.post("/api/admin/vision-calibrate")
+def api_admin_vision_calibrate(req: VisionCalibrateRequest, request: Request):
+    require_admin_user(request)
+    try:
+        return calibrate_vision_log_db(req)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/admin/vision-calibrate/{rule_id}")
+def api_admin_delete_vision_rule(rule_id: str, request: Request):
+    require_admin_user(request)
+    deleted = delete_vision_calibration_rule_db(rule_id)
+    return {"status": "deleted" if deleted else "not_found", "id": rule_id}
+
+
 @app.get("/api/summary")
 def api_summary(request: Request, target_date: Optional[str] = Query(default=None, alias="date")):
     uid = require_approved_user(request)
@@ -3177,7 +3784,8 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
         raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
 
     check_and_increment_ai_quota(uid)
-    extraction = analyze_meal_image(image_bytes, mime_type=mime_type, caption=req.caption or "")
+    forensics = compute_image_forensics_and_histogram(image_bytes)
+    extraction = analyze_meal_image(image_bytes, mime_type=mime_type, caption=req.caption or "", forensics=forensics)
     if extraction.summary and extraction.summary.startswith("API_ERROR:"):
         if "402" in extraction.summary or "prepayment" in extraction.summary.lower():
             raise HTTPException(
@@ -3186,6 +3794,7 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
             )
         raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם Gemini Vision ({extraction.summary}). נסה שוב.")
     if not extraction.is_meal:
+        save_vision_analysis_log_db(uid, extraction, forensics, source="web-photo", caption=req.caption or "", meal_id="")
         raise HTTPException(status_code=422, detail="לא זוהו אוכל, משקה או תווית מזון בתמונה")
 
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
@@ -3200,6 +3809,9 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
     )
     if not entry:
         raise HTTPException(status_code=500, detail="Failed to save photo meal to Firestore")
+    vlog = save_vision_analysis_log_db(uid, extraction, forensics, source="web-photo", caption=req.caption or "", meal_id=entry.get("id", ""))
+    entry["vision_log_id"] = vlog.get("id", "")
+    entry["vision_confidence"] = vlog["ai_analysis"].get("confidence_score", 88)
     return entry
 
 
