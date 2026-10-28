@@ -792,8 +792,11 @@
                         <div class="relative flex-1 flex gap-1.5 sm:gap-2">
                             <input type="text"
                                    x-model="aiInputText"
+                                   @focus="showAutocomplete = true"
+                                   @input="showAutocomplete = true"
+                                   @keydown.escape="showAutocomplete = false"
                                    :disabled="aiAnalyzing || isRecordingVoice"
-                                   :placeholder="selectedPhotoDataUrl ? 'הערה לתמונה (אופציונלי: למשל חצי מנה, 2 פרוסות...)' : 'לדוגמה: 2 ביצים מקושקשות, 2 פרוסות לחם קל, כף קוטג\' והפוך קטן...'"
+                                   :placeholder="selectedPhotoDataUrl ? 'הערה לתמונה (אופציונלי: למשל חצי מנה, 2 פרוסות...)' : 'הקלד מוצר להשלמה אוטומטית או ארוחה חופשית (למשל: קוטג\' 3%, 2 ביצים...)'"
                                    class="w-full pl-3 pr-3.5 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none text-sm transition">
 
                             <!-- Voice Recording Button (works on Mobile & Desktop) -->
@@ -862,6 +865,50 @@
                         </button>
                     </form>
 
+                    <!-- Instant Smart Catalog Autocomplete Dropdown (with Calories & Protein Breakdown) -->
+                    <div x-cloak x-show="showAutocomplete && autocompleteSuggestions.length > 0"
+                         @click.outside="showAutocomplete = false"
+                         class="rounded-2xl bg-white border border-emerald-200 shadow-lg overflow-hidden divide-y divide-slate-100">
+                        <div class="px-3.5 py-2 bg-emerald-50/70 flex items-center justify-between text-[11px] font-bold text-emerald-900">
+                            <span>⚡ השלמה אוטומטית מקטלוג המוצרים (לחיצה מוסיפה מיד ללא המתנה ל-AI)</span>
+                            <button type="button" @click="showAutocomplete = false" class="text-slate-400 hover:text-slate-600 px-1 cursor-pointer">✕</button>
+                        </div>
+                        <div class="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                            <template x-for="item in autocompleteSuggestions" :key="item.label">
+                                <div class="px-3.5 py-2.5 hover:bg-emerald-50/40 transition flex items-center justify-between gap-2">
+                                    <button type="button"
+                                            @click="selectAutocompleteQuickLog(item)"
+                                            class="flex-1 flex items-center gap-2.5 text-right min-w-0 cursor-pointer">
+                                        <span class="text-lg flex-shrink-0" x-text="item.icon || '🍽️'"></span>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="text-xs sm:text-sm font-bold text-slate-900 truncate" x-text="item.label"></div>
+                                            <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-800 text-[11px] font-extrabold"
+                                                      x-text="`${item.calories} קק״ל`"></span>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100/80 text-indigo-800 text-[11px] font-extrabold"
+                                                      x-text="`${item.protein_g}g חלבון`"></span>
+                                                <span x-show="item.category" class="text-[10px] text-slate-400" x-text="item.category"></span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                                        <button type="button"
+                                                @click="appendAutocompleteToInput(item)"
+                                                class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition cursor-pointer"
+                                                title="הוסף לתיבת הטקסט כדי לשלב עם מוצרים נוספים">
+                                            + שלב בטקסט
+                                        </button>
+                                        <button type="button"
+                                                @click="selectAutocompleteQuickLog(item)"
+                                                class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition cursor-pointer">
+                                            ⚡ הוסף מיד
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
                     <!-- Quick Preset / Custom Favorites Chips -->
                     <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
                         <span class="text-xs text-slate-400 flex-shrink-0">⭐ מועדפים להוספה מהירה:</span>
@@ -887,20 +934,43 @@
                 </div>
 
                 <!-- Manual Macro Form -->
-                <form x-show="manualMode" @submit.prevent="submitManualMeal()" class="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
-                    <input type="text" x-model="newMeal.description" placeholder="תיאור הארוחה" required
-                           class="sm:col-span-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
-                    <input type="number" x-model.number="newMeal.calories" placeholder="קלוריות (קק״ל)" required min="0"
-                           class="px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
-                    <div class="flex gap-2">
-                        <input type="number" step="0.1" x-model.number="newMeal.protein_g" placeholder="חלבון (ג׳)" required min="0"
-                               class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
-                        <button type="submit"
-                                class="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm flex-shrink-0 transition">
-                            הוסף
-                        </button>
+                <div x-show="manualMode" class="space-y-2.5 pt-1">
+                    <form @submit.prevent="submitManualMeal()" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <input type="text" x-model="newMeal.description"
+                               @focus="showManualAutocomplete = true"
+                               @input="showManualAutocomplete = true"
+                               placeholder="תיאור הארוחה (הקלד להשלמה אוטומטית...)" required
+                               class="sm:col-span-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
+                        <input type="number" x-model.number="newMeal.calories" placeholder="קלוריות (קק״ל)" required min="0"
+                               class="px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
+                        <div class="flex gap-2">
+                            <input type="number" step="0.1" x-model.number="newMeal.protein_g" placeholder="חלבון (ג׳)" required min="0"
+                                   class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
+                            <button type="submit"
+                                    class="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm flex-shrink-0 transition cursor-pointer">
+                                הוסף
+                            </button>
+                        </div>
+                    </form>
+                    <div x-cloak x-show="showManualAutocomplete && manualAutocompleteSuggestions.length > 0"
+                         @click.outside="showManualAutocomplete = false"
+                         class="rounded-2xl bg-white border border-emerald-200 shadow-md overflow-hidden max-h-56 overflow-y-auto divide-y divide-slate-100">
+                        <template x-for="item in manualAutocompleteSuggestions" :key="'man-' + item.label">
+                            <button type="button"
+                                    @click="selectManualAutocomplete(item)"
+                                    class="w-full px-3.5 py-2.5 hover:bg-emerald-50/50 transition flex items-center justify-between gap-2 text-right cursor-pointer">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-base" x-text="item.icon || '🍽️'"></span>
+                                    <span class="text-xs sm:text-sm font-bold text-slate-900 truncate" x-text="item.label"></span>
+                                </div>
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-extrabold" x-text="`${item.calories} קק״ל`"></span>
+                                    <span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-[11px] font-extrabold" x-text="`${item.protein_g}g חלבון`"></span>
+                                </div>
+                            </button>
+                        </template>
                     </div>
-                </form>
+                </div>
             </div>
 
             <!-- Today's Workouts List (shown when workouts exist) -->
@@ -3200,6 +3270,90 @@
                     type: 'success'
                 },
 
+                showAutocomplete: false,
+                showManualAutocomplete: false,
+                israeliFoodCatalog: [
+                    // גבינות ומוצרי חלב
+                    { icon: '🧀', label: "קוטג' 3% (תנובה) - כף גדושה (30ג')", calories: 24, protein_g: 3.3, category: 'חלבי' },
+                    { icon: '🧀', label: "קוטג' 3% (תנובה) - חצי גביע (125ג')", calories: 98, protein_g: 13.8, category: 'חלבי' },
+                    { icon: '🧀', label: "קוטג' 3% (תנובה) - גביע שלם (250ג')", calories: 195, protein_g: 27.5, category: 'חלבי' },
+                    { icon: '🧀', label: "קוטג' 5% (תנובה) - כף גדושה (30ג')", calories: 29, protein_g: 3.2, category: 'חלבי' },
+                    { icon: '🧀', label: "קוטג' 5% (תנובה) - חצי גביע (125ג')", calories: 120, protein_g: 13.3, category: 'חלבי' },
+                    { icon: '🧀', label: "קוטג' 5% (תנובה) - גביע שלם (250ג')", calories: 240, protein_g: 26.5, category: 'חלבי' },
+                    { icon: '🧀', label: "קוטג' 1% - חצי גביע (125ג')", calories: 82, protein_g: 14.5, category: 'חלבי' },
+                    { icon: '🧀', label: "קוטג' 9% - חצי גביע (125ג')", calories: 160, protein_g: 12.5, category: 'חלבי' },
+                    { icon: '🥣', label: "גבינה לבנה סקי / תנובה 5% - כף (30ג')", calories: 29, protein_g: 2.7, category: 'חלבי' },
+                    { icon: '🥣', label: "גבינה לבנה 5% - חצי גביע (125ג')", calories: 120, protein_g: 11.3, category: 'חלבי' },
+                    { icon: '🥣', label: "גבינה לבנה 3% - חצי גביע (125ג')", calories: 99, protein_g: 11.5, category: 'חלבי' },
+                    { icon: '🧀', label: "גבינה צהובה עמק 28% - פרוסה (25ג')", calories: 88, protein_g: 6.5, category: 'חלבי' },
+                    { icon: '🧀', label: "גבינה צהובה עמק לייט 9% - פרוסה (25ג')", calories: 51, protein_g: 8.0, category: 'חלבי' },
+                    { icon: '🧀', label: "גבינה צהובה נעם 15% - פרוסה (25ג')", calories: 63, protein_g: 7.5, category: 'חלבי' },
+                    { icon: '🧀', label: "גבינה בולגרית / פטה 5% - קובייה (50ג')", calories: 58, protein_g: 8.5, category: 'חלבי' },
+                    { icon: '🧀', label: "צפתית 5% (גד / פיראוס) - 50 גרם", calories: 55, protein_g: 8.0, category: 'חלבי' },
+                    { icon: '🥣', label: "לאבנה 5% - כף גדושה (30ג')", calories: 32, protein_g: 2.8, category: 'חלבי' },
+                    { icon: '🥣', label: "גבינת שמנת נפוליאון / פילדלפיה 16% - כף", calories: 58, protein_g: 1.8, category: 'חלבי' },
+                    { icon: '🥤', label: "יוגורט PRO / GO חלבון (20ג' חלבון) - גביע", calories: 145, protein_g: 20.0, category: 'חלבון וחלבי' },
+                    { icon: '🥤', label: "יוגורט PRO / GO חלבון (25ג' חלבון) - גביע", calories: 175, protein_g: 25.0, category: 'חלבון וחלבי' },
+                    { icon: '🥤', label: "משקה חלבון יטבתה / תנובה GO (בקבוק 25ג' חלבון)", calories: 190, protein_g: 25.0, category: 'חלבון וחלבי' },
+                    { icon: '🍮', label: "מעדן חלבון PRO / מילקי PRO - גביע", calories: 140, protein_g: 18.0, category: 'חלבון וחלבי' },
+                    { icon: '🥣', label: "יוגורט טבעי ביו 3% (דנונה / תנובה) - גביע", calories: 95, protein_g: 6.8, category: 'חלבי' },
+                    { icon: '🥣', label: "יוגורט יווני 2% / דנונה Greek - גביע", calories: 110, protein_g: 11.0, category: 'חלבי' },
+                    // ביצים, עוף, בשר ודגים
+                    { icon: '🥚', label: "ביצה קשה / עין / שלוקה (1 יחידה L)", calories: 78, protein_g: 6.5, category: 'ביצים וחלבון' },
+                    { icon: '🍳', label: "2 ביצים (קשות / שלוקות)", calories: 156, protein_g: 13.0, category: 'ביצים וחלבון' },
+                    { icon: '🍳', label: "חביתה / מקושקשת מ-2 ביצים (עם מעט שמן/תרסיס)", calories: 185, protein_g: 13.0, category: 'ביצים וחלבון' },
+                    { icon: '🍳', label: "חביתה מ-3 ביצים", calories: 265, protein_g: 19.5, category: 'ביצים וחלבון' },
+                    { icon: '🐟', label: "טונה במים (סטארקיסט / ריו מרה) - קופסה מסוננת", calories: 115, protein_g: 26.0, category: 'דגים' },
+                    { icon: '🐟', label: "טונה בשמן - קופסה מסוננת היטב", calories: 175, protein_g: 25.0, category: 'דגים' },
+                    { icon: '🍗', label: "חזה עוף על הפלנצ'ה / בתנור (150 גרם)", calories: 245, protein_g: 45.0, category: 'עוף ובשר' },
+                    { icon: '🍗', label: "חזה עוף על הפלנצ'ה / בתנור (200 גרם)", calories: 330, protein_g: 60.0, category: 'עוף ובשר' },
+                    { icon: '🍗', label: "פרגית צלויה / שיפודי פרגית (150 גרם)", calories: 290, protein_g: 36.0, category: 'עוף ובשר' },
+                    { icon: '🍗', label: "שניצל עוף ביתי מטוגן (יחידה בינונית 130ג')", calories: 310, protein_g: 26.0, category: 'עוף ובשר' },
+                    { icon: '🍗', label: "שניצל תירס טבעול / לייט (יחידה)", calories: 135, protein_g: 5.5, category: 'צמחוני' },
+                    { icon: '🥩', label: "קציצות בקר / עוף ברוטב (3 יחידות בינוניות)", calories: 290, protein_g: 24.0, category: 'עוף ובשר' },
+                    { icon: '🥩', label: "סטייק סינטה / פילה בקר רזה (200 גרם)", calories: 380, protein_g: 52.0, category: 'עוף ובשר' },
+                    { icon: '🥩', label: "פסטרמה חזה הודו דלת שומן (4 פרוסות - 60ג')", calories: 65, protein_g: 12.0, category: 'עוף ובשר' },
+                    { icon: '🐟', label: "פילה סלמון אפוי בתנור (150 גרם)", calories: 310, protein_g: 31.0, category: 'דגים' },
+                    { icon: '🐟', label: "פילה אמנון / מושט / דניס אפוי (150 גרם)", calories: 195, protein_g: 32.0, category: 'דגים' },
+                    { icon: '💪', label: "סקופ אבקת חלבון (Whey על בסיס מים)", calories: 120, protein_g: 24.0, category: 'חלבון' },
+                    { icon: '💪', label: "סקופ אבקת חלבון עם כוס חלב 3%", calories: 240, protein_g: 31.0, category: 'חלבון' },
+                    // לחמים, מאפים ופחמימות
+                    { icon: '🍞', label: "פרוסת לחם קל (שיפון / דגנים / מלא)", calories: 42, protein_g: 2.5, category: 'לחם ופחמימות' },
+                    { icon: '🍞', label: "2 פרוסות לחם קל", calories: 84, protein_g: 5.0, category: 'לחם ופחמימות' },
+                    { icon: '🍞', label: "פרוסת לחם מלא / מחמצת / כוסמין", calories: 80, protein_g: 3.2, category: 'לחם ופחמימות' },
+                    { icon: '🫓', label: "פיתה קלה (99 קק״ל)", calories: 99, protein_g: 6.5, category: 'לחם ופחמימות' },
+                    { icon: '🫓', label: "פיתה רגילה (יחידה שלמה)", calories: 250, protein_g: 8.0, category: 'לחם ופחמימות' },
+                    { icon: '🥖', label: "לחמניית כוסמין / קלה", calories: 120, protein_g: 6.0, category: 'לחם ופחמימות' },
+                    { icon: '🍘', label: "פריכית אורז (יחידה אחת)", calories: 30, protein_g: 0.7, category: 'לחם ופחמימות' },
+                    { icon: '🍘', label: "3 פריכיות אורז", calories: 90, protein_g: 2.1, category: 'לחם ופחמימות' },
+                    { icon: '🍚', label: "אורז לבן / בסמטי מבושל - כוס (150ג')", calories: 195, protein_g: 4.2, category: 'פחמימות' },
+                    { icon: '🍚', label: "אורז מבושל - 3 כפות (90ג')", calories: 115, protein_g: 2.5, category: 'פחמימות' },
+                    { icon: '🍝', label: "פסטה מבושלת - כוס (150ג')", calories: 220, protein_g: 7.5, category: 'פחמימות' },
+                    { icon: '🥣', label: "קינואה / כוסמת מבושלת - כוס (150ג')", calories: 180, protein_g: 6.5, category: 'פחמימות' },
+                    { icon: '🥔', label: "תפוח אדמה אפוי בתנור (יחידה בינונית)", calories: 150, protein_g: 3.5, category: 'פחמימות' },
+                    { icon: '🍠', label: "בטטה אפויה בתנור (בינונית)", calories: 135, protein_g: 2.5, category: 'פחמימות' },
+                    { icon: '🥣', label: "דייסת שיבולת שועל (40ג' קוואקר + חלב/מים)", calories: 210, protein_g: 8.5, category: 'ארוחת בוקר' },
+                    // ממרחים, סלטים, פירות, קפה ונשנושים
+                    { icon: '🥣', label: "טחינה מוכנה - כף גדושה (20ג')", calories: 70, protein_g: 2.2, category: 'ממרחים ושומנים' },
+                    { icon: '🥣', label: "טחינה גולמית - כף (15ג')", calories: 95, protein_g: 3.8, category: 'ממרחים ושומנים' },
+                    { icon: '🥣', label: "חומוס (אחלה / צבר) - כף גדושה (30ג')", calories: 75, protein_g: 2.2, category: 'ממרחים ושומנים' },
+                    { icon: '🥑', label: "אבוקדו - חצי יחידה בינונית", calories: 120, protein_g: 1.5, category: 'ממרחים ושומנים' },
+                    { icon: '🫒', label: "שמן זית - כפית (5 מ״ל)", calories: 45, protein_g: 0.0, category: 'ממרחים ושומנים' },
+                    { icon: '🥜', label: "חמאת בוטנים טבעית - כף (16ג')", calories: 95, protein_g: 4.0, category: 'ממרחים ושומנים' },
+                    { icon: '🌰', label: "שקדים / אגוזי מלך טבעיים (חופן קטן - 10 יח')", calories: 85, protein_g: 3.0, category: 'נשנושים' },
+                    { icon: '🥗', label: "סלט ירקות ישראלי קצוץ (ללא שמן)", calories: 55, protein_g: 1.8, category: 'סלט וירקות' },
+                    { icon: '🥗', label: "סלט ירקות קצוץ עם כפית שמן זית", calories: 100, protein_g: 1.8, category: 'סלט וירקות' },
+                    { icon: '🍎', label: "תפוח עץ בינוני", calories: 80, protein_g: 0.4, category: 'פירות' },
+                    { icon: '🍌', label: "בננה בינונית", calories: 105, protein_g: 1.3, category: 'פירות' },
+                    { icon: '🌴', label: "תמר מג'הול (יחידה אחת)", calories: 55, protein_g: 0.4, category: 'פירות' },
+                    { icon: '☕', label: "קפה הפוך קטן על חלב 3% (ללא סוכר)", calories: 95, protein_g: 5.0, category: 'שתייה' },
+                    { icon: '☕', label: "קפה הפוך על חלב דל / סויה / שיבולת שועל", calories: 65, protein_g: 3.5, category: 'שתייה' },
+                    { icon: '☕', label: "נס קפה עם מעט חלב (ללא סוכר)", calories: 30, protein_g: 1.5, category: 'שתייה' },
+                    { icon: '🍫', label: "חטיף חלבון (Allin / Today / Fulfil - 60ג')", calories: 210, protein_g: 20.0, category: 'חלבון ונשנוש' },
+                    { icon: '🥜', label: "במבה אסם - שקית קטנה (25ג')", calories: 134, protein_g: 4.3, category: 'נשנושים' },
+                    { icon: '🍫', label: "2 קוביות שוקולד מריר 70%", calories: 65, protein_g: 1.0, category: 'נשנושים' }
+                ],
+
                 quickChips: [
                     { id: 'fav-coffee', icon: '☕', label: 'הפוך קטן', calories: 80, protein_g: 4 },
                     { id: 'fav-eggs', icon: '🥚', label: '2 ביצים וקוטג׳', calories: 260, protein_g: 26 },
@@ -3232,6 +3386,119 @@
                     const protMult = this.calcForm.goal === 'cut' ? 2.0 : 1.8;
                     const prot = Math.round(w * protMult);
                     return { calories: cal, protein: prot };
+                },
+
+                _normalizeHebrewSearch(str) {
+                    return (str || '').toLowerCase().replace(/['"׳״%]/g, '').replace(/\s+/g, ' ').trim();
+                },
+
+                _matchCatalogItems(rawQuery) {
+                    if (!rawQuery) return [];
+                    // Check last segment after comma/plus if user is typing a multi-item meal
+                    const segments = rawQuery.split(/[,+]/);
+                    const lastSeg = this._normalizeHebrewSearch(segments[segments.length - 1] || '');
+                    const fullNorm = this._normalizeHebrewSearch(rawQuery);
+                    const activeQ = lastSeg.length >= 2 ? lastSeg : fullNorm;
+                    if (!activeQ || activeQ.length < 2) return [];
+
+                    const tokens = activeQ.split(' ').filter(Boolean);
+                    if (!tokens.length) return [];
+
+                    // Combine user favorites + past unique meals + Israeli food catalog
+                    const seen = new Set();
+                    const pool = [];
+
+                    for (const fav of (this.quickChips || [])) {
+                        if (fav && fav.label && !seen.has(fav.label)) {
+                            seen.add(fav.label);
+                            pool.push({
+                                icon: fav.icon || '⭐',
+                                label: fav.label,
+                                calories: Number(fav.calories) || 0,
+                                protein_g: Number(fav.protein_g) || 0,
+                                category: '⭐ מהמועדפים שלך'
+                            });
+                        }
+                    }
+
+                    for (const item of (this.israeliFoodCatalog || [])) {
+                        if (item && item.label && !seen.has(item.label)) {
+                            seen.add(item.label);
+                            pool.push(item);
+                        }
+                    }
+
+                    for (const m of (this.allMeals || [])) {
+                        if (m && m.description && !seen.has(m.description)) {
+                            seen.add(m.description);
+                            pool.push({
+                                icon: '🕒',
+                                label: m.description,
+                                calories: Number(m.calories) || 0,
+                                protein_g: Number(m.protein_g) || 0,
+                                category: 'מההיסטוריה שלך'
+                            });
+                        }
+                    }
+
+                    const matches = [];
+                    for (const candidate of pool) {
+                        const normLabel = this._normalizeHebrewSearch(candidate.label);
+                        const allMatch = tokens.every(tk => normLabel.includes(tk));
+                        if (allMatch) {
+                            const startsWithFirst = normLabel.startsWith(tokens[0]) ? 1 : 0;
+                            matches.push({ item: candidate, score: startsWithFirst });
+                        }
+                    }
+                    matches.sort((a, b) => b.score - a.score);
+                    return matches.slice(0, 7).map(m => m.item);
+                },
+
+                get autocompleteSuggestions() {
+                    return this._matchCatalogItems(this.aiInputText);
+                },
+
+                get manualAutocompleteSuggestions() {
+                    return this._matchCatalogItems(this.newMeal?.description || '');
+                },
+
+                async selectAutocompleteQuickLog(item) {
+                    if (!item) return;
+                    this.showAutocomplete = false;
+                    // If user only typed this single item, clear input after logging
+                    const segments = (this.aiInputText || '').split(/[,+]/);
+                    if (segments.length <= 1) {
+                        this.aiInputText = '';
+                    } else {
+                        segments.pop();
+                        this.aiInputText = segments.join(', ').trim();
+                    }
+                    await this.quickLogPreset({
+                        label: item.label,
+                        calories: item.calories,
+                        protein_g: item.protein_g
+                    });
+                },
+
+                appendAutocompleteToInput(item) {
+                    if (!item) return;
+                    const textWithMacros = `${item.label} (${item.calories} קק"ל, ${item.protein_g}g חלבון)`;
+                    const raw = (this.aiInputText || '').trim();
+                    const lastComma = Math.max(raw.lastIndexOf(','), raw.lastIndexOf('+'));
+                    if (lastComma >= 0) {
+                        this.aiInputText = raw.slice(0, lastComma + 1) + ' ' + textWithMacros + ', ';
+                    } else {
+                        this.aiInputText = textWithMacros + ', ';
+                    }
+                    this.showAutocomplete = false;
+                },
+
+                selectManualAutocomplete(item) {
+                    if (!item) return;
+                    this.newMeal.description = item.label;
+                    this.newMeal.calories = item.calories;
+                    this.newMeal.protein_g = item.protein_g;
+                    this.showManualAutocomplete = false;
                 },
 
                 get caloriePercent() {
