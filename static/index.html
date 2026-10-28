@@ -488,6 +488,102 @@
                 </button>
             </div>
 
+            <!-- Smart Quick Tools Bar: Supermarket Scanner, Fridge AI & Wolt -->
+            <div class="grid grid-cols-3 gap-2">
+                <button type="button" @click="activeEntryMode = (activeEntryMode === 'supermarket' ? 'meal' : 'supermarket')"
+                        :class="activeEntryMode === 'supermarket' ? 'bg-amber-500 text-slate-950 font-extrabold border-amber-500 shadow-sm' : 'bg-white hover:bg-amber-50/60 text-slate-700 border-slate-200/80 font-bold'"
+                        class="py-2.5 px-2.5 rounded-2xl border text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs">
+                    <span>🛒</span>
+                    <span>סורק סופר ("האם לקנות?")</span>
+                </button>
+                <button type="button" @click="switchTab('recipes'); recipesSubTab = 'fridge'"
+                        class="py-2.5 px-2.5 rounded-2xl bg-white hover:bg-indigo-50/60 text-slate-700 border border-slate-200/80 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs">
+                    <span>🧊</span>
+                    <span>מה יש לי במקרר?</span>
+                </button>
+                <button type="button" @click="switchTab('recipes'); recipesSubTab = 'wolt'; fetchWoltDishes()"
+                        class="py-2.5 px-2.5 rounded-2xl bg-white hover:bg-sky-50/60 text-slate-700 border border-slate-200/80 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs">
+                    <span>🛵</span>
+                    <span>מנות מ-Wolt ליתרה</span>
+                </button>
+            </div>
+
+            <!-- Dedicated Supermarket Scanner Card ("Should I Buy This?") -->
+            <div x-show="activeEntryMode === 'supermarket'" x-cloak class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border-2 border-amber-300/80 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl">🛒</span>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-extrabold text-slate-900">סורק מוצרים מהסופר — "האם לקנות?"</h2>
+                            <p class="text-xs text-slate-500">צלם מוצר או תווית ערכים תזונתיים בסופר ובדוק מיד אם הוא מתאים ליתרה שלך היום (<span x-text="`${Math.max(0, summary.remaining_calories)} קק״ל`"></span>)</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="activeEntryMode = 'meal'" class="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">✕</button>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-center gap-3">
+                    <input type="file" x-ref="supermarketPhotoInput" accept="image/*" capture="environment" class="hidden" @change="onSupermarketPhotoSelected($event)">
+                    <input type="file" x-ref="supermarketGalleryInput" accept="image/*" class="hidden" @change="onSupermarketPhotoSelected($event)">
+                    <button type="button" @click="$refs.supermarketPhotoInput.click()" :disabled="supermarketScanning"
+                            class="w-full sm:flex-1 py-3.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm">
+                        <span x-show="!supermarketScanning">📸 צלם מוצר / תווית בסופר</span>
+                        <span x-show="supermarketScanning">מנתח מוצר וערכים תזונתיים ב-AI...</span>
+                    </button>
+                    <button type="button" @click="$refs.supermarketGalleryInput.click()" :disabled="supermarketScanning"
+                            class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                        <span>🖼️ בחר מהגלריה</span>
+                    </button>
+                </div>
+
+                <!-- Supermarket Scan Result -->
+                <div x-show="supermarketResult" x-transition class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3.5">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                                <span class="text-xs font-extrabold px-3 py-1 rounded-full"
+                                      :class="(supermarketResult?.score || 0) >= 75 ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : ((supermarketResult?.score || 0) >= 50 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-rose-100 text-rose-900 border border-rose-300')"
+                                      x-text="supermarketResult?.verdict"></span>
+                                <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200"
+                                      x-text="`ציון התאמה: ${supermarketResult?.score}/100`"></span>
+                                <span x-show="supermarketResult?.fits_today_budget" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                                    ✅ נכנס ביתרה היומית שלך
+                                </span>
+                                <span x-show="supermarketResult && !supermarketResult.fits_today_budget" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700">
+                                    ⚠️ חורג מהיתרה היומית שלך
+                                </span>
+                            </div>
+                            <h3 class="text-base sm:text-lg font-extrabold text-slate-900" x-text="supermarketResult?.product_name"></h3>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="p-3 rounded-xl bg-white border border-slate-200/80">
+                            <div class="text-[11px] text-slate-400 font-semibold" x-text="`למנה (${supermarketResult?.serving_description || 'יחידה'})`"></div>
+                            <div class="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5" x-text="`${supermarketResult?.serving_calories || 0} קק״ל`"></div>
+                            <div class="text-xs font-bold text-emerald-700" x-text="`💪 ${supermarketResult?.serving_protein_g || 0}g חלבון`"></div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-white border border-slate-200/80">
+                            <div class="text-[11px] text-slate-400 font-semibold">ערכים ל-100 גרם</div>
+                            <div class="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5" x-text="`${supermarketResult?.calories_per_100g || 0} קק״ל`"></div>
+                            <div class="text-xs font-bold text-indigo-600" x-text="`💪 ${supermarketResult?.protein_per_100g || 0}g חלבון`"></div>
+                        </div>
+                    </div>
+
+                    <p class="text-xs sm:text-sm text-slate-700 leading-relaxed" x-text="supermarketResult?.explanation"></p>
+
+                    <div x-show="supermarketResult?.better_alternative" class="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950">
+                        <strong>💡 חלופה עדיפה בסופר:</strong> <span x-text="supermarketResult?.better_alternative"></span>
+                    </div>
+
+                    <div class="pt-2 flex justify-end">
+                        <button type="button" @click="logSupermarketProduct()"
+                                class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer shadow-xs">
+                            + קניתי ואכלתי — הוסף מנה ליומן היום
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Dedicated Workout & Fitness Logger Card -->
             <div x-show="activeEntryMode === 'workout'" x-cloak class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-indigo-200 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -918,6 +1014,53 @@
         <!-- =============================================================== -->
         <div x-show="activeTab === 'history'" x-cloak x-transition.opacity class="space-y-6">
 
+            <!-- Smart Weekly Summary & WhatsApp Share Card -->
+            <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-emerald-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <div class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 mb-1">
+                            <span>📊</span> דוח סיכום שבועי חכם (7 ימים אחרונים)
+                        </div>
+                        <h2 class="text-lg sm:text-xl font-extrabold">הביצועים השבועיים שלך במבט אחד</h2>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" @click="shareWeeklyReportWhatsApp()"
+                                class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm">
+                            <span>📲</span>
+                            <span>שתף דוח ב-WhatsApp</span>
+                        </button>
+                        <button type="button" @click="copyWeeklyReport()"
+                                class="px-3.5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer">
+                            <span>📋</span>
+                            <span>העתק סיכום</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                    <div class="bg-white/10 border border-white/15 rounded-2xl p-3.5">
+                        <div class="text-[11px] text-slate-300 font-medium">🔥 ממוצע קלוריות יומי</div>
+                        <div class="text-lg sm:text-xl font-extrabold text-white mt-0.5" x-text="`${weeklyStats.avgCalories} קק״ל`"></div>
+                        <div class="text-[10px] text-emerald-300" x-text="`יעד: ${summary.target_calories} קק״ל (${weeklyStats.activeDays}/7 ימים)`"></div>
+                    </div>
+                    <div class="bg-white/10 border border-white/15 rounded-2xl p-3.5">
+                        <div class="text-[11px] text-slate-300 font-medium">💪 ממוצע חלבון יומי</div>
+                        <div class="text-lg sm:text-xl font-extrabold text-emerald-300 mt-0.5" x-text="`${weeklyStats.avgProtein}g`"></div>
+                        <div class="text-[10px] text-slate-300" x-text="`יעד: ${summary.target_protein}g חלבון`"></div>
+                    </div>
+                    <div class="bg-white/10 border border-white/15 rounded-2xl p-3.5">
+                        <div class="text-[11px] text-slate-300 font-medium">🏃‍♂️ שריפה באימונים השבוע</div>
+                        <div class="text-lg sm:text-xl font-extrabold text-indigo-300 mt-0.5" x-text="`${weeklyStats.totalBurned} קק״ל`"></div>
+                        <div class="text-[10px] text-slate-300" x-text="`${weeklyStats.totalWorkouts} אימונים מתועדים`"></div>
+                    </div>
+                    <div class="bg-white/10 border border-white/15 rounded-2xl p-3.5">
+                        <div class="text-[11px] text-slate-300 font-medium">⚖️ מגמת משקל</div>
+                        <div class="text-lg sm:text-xl font-extrabold text-amber-300 mt-0.5" x-text="weightData.latest_weight ? `${weightData.latest_weight} ק״ג` : 'טרם נשקל'"></div>
+                        <div class="text-[10px] text-slate-300" x-text="weightData.entries.length > 1 ? `שינוי: ${weightData.weight_change > 0 ? '+' : ''}${weightData.weight_change} ק״ג` : 'הוסף שקילה למעקב'"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Body Weight & Progress Tracker Card -->
             <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80 space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1256,19 +1399,124 @@
         <div x-show="activeTab === 'recipes'" x-cloak x-transition.opacity class="space-y-6">
 
             <!-- Sub-Mode Switcher: Wolt Delivery vs Home Recipes -->
-            <div class="grid grid-cols-2 gap-2 bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div class="grid grid-cols-3 gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs">
                 <button type="button" @click="recipesSubTab = 'wolt'; if (!woltDishes.length) fetchWoltDishes()"
                         :class="recipesSubTab === 'wolt' ? 'bg-sky-500 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
-                        class="py-2.5 px-3 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                        class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
                     <span>🛵</span>
-                    <span>הזמנה מ-Wolt לפי הקלוריות שלך</span>
+                    <span>הזמנה מ-Wolt</span>
+                </button>
+                <button type="button" @click="recipesSubTab = 'fridge'"
+                        :class="recipesSubTab === 'fridge' ? 'bg-indigo-600 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
+                        class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                    <span>🧊</span>
+                    <span>מה יש במקרר?</span>
                 </button>
                 <button type="button" @click="recipesSubTab = 'home'"
                         :class="recipesSubTab === 'home' ? 'bg-slate-900 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
-                        class="py-2.5 px-3 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                        class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
                     <span>👨‍🍳</span>
-                    <span>מתכונים להכנה בבית</span>
+                    <span>מתכונים לבית</span>
                 </button>
+            </div>
+
+            <!-- =========================================================== -->
+            <!-- SUB-TAB FRIDGE: "WHAT'S IN MY FRIDGE?" AI MEAL BUILDER      -->
+            <!-- =========================================================== -->
+            <div x-show="recipesSubTab === 'fridge'" class="space-y-5">
+                <div class="bg-gradient-to-br from-indigo-900 via-violet-900 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+                    <div class="space-y-1.5">
+                        <div class="inline-flex items-center gap-1.5 text-xs font-extrabold bg-white/15 text-indigo-200 px-3 py-1 rounded-full">
+                            <span>🧊</span> שף AI מהמקרר שלך
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold">מה יש לך במקרר עכשיו?</h2>
+                        <p class="text-xs sm:text-sm text-indigo-100">
+                            בחר מצרכים שיש לך בבית או צלם את פנים המקרר, וה-AI ירכיב לך 3 ארוחות מהירות שמתאימות בדיוק ליתרה שלך היום (<strong class="text-emerald-300" x-text="`${Math.max(0, summary.remaining_calories)} קק״ל`"></strong>).
+                        </p>
+                    </div>
+
+                    <!-- Quick Pantry / Fridge Chips -->
+                    <div class="space-y-2">
+                        <div class="text-xs font-bold text-indigo-200">לחץ לסימון מצרכים שיש לך בבית:</div>
+                        <div class="flex flex-wrap gap-1.5">
+                            <template x-for="ing in fridgePresetItems" :key="ing">
+                                <button type="button" @click="toggleFridgeItem(ing)"
+                                        :class="selectedFridgeItems.includes(ing) ? 'bg-emerald-400 text-slate-950 font-extrabold border-emerald-300' : 'bg-white/10 text-white hover:bg-white/20 border-white/20 font-medium'"
+                                        class="px-3 py-1.5 rounded-full border text-xs transition cursor-pointer"
+                                        x-text="ing"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Custom Ingredients Input + Photo Upload + Submit -->
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-2.5 pt-1">
+                        <input type="text" x-model="fridgeCustomText"
+                               placeholder="הוסף מצרכים חופשיים (למשל: חצי גביע קוטג׳, פטריות, טורטייה)..."
+                               class="md:col-span-6 px-4 py-3 rounded-2xl bg-white/15 border border-white/25 text-white placeholder-indigo-200 text-xs sm:text-sm outline-none focus:bg-white/20 focus:border-white">
+
+                        <div class="md:col-span-3 flex">
+                            <input type="file" x-ref="fridgePhotoInput" accept="image/*" class="hidden" @change="onFridgePhotoSelected($event)">
+                            <button type="button" @click="$refs.fridgePhotoInput.click()" :disabled="fridgeGenerating"
+                                    class="w-full px-3 py-3 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/25 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                                <span>📸</span>
+                                <span x-text="fridgePhotoDataUrl ? 'תמונת מקרר נבחרה ✓' : 'צלם את המקרר'"></span>
+                            </button>
+                        </div>
+
+                        <div class="md:col-span-3 flex">
+                            <button type="button" @click="generateFridgeRecipes()" :disabled="fridgeGenerating"
+                                    class="w-full px-4 py-3 rounded-2xl bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm">
+                                <span x-show="!fridgeGenerating">✨ הרכב לי ארוחה</span>
+                                <span x-show="fridgeGenerating">מרכיב מתכונים...</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fridge Generated Recipes Grid -->
+                <div x-show="fridgeRecipes.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <template x-for="(recipe, idx) in fridgeRecipes" :key="(recipe.name || '') + idx">
+                        <div class="bg-white rounded-3xl p-5 shadow-xs border border-indigo-200 flex flex-col justify-between space-y-4">
+                            <div class="space-y-3">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">🧊 מהמקרר שלך</span>
+                                            <span x-show="recipe.prep_time" class="text-[11px] text-slate-400" x-text="`⏱️ ${recipe.prep_time}`"></span>
+                                        </div>
+                                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900" x-text="recipe.name"></h3>
+                                    </div>
+                                    <div class="text-left flex-shrink-0">
+                                        <span class="inline-block px-3 py-1 rounded-xl bg-emerald-50 text-emerald-800 font-extrabold text-sm"
+                                              x-text="`${recipe.calories} קק״ל`"></span>
+                                        <span class="block text-xs font-bold text-indigo-600 mt-1"
+                                              x-text="`💪 ${Number(recipe.protein_g).toFixed(0)}g חלבון`"></span>
+                                    </div>
+                                </div>
+                                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" x-text="recipe.description"></p>
+                                <div class="bg-slate-50 rounded-2xl p-3 text-xs space-y-1">
+                                    <div class="font-bold text-slate-800">🛒 מצרכים והכנה:</div>
+                                    <ul class="list-disc list-inside text-slate-600 space-y-0.5">
+                                        <template x-for="ing in (recipe.ingredients || [])" :key="ing">
+                                            <li x-text="ing"></li>
+                                        </template>
+                                    </ul>
+                                    <ol class="list-decimal list-inside text-slate-700 pt-1.5 border-t border-slate-200/70 space-y-0.5">
+                                        <template x-for="step in (recipe.preparation_steps || [])" :key="step">
+                                            <li x-text="step"></li>
+                                        </template>
+                                    </ol>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex justify-end">
+                                <button type="button" @click="logRecipeMeal(recipe)"
+                                        class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer shadow-xs">
+                                    + הכנתי ואכלתי — הוסף ליומן היום
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
             </div>
 
             <!-- =========================================================== -->
@@ -2849,6 +3097,30 @@
                 woltMenuScanning: false,
                 selectedWoltCategory: 'all',
                 woltOnlyWithinBudget: false,
+                supermarketScanning: false,
+                supermarketResult: null,
+                fridgePresetItems: [
+                    '🥚 ביצים', '🧀 קוטג׳ 5%', '🐟 טונה במים', '🍗 חזה עוף',
+                    '🫓 טורטייה / פיתה קלה', '🧀 גבינה צהובה 9%', '🥣 יוגורט PRO',
+                    '🌾 שיבולת שועל', '🥗 מלפפון ועגבנייה', '🥑 אבוקדו / טחינה',
+                    '🍚 אורז / קינואה', '🍞 לחם קל'
+                ],
+                selectedFridgeItems: ['🥚 ביצים', '🧀 קוטג׳ 5%', '🥗 מלפפון ועגבנייה'],
+                fridgeCustomText: '',
+                fridgePhotoDataUrl: null,
+                fridgePhotoMimeType: 'image/jpeg',
+                fridgeGenerating: false,
+                fridgeRecipes: [],
+                get weeklyStats() {
+                    const trend = this.dailyTrend || [];
+                    const active = trend.filter(d => Number(d.calories) > 0);
+                    const activeDays = active.length;
+                    const avgCalories = activeDays ? Math.round(active.reduce((s, d) => s + Number(d.calories || 0), 0) / activeDays) : 0;
+                    const avgProtein = activeDays ? Math.round(active.reduce((s, d) => s + Number(d.protein_g || 0), 0) / activeDays) : 0;
+                    const totalBurned = trend.reduce((s, d) => s + Number(d.burned_calories || 0), 0);
+                    const totalWorkouts = trend.reduce((s, d) => s + Number(d.workout_count || 0), 0);
+                    return { activeDays, avgCalories, avgProtein, totalBurned, totalWorkouts };
+                },
                 woltCategories: [
                     { id: 'all', label: 'הכל' },
                     { id: 'סלטים וקערות', label: '🥗 סלטים וקערות' },
@@ -4666,6 +4938,146 @@
                         this.showToast(`🛵 "${dish.dish_name}" נוסף ליומן היום! (+${dish.calories} קק"ל)`);
                     } catch (e) {
                         this.showToast('שגיאה בהוספת המנה ליומן', 'error');
+                    }
+                },
+
+                async onSupermarketPhotoSelected(event) {
+                    const file = event.target?.files?.[0];
+                    if (event.target) event.target.value = '';
+                    if (!file) return;
+                    this.supermarketScanning = true;
+                    this.supermarketResult = null;
+                    try {
+                        const compressed = await compressImageFile(file, 1280, 0.85);
+                        const res = await fetch('/api/supermarket/scan', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                image_base64: compressed.dataUrl,
+                                mime_type: compressed.mimeType || 'image/jpeg',
+                                remaining_calories: Math.max(150, Number(this.summary.remaining_calories) || 600),
+                                remaining_protein: Math.max(15, (Number(this.summary.target_protein) || 120) - (Number(this.summary.total_protein) || 0))
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            throw new Error(data.detail || 'לא ניתן היה לנתח את המוצר מהתמונה');
+                        }
+                        this.supermarketResult = data;
+                        this.showToast(`🛒 נסרק: ${data.product_name} (${data.verdict})`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בסריקת המוצר', 'error');
+                    } finally {
+                        this.supermarketScanning = false;
+                    }
+                },
+
+                async logSupermarketProduct() {
+                    if (!this.supermarketResult) return;
+                    try {
+                        const p = this.supermarketResult;
+                        const res = await fetch('/api/meals/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                description: `${p.product_name} (${p.serving_description || 'יחידה'})`,
+                                calories: Number(p.serving_calories) || 150,
+                                protein_g: Number(p.serving_protein_g) || 10
+                            })
+                        });
+                        if (!res.ok) throw new Error('Failed logging supermarket item');
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`✅ "${p.product_name}" נוסף ליומן היום!`);
+                    } catch (e) {
+                        this.showToast('שגיאה בהוספת המוצר ליומן', 'error');
+                    }
+                },
+
+                toggleFridgeItem(ing) {
+                    const idx = this.selectedFridgeItems.indexOf(ing);
+                    if (idx >= 0) {
+                        this.selectedFridgeItems.splice(idx, 1);
+                    } else {
+                        this.selectedFridgeItems.push(ing);
+                    }
+                },
+
+                async onFridgePhotoSelected(event) {
+                    const file = event.target?.files?.[0];
+                    if (event.target) event.target.value = '';
+                    if (!file) return;
+                    try {
+                        const compressed = await compressImageFile(file, 1280, 0.85);
+                        this.fridgePhotoDataUrl = compressed.dataUrl;
+                        this.fridgePhotoMimeType = compressed.mimeType || 'image/jpeg';
+                        this.showToast('📸 תמונת המקרר נטענה! מרכיב מתכונים...');
+                        await this.generateFridgeRecipes();
+                    } catch (e) {
+                        this.showToast('שגיאה בטעינת תמונת המקרר', 'error');
+                    }
+                },
+
+                async generateFridgeRecipes() {
+                    const combinedText = [...this.selectedFridgeItems, (this.fridgeCustomText || '').trim()].filter(Boolean).join(', ');
+                    if (!combinedText && !this.fridgePhotoDataUrl) {
+                        this.showToast('בחר מצרכים או צלם את המקרר תחילה', 'warning');
+                        return;
+                    }
+                    this.fridgeGenerating = true;
+                    try {
+                        const res = await fetch('/api/recipes/fridge', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                image_base64: this.fridgePhotoDataUrl,
+                                mime_type: this.fridgePhotoMimeType || 'image/jpeg',
+                                ingredients_text: combinedText,
+                                remaining_calories: Math.max(200, Number(this.summary.remaining_calories) || 600),
+                                remaining_protein: Math.max(15, (Number(this.summary.target_protein) || 120) - (Number(this.summary.total_protein) || 0))
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            throw new Error(data.detail || 'לא ניתן היה להרכיב מתכונים מהמקרר כרגע');
+                        }
+                        this.fridgeRecipes = data.recipes || [];
+                        this.fridgePhotoDataUrl = null;
+                        this.showToast(`🧊 הורכבו ${this.fridgeRecipes.length} ארוחות מהמקרר שלך!`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בהרכבת מתכונים מהמקרר', 'error');
+                    } finally {
+                        this.fridgeGenerating = false;
+                    }
+                },
+
+                buildWeeklyReportText() {
+                    const st = this.weeklyStats;
+                    const wLine = this.weightData.latest_weight
+                        ? `⚖️ משקל נוכחי: ${this.weightData.latest_weight} ק"ג` + (this.weightData.entries.length > 1 ? ` (שינוי: ${this.weightData.weight_change > 0 ? '+' : ''}${this.weightData.weight_change} ק"ג)` : '')
+                        : '';
+                    return [
+                        `📊 *סיכום תזונה וכושר שבועי — NutriAgent AI*`,
+                        `📅 ימים מתועדים השבוע: ${st.activeDays}/7`,
+                        `🔥 ממוצע קלוריות יומי: ${st.avgCalories} / ${this.summary.target_calories} קק"ל`,
+                        `💪 ממוצע חלבון יומי: ${st.avgProtein}g / ${this.summary.target_protein}g`,
+                        `🏃‍♂️ קלוריות שנשרפו באימונים: ${st.totalBurned} קק"ל (${st.totalWorkouts} אימונים)`,
+                        wLine
+                    ].filter(Boolean).join('\n');
+                },
+
+                shareWeeklyReportWhatsApp() {
+                    const text = this.buildWeeklyReportText();
+                    const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                    window.open(waUrl, '_blank', 'noopener');
+                },
+
+                async copyWeeklyReport() {
+                    const text = this.buildWeeklyReportText();
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        this.showToast('📋 הסיכום השבועי הועתק ללוח!');
+                    } catch (e) {
+                        this.showToast('לא ניתן היה להעתיק ללוח', 'error');
                     }
                 },
 

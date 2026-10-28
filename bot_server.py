@@ -239,6 +239,35 @@ class WoltMenuScanRequest(BaseModel):
     city_slug: Optional[str] = "tel-aviv"
 
 
+class SupermarketScanResult(BaseModel):
+    product_name: str = Field(description="שם המוצר והמותג בעברית")
+    verdict: str = Field(description="פסק דין קצר: מומלץ מאוד ✅ / אפשרי במידה ⚖️ / פחות מומלץ ⚠️")
+    score: int = Field(description="ציון התאמה בין 1 ל-100 עבור היתרה היומית ויחס חלבון-קלוריות")
+    calories_per_100g: int = Field(description="קלוריות ל-100 גרם")
+    protein_per_100g: float = Field(description="חלבון בגרמים ל-100 גרם")
+    serving_description: str = Field(description="תיאור מנה מומלצת או יחידה (למשל גביע 200 גרם, חטיף 50 גרם, 2 פרוסות)")
+    serving_calories: int = Field(description="קלוריות למנה/יחידה")
+    serving_protein_g: float = Field(description="חלבון בגרמים למנה/יחידה")
+    fits_today_budget: bool = Field(description="האם מנה אחת נכנסת ביתרת הקלוריות של המשתמש להיום")
+    explanation: str = Field(description="הסבר קצר וחד בעברית למה כדאי או לא כדאי לקנות בהתחשב ביתרה היומית וברכיבים")
+    better_alternative: Optional[str] = Field(default="", description="חלופה עדיפה בסופר הישראלי אם המוצר פחות מומלץ")
+
+
+class SupermarketScanRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/jpeg"
+    remaining_calories: int = 600
+    remaining_protein: float = 40.0
+
+
+class FridgeRecipeRequest(BaseModel):
+    image_base64: Optional[str] = None
+    mime_type: str = "image/jpeg"
+    ingredients_text: Optional[str] = ""
+    remaining_calories: int = 600
+    remaining_protein: float = 40.0
+
+
 class RecipePromptRequest(BaseModel):
     remaining_calories: int = 600
     remaining_protein: float = 40.0
@@ -4176,6 +4205,138 @@ def api_scan_wolt_menu(req: WoltMenuScanRequest, request: Request):
     except Exception as e:
         print(f"ERROR api_scan_wolt_menu: {e}")
         raise HTTPException(status_code=502, detail="שגיאה בפענוח תפריט ה-Wolt מתוך צילום המסך")
+
+
+@app.post("/api/supermarket/scan")
+def api_supermarket_scan(req: SupermarketScanRequest, request: Request):
+    uid = require_approved_user(request)
+    raw_b64 = (req.image_base64 or "").strip()
+    if not raw_b64:
+        raise HTTPException(status_code=400, detail="נא לצלם מוצר או תווית תזונתית מהסופר")
+
+    mime_type = req.mime_type or "image/jpeg"
+    if raw_b64.startswith("data:"):
+        header, _, raw_b64 = raw_b64.partition(",")
+        if ";" in header and ":" in header:
+            mime_type = header.split(":")[1].split(";")[0] or mime_type
+
+    raw_b64 = "".join(raw_b64.split())
+    pad = (4 - len(raw_b64) % 4) % 4
+    if pad:
+        raw_b64 += "=" * pad
+
+    try:
+        image_bytes = base64.b64decode(raw_b64)
+        if not image_bytes:
+            raise ValueError("Empty image")
+    except Exception:
+        raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
+
+    check_and_increment_ai_quota(uid)
+    norm_bytes, clean_mime = _normalize_image_bytes(image_bytes, mime_type)
+    budget_cal = max(100, int(req.remaining_calories or 600))
+    budget_prot = max(10, int(round(req.remaining_protein or 35)))
+
+    if not ai_client:
+        return {
+            "product_name": "מוצר נסרק מהסופר",
+            "verdict": "מומלץ מאוד ✅",
+            "score": 85,
+            "calories_per_100g": 120,
+            "protein_per_100g": 12.0,
+            "serving_description": "יחידה אחת (200 גרם)",
+            "serving_calories": 240,
+            "serving_protein_g": 24.0,
+            "fits_today_budget": True,
+            "explanation": "מוצר עשיר בחלבון שמתאים מצוין ליתרת הקלוריות היומית שלך.",
+            "better_alternative": "",
+        }
+
+    prompt = f"""נתח את המוצר או התווית התזונתית שבתמונה מתוך הסופר הישראלי ("האם לקנות?").
+יתרת הקלוריות של המשתמש להיום: {budget_cal} קק"ל, ויתרת החלבון להשלמה: {budget_prot} גרם.
+1. זהה את שם המוצר והמותג (או סוג המזון), וחשב/קרא את הקלוריות והחלבון ל-100 גרם וגם למנה מומלצת או אריזה אישית (serving_calories, serving_protein_g).
+2. קבע פסק דין ברור (verdict): 'מומלץ מאוד ✅', 'אפשרי במידה ⚖️', או 'פחות מומלץ ⚠️', ותן ציון התאמה (score) בין 1 ל-100.
+3. בדוק אם מנה אחת נכנסת בתקציב של {budget_cal} קק"ל (fits_today_budget).
+4. כתוב הסבר קצר, חד ופרקטי בעברית (explanation) ואם המוצר עתיר סוכר/שומן או דל חלבון הצע חלופה ישראלית עדיפה בסופר (better_alternative)."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=norm_bytes, mime_type=clean_mime),
+                prompt,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SupermarketScanResult,
+                temperature=0.15,
+            ),
+        )
+        parsed = SupermarketScanResult.model_validate_json(response.text)
+        return parsed.model_dump()
+    except Exception as e:
+        print(f"ERROR api_supermarket_scan: {e}")
+        raise HTTPException(status_code=502, detail="שגיאה בפענוח המוצר מהתמונה, נסה שוב")
+
+
+@app.post("/api/recipes/fridge")
+def api_fridge_recipes(req: FridgeRecipeRequest, request: Request):
+    uid = require_approved_user(request)
+    raw_b64 = (req.image_base64 or "").strip()
+    ing_text = (req.ingredients_text or "").strip()
+    if not raw_b64 and not ing_text:
+        raise HTTPException(status_code=400, detail="נא לצלם את המקרר/המצרכים או לבחור מצרכים שיש לך בבית")
+
+    check_and_increment_ai_quota(uid)
+    budget_cal = max(180, min(int(req.remaining_calories or 600), 1300))
+    budget_prot = max(12, int(round(req.remaining_protein or 35)))
+
+    if not ai_client:
+        return {"recipes": generate_ai_recipes(budget_cal, budget_prot, ing_text or "מה שיש במקרר")}
+
+    contents_list = []
+    if raw_b64:
+        mime_type = req.mime_type or "image/jpeg"
+        if raw_b64.startswith("data:"):
+            header, _, raw_b64 = raw_b64.partition(",")
+            if ";" in header and ":" in header:
+                mime_type = header.split(":")[1].split(";")[0] or mime_type
+        raw_b64 = "".join(raw_b64.split())
+        pad = (4 - len(raw_b64) % 4) % 4
+        if pad:
+            raw_b64 += "=" * pad
+        try:
+            image_bytes = base64.b64decode(raw_b64)
+            norm_bytes, clean_mime = _normalize_image_bytes(image_bytes, mime_type)
+            contents_list.append(types.Part.from_bytes(data=norm_bytes, mime_type=clean_mime))
+        except Exception:
+            raise HTTPException(status_code=400, detail="תמונת המקרר לא תקינה")
+
+    ing_note = f"\nמצרכים שהמשתמש ציין שיש לו בבית: {ing_text}." if ing_text else ""
+    photo_note = "\nזהה את המצרכים המופיעים בתמונה המצורפת של המקרר/השיש." if raw_b64 else ""
+
+    prompt = f"""אתה שף ותזונאי ישראלי יצירתי.{photo_note}{ing_note}
+יתרת הקלוריות של המשתמש להיום: סביב {budget_cal} קק"ל, ויתרת החלבון: {budget_prot} גרם חלבון.
+הצע 3 ארוחות מהירות, טעימות ופרקטיות להכנה מידית מהמצרכים הקיימים בלבד (עם תבלינים בסיסיים שיש בכל בית):
+1. כל מנה חייבת להתאים לתקציב הקלוריות ({budget_cal} קק"ל) ולתת חלבון גבוה ככל האפשר מהמצרכים הקיימים.
+2. ציין זמן הכנה קצר, כמות מדויקת במצרכים ושלבי הכנה פשוטים וברורים."""
+
+    contents_list.append(prompt)
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents_list,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=RecipeSuggestionList,
+                temperature=0.25,
+            ),
+        )
+        parsed = RecipeSuggestionList.model_validate_json(response.text)
+        return {"recipes": [r.model_dump() for r in parsed.recipes]}
+    except Exception as e:
+        print(f"ERROR api_fridge_recipes: {e}")
+        raise HTTPException(status_code=502, detail="לא ניתן היה לייצר מתכונים מהמקרר כרגע, נסה שוב")
 
 
 @app.get("/api/recipes")
