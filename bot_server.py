@@ -124,6 +124,13 @@ class ManualWorkoutRequest(BaseModel):
     log_time: Optional[str] = None
 
 
+class PhotoWorkoutRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/jpeg"
+    caption: Optional[str] = ""
+    log_date: Optional[str] = None
+
+
 class GoogleFitSyncRequest(BaseModel):
     access_token: str
     log_date: Optional[str] = None
@@ -1072,6 +1079,84 @@ def log_workout_db(
         return None
 
 
+def upsert_health_sync_workout_db(
+    activity_name: str,
+    burned_calories: int,
+    duration_min: int = 30,
+    distance_km: Optional[float] = None,
+    activity_type: str = "walk",
+    log_date: Optional[str] = None,
+    source: str = "google-fit",
+    user_id: str = "default",
+    notes: str = "",
+) -> Optional[dict]:
+    uid = _normalize_user_id(user_id)
+    d_str = log_date or str(date.today())
+    t_str = datetime.now().strftime("%H:%M")
+    sync_doc_id = f"{uid}_health_sync_{d_str}"
+
+    if not db:
+        global _LOCAL_WORKOUTS
+        _LOCAL_WORKOUTS = [
+            w for w in _LOCAL_WORKOUTS
+            if not (_doc_matches_user(w, uid) and w.get("log_date") == d_str and w.get("source") == source)
+        ]
+        entry = {
+            "id": sync_doc_id,
+            "user_id": uid,
+            "log_date": d_str,
+            "log_time": t_str,
+            "activity_name": activity_name,
+            "burned_calories": int(burned_calories),
+            "duration_min": int(duration_min),
+            "distance_km": float(distance_km) if distance_km is not None else None,
+            "activity_type": activity_type,
+            "source": source,
+            "notes": notes,
+        }
+        _LOCAL_WORKOUTS.insert(0, entry)
+        return entry
+
+    try:
+        # Remove any legacy duplicate google-fit docs for the same user & date
+        existing_docs = db.collection("workouts").where("log_date", "==", d_str).stream()
+        for doc in existing_docs:
+            d = doc.to_dict() or {}
+            if _doc_matches_user(d, uid) and d.get("source") == source and doc.id != sync_doc_id:
+                doc.reference.delete()
+
+        doc_data = {
+            "user_id": uid,
+            "log_date": d_str,
+            "log_time": t_str,
+            "activity_name": activity_name,
+            "burned_calories": int(burned_calories),
+            "duration_min": int(duration_min),
+            "distance_km": float(distance_km) if distance_km is not None else None,
+            "activity_type": activity_type,
+            "source": source,
+            "notes": notes,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        }
+        db.collection("workouts").document(sync_doc_id).set(doc_data, merge=True)
+        return {
+            "id": sync_doc_id,
+            "user_id": uid,
+            "log_date": d_str,
+            "log_time": t_str,
+            "activity_name": activity_name,
+            "burned_calories": int(burned_calories),
+            "duration_min": int(duration_min),
+            "distance_km": float(distance_km) if distance_km is not None else None,
+            "activity_type": activity_type,
+            "source": source,
+            "notes": notes,
+        }
+    except Exception as e:
+        print(f"ERROR upsert_health_sync_workout_db: {e}")
+        return None
+
+
 def delete_workout_db(workout_id: str, user_id: str = "default") -> bool:
     uid = _normalize_user_id(user_id)
     if not db:
@@ -1325,6 +1410,48 @@ def _normalize_image_bytes(image_bytes: bytes, fallback_mime: str = "image/jpeg"
     if detected_mime not in ("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"):
         detected_mime = "image/jpeg"
     return image_bytes, detected_mime
+
+
+def analyze_workout_image(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "", user_weight_kg: float = 75.0) -> WorkoutExtraction:
+    if not ai_client:
+        label = caption.strip() if caption and caption.strip() else "סנכרון צילום מסך (Samsung / Google Health)"
+        return WorkoutExtraction(
+            workouts=[WorkoutItem(activity_name=label, activity_type="other", duration_min=35, burned_calories=240, is_workout=True)],
+            total_burned_calories=240,
+            summary=f"{label} (240 קק״ל)",
+            is_workout=True,
+        )
+
+    norm_bytes, clean_mime = _normalize_image_bytes(image_bytes, mime_type)
+    caption_note = f"\nהערת המשתמש: '{caption.strip()}'." if caption and caption.strip() else ""
+    prompt = f"""נתח את צילום המסך או התמונה המצורפת של אפליקציית כושר/בריאות (כגון Samsung Health, Google Fit, Google Health Connect, Apple Health / Fitness, Garmin, Strava, שעון חכם או צג הליכון/מכשיר כושר).{caption_note}
+משקל גוף המתאמן להערכת חסר: {user_weight_kg:.1f} ק"ג.
+1. חלץ מתוך התמונה את כל האימונים או סיכום הפעילות היומית (מספר צעדים, קלוריות פעילות שנשרפו, זמן פעילות, מרחק בק"מ וסוג הפעילות).
+2. חשוב: אם מופיעות בתמונה גם 'קלוריות פעילות' (Active Calories) וגם 'סה"כ קלוריות כולל מנוחה' (Total Calories), קח אך ורק את הקלוריות הפעילות שנשרפו מהפעילות/צעדים/אימון! אם מופיעים רק צעדים ללא קלוריות, חשב לפי כ-0.045 קק"ל לצעד.
+3. ציין בשדה activity_name את שם המקור והפעילות בעברית ברורה (למשל: 'Samsung Health - הליכה (8,420 צעדים)' או 'ריצת בוקר - Samsung Health').
+4. החזר is_workout=True אם התמונה מציגה נתוני צעדים, אימון, שעון כושר או מכשיר כושר."""
+
+    last_err = None
+    for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
+        try:
+            response = ai_client.models.generate_content(
+                model=model_name,
+                contents=[
+                    types.Part.from_bytes(data=norm_bytes, mime_type=clean_mime),
+                    prompt,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=WorkoutExtraction,
+                    temperature=0.1,
+                ),
+            )
+            return WorkoutExtraction.model_validate_json(response.text)
+        except Exception as e:
+            last_err = e
+            print(f"ERROR analyze_workout_image ({model_name}): {type(e).__name__} - {e}")
+
+    return WorkoutExtraction(workouts=[], total_burned_calories=0, summary=f"API_ERROR: {last_err}", is_workout=False)
 
 
 def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "") -> NutritionExtraction:
@@ -3262,8 +3389,233 @@ def api_delete_workout(workout_id: str, request: Request):
     return {"status": "deleted", "id": workout_id}
 
 
+@app.post("/api/workouts/photo")
+def api_add_photo_workout(req: PhotoWorkoutRequest, request: Request):
+    uid = require_approved_user(request)
+    raw_b64 = (req.image_base64 or "").strip()
+    if not raw_b64:
+        raise HTTPException(status_code=400, detail="נא להעלות צילום מסך מאפליקציית הכושר / הבריאות")
+
+    mime_type = req.mime_type or "image/jpeg"
+    if raw_b64.startswith("data:"):
+        header, _, raw_b64 = raw_b64.partition(",")
+        if ";" in header and ":" in header:
+            mime_type = header.split(":")[1].split(";")[0] or mime_type
+
+    raw_b64 = "".join(raw_b64.split())
+    pad = (4 - len(raw_b64) % 4) % 4
+    if pad:
+        raw_b64 += "=" * pad
+
+    try:
+        image_bytes = base64.b64decode(raw_b64)
+        if not image_bytes:
+            raise ValueError("Empty decoded image")
+    except Exception:
+        raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
+
+    check_and_increment_ai_quota(uid)
+    w_info = get_weights_db(limit=5, user_id=uid)
+    user_weight_kg = float(w_info.get("latest_weight") or 75.0)
+
+    extraction = analyze_workout_image(
+        image_bytes=image_bytes,
+        mime_type=mime_type,
+        caption=req.caption or "",
+        user_weight_kg=user_weight_kg,
+    )
+    if extraction.summary and extraction.summary.startswith("API_ERROR:"):
+        raise HTTPException(status_code=502, detail=f"שגיאה בפענוח צילום המסך ב-AI: {extraction.summary}")
+    if not extraction.is_workout or not extraction.workouts:
+        raise HTTPException(status_code=422, detail="לא זוהו נתוני צעדים, קלוריות או אימון בצילום המסך שהועלה")
+
+    d_str = req.log_date or str(date.today())
+    added_entries = []
+    for item in extraction.workouts:
+        entry = log_workout_db(
+            activity_name=item.activity_name,
+            burned_calories=max(1, int(item.burned_calories)),
+            duration_min=max(1, int(item.duration_min or 30)),
+            distance_km=item.distance_km,
+            activity_type=item.activity_type or "other",
+            log_date=d_str,
+            source="health-screenshot",
+            user_id=uid,
+            notes=item.notes or "סונכרן מצילום מסך (Samsung / Google Health)",
+        )
+        if entry:
+            added_entries.append(entry)
+
+    if not added_entries:
+        raise HTTPException(status_code=500, detail="שגיאה בשמירת הפעילות")
+
+    return {
+        "status": "success",
+        "summary": extraction.summary,
+        "total_burned_calories": sum(w["burned_calories"] for w in added_entries),
+        "workouts": added_entries,
+    }
+
+
 @app.post("/api/google-fit/sync")
 def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
+    import urllib.request
+    uid = require_approved_user(request)
+    token = req.access_token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="נא לספק Google OAuth access token")
+
+    target_date_str = req.log_date or str(date.today())
+    try:
+        target_dt = datetime.strptime(target_date_str, "%Y-%m-%d")
+    except Exception:
+        target_dt = datetime.today()
+
+    start_dt = datetime(target_dt.year, target_dt.month, target_dt.day, 0, 0, 0)
+    end_dt = datetime(target_dt.year, target_dt.month, target_dt.day, 23, 59, 59)
+    start_ms = int(start_dt.timestamp() * 1000)
+    end_ms = int(end_dt.timestamp() * 1000)
+
+    url = "https://fitness.googleapis.com/fitness/v1/users/me/dataset:aggregate"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "aggregateBy": [
+            {"dataTypeName": "com.google.calories.expended"},
+            {"dataTypeName": "com.google.step_count.delta"},
+            {"dataTypeName": "com.google.activity.segment"},
+        ],
+        "bucketByTime": {"durationMillis": 86400000},
+        "startTimeMillis": start_ms,
+        "endTimeMillis": end_ms,
+    }
+
+    req_obj = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req_obj, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        print(f"ERROR Google Fit API: {e}")
+        raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם Google Health / Fit API: {e}")
+
+    raw_calories = 0.0
+    total_steps = 0
+    active_segment_minutes = 0
+    from_samsung = False
+
+    buckets = data.get("bucket", [])
+    for b in buckets:
+        for ds in b.get("dataset", []):
+            dtype = ds.get("dataSourceId", "")
+            for pt in ds.get("point", []):
+                origin = (pt.get("originDataSourceId") or "").lower()
+                if "shealth" in origin or "samsung" in origin:
+                    from_samsung = True
+                val_list = pt.get("value", [])
+                if "calories" in dtype and val_list:
+                    raw_calories += float(val_list[0].get("fpVal", 0) or 0)
+                elif "step_count" in dtype and val_list:
+                    total_steps += int(val_list[0].get("intVal", 0) or 0)
+                elif "activity.segment" in dtype and val_list:
+                    act_code = int(val_list[0].get("intVal", 0) or 0)
+                    # Exclude Still (3), Unknown (4), Sleeping (72)
+                    if act_code not in (3, 4, 72):
+                        s_ns = int(pt.get("startTimeNanos") or 0)
+                        e_ns = int(pt.get("endTimeNanos") or 0)
+                        if e_ns > s_ns:
+                            active_segment_minutes += max(1, int((e_ns - s_ns) / 60_000_000_000))
+
+    # Also query explicit workout sessions (Google Fit + Samsung Health via Health Connect)
+    session_names = []
+    session_minutes = 0
+    try:
+        iso_start = start_dt.strftime("%Y-%m-%dT00:00:00.00Z")
+        iso_end = end_dt.strftime("%Y-%m-%dT23:59:59.99Z")
+        sess_url = f"https://fitness.googleapis.com/fitness/v1/users/me/sessions?startTime={iso_start}&endTime={iso_end}"
+        sess_req = urllib.request.Request(sess_url, headers=headers, method="GET")
+        with urllib.request.urlopen(sess_req, timeout=8) as s_resp:
+            sess_data = json.loads(s_resp.read().decode("utf-8"))
+            for s in sess_data.get("session", []):
+                act_type = int(s.get("activityType") or 0)
+                if act_type in (3, 72):
+                    continue
+                pkg = ((s.get("application") or {}).get("packageName") or "").lower()
+                if "shealth" in pkg or "samsung" in pkg:
+                    from_samsung = True
+                s_name = (s.get("name") or s.get("description") or "").strip()
+                if s_name and s_name not in session_names:
+                    session_names.append(s_name)
+                s_ms = int(s.get("startTimeMillis") or 0)
+                e_ms = int(s.get("endTimeMillis") or 0)
+                if e_ms > s_ms:
+                    session_minutes += max(1, int((e_ms - s_ms) / 60000))
+    except Exception as se:
+        print(f"WARN Google Fit sessions fetch: {se}")
+
+    active_min = max(active_segment_minutes, session_minutes)
+    step_calories = int(round(total_steps * 0.045))
+    session_est_calories = int(round(session_minutes * 6.5))
+
+    # Filter out 24h passive BMR calories when Google Fit returns total BMR + active
+    raw_cal_int = int(round(raw_calories))
+    max_reasonable_active = step_calories + session_est_calories + max(active_min * 8, 280)
+    if raw_cal_int > max_reasonable_active and (total_steps > 0 or active_min > 0):
+        total_calories = max(step_calories, step_calories + int(session_est_calories * 0.6))
+    elif raw_cal_int > 400 and total_steps == 0 and active_min == 0:
+        # Pure BMR with 0 steps and 0 active sessions
+        total_calories = 0
+    else:
+        total_calories = raw_cal_int
+
+    if total_calories <= 0 and total_steps > 0:
+        total_calories = max(1, step_calories)
+    elif total_calories <= 0 and active_min > 0:
+        total_calories = max(1, active_min * 6)
+
+    if total_calories <= 0 and total_steps <= 0 and active_min <= 0:
+        return {
+            "status": "no_data",
+            "message": f"לא נמצאו נתוני פעילות או צעדים מ-Google / Samsung Health לתאריך {target_date_str}",
+            "burned_calories": 0,
+            "steps": 0,
+        }
+
+    provider = "Samsung & Google Health" if from_samsung else "Google Health / Fit"
+    if session_names and total_steps > 0:
+        activity_name = f"{provider}: {', '.join(session_names[:2])} ({total_steps:,} צעדים)"
+    elif session_names:
+        activity_name = f"{provider}: {', '.join(session_names[:2])}"
+    elif total_steps > 0:
+        activity_name = f"{provider} ({total_steps:,} צעדים)"
+    else:
+        activity_name = f"פעילות {provider}"
+
+    duration_val = active_min if active_min > 0 else (max(15, int(total_steps / 100)) if total_steps > 0 else 30)
+    dist_km = round(total_steps * 0.00075, 2) if total_steps >= 500 else None
+
+    entry = upsert_health_sync_workout_db(
+        activity_name=activity_name,
+        burned_calories=total_calories,
+        duration_min=duration_val,
+        distance_km=dist_km,
+        activity_type="walk" if total_steps > 0 and not session_names else "other",
+        log_date=target_date_str,
+        source="google-fit",
+        user_id=uid,
+        notes=f"סונכרן אוטומטית מ-{provider}: {total_steps:,} צעדים" + (f" • {', '.join(session_names)}" if session_names else ""),
+    )
+    return {
+        "status": "success",
+        "provider": provider,
+        "burned_calories": total_calories,
+        "steps": total_steps,
+        "active_minutes": duration_val,
+        "sessions": session_names,
+        "workout": entry,
+    }
+def _legacy_sync_google_fit_unused(req: GoogleFitSyncRequest, request: Request):
     import urllib.request
     uid = require_approved_user(request)
     token = req.access_token.strip()

@@ -1902,7 +1902,7 @@
                         class="py-2 rounded-xl transition cursor-pointer text-center">⚡ ידני</button>
                 <button type="button" @click="workoutMode = 'google_fit'"
                         :class="workoutMode === 'google_fit' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'"
-                        class="py-2 rounded-xl transition cursor-pointer text-center">🟢 Google Fit</button>
+                        class="py-2 rounded-xl transition cursor-pointer text-center">⌚ Google & Samsung</button>
             </div>
 
             <!-- AI Form -->
@@ -1962,7 +1962,57 @@
             </form>
 
             <!-- Google Fit Sync Tab -->
-            <div x-show="workoutMode === 'google_fit'" class="space-y-4 py-2 text-center">
+            <div x-show="workoutMode === 'google_fit'" class="space-y-3.5 py-1">
+                <div class="bg-gradient-to-br from-emerald-50 via-teal-50/70 to-indigo-50/60 border border-emerald-200/80 rounded-2xl p-4 text-center space-y-2.5">
+                    <div class="flex items-center justify-center gap-2">
+                        <span class="px-2.5 py-1 rounded-full bg-white border border-emerald-200 text-[11px] font-bold text-emerald-700 shadow-2xs">💚 Google Health / Fit</span>
+                        <span class="text-slate-400 text-xs">+</span>
+                        <span class="px-2.5 py-1 rounded-full bg-white border border-indigo-200 text-[11px] font-bold text-indigo-700 shadow-2xs">⌚ Samsung Health</span>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-sm">סנכרון חכם מ-Google Health ו-Samsung Health</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        מושך אוטומטית צעדים, קלוריות פעילות ואימונים מחשבון ה-Google שלך ומ-Samsung Health (דרך Health Connect).
+                    </p>
+                    <button type="button" @click="triggerGoogleFitSync()" :disabled="googleFitSyncing || workoutPhotoAnalyzing"
+                            class="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm">
+                        <span x-show="!googleFitSyncing">🔄 סנכרן מ-Google & Samsung Health</span>
+                        <span x-show="googleFitSyncing">מסנכרן נתוני בריאות וצעדים...</span>
+                    </button>
+                </div>
+
+                <!-- Samsung Health <-> Google Health Connect 30s Setup Guide -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/60">
+                    <button type="button" @click="showSamsungGuide = !showSamsungGuide"
+                            class="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100/80 transition cursor-pointer">
+                        <span>📱 משתמש ב-Samsung Health? איך מחברים ב-30 שניות</span>
+                        <span x-text="showSamsungGuide ? '▲' : '▼'" class="text-[10px] text-slate-400"></span>
+                    </button>
+                    <div x-show="showSamsungGuide" class="px-3.5 pb-3 pt-1 text-[11px] text-slate-600 space-y-1.5 border-t border-slate-200/70 bg-white">
+                        <p class="font-semibold text-slate-800">חיבור חד-פעמי באנדרואיד (Health Connect):</p>
+                        <ol class="list-decimal list-inside space-y-1 text-slate-600">
+                            <li>פתח את אפליקציית <b>Samsung Health</b> בנייד ולחץ על <b>הגדרות (⚙️)</b>.</li>
+                            <li>בחר ב-<b>Health Connect (חיבור בריאות)</b> ואשר הרשאות צעדים ופעילות.</li>
+                            <li>פתח את <b>Google Fit</b> והפעל את <b>סנכרון Fit עם Health Connect</b>.</li>
+                        </ol>
+                        <p class="text-[10px] text-emerald-700 font-medium pt-0.5">✨ מעכשיו השעון והנייד של סמסונג יסתנכרנו לכאן בלחיצה על הכפתור למעלה!</p>
+                    </div>
+                </div>
+
+                <!-- Instant Screenshot Sync for Samsung Health / Watches / Apple Health -->
+                <div class="border border-indigo-200/80 bg-indigo-50/40 rounded-2xl p-3.5 space-y-2 text-center">
+                    <div class="text-xs font-bold text-slate-800">📸 או העלה צילום מסך מ-Samsung Health / שעון כושר</div>
+                    <p class="text-[11px] text-slate-500">
+                        ללא צורך בהגדרות! צלם מסך מתוך Samsung Health, Google Health, Garmin או Apple Fitness וה-AI יזהה וירשום את הצעדים והקלוריות אוטומטית:
+                    </p>
+                    <input type="file" x-ref="workoutPhotoInput" accept="image/*" class="hidden" @change="onWorkoutPhotoSelected($event)">
+                    <button type="button" @click="$refs.workoutPhotoInput.click()" :disabled="workoutPhotoAnalyzing || googleFitSyncing"
+                            class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs">
+                        <span x-show="!workoutPhotoAnalyzing">📤 העלה צילום מסך מ-Samsung / Google Health</span>
+                        <span x-show="workoutPhotoAnalyzing">מפענח צילום מסך ב-AI...</span>
+                    </button>
+                </div>
+            </div>
+            <div x-show="false" class="hidden">
                 <div class="w-16 h-16 mx-auto rounded-3xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-3xl">
                     🟢
                 </div>
@@ -2550,6 +2600,8 @@
                     log_time: ''
                 },
                 googleFitSyncing: false,
+                showSamsungGuide: false,
+                workoutPhotoAnalyzing: false,
                 showHistoryAddMeal: false,
                 historyAddMode: 'ai',
                 historyAiInputText: '',
@@ -3819,7 +3871,39 @@
                 },
 
                 triggerGoogleFitSync() {
-                    const clientId = this.authConfig?.google_client_id;
+                },
+                async onWorkoutPhotoSelected(event) {
+                    const file = event.target?.files?.[0];
+                    if (event.target) event.target.value = '';
+                    if (!file) return;
+                    this.workoutPhotoAnalyzing = true;
+                    try {
+                        const compressed = await compressImageFile(file, 1280, 0.85);
+                        const res = await fetch('/api/workouts/photo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                image_base64: compressed.dataUrl,
+                                mime_type: compressed.mimeType || 'image/jpeg',
+                                log_date: this.workoutTargetDate || this.todayStr
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            throw new Error(data.detail || 'לא זוהו נתוני אימון או צעדים בצילום המסך');
+                        }
+                        this.showWorkoutModal = false;
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`⌚ סונכרן מצילום מסך: ${data.summary} (-${data.total_burned_calories} קק"ל)`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בפענוח צילום המסך', 'error');
+                    } finally {
+                        this.workoutPhotoAnalyzing = false;
+                    }
+                },
+
+                triggerGoogleFitSync() {
+                    const clientId = this.googleClientId || this.authConfig?.google_client_id;
                     if (!clientId || !window.google?.accounts?.oauth2) {
                         this.showToast('חיבור Google טרם הוגדר בדפדפן', 'error');
                         return;
@@ -3851,7 +3935,7 @@
                                     } else {
                                         this.showWorkoutModal = false;
                                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
-                                        this.showToast(`🟢 סונכרן מ-Google Fit: ${result.steps.toLocaleString()} צעדים (-${result.burned_calories} קק"ל)`);
+                                        this.showToast(`⌚ סונכרן מ-${result.provider || 'Google & Samsung Health'}: ${result.steps.toLocaleString()} צעדים (-${result.burned_calories} קק"ל)`);
                                     }
                                 } catch (e) {
                                     this.showToast(e.message || 'שגיאה בסנכרון מ-Google Fit', 'error');
