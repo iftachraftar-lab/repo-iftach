@@ -207,6 +207,38 @@ class TargetUpdateRequest(BaseModel):
     daily_ai_limit: Optional[int] = Field(default=None, ge=0, le=1000)
 
 
+class WoltDishItem(BaseModel):
+    dish_name: str = Field(description="שם המנה הספציפית בעברית")
+    restaurant_name: str = Field(description="שם המסעדה או הרשת ב-Wolt בעברית")
+    category: str = Field(description="קטגוריה: סלטים וקערות / סושי ואסיאתי / בשרים והמבורגר / ים-תיכוני / כריכים וחלבי")
+    calories: int = Field(description="הערכת קלוריות למנה")
+    protein_g: float = Field(description="הערכת חלבון בגרמים למנה")
+    description: str = Field(description="פירוט קצר של מרכיבי המנה")
+    smart_order_tip: str = Field(description="טיפ פרקטי מה לסמן או לבקש בהזמנה ב-Wolt כדי לחסוך קלוריות או להגדיל חלבון")
+    search_query: str = Field(description="מילת החיפוש המדויקת לפתיחה ישירה ב-Wolt (שם המסעדה והמנה)")
+
+
+class WoltDishList(BaseModel):
+    dishes: List[WoltDishItem]
+
+
+class WoltSuggestRequest(BaseModel):
+    remaining_calories: int = 600
+    remaining_protein: float = 40.0
+    city_slug: Optional[str] = "tel-aviv"
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    query: Optional[str] = ""
+
+
+class WoltMenuScanRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/jpeg"
+    remaining_calories: int = 600
+    remaining_protein: float = 40.0
+    city_slug: Optional[str] = "tel-aviv"
+
+
 class RecipePromptRequest(BaseModel):
     remaining_calories: int = 600
     remaining_protein: float = 40.0
@@ -3741,6 +3773,339 @@ def api_delete_weight(entry_id: str, request: Request):
 def api_update_targets(req: TargetUpdateRequest, request: Request):
     uid = require_approved_user(request)
     return set_targets(req.target_calories, req.target_protein, user_id=uid)
+
+
+WOLT_CITIES = {
+    "tel-aviv": {"label": "תל אביב והמרכז", "lat": 32.0853, "lon": 34.7818, "slug": "tel-aviv"},
+    "rishon-lezion": {"label": "ראשון לציון, חולון ורחובות", "lat": 31.9730, "lon": 34.7925, "slug": "rishon-lezion"},
+    "hasharon": {"label": "הרצליה, רעננה, כפ״ס ונתניה", "lat": 32.1663, "lon": 34.8436, "slug": "herzliya"},
+    "jerusalem": {"label": "ירושלים והסביבה", "lat": 31.7683, "lon": 35.2137, "slug": "jerusalem"},
+    "haifa": {"label": "חיפה והקריות", "lat": 32.7940, "lon": 34.9896, "slug": "haifa"},
+    "beer-sheva": {"label": "באר שבע והדרום", "lat": 31.2530, "lon": 34.7915, "slug": "beer-sheva"},
+}
+
+CURATED_WOLT_DISHES = [
+    {
+        "dish_name": "סלט עוף חם / חזה עוף על הפלנצ׳ה",
+        "restaurant_name": "ארומה (Aroma)",
+        "category": "סלטים וקערות",
+        "calories": 430,
+        "protein_g": 42.0,
+        "description": "נתחי חזה עוף חמים על מצע חסה, עגבנייה, מלפפון, בצל סגול ופטרוזיליה.",
+        "smart_order_tip": "בקש רוטב שמן זית ולימון בצד, וותר על קרוטונים או החלף בלחם קל (חוסך כ-160 קק״ל).",
+        "search_query": "ארומה סלט עוף",
+    },
+    {
+        "dish_name": "קערת פוקי סלמון וטונה עשירה בחלבון",
+        "restaurant_name": "פוקי (Poke Bowl)",
+        "category": "סלטים וקערות",
+        "calories": 510,
+        "protein_g": 38.0,
+        "description": "קוביות סלמון וטונה אדומה נאים, אדממה, מלפפון, גזר, כרוב סגול ובצל ירוק.",
+        "smart_order_tip": "בחר בסיס של חצי אורז סושי וחצי עלים ירוקים/סלט, ובקש רוטב פונזו או סויה במקום מיונז ספייסי.",
+        "search_query": "פוקי סלמון",
+    },
+    {
+        "dish_name": "המבורגר קלאסי 200 גרם בלחמנייה קלה / חסה",
+        "restaurant_name": "מוזס / וולפנייטס / בורגר",
+        "category": "בשרים והמבורגר",
+        "calories": 540,
+        "protein_g": 44.0,
+        "description": "המבורגר בקר 200 גרם על הגריל עם ירקות טריים, חמוצים ובצל.",
+        "smart_order_tip": "הזמן בלחמניית חיטה קלה או עטוף בחסה (Lettuce Wrap), עם סלט ירוק בצד במקום צ׳יפס ורטבים בצד.",
+        "search_query": "המבורגר",
+    },
+    {
+        "dish_name": "קומבינציית סשימי ורול סלמון אבוקדו (8 יח׳ + סשימי)",
+        "restaurant_name": "אושי אושי / ג׳פניקה / סושי",
+        "category": "סושי ואסיאתי",
+        "calories": 460,
+        "protein_g": 34.0,
+        "description": "רול מאקי/אינסייד אאוט סלמון ואבוקדו לצד פרוסות סשימי סלמון/טונה ואדממה.",
+        "smart_order_tip": "הימנע מרולים מטוגנים (פנקו) ומספייסי מיונז — סויה וג׳ינג׳ר בצד שומרים על מנה נקייה ועתירת חלבון.",
+        "search_query": "סושי סלמון",
+    },
+    {
+        "dish_name": "המנה החריפה / מוקפץ חזה עוף וירקות",
+        "restaurant_name": "ג׳ירף (Giraffe)",
+        "category": "סושי ואסיאתי",
+        "calories": 590,
+        "protein_g": 41.0,
+        "description": "נתחי חזה עוף מוקפצים בווק עם ירקות ירוקים, פלפלים, בצל ירוק ואורז מאודה.",
+        "smart_order_tip": "בחר מנת ווק על בסיס אורז מאודה (ולא נודלס בשמן) ואכול כ-2/3 מכמות האורז לקבלת יחס חלבון מושלם.",
+        "search_query": "ג'ירף המנה החריפה",
+    },
+    {
+        "dish_name": "צמד שיפודי פרגית / פילה עוף בצלחת עם סלטים",
+        "restaurant_name": "שיפודייה / גריל ישראלי",
+        "category": "ים-תיכוני",
+        "calories": 520,
+        "protein_g": 49.0,
+        "description": "2 שיפודי פרגית או חזה עוף על האש בצלחת (ללא לאפה) עם סלט ירקות קצוץ וירקות גריל.",
+        "smart_order_tip": "הזמן בצלחת במקום בפיתה/לאפה, ובקש כף טחינה אחת בצד במקום צ׳יפס.",
+        "search_query": "שיפודי פרגית בצלחת",
+    },
+    {
+        "dish_name": "סלט בהרכבה אישית (חזה עוף + ביצה קשה / טונה)",
+        "restaurant_name": "סלט בהרכבה / בהדונס / גרין",
+        "category": "סלטים וקערות",
+        "calories": 440,
+        "protein_g": 45.0,
+        "description": "סלט גדול מירקות טריים עם תוספת כפולה של חלבון: חזה עוף חם + ביצה קשה או טונה.",
+        "smart_order_tip": "בחר רוטב לימון ושמן זית או ויניגרט הדרים קל בצד (הימנע מאלף האיים / פסטו שמנת).",
+        "search_query": "סלט בהרכבה חזה עוף",
+    },
+    {
+        "dish_name": "מק רויאל על גחלים (ללא מיונז) + סלט ירוק",
+        "restaurant_name": "מקדונלד׳ס (McDonald's)",
+        "category": "בשרים והמבורגר",
+        "calories": 495,
+        "protein_g": 35.0,
+        "description": "מק רויאל על גחלים מ-100% בשר בקר עם ירקות, לצד סלט ירוק ושתייה זירו.",
+        "smart_order_tip": "סמן באפליקציית Wolt 'ללא רוטב מק רויאל (מיונז)' והחלף את הצ׳יפס בסלט ירוק — חוסך מעל 400 קק״ל!",
+        "search_query": "מקדונלדס מק רויאל",
+    },
+    {
+        "dish_name": "כריך חביתה / סלמון / טונה בלחם קל",
+        "restaurant_name": "ארומה / קפה קפה / ארקפה",
+        "category": "כריכים וחלבי",
+        "calories": 340,
+        "protein_g": 27.0,
+        "description": "כריך בלחם דגנים קל עם חביתה מ-2 ביצים וגבינת שמנת 5% או טונה וירקות.",
+        "smart_order_tip": "סמן 'לחם קל' באפשרויות הכריך ב-Wolt ובקש סלט אישי בצד ללא רוטב שמנת.",
+        "search_query": "ארומה כריך לחם קל",
+    },
+]
+
+
+def _build_wolt_deep_link(search_query: str, city_slug: str = "tel-aviv", venue_slug: Optional[str] = None) -> str:
+    clean_city = (city_slug or "tel-aviv").strip().lower()
+    if clean_city not in WOLT_CITIES:
+        clean_city = "tel-aviv"
+    wolt_region = WOLT_CITIES[clean_city]["slug"]
+    if venue_slug:
+        return f"https://wolt.com/he/isr/{wolt_region}/restaurant/{venue_slug}"
+    encoded_q = urllib.parse.quote((search_query or "").strip())
+    return f"https://wolt.com/he/isr/{wolt_region}/search?q={encoded_q}"
+
+
+def _fetch_live_wolt_venues(lat: float, lon: float, limit: int = 24) -> List[dict]:
+    """Queries Wolt's live Consumer Storefront API for open restaurants at the user's coordinates."""
+    url = f"https://restaurant-api.wolt.com/v1/pages/restaurants?lat={lat:.4f}&lon={lon:.4f}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36",
+        "Accept": "application/json",
+        "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
+    }
+    venues = []
+    try:
+        req_obj = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(req_obj, timeout=4.5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        for sec in data.get("sections", []):
+            for it in sec.get("items", []):
+                v = it.get("venue")
+                if not v or not v.get("online", True):
+                    continue
+                name = (v.get("name") or "").strip()
+                slug = (v.get("slug") or "").strip()
+                if not name or not slug:
+                    continue
+                rating_obj = v.get("rating") or {}
+                venues.append({
+                    "name": name,
+                    "slug": slug,
+                    "short_description": (v.get("short_description") or "").strip(),
+                    "estimate_range": v.get("estimate_range") or "25-35",
+                    "rating": rating_obj.get("score"),
+                    "tags": v.get("tags") or [],
+                })
+                if len(venues) >= limit:
+                    return venues
+    except Exception as e:
+        print(f"WARN _fetch_live_wolt_venues: {e}")
+    return venues
+
+
+def _match_venue_slug(restaurant_name: str, search_query: str, live_venues: List[dict]) -> Optional[tuple[str, str]]:
+    if not live_venues:
+        return None
+    candidates = [w.strip().lower() for w in re.split(r"[/()\-]+", restaurant_name) if len(w.strip()) >= 3]
+    for v in live_venues:
+        v_name = v["name"].lower()
+        for c in candidates:
+            if c in v_name:
+                return v["slug"], v["name"]
+    return None
+
+
+@app.get("/api/wolt/dishes")
+def api_get_wolt_dishes(
+    request: Request,
+    city_slug: str = Query(default="tel-aviv"),
+    lat: Optional[float] = Query(default=None),
+    lon: Optional[float] = Query(default=None),
+):
+    require_approved_user(request)
+    city_info = WOLT_CITIES.get(city_slug, WOLT_CITIES["tel-aviv"])
+    use_lat = lat if lat is not None else city_info["lat"]
+    use_lon = lon if lon is not None else city_info["lon"]
+
+    live_venues = _fetch_live_wolt_venues(use_lat, use_lon, limit=25)
+    enriched = []
+    for d in CURATED_WOLT_DISHES:
+        item = dict(d)
+        matched = _match_venue_slug(item["restaurant_name"], item["search_query"], live_venues)
+        if matched:
+            v_slug, v_live_name = matched
+            item["live_venue_name"] = v_live_name
+            item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug, venue_slug=v_slug)
+        else:
+            item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug)
+        enriched.append(item)
+
+    return {
+        "dishes": enriched,
+        "live_venues_count": len(live_venues),
+        "live_venues": live_venues[:12],
+        "cities": [{"id": k, "label": v["label"]} for k, v in WOLT_CITIES.items()],
+    }
+
+
+@app.post("/api/wolt/suggest")
+def api_suggest_wolt_dishes(req: WoltSuggestRequest, request: Request):
+    uid = require_approved_user(request)
+    check_and_increment_ai_quota(uid)
+
+    city_slug = req.city_slug or "tel-aviv"
+    city_info = WOLT_CITIES.get(city_slug, WOLT_CITIES["tel-aviv"])
+    use_lat = req.lat if req.lat is not None else city_info["lat"]
+    use_lon = req.lon if req.lon is not None else city_info["lon"]
+    live_venues = _fetch_live_wolt_venues(use_lat, use_lon, limit=20)
+
+    budget_cal = max(200, min(int(req.remaining_calories or 600), 1400))
+    budget_prot = max(15, int(round(req.remaining_protein or 35)))
+    user_q = (req.query or "").strip()
+
+    if not ai_client:
+        fallback = [dict(d) for d in CURATED_WOLT_DISHES if d["calories"] <= budget_cal + 80][:4] or [dict(d) for d in CURATED_WOLT_DISHES[:3]]
+        for item in fallback:
+            item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug)
+            item["isAI"] = True
+        return {"dishes": fallback, "live_venues_count": len(live_venues)}
+
+    venues_context = ""
+    if live_venues:
+        v_names = ", ".join(f"{v['name']} ({v['short_description']})" for v in live_venues[:15])
+        venues_context = f"\nמסעדות פתוחות כעת ב-Wolt באזור המשתמש ({city_info['label']}): {v_names}."
+
+    query_context = f"\nבקשת המשתמש / מסעדה או סגנון מבוקש: '{user_q}'." if user_q else "\nהצע מגוון מנות פופולריות וטעימות להזמנה מ-Wolt בישראל."
+
+    prompt = f"""אתה תזונאי קליני ומומחה למסעדות ומשלוחי Wolt בישראל.
+יתרת הקלוריות של המשתמש להיום: עד {budget_cal} קק"ל (חשוב מאוד שהמנות יתאימו לתקציב זה ולא יחרגו ממנו משמעותית!).
+יעד חלבון רצוי למנה: סביב {budget_prot} גרם חלבון (דגש על חלבון איכותי ומשביע).{venues_context}{query_context}
+
+הצע 4 מנות ספציפיות, אמיתיות ומדויקות שאפשר להזמין עכשיו ב-Wolt בישראל:
+1. אם המשתמש ציין שם מסעדה או סגנון ספציפי, הצע מנות מדויקות מאותה מסעדה/סגנון שמתאימות לתקציב ה-{budget_cal} קק"ל.
+2. אם יש מסעדות פתוחות מהרשימה למעלה שמתאימות, שלב אותן בהמלצות.
+3. לכל מנה ציין ב-smart_order_tip בדיוק מה לסמן בהזמנה ב-Wolt (למשל: לבקש רוטב בצד, להחליף פחמימה בירקות, לבחור לחם קל וכו') כדי לעמוד בקלוריות.
+4. בשדה search_query כתוב את שם המסעדה + שם המנה הקצר לחיפוש ישיר ב-Wolt."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=WoltDishList,
+                temperature=0.25,
+            ),
+        )
+        parsed = WoltDishList.model_validate_json(response.text)
+        result_dishes = []
+        for d in parsed.dishes:
+            item = d.model_dump()
+            matched = _match_venue_slug(item["restaurant_name"], item["search_query"], live_venues)
+            if matched:
+                v_slug, v_live_name = matched
+                item["live_venue_name"] = v_live_name
+                item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug, venue_slug=v_slug)
+            else:
+                item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug)
+            item["isAI"] = True
+            result_dishes.append(item)
+        return {"dishes": result_dishes, "live_venues_count": len(live_venues)}
+    except Exception as e:
+        print(f"ERROR api_suggest_wolt_dishes: {e}")
+        raise HTTPException(status_code=500, detail="לא ניתן היה לייצר המלצות Wolt כרגע, נסה שוב")
+
+
+@app.post("/api/wolt/scan-menu")
+def api_scan_wolt_menu(req: WoltMenuScanRequest, request: Request):
+    uid = require_approved_user(request)
+    raw_b64 = (req.image_base64 or "").strip()
+    if not raw_b64:
+        raise HTTPException(status_code=400, detail="נא להעלות צילום מסך של תפריט מ-Wolt")
+
+    mime_type = req.mime_type or "image/jpeg"
+    if raw_b64.startswith("data:"):
+        header, _, raw_b64 = raw_b64.partition(",")
+        if ";" in header and ":" in header:
+            mime_type = header.split(":")[1].split(";")[0] or mime_type
+
+    raw_b64 = "".join(raw_b64.split())
+    pad = (4 - len(raw_b64) % 4) % 4
+    if pad:
+        raw_b64 += "=" * pad
+
+    try:
+        image_bytes = base64.b64decode(raw_b64)
+        if not image_bytes:
+            raise ValueError("Empty image")
+    except Exception:
+        raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
+
+    check_and_increment_ai_quota(uid)
+    norm_bytes, clean_mime = _normalize_image_bytes(image_bytes, mime_type)
+    budget_cal = max(200, int(req.remaining_calories or 600))
+    budget_prot = max(15, int(round(req.remaining_protein or 35)))
+    city_slug = req.city_slug or "tel-aviv"
+
+    if not ai_client:
+        raise HTTPException(status_code=503, detail="שירות ה-AI אינו זמין כרגע")
+
+    prompt = f"""נתח את צילום המסך של תפריט המסעדה מתוך אפליקציית Wolt (או תפריט משלוחים).
+יתרת הקלוריות של המשתמש להיום: {budget_cal} קק"ל, ויתרת החלבון: {budget_prot} גרם.
+1. זהה את המנות המופיעות בצילום המסך (ואת שם המסעדה אם מופיע).
+2. חשב הערכת קלוריות וחלבון מציאותית ומדויקת לכל מנה בתפריט שצולם.
+3. דרג והחזר קודם כל את המנות שהכי מתאימות ליתרת ה-{budget_cal} קק"ל של המשתמש!
+4. בשדה smart_order_tip ציין אילו שינויים כדאי לבקש באותה מנה כדי שתתאים בול ליתרה היומית."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=norm_bytes, mime_type=clean_mime),
+                prompt,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=WoltDishList,
+                temperature=0.15,
+            ),
+        )
+        parsed = WoltDishList.model_validate_json(response.text)
+        result_dishes = []
+        for d in parsed.dishes:
+            item = d.model_dump()
+            item["wolt_url"] = _build_wolt_deep_link(item["search_query"] or item["dish_name"], city_slug)
+            item["isAI"] = True
+            item["fromMenuScan"] = True
+            result_dishes.append(item)
+        return {"dishes": result_dishes}
+    except Exception as e:
+        print(f"ERROR api_scan_wolt_menu: {e}")
+        raise HTTPException(status_code=502, detail="שגיאה בפענוח תפריט ה-Wolt מתוך צילום המסך")
 
 
 @app.get("/api/recipes")

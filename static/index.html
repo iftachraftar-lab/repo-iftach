@@ -218,7 +218,7 @@
                 <button @click="switchTab('recipes')"
                     :class="activeTab === 'recipes' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900 font-medium'"
                     class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer">
-                    <span>👨‍🍳</span> שף AI ומתכונים
+                    <span>🛵</span> מתכונים ו-Wolt
                 </button>
                 <button x-cloak x-show="currentUser && currentUser.is_admin"
                     @click="switchTab('admin')"
@@ -504,7 +504,7 @@
                                 class="px-3 py-1.5 rounded-lg transition cursor-pointer">🤖 טקסט AI</button>
                         <button type="button" @click="workoutMode = 'google_fit'"
                                 :class="workoutMode === 'google_fit' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
-                                class="px-3 py-1.5 rounded-lg transition cursor-pointer">🟢 Google Fit</button>
+                                class="px-3 py-1.5 rounded-lg transition cursor-pointer">⌚ Google & Samsung</button>
                         <button type="button" @click="workoutMode = 'manual'"
                                 :class="workoutMode === 'manual' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'"
                                 class="px-3 py-1.5 rounded-lg transition cursor-pointer">⚡ ידני</button>
@@ -532,7 +532,43 @@
                 </form>
 
                 <!-- 2. Google Fit Sync Card -->
-                <div x-show="workoutMode === 'google_fit'" class="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 space-y-3 text-center sm:text-right">
+                <div x-show="workoutMode === 'google_fit'" class="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/70 to-indigo-50/60 border border-emerald-200 space-y-3.5 text-center sm:text-right">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl shadow-xs flex-shrink-0">
+                                ⌚
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-slate-900 text-sm sm:text-base">סנכרון מ-Google Health / Fit ו-Samsung Health</h4>
+                                <p class="text-xs text-slate-600 mt-0.5">סנכרן בלחיצה אחת צעדים, קלוריות פעילות ואימונים מהטלפון או מ-Samsung Health (דרך Health Connect)</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center justify-center gap-2 flex-shrink-0">
+                            <button type="button" @click="triggerGoogleFitSync()" :disabled="googleFitSyncing || workoutPhotoAnalyzing"
+                                    class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-2 transition cursor-pointer shadow-sm">
+                                <span x-show="!googleFitSyncing">🔄 סנכרן מ-Google & Samsung Health</span>
+                                <span x-show="googleFitSyncing">מסנכרן נתוני בריאות...</span>
+                            </button>
+                            <button type="button" @click="$refs.workoutPhotoInput.click()" :disabled="workoutPhotoAnalyzing || googleFitSyncing"
+                                    class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm">
+                                <span x-show="!workoutPhotoAnalyzing">📸 או העלה צילום מסך מ-Samsung Health</span>
+                                <span x-show="workoutPhotoAnalyzing">מפענח צילום מסך...</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t border-emerald-200/60 flex items-center justify-between text-xs">
+                        <button type="button" @click="showSamsungGuide = !showSamsungGuide" class="font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer flex items-center gap-1">
+                            <span>📱 איך מחברים את Samsung Health ל-Google ב-30 שניות?</span>
+                            <span x-text="showSamsungGuide ? '▲' : '▼'"></span>
+                        </button>
+                    </div>
+                    <div x-show="showSamsungGuide" class="p-3 rounded-xl bg-white/90 border border-slate-200 text-xs text-slate-700 space-y-1 text-right">
+                        <p class="font-bold text-slate-900">חיבור חד-פעמי באנדרואיד (Health Connect):</p>
+                        <p>1. פתח את <b>Samsung Health</b> בנייד &larr; <b>הגדרות (⚙️)</b> &larr; <b>Health Connect</b> ואשר הרשאות צעדים ופעילות.</p>
+                        <p>2. פתח את <b>Google Fit</b> &larr; הגדרות &larr; הפעל את <b>סנכרון Fit עם Health Connect</b>.</p>
+                    </div>
+                </div>
+                <div x-show="false" class="hidden">
                     <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
                             <div class="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl shadow-xs flex-shrink-0">
@@ -1219,6 +1255,188 @@
         <!-- =============================================================== -->
         <div x-show="activeTab === 'recipes'" x-cloak x-transition.opacity class="space-y-6">
 
+            <!-- Sub-Mode Switcher: Wolt Delivery vs Home Recipes -->
+            <div class="grid grid-cols-2 gap-2 bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs">
+                <button type="button" @click="recipesSubTab = 'wolt'; if (!woltDishes.length) fetchWoltDishes()"
+                        :class="recipesSubTab === 'wolt' ? 'bg-sky-500 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
+                        class="py-2.5 px-3 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                    <span>🛵</span>
+                    <span>הזמנה מ-Wolt לפי הקלוריות שלך</span>
+                </button>
+                <button type="button" @click="recipesSubTab = 'home'"
+                        :class="recipesSubTab === 'home' ? 'bg-slate-900 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
+                        class="py-2.5 px-3 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                    <span>👨‍🍳</span>
+                    <span>מתכונים להכנה בבית</span>
+                </button>
+            </div>
+
+            <!-- =========================================================== -->
+            <!-- SUB-TAB A: WOLT SMART MEAL FINDER                           -->
+            <!-- =========================================================== -->
+            <div x-show="recipesSubTab === 'wolt'" class="space-y-5">
+
+                <!-- Wolt Hero & AI Search Card -->
+                <div class="bg-gradient-to-br from-sky-600 via-sky-700 to-indigo-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="space-y-1.5">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="inline-flex items-center gap-1.5 text-xs font-extrabold bg-white text-sky-700 px-3 py-1 rounded-full shadow-2xs">
+                                    <span>🛵</span> Wolt Smart Finder
+                                </span>
+                                <span x-show="woltLiveVenuesCount > 0" class="inline-flex items-center gap-1.5 text-[11px] font-bold bg-emerald-400/20 text-emerald-200 border border-emerald-300/30 px-2.5 py-1 rounded-full">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    <span x-text="`מחובר ל-Wolt Live (${woltLiveVenuesCount} מסעדות פתוחות באזורך)`"></span>
+                                </span>
+                            </div>
+                            <h2 class="text-xl sm:text-2xl font-extrabold">מה להזמין עכשיו ב-Wolt שנכנס בתקציב שלך?</h2>
+                            <p class="text-xs sm:text-sm text-sky-100">
+                                יתרה להיום: <strong class="text-white underline decoration-emerald-400" x-text="`${Math.max(0, summary.remaining_calories)} קק״ל`"></strong>
+                                ו-<strong class="text-emerald-300" x-text="`${Math.max(0, Math.round(summary.target_protein - summary.total_protein))}g חלבון`"></strong>.
+                                לחיצה על מנה תפתח אותה ישירות באפליקציית Wolt!
+                            </p>
+                        </div>
+
+                        <!-- Area & GPS Selector -->
+                        <div class="flex items-center gap-2 self-start md:self-auto">
+                            <select x-model="woltCitySlug" @change="woltUserLat = null; woltUserLon = null; fetchWoltDishes()"
+                                    class="px-3 py-2 rounded-xl bg-white/15 border border-white/25 text-white text-xs font-bold outline-none cursor-pointer">
+                                <option value="tel-aviv" class="text-slate-900">📍 תל אביב והמרכז</option>
+                                <option value="rishon-lezion" class="text-slate-900">📍 ראשון לציון, חולון ורחובות</option>
+                                <option value="hasharon" class="text-slate-900">📍 הרצליה, רעננה והשרון</option>
+                                <option value="jerusalem" class="text-slate-900">📍 ירושלים והסביבה</option>
+                                <option value="haifa" class="text-slate-900">📍 חיפה והקריות</option>
+                                <option value="beer-sheva" class="text-slate-900">📍 באר שבע והדרום</option>
+                            </select>
+                            <button type="button" @click="detectWoltGPS()" :disabled="woltLoading"
+                                    class="px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 border border-white/30 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                                    title="זהה מיקום מדויק למציאת מסעדות פתוחות סביבך ב-Wolt">
+                                <span>📡</span>
+                                <span>סביבי</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AI Custom Wolt Search + Menu Screenshot Scanner -->
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-2.5 pt-1">
+                        <form @submit.prevent="generateAIWoltDishes()" class="md:col-span-8 flex flex-col sm:flex-row gap-2">
+                            <input type="text"
+                                   x-model="woltSearchQuery"
+                                   placeholder="חפש מסעדה או חשק ב-Wolt (למשל: ג׳ירף, סושי, המבורגר, פוקי, ארומה)..."
+                                   class="flex-1 px-4 py-3 rounded-2xl bg-white/15 border border-white/25 text-white placeholder-sky-200 text-xs sm:text-sm outline-none focus:bg-white/20 focus:border-white">
+                            <button type="submit" :disabled="woltSuggesting"
+                                    class="px-5 py-3 rounded-2xl bg-white text-sky-900 hover:bg-sky-50 font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-sm">
+                                <span x-show="!woltSuggesting">✨ התאם לי מנות מ-Wolt</span>
+                                <span x-show="woltSuggesting">מחפש ב-Wolt...</span>
+                            </button>
+                        </form>
+
+                        <!-- Scan Wolt Menu Screenshot -->
+                        <div class="md:col-span-4 flex">
+                            <input type="file" x-ref="woltMenuInput" accept="image/*" class="hidden" @change="onWoltMenuPhotoSelected($event)">
+                            <button type="button" @click="$refs.woltMenuInput.click()" :disabled="woltMenuScanning"
+                                    class="w-full px-4 py-3 rounded-2xl bg-indigo-950/70 hover:bg-indigo-950 border border-sky-300/30 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer">
+                                <span x-show="!woltMenuScanning">📸 סרוק צילום מסך מתפריט ב-Wolt</span>
+                                <span x-show="woltMenuScanning">מנתח תפריט ב-AI...</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Open Nearby Venues Strip (From Wolt Consumer API) -->
+                    <div x-show="woltLiveVenues && woltLiveVenues.length > 0" class="pt-2 border-t border-white/15">
+                        <div class="text-[11px] font-semibold text-sky-200 mb-1.5">🔥 מסעדות פתוחות כעת סביבך ב-Wolt (לחץ להתאמת מנות מהמסעדה ליתרה שלך):</div>
+                        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                            <template x-for="v in woltLiveVenues" :key="v.slug">
+                                <button type="button"
+                                        @click="woltSearchQuery = v.name; generateAIWoltDishes()"
+                                        class="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 flex-shrink-0 transition cursor-pointer">
+                                    <span x-text="v.name"></span>
+                                    <span x-show="v.rating" class="text-[10px] text-amber-300 font-bold" x-text="`⭐ ${v.rating}`"></span>
+                                    <span class="text-[10px] text-sky-200" x-text="`(${v.estimate_range} דק׳)`"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Bar: Category Pills + Budget Filter Toggle -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                        <template x-for="cat in woltCategories" :key="cat.id">
+                            <button type="button" @click="selectedWoltCategory = cat.id"
+                                    :class="selectedWoltCategory === cat.id ? 'bg-sky-600 text-white font-bold shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'"
+                                    class="px-3.5 py-2 rounded-full text-xs flex-shrink-0 transition cursor-pointer">
+                                <span x-text="cat.label"></span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <label class="inline-flex items-center gap-2 text-xs font-bold text-slate-700 bg-white px-3.5 py-2 rounded-full border border-slate-200 cursor-pointer self-start sm:self-auto">
+                        <input type="checkbox" x-model="woltOnlyWithinBudget" class="rounded text-sky-600 focus:ring-sky-500">
+                        <span>הצג רק מנות שנכנסות ביתרה היומית (<span x-text="`${Math.max(250, summary.remaining_calories)} קק״ל`"></span>)</span>
+                    </label>
+                </div>
+
+                <!-- Wolt Dish Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <template x-for="(dish, idx) in filteredWoltDishes" :key="(dish.dish_name || '') + idx">
+                        <div class="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 hover:border-sky-300 transition flex flex-col justify-between space-y-4">
+                            <div class="space-y-3">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                                            <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200"
+                                                  x-text="`🛵 ${dish.live_venue_name || dish.restaurant_name}`"></span>
+                                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"
+                                                  x-text="dish.category"></span>
+                                            <span x-show="dish.fromMenuScan" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">📸 מתוך צילום התפריט</span>
+                                            <span x-show="dish.calories <= Math.max(250, summary.remaining_calories)"
+                                                  class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                ✅ בול ביתרה שלך
+                                            </span>
+                                        </div>
+                                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900" x-text="dish.dish_name"></h3>
+                                    </div>
+                                    <div class="text-left flex-shrink-0">
+                                        <span class="inline-block px-3 py-1 rounded-xl font-extrabold text-sm"
+                                              :class="dish.calories <= Math.max(250, summary.remaining_calories) ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'"
+                                              x-text="`${dish.calories} קק״ל`"></span>
+                                        <span class="block text-xs font-bold text-indigo-600 mt-1"
+                                              x-text="`💪 ${Number(dish.protein_g).toFixed(0)}g חלבון`"></span>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" x-text="dish.description"></p>
+
+                                <!-- Smart Wolt Customization Tip -->
+                                <div x-show="dish.smart_order_tip" class="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-950 space-y-0.5">
+                                    <div class="font-extrabold text-[11px] text-amber-800">💡 איך להזמין נכון ב-Wolt:</div>
+                                    <div x-text="dish.smart_order_tip" class="leading-relaxed"></div>
+                                </div>
+                            </div>
+
+                            <!-- Direct Wolt App Link + Log Meal Button -->
+                            <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                                <a :href="dish.wolt_url" target="_blank" rel="noopener"
+                                   class="flex-1 py-2.5 px-3.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-extrabold transition flex items-center justify-center gap-1.5 shadow-xs">
+                                    <span>🛵</span>
+                                    <span>פתח והזמן ב-Wolt</span>
+                                </a>
+                                <button type="button" @click="logWoltMeal(dish)"
+                                        class="py-2.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs cursor-pointer">
+                                    <span>+ הזמנתי (הוסף ליומן)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- =========================================================== -->
+            <!-- SUB-TAB B: HOME RECIPES & AI CHEF                           -->
+            <!-- =========================================================== -->
+            <div x-show="recipesSubTab === 'home'" class="space-y-6">
+
             <!-- Smart AI Recipe Generator Banner -->
             <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-emerald-950 text-white rounded-3xl p-6 shadow-xl">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1328,6 +1546,7 @@
         </div>
 
         <!-- =============================================================== -->
+        </div>
         <!-- TAB 4: ADMIN USER MANAGEMENT DASHBOARD (OWNER ONLY)             -->
         <!-- =============================================================== -->
         <div x-show="activeTab === 'admin' && currentUser && currentUser.is_admin" x-cloak x-transition.opacity class="space-y-6">
@@ -1578,7 +1797,7 @@
                     :class="activeTab === 'recipes' ? 'text-emerald-600 font-bold' : 'text-slate-500'"
                     class="py-3 flex flex-col items-center justify-center gap-1 text-xs transition cursor-pointer">
                 <span class="text-lg">👨‍🍳</span>
-                <span>מתכונים</span>
+                <span>מתכונים ו-Wolt</span>
             </button>
             <button x-cloak x-show="currentUser && currentUser.is_admin"
                     @click="switchTab('admin')"
@@ -2615,6 +2834,35 @@
                 selectedRecipeCategory: 'all',
                 recipePreference: '',
                 generatingRecipes: false,
+                recipesSubTab: 'wolt',
+                woltDishes: [],
+                woltLiveVenues: [],
+                woltLiveVenuesCount: 0,
+                woltCitySlug: 'tel-aviv',
+                woltUserLat: null,
+                woltUserLon: null,
+                woltSearchQuery: '',
+                woltLoading: false,
+                woltSuggesting: false,
+                woltMenuScanning: false,
+                selectedWoltCategory: 'all',
+                woltOnlyWithinBudget: false,
+                woltCategories: [
+                    { id: 'all', label: 'הכל' },
+                    { id: 'סלטים וקערות', label: '🥗 סלטים וקערות' },
+                    { id: 'סושי ואסיאתי', label: '🍣 סושי ואסיאתי' },
+                    { id: 'בשרים והמבורגר', label: '🥩 בשרים והמבורגר' },
+                    { id: 'ים-תיכוני', label: '🥙 ים-תיכוני' },
+                    { id: 'כריכים וחלבי', label: '🥪 כריכים וחלבי' }
+                ],
+                get filteredWoltDishes() {
+                    const budget = Math.max(250, Number(this.summary.remaining_calories) || 600);
+                    return (this.woltDishes || []).filter(d => {
+                        if (this.selectedWoltCategory !== 'all' && d.category !== this.selectedWoltCategory) return false;
+                        if (this.woltOnlyWithinBudget && Number(d.calories) > budget) return false;
+                        return true;
+                    });
+                },
 
                 openTargetModal: false,
                 showTDEECalc: false,
@@ -3504,6 +3752,8 @@
                         this.fetchWeight();
                     } else if (tab === 'admin') {
                         this.fetchAdminUsers();
+                    } else if (tab === 'recipes' && (!this.woltDishes || !this.woltDishes.length)) {
+                        this.fetchWoltDishes();
                     }
                 },
 
@@ -4266,6 +4516,131 @@
                         this.showToast(e.message || 'לא ניתן היה לייצר מתכוני AI כרגע', 'error');
                     } finally {
                         this.generatingRecipes = false;
+                    }
+                },
+
+                async fetchWoltDishes() {
+                    this.woltLoading = true;
+                    try {
+                        let url = `/api/wolt/dishes?city_slug=${encodeURIComponent(this.woltCitySlug || 'tel-aviv')}`;
+                        if (this.woltUserLat !== null && this.woltUserLon !== null) {
+                            url += `&lat=${this.woltUserLat}&lon=${this.woltUserLon}`;
+                        }
+                        const res = await fetch(url);
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        const aiExisting = (this.woltDishes || []).filter(d => d.isAI);
+                        this.woltDishes = [...aiExisting, ...(data.dishes || [])];
+                        this.woltLiveVenues = data.live_venues || [];
+                        this.woltLiveVenuesCount = data.live_venues_count || 0;
+                    } catch (e) {
+                        console.error('fetchWoltDishes error:', e);
+                    } finally {
+                        this.woltLoading = false;
+                    }
+                },
+
+                detectWoltGPS() {
+                    if (!navigator.geolocation) {
+                        this.showToast('הדפדפן אינו תומך בזיהוי מיקום', 'error');
+                        return;
+                    }
+                    this.woltLoading = true;
+                    navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                            this.woltUserLat = pos.coords.latitude;
+                            this.woltUserLon = pos.coords.longitude;
+                            await this.fetchWoltDishes();
+                            this.showToast(`📍 אותרו ${this.woltLiveVenuesCount} מסעדות פתוחות סביבך ב-Wolt!`);
+                        },
+                        () => {
+                            this.woltLoading = false;
+                            this.showToast('לא ניתן לקבל מיקום GPS — נבחר אזור מהרשימה', 'warning');
+                        },
+                        { timeout: 7000 }
+                    );
+                },
+
+                async generateAIWoltDishes() {
+                    this.woltSuggesting = true;
+                    try {
+                        const res = await fetch('/api/wolt/suggest', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                remaining_calories: Math.max(250, Number(this.summary.remaining_calories) || 600),
+                                remaining_protein: Math.max(15, (Number(this.summary.target_protein) || 120) - (Number(this.summary.total_protein) || 0)),
+                                city_slug: this.woltCitySlug || 'tel-aviv',
+                                lat: this.woltUserLat,
+                                lon: this.woltUserLon,
+                                query: this.woltSearchQuery || ''
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            throw new Error(data.detail || 'לא ניתן היה לייצר המלצות Wolt כרגע');
+                        }
+                        const aiDishes = data.dishes || [];
+                        this.woltDishes = [...aiDishes, ...(this.woltDishes || []).filter(d => !d.isAI)];
+                        this.selectedWoltCategory = 'all';
+                        this.showToast(`🛵 נמצאו ${aiDishes.length} מנות מומלצות ב-Wolt לפי היתרה שלך!`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בחיפוש מנות ב-Wolt', 'error');
+                    } finally {
+                        this.woltSuggesting = false;
+                    }
+                },
+
+                async onWoltMenuPhotoSelected(event) {
+                    const file = event.target?.files?.[0];
+                    if (event.target) event.target.value = '';
+                    if (!file) return;
+                    this.woltMenuScanning = true;
+                    try {
+                        const compressed = await compressImageFile(file, 1280, 0.85);
+                        const res = await fetch('/api/wolt/scan-menu', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                image_base64: compressed.dataUrl,
+                                mime_type: compressed.mimeType || 'image/jpeg',
+                                remaining_calories: Math.max(250, Number(this.summary.remaining_calories) || 600),
+                                remaining_protein: Math.max(15, (Number(this.summary.target_protein) || 120) - (Number(this.summary.total_protein) || 0)),
+                                city_slug: this.woltCitySlug || 'tel-aviv'
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            throw new Error(data.detail || 'לא ניתן היה לפענח את צילום התפריט');
+                        }
+                        const scanned = data.dishes || [];
+                        this.woltDishes = [...scanned, ...(this.woltDishes || [])];
+                        this.selectedWoltCategory = 'all';
+                        this.showToast(`📸 זוהו ${scanned.length} מנות מצילום התפריט ב-Wolt!`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בסריקת צילום התפריט', 'error');
+                    } finally {
+                        this.woltMenuScanning = false;
+                    }
+                },
+
+                async logWoltMeal(dish) {
+                    try {
+                        const label = `${dish.dish_name} (${dish.live_venue_name || dish.restaurant_name} - Wolt)`;
+                        const res = await fetch('/api/meals/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                description: label,
+                                calories: dish.calories,
+                                protein_g: dish.protein_g
+                            })
+                        });
+                        if (!res.ok) throw new Error('Failed logging Wolt meal');
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`🛵 "${dish.dish_name}" נוסף ליומן היום! (+${dish.calories} קק"ל)`);
+                    } catch (e) {
+                        this.showToast('שגיאה בהוספת המנה ליומן', 'error');
                     }
                 },
 
