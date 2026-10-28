@@ -4426,17 +4426,58 @@
                     }
                 },
 
-                triggerGoogleFitSync() {
+                async _runGoogleFitSyncRequest(accessToken = '') {
+                    const res = await fetch('/api/google-fit/sync', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            access_token: accessToken,
+                            log_date: this.workoutTargetDate || this.todayStr
+                        })
+                    });
+                    const result = await res.json();
+                    if (!res.ok) throw new Error(result.detail || 'שגיאה בסנכרון מ-Google Fit');
+                    return result;
+                },
+
+                async triggerGoogleFitSync(forceConsent = false) {
                     const clientId = this.googleClientId || this.authConfig?.google_client_id;
                     if (!clientId || !window.google?.accounts?.oauth2) {
                         this.showToast('חיבור Google טרם הוגדר בדפדפן', 'error');
                         return;
                     }
                     this.googleFitSyncing = true;
+
+                    // 1. Try cached token (browser localStorage or server-side saved token) with ZERO popup!
+                    if (!forceConsent) {
+                        try {
+                            const cachedToken = localStorage.getItem('nutriagent_gfit_token') || '';
+                            const cachedExp = parseInt(localStorage.getItem('nutriagent_gfit_token_exp') || '0', 10);
+                            const validLocalToken = (cachedToken && Date.now() < cachedExp) ? cachedToken : '';
+                            const quickResult = await this._runGoogleFitSyncRequest(validLocalToken);
+                            if (quickResult.status !== 'need_auth') {
+                                this.googleFitSyncing = false;
+                                if (quickResult.status === 'no_data') {
+                                    this.showToast(quickResult.message, 'warning');
+                                } else {
+                                    this.showWorkoutModal = false;
+                                    await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                                    this.showToast(`⌚ סונכרן מ-${quickResult.provider || 'Google & Samsung Health'}: ${quickResult.steps.toLocaleString()} צעדים (-${quickResult.burned_calories} קק"ל)`);
+                                }
+                                return;
+                            }
+                        } catch (e) {
+                            // Fall through to OAuth token client
+                        }
+                    }
+
+                    // 2. Request OAuth token silently (prompt: '' with user email hint) so user doesn't have to re-consent every time
                     try {
+                        const userEmail = this.currentUser?.email || '';
                         const client = window.google.accounts.oauth2.initTokenClient({
                             client_id: clientId,
                             scope: 'https://www.googleapis.com/auth/fitness.activity.read',
+                            hint: userEmail,
                             callback: async (tokenResponse) => {
                                 if (tokenResponse.error) {
                                     this.googleFitSyncing = false;
@@ -4444,16 +4485,11 @@
                                     return;
                                 }
                                 try {
-                                    const res = await fetch('/api/google-fit/sync', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            access_token: tokenResponse.access_token,
-                                            log_date: this.workoutTargetDate || this.todayStr
-                                        })
-                                    });
-                                    const result = await res.json();
-                                    if (!res.ok) throw new Error(result.detail || 'שגיאה בסנכרון מ-Google Fit');
+                                    const ttlSec = parseInt(tokenResponse.expires_in || '3500', 10);
+                                    localStorage.setItem('nutriagent_gfit_token', tokenResponse.access_token);
+                                    localStorage.setItem('nutriagent_gfit_token_exp', String(Date.now() + Math.max(300, ttlSec - 120) * 1000));
+
+                                    const result = await this._runGoogleFitSyncRequest(tokenResponse.access_token);
                                     if (result.status === 'no_data') {
                                         this.showToast(result.message, 'warning');
                                     } else {
@@ -4468,7 +4504,7 @@
                                 }
                             }
                         });
-                        client.requestAccessToken({ prompt: 'consent' });
+                        client.requestAccessToken({ prompt: forceConsent ? 'consent' : '' });
                     } catch (e) {
                         this.googleFitSyncing = false;
                         this.showToast('שגיאה באתחול Google Fit', 'error');

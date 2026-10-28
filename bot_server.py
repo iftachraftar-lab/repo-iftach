@@ -132,7 +132,7 @@ class PhotoWorkoutRequest(BaseModel):
 
 
 class GoogleFitSyncRequest(BaseModel):
-    access_token: str
+    access_token: Optional[str] = ""
     log_date: Optional[str] = None
 
 
@@ -3521,13 +3521,41 @@ def api_add_photo_workout(req: PhotoWorkoutRequest, request: Request):
 @app.post("/api/google-fit/sync")
 def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
     import urllib.request
+    import urllib.error
     import concurrent.futures
     from zoneinfo import ZoneInfo
 
     uid = require_approved_user(request)
-    token = req.access_token.strip()
+    token = (req.access_token or "").strip()
+
+    # Save or load cached token for seamless 1-click sync without repeated login popups
+    if token:
+        if db:
+            try:
+                db.collection("users").document(uid).set(
+                    {"gfit_access_token": token, "gfit_token_ts": int(datetime.now().timestamp())},
+                    merge=True,
+                )
+            except Exception:
+                pass
+        else:
+            _LOCAL_USERS.setdefault(uid, {})["gfit_access_token"] = token
+    else:
+        if db:
+            try:
+                u_snap = db.collection("users").document(uid).get()
+                if u_snap.exists:
+                    u_data = u_snap.to_dict() or {}
+                    saved_ts = int(u_data.get("gfit_token_ts") or 0)
+                    if int(datetime.now().timestamp()) - saved_ts < 3300:
+                        token = (u_data.get("gfit_access_token") or "").strip()
+            except Exception:
+                pass
+        else:
+            token = (_LOCAL_USERS.get(uid, {}).get("gfit_access_token") or "").strip()
+
     if not token:
-        raise HTTPException(status_code=400, detail="נא לספק Google OAuth access token")
+        return {"status": "need_auth", "message": "נדרש חידוש הרשאה שקט מול Google Fit"}
 
     il_tz = ZoneInfo("Asia/Jerusalem")
     now_il = datetime.now(il_tz)
@@ -3539,6 +3567,11 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
 
     start_dt = datetime(parsed_dt.year, parsed_dt.month, parsed_dt.day, 0, 0, 0, tzinfo=il_tz)
     end_dt = datetime(parsed_dt.year, parsed_dt.month, parsed_dt.day, 23, 59, 59, tzinfo=il_tz)
+    if end_dt > now_il + timedelta(minutes=2):
+        end_dt = now_il + timedelta(minutes=2)
+    if end_dt <= start_dt:
+        end_dt = start_dt + timedelta(hours=23, minutes=59)
+
     start_ms = int(start_dt.timestamp() * 1000)
     end_ms = int(end_dt.timestamp() * 1000)
     duration_ms = max(1000, end_ms - start_ms)
@@ -3549,6 +3582,24 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
+
+    # Quick auth check via dataSources (also gives us all user streams)
+    ds_list = []
+    try:
+        ds_url = "https://fitness.googleapis.com/fitness/v1/users/me/dataSources"
+        ds_req = urllib.request.Request(ds_url, headers=headers, method="GET")
+        with urllib.request.urlopen(ds_req, timeout=6) as ds_resp:
+            ds_list = json.loads(ds_resp.read().decode("utf-8")).get("dataSource", [])
+    except urllib.error.HTTPError as he:
+        if he.code in (401, 403):
+            return {"status": "need_auth", "message": "פג תוקף החיבור ל-Google Fit, מחדש חיבור..."}
+        print(f"WARN Google Fit dataSources HTTPError: {he.code} {he}")
+    except Exception as dse:
+        print(f"WARN Google Fit dataSources init: {dse}")
+
+    ds_stream_count = len(ds_list)
+    stream_Debug_names = [f"{(d.get('dataType') or {}).get('name','?')}::{d.get('dataStreamId','?')}" for d in ds_list]
+    print(f"INFO GoogleFitStreams [{uid}] ({ds_stream_count}): {stream_Debug_names[:35]}")
 
     def _agg_single(agg_spec: dict) -> list:
         agg_url = "https://fitness.googleapis.com/fitness/v1/users/me/dataset:aggregate"
@@ -3642,56 +3693,107 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
                 if e_ns > s_ns:
                     active_segment_minutes += max(1, int((e_ns - s_ns) / 60_000_000_000))
 
-    # Fallback: If aggregate steps/calories are 0, inspect raw dataSources directly in parallel!
-    ds_stream_count = 0
-    if total_steps == 0 or raw_calories <= 0:
-        try:
-            ds_url = "https://fitness.googleapis.com/fitness/v1/users/me/dataSources"
-            ds_req = urllib.request.Request(ds_url, headers=headers, method="GET")
-            with urllib.request.urlopen(ds_req, timeout=6) as ds_resp:
-                ds_list = json.loads(ds_resp.read().decode("utf-8")).get("dataSource", [])
-            ds_stream_count = len(ds_list)
-            target_dtypes = {
-                "com.google.step_count.delta",
-                "com.google.calories.expended",
-                "com.google.active_minutes",
-                "com.google.heart_minutes",
-            }
-            candidate_streams = []
-            for dsrc in ds_list:
-                d_stream_id = dsrc.get("dataStreamId", "")
-                dt_name = (dsrc.get("dataType") or {}).get("name", "")
-                if "shealth" in d_stream_id.lower() or "samsung" in d_stream_id.lower():
-                    from_samsung = True
-                if dt_name in target_dtypes and d_stream_id:
-                    candidate_streams.append((dt_name, d_stream_id))
+    # Deep scan across all user dataSources over a 7-day window (with safe=":" so stream IDs work properly!)
+    lookback_start_dt = start_dt - timedelta(days=6)
+    lb_start_ns = int(lookback_start_dt.timestamp() * 1000) * 1_000_000
+    by_date_steps = {}
+    by_date_cal = {}
+    by_date_active = {}
 
-            def _fetch_stream_pts(item_tuple):
-                dt_n, s_id = item_tuple
-                enc_stream = urllib.parse.quote(s_id, safe="")
-                dset_url = f"https://fitness.googleapis.com/fitness/v1/users/me/dataSources/{enc_stream}/datasets/{start_ns}-{end_ns}"
+    if ds_list and (total_steps == 0 or raw_calories <= 0):
+        target_dtypes = {
+            "com.google.step_count.delta",
+            "com.google.step_count.cumulative",
+            "com.google.calories.expended",
+            "com.google.active_minutes",
+            "com.google.heart_minutes",
+            "com.google.activity.segment",
+        }
+        candidate_streams = []
+        for dsrc in ds_list:
+            d_stream_id = dsrc.get("dataStreamId", "")
+            dt_name = (dsrc.get("dataType") or {}).get("name", "")
+            if "shealth" in d_stream_id.lower() or "samsung" in d_stream_id.lower():
+                from_samsung = True
+            if dt_name in target_dtypes and d_stream_id:
+                candidate_streams.append((dt_name, d_stream_id))
+
+        def _fetch_stream_7d(item_tuple):
+            dt_n, s_id = item_tuple
+            enc_stream = urllib.parse.quote(s_id, safe=":")
+            dset_url = f"https://fitness.googleapis.com/fitness/v1/users/me/dataSources/{enc_stream}/datasets/{lb_start_ns}-{end_ns}"
+            pts = []
+            try:
+                dset_req = urllib.request.Request(dset_url, headers=headers, method="GET")
+                with urllib.request.urlopen(dset_req, timeout=5) as dset_resp:
+                    pts = json.loads(dset_resp.read().decode("utf-8")).get("point", [])
+            except Exception as ex1:
+                print(f"WARN stream dataset ({s_id}): {ex1}")
+            if not pts:
+                # Also check dataPointChanges to see if stream has any recent points regardless of query window
+                chg_url = f"https://fitness.googleapis.com/fitness/v1/users/me/dataSources/{enc_stream}/dataPointChanges"
                 try:
-                    dset_req = urllib.request.Request(dset_url, headers=headers, method="GET")
-                    with urllib.request.urlopen(dset_req, timeout=5) as dset_resp:
-                        return dt_n, s_id, json.loads(dset_resp.read().decode("utf-8")).get("point", [])
-                except Exception:
-                    return dt_n, s_id, []
+                    chg_req = urllib.request.Request(chg_url, headers=headers, method="GET")
+                    with urllib.request.urlopen(chg_req, timeout=4) as chg_resp:
+                        chg_data = json.loads(chg_resp.read().decode("utf-8"))
+                        ins_pts = chg_data.get("insertedDataPoint", [])
+                        if ins_pts:
+                            # Take last 50 inserted points and filter to last 14 days
+                            recent_cutoff_ns = (start_ms - 14 * 86400000) * 1_000_000
+                            sample_ts = ins_pts[-1].get("endTimeNanos") or ins_pts[-1].get("startTimeNanos")
+                            print(f"INFO stream {s_id} has {len(ins_pts)} total changes (latest_ns={sample_ts})")
+                            pts = [p for p in ins_pts if int(p.get("endTimeNanos") or p.get("startTimeNanos") or 0) >= recent_cutoff_ns]
+                except Exception as ex2:
+                    print(f"WARN stream changes ({s_id}): {ex2}")
+            return dt_n, s_id, pts
 
-            if candidate_streams:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ds_ex:
-                    for dt_name, s_id, pts in ds_ex.map(_fetch_stream_pts, candidate_streams):
-                        if not pts:
+        if candidate_streams:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ds_ex:
+                for dt_name, s_id, pts in ds_ex.map(_fetch_stream_7d, candidate_streams):
+                    if not pts:
+                        continue
+                    print(f"INFO GoogleFit stream {s_id} ({dt_name}) returned {len(pts)} pts in recent window")
+                    # Group points by date in Asia/Jerusalem
+                    stream_daily_int = {}
+                    stream_daily_float = {}
+                    stream_cum_vals = {}
+                    for pt in pts:
+                        ts_ns = int(pt.get("endTimeNanos") or pt.get("startTimeNanos") or 0)
+                        if ts_ns <= 0:
                             continue
-                        if dt_name == "com.google.step_count.delta":
-                            total_steps = max(total_steps, _sum_points_int(pts))
+                        pt_d_str = str(datetime.fromtimestamp(ts_ns / 1_000_000_000.0, tz=il_tz).date())
+                        if dt_name == "com.google.step_count.cumulative":
+                            for v in pt.get("value", []):
+                                iv = v.get("intVal") or v.get("fpVal")
+                                if iv is not None:
+                                    stream_cum_vals.setdefault(pt_d_str, []).append(int(iv))
+                        elif dt_name in ("com.google.step_count.delta", "com.google.active_minutes", "com.google.heart_minutes"):
+                            stream_daily_int[pt_d_str] = stream_daily_int.get(pt_d_str, 0) + _sum_points_int([pt])
                         elif dt_name == "com.google.calories.expended":
-                            raw_calories = max(raw_calories, _sum_points_float(pts))
-                        elif dt_name == "com.google.active_minutes":
-                            active_mins_val = max(active_mins_val, _sum_points_int(pts))
-                        elif dt_name == "com.google.heart_minutes":
-                            heart_mins_val = max(heart_mins_val, _sum_points_int(pts))
-        except Exception as dse:
-            print(f"WARN Google Fit dataSources fallback: {dse}")
+                            stream_daily_float[pt_d_str] = stream_daily_float.get(pt_d_str, 0.0) + _sum_points_float([pt])
+
+                    if dt_name == "com.google.step_count.cumulative":
+                        for d_k, vals in stream_cum_vals.items():
+                            if len(vals) >= 2:
+                                diff_steps = max(vals) - min(vals)
+                                if diff_steps > 0:
+                                    by_date_steps[d_k] = max(by_date_steps.get(d_k, 0), diff_steps)
+                    elif dt_name == "com.google.step_count.delta":
+                        for d_k, v_int in stream_daily_int.items():
+                            by_date_steps[d_k] = max(by_date_steps.get(d_k, 0), v_int)
+                    elif dt_name in ("com.google.active_minutes", "com.google.heart_minutes"):
+                        for d_k, v_int in stream_daily_int.items():
+                            by_date_active[d_k] = max(by_date_active.get(d_k, 0), v_int)
+                    elif dt_name == "com.google.calories.expended":
+                        for d_k, v_flt in stream_daily_float.items():
+                            by_date_cal[d_k] = max(by_date_cal.get(d_k, 0.0), v_flt)
+
+        if target_date_str in by_date_steps:
+            total_steps = max(total_steps, by_date_steps[target_date_str])
+        if target_date_str in by_date_cal:
+            raw_calories = max(raw_calories, by_date_cal[target_date_str])
+        if target_date_str in by_date_active:
+            active_mins_val = max(active_mins_val, by_date_active[target_date_str])
 
     # Query explicit workout sessions
     session_names = []
@@ -3728,7 +3830,8 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
     print(
         f"INFO GoogleFitSync [{uid}] date={target_date_str}: "
         f"steps={total_steps} (est={steps_est}, all={steps_all}), "
-        f"raw_cal={raw_cal_int}, active_min={active_min}, sessions={session_names}, streams={ds_stream_count}"
+        f"raw_cal={raw_cal_int}, active_min={active_min}, sessions={session_names}, streams={ds_stream_count}, "
+        f"by_date_steps={by_date_steps}, by_date_cal={by_date_cal}"
     )
 
     max_reasonable_active = step_calories + session_est_calories + max(active_min * 8, 300)
@@ -3745,69 +3848,43 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
     elif total_calories <= 0 and active_min > 0:
         total_calories = max(1, active_min * 6)
 
-    # If the target date has 0 data, check recent 7 days in case the phone only synced earlier days so far
+    # If the target date has 0 data, sync any other recent day found in by_date_steps / by_date_cal
     if total_calories <= 0 and total_steps <= 0 and active_min <= 0:
         recent_synced = None
-        try:
-            lookback_start_dt = start_dt - timedelta(days=6)
-            lb_start_ms = int(lookback_start_dt.timestamp() * 1000)
-            agg_url = "https://fitness.googleapis.com/fitness/v1/users/me/dataset:aggregate"
-            lb_body = {
-                "aggregateBy": [
-                    {"dataTypeName": "com.google.step_count.delta"},
-                    {"dataTypeName": "com.google.calories.expended"},
-                ],
-                "bucketByTime": {"durationMillis": 86400000},
-                "startTimeMillis": lb_start_ms,
-                "endTimeMillis": end_ms,
-            }
-            lb_req = urllib.request.Request(agg_url, data=json.dumps(lb_body).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(lb_req, timeout=7) as lb_resp:
-                lb_data = json.loads(lb_resp.read().decode("utf-8"))
-            for b in lb_data.get("bucket", []):
-                b_start_ms = int(b.get("startTimeMillis") or 0)
-                b_date_str = str(datetime.fromtimestamp(b_start_ms / 1000.0, tz=il_tz).date())
-                b_steps = 0
-                b_cal = 0.0
-                for ds in b.get("dataset", []):
-                    ds_id = (ds.get("dataSourceId") or "").lower()
-                    pts = ds.get("point", [])
-                    if "step_count" in ds_id:
-                        b_steps = max(b_steps, _sum_points_int(pts))
-                    elif "calories" in ds_id:
-                        b_cal = max(b_cal, _sum_points_float(pts))
-                if b_steps > 0 or b_cal > 0:
-                    b_step_cal = int(round(b_steps * 0.045))
-                    b_cal_int = int(round(b_cal))
-                    if b_cal_int > b_step_cal + 300 and b_steps > 0:
-                        b_final_cal = max(b_step_cal, 50)
-                    elif b_cal_int > 900 and b_steps == 0:
-                        b_final_cal = max(120, int(round(b_cal_int * 0.20)))
-                    else:
-                        b_final_cal = max(b_cal_int, b_step_cal, 1)
-                    b_dur = max(15, int(b_steps / 100)) if b_steps > 0 else 30
-                    b_dist = round(b_steps * 0.00075, 2) if b_steps >= 500 else None
-                    b_name = f"Google Health / Fit ({b_steps:,} צעדים)" if b_steps > 0 else f"פעילות Google Health / Fit ({b_final_cal} קק״ל)"
-                    b_entry = upsert_health_sync_workout_db(
-                        activity_name=b_name,
-                        burned_calories=b_final_cal,
-                        duration_min=b_dur,
-                        distance_km=b_dist,
-                        activity_type="walk" if b_steps > 0 else "other",
-                        log_date=b_date_str,
-                        source="google-fit",
-                        user_id=uid,
-                        notes=f"סונכרן אוטומטית מ-Google Fit ({b_date_str}): {b_steps:,} צעדים",
-                    )
-                    recent_synced = {
-                        "date": b_date_str,
-                        "steps": b_steps,
-                        "burned_calories": b_final_cal,
-                        "duration_min": b_dur,
-                        "workout": b_entry,
-                    }
-        except Exception as lbe:
-            print(f"WARN Google Fit 7d lookback: {lbe}")
+        all_found_dates = sorted(set(list(by_date_steps.keys()) + list(by_date_cal.keys())))
+        for b_date_str in all_found_dates:
+            b_steps = by_date_steps.get(b_date_str, 0)
+            b_cal = by_date_cal.get(b_date_str, 0.0)
+            if b_steps > 0 or b_cal > 0:
+                b_step_cal = int(round(b_steps * 0.045))
+                b_cal_int = int(round(b_cal))
+                if b_cal_int > b_step_cal + 300 and b_steps > 0:
+                    b_final_cal = max(b_step_cal, 50)
+                elif b_cal_int > 900 and b_steps == 0:
+                    b_final_cal = max(120, int(round(b_cal_int * 0.20)))
+                else:
+                    b_final_cal = max(b_cal_int, b_step_cal, 1)
+                b_dur = max(15, int(b_steps / 100)) if b_steps > 0 else 30
+                b_dist = round(b_steps * 0.00075, 2) if b_steps >= 500 else None
+                b_name = f"Google Health / Fit ({b_steps:,} צעדים)" if b_steps > 0 else f"פעילות Google Health / Fit ({b_final_cal} קק״ל)"
+                b_entry = upsert_health_sync_workout_db(
+                    activity_name=b_name,
+                    burned_calories=b_final_cal,
+                    duration_min=b_dur,
+                    distance_km=b_dist,
+                    activity_type="walk" if b_steps > 0 else "other",
+                    log_date=b_date_str,
+                    source="google-fit",
+                    user_id=uid,
+                    notes=f"סונכרן אוטומטית מ-Google Fit ({b_date_str}): {b_steps:,} צעדים",
+                )
+                recent_synced = {
+                    "date": b_date_str,
+                    "steps": b_steps,
+                    "burned_calories": b_final_cal,
+                    "duration_min": b_dur,
+                    "workout": b_entry,
+                }
 
         if recent_synced:
             return {
@@ -3838,8 +3915,8 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
         else:
             acct_note = f" בחשבון {token_email}" if token_email else ""
             msg = (
-                f"לא נמצאו נתונים בענן של Google Fit{acct_note} לתאריך {target_date_str}. "
-                "ודא שבאפליקציית Google Fit בטלפון מחובר אותו חשבון Gmail ושהסנכרון לענן פעיל."
+                f"בענן של Google Fit{acct_note} עדיין לא עלו צעדים מהטלפון להיום. "
+                "באנדרואיד חדש (Health Connect / Samsung Health) הנתונים נשמרים מקומית בטלפון — מומלץ ללחוץ על '📸 סנכרון מהיר מצילום מסך' מעל!"
             )
 
         return {
