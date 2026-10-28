@@ -1387,6 +1387,8 @@
                                         <div class="flex flex-wrap items-center gap-1.5 mb-1">
                                             <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200"
                                                   x-text="`🛵 ${dish.live_venue_name || dish.restaurant_name}`"></span>
+                                            <span x-show="dish.price_ils" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-slate-900 text-white"
+                                                  x-text="`₪${dish.price_ils}`"></span>
                                             <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"
                                                   x-text="dish.category"></span>
                                             <span x-show="dish.fromMenuScan" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">📸 מתוך צילום התפריט</span>
@@ -1395,7 +1397,7 @@
                                                 ✅ בול ביתרה שלך
                                             </span>
                                         </div>
-                                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900" x-text="dish.dish_name"></h3>
+                                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900" x-text="dish.live_dish_name || dish.dish_name"></h3>
                                     </div>
                                     <div class="text-left flex-shrink-0">
                                         <span class="inline-block px-3 py-1 rounded-xl font-extrabold text-sm"
@@ -1417,11 +1419,11 @@
 
                             <!-- Direct Wolt App Link + Log Meal Button -->
                             <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                                <a :href="dish.wolt_url" target="_blank" rel="noopener"
-                                   class="flex-1 py-2.5 px-3.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-extrabold transition flex items-center justify-center gap-1.5 shadow-xs">
+                                <button type="button" @click="openDishInWolt(dish)"
+                                        class="flex-1 py-2.5 px-3.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-extrabold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer">
                                     <span>🛵</span>
-                                    <span>פתח והזמן ב-Wolt</span>
-                                </a>
+                                    <span x-text="dish.wolt_item_id ? 'פתח מנה זו באפליקציית Wolt' : 'פתח מסעדה באפליקציית Wolt'"></span>
+                                </button>
                                 <button type="button" @click="logWoltMeal(dish)"
                                         class="py-2.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs cursor-pointer">
                                     <span>+ הזמנתי (הוסף ליומן)</span>
@@ -4622,6 +4624,29 @@
                     } finally {
                         this.woltMenuScanning = false;
                     }
+                },
+
+                openDishInWolt(dish) {
+                    const dishTitle = dish.live_dish_name || dish.dish_name || '';
+                    if (navigator.clipboard && dishTitle) {
+                        navigator.clipboard.writeText(dishTitle).catch(() => {});
+                    }
+                    const ua = navigator.userAgent || '';
+                    const isAndroid = /android/i.test(ua);
+                    const isIOS = /iphone|ipad|ipod/i.test(ua);
+                    const webUrl = dish.wolt_url || 'https://wolt.com/he/isr/tel-aviv';
+
+                    if (isAndroid && dish.wolt_android_intent) {
+                        this.showToast(`🛵 פותח את "${dishTitle}" ישירות באפליקציית Wolt...`);
+                        window.location.href = dish.wolt_android_intent;
+                        return;
+                    }
+                    if (isIOS) {
+                        this.showToast(`🛵 פותח את "${dishTitle}" באפליקציית Wolt...`);
+                        window.location.href = webUrl;
+                        return;
+                    }
+                    window.open(webUrl, '_blank', 'noopener');
                 },
 
                 async logWoltMeal(dish) {

@@ -3878,15 +3878,123 @@ CURATED_WOLT_DISHES = [
 ]
 
 
-def _build_wolt_deep_link(search_query: str, city_slug: str = "tel-aviv", venue_slug: Optional[str] = None) -> str:
+_WOLT_SEARCH_CACHE: dict = {}
+
+
+def _build_wolt_deep_link(
+    search_query: str,
+    city_slug: str = "tel-aviv",
+    venue_slug: Optional[str] = None,
+    item_id: Optional[str] = None,
+) -> tuple[str, str]:
     clean_city = (city_slug or "tel-aviv").strip().lower()
-    if clean_city not in WOLT_CITIES:
-        clean_city = "tel-aviv"
-    wolt_region = WOLT_CITIES[clean_city]["slug"]
-    if venue_slug:
-        return f"https://wolt.com/he/isr/{wolt_region}/restaurant/{venue_slug}"
-    encoded_q = urllib.parse.quote((search_query or "").strip())
-    return f"https://wolt.com/he/isr/{wolt_region}/search?q={encoded_q}"
+    wolt_region = WOLT_CITIES[clean_city]["slug"] if clean_city in WOLT_CITIES else clean_city
+    if venue_slug and item_id:
+        wolt_path = f"wolt.com/he/isr/{wolt_region}/restaurant/{venue_slug}/itemid-{item_id}"
+    elif venue_slug:
+        wolt_path = f"wolt.com/he/isr/{wolt_region}/restaurant/{venue_slug}"
+    else:
+        wolt_path = f"wolt.com/he/isr/{wolt_region}"
+    web_url = f"https://{wolt_path}"
+    fallback_enc = urllib.parse.quote(web_url, safe="")
+    android_intent = f"intent://{wolt_path}#Intent;scheme=https;package=com.wolt.android;S.browser_fallback_url={fallback_enc};end"
+    return web_url, android_intent
+
+
+def _enrich_wolt_dish_live(item: dict, lat: float, lon: float, city_slug: str) -> dict:
+    """Queries Wolt's Search API to resolve the exact restaurant slug + dish itemid for direct deep-linking."""
+    enriched = dict(item)
+    q_str = (enriched.get("search_query") or f"{enriched.get('restaurant_name', '')} {enriched.get('dish_name', '')}").strip()
+    cache_key = (q_str.lower(), round(lat, 2), round(lon, 2))
+    now_ts = time.time()
+
+    cached = _WOLT_SEARCH_CACHE.get(cache_key)
+    if cached and (now_ts - cached.get("ts", 0) < 1800):
+        enriched.update(cached["data"])
+        return enriched
+
+    url = "https://restaurant-api.wolt.com/v1/pages/search"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
+    }
+    payload = json.dumps({"q": q_str, "lat": lat, "lon": lon}).encode("utf-8")
+
+    resolved_data = {}
+    try:
+        req_obj = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req_obj, timeout=3.5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        sections = data.get("sections", [])
+        # 1. Try to match exact dish (menu_item_details) so Wolt opens the exact dish modal (itemid-...)
+        for sec in sections:
+            if sec.get("name") == "items" or sec.get("template") == "items":
+                for it in sec.get("items", []):
+                    mid = (it.get("link") or {}).get("menu_item_details") or {}
+                    v_slug = (mid.get("venue_slug") or "").strip()
+                    it_id = (mid.get("id") or "").strip()
+                    if v_slug and it_id:
+                        w_city = (mid.get("city_slug") or city_slug or "tel-aviv").strip()
+                        web_url, android_intent = _build_wolt_deep_link(q_str, w_city, venue_slug=v_slug, item_id=it_id)
+                        price_raw = int(mid.get("price") or 0)
+                        resolved_data = {
+                            "wolt_url": web_url,
+                            "wolt_android_intent": android_intent,
+                            "wolt_venue_slug": v_slug,
+                            "wolt_item_id": it_id,
+                            "live_venue_name": (mid.get("venue_name") or "").strip() or enriched.get("restaurant_name"),
+                            "live_dish_name": (mid.get("name") or "").strip() or enriched.get("dish_name"),
+                            "price_ils": round(price_raw / 100) if price_raw > 0 else None,
+                            "image_url": (mid.get("image") or {}).get("url") or "",
+                        }
+                        break
+            if resolved_data:
+                break
+
+        # 2. Fallback to top matching restaurant venue if no specific menu item returned
+        if not resolved_data:
+            for sec in sections:
+                if sec.get("name") == "venues" or sec.get("template") == "venues":
+                    for it in sec.get("items", []):
+                        v = it.get("venue") or {}
+                        v_slug = (v.get("slug") or "").strip()
+                        if v_slug:
+                            web_url, android_intent = _build_wolt_deep_link(q_str, city_slug, venue_slug=v_slug)
+                            resolved_data = {
+                                "wolt_url": web_url,
+                                "wolt_android_intent": android_intent,
+                                "wolt_venue_slug": v_slug,
+                                "live_venue_name": (v.get("name") or "").strip() or enriched.get("restaurant_name"),
+                            }
+                            break
+                if resolved_data:
+                    break
+    except Exception as e:
+        print(f"WARN _enrich_wolt_dish_live ({q_str}): {e}")
+
+    if not resolved_data:
+        web_url, android_intent = _build_wolt_deep_link(q_str, city_slug)
+        resolved_data = {
+            "wolt_url": web_url,
+            "wolt_android_intent": android_intent,
+        }
+    else:
+        _WOLT_SEARCH_CACHE[cache_key] = {"ts": now_ts, "data": resolved_data}
+
+    enriched.update(resolved_data)
+    return enriched
+
+
+def _enrich_wolt_dishes_parallel(dishes: List[dict], lat: float, lon: float, city_slug: str) -> List[dict]:
+    import concurrent.futures
+    if not dishes:
+        return []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(9, len(dishes))) as executor:
+        futures = [executor.submit(_enrich_wolt_dish_live, d, lat, lon, city_slug) for d in dishes]
+        return [f.result() for f in futures]
 
 
 def _fetch_live_wolt_venues(lat: float, lon: float, limit: int = 24) -> List[dict]:
@@ -3927,18 +4035,6 @@ def _fetch_live_wolt_venues(lat: float, lon: float, limit: int = 24) -> List[dic
     return venues
 
 
-def _match_venue_slug(restaurant_name: str, search_query: str, live_venues: List[dict]) -> Optional[tuple[str, str]]:
-    if not live_venues:
-        return None
-    candidates = [w.strip().lower() for w in re.split(r"[/()\-]+", restaurant_name) if len(w.strip()) >= 3]
-    for v in live_venues:
-        v_name = v["name"].lower()
-        for c in candidates:
-            if c in v_name:
-                return v["slug"], v["name"]
-    return None
-
-
 @app.get("/api/wolt/dishes")
 def api_get_wolt_dishes(
     request: Request,
@@ -3952,17 +4048,7 @@ def api_get_wolt_dishes(
     use_lon = lon if lon is not None else city_info["lon"]
 
     live_venues = _fetch_live_wolt_venues(use_lat, use_lon, limit=25)
-    enriched = []
-    for d in CURATED_WOLT_DISHES:
-        item = dict(d)
-        matched = _match_venue_slug(item["restaurant_name"], item["search_query"], live_venues)
-        if matched:
-            v_slug, v_live_name = matched
-            item["live_venue_name"] = v_live_name
-            item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug, venue_slug=v_slug)
-        else:
-            item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug)
-        enriched.append(item)
+    enriched = _enrich_wolt_dishes_parallel(CURATED_WOLT_DISHES, use_lat, use_lon, city_slug)
 
     return {
         "dishes": enriched,
@@ -3988,11 +4074,9 @@ def api_suggest_wolt_dishes(req: WoltSuggestRequest, request: Request):
     user_q = (req.query or "").strip()
 
     if not ai_client:
-        fallback = [dict(d) for d in CURATED_WOLT_DISHES if d["calories"] <= budget_cal + 80][:4] or [dict(d) for d in CURATED_WOLT_DISHES[:3]]
-        for item in fallback:
-            item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug)
-            item["isAI"] = True
-        return {"dishes": fallback, "live_venues_count": len(live_venues)}
+        fallback = [dict(d, isAI=True) for d in CURATED_WOLT_DISHES if d["calories"] <= budget_cal + 80][:4] or [dict(d, isAI=True) for d in CURATED_WOLT_DISHES[:3]]
+        enriched_fb = _enrich_wolt_dishes_parallel(fallback, use_lat, use_lon, city_slug)
+        return {"dishes": enriched_fb, "live_venues_count": len(live_venues)}
 
     venues_context = ""
     if live_venues:
@@ -4022,18 +4106,8 @@ def api_suggest_wolt_dishes(req: WoltSuggestRequest, request: Request):
             ),
         )
         parsed = WoltDishList.model_validate_json(response.text)
-        result_dishes = []
-        for d in parsed.dishes:
-            item = d.model_dump()
-            matched = _match_venue_slug(item["restaurant_name"], item["search_query"], live_venues)
-            if matched:
-                v_slug, v_live_name = matched
-                item["live_venue_name"] = v_live_name
-                item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug, venue_slug=v_slug)
-            else:
-                item["wolt_url"] = _build_wolt_deep_link(item["search_query"], city_slug)
-            item["isAI"] = True
-            result_dishes.append(item)
+        raw_dishes = [dict(d.model_dump(), isAI=True) for d in parsed.dishes]
+        result_dishes = _enrich_wolt_dishes_parallel(raw_dishes, use_lat, use_lon, city_slug)
         return {"dishes": result_dishes, "live_venues_count": len(live_venues)}
     except Exception as e:
         print(f"ERROR api_suggest_wolt_dishes: {e}")
@@ -4070,6 +4144,7 @@ def api_scan_wolt_menu(req: WoltMenuScanRequest, request: Request):
     budget_cal = max(200, int(req.remaining_calories or 600))
     budget_prot = max(15, int(round(req.remaining_protein or 35)))
     city_slug = req.city_slug or "tel-aviv"
+    city_info = WOLT_CITIES.get(city_slug, WOLT_CITIES["tel-aviv"])
 
     if not ai_client:
         raise HTTPException(status_code=503, detail="שירות ה-AI אינו זמין כרגע")
@@ -4095,13 +4170,8 @@ def api_scan_wolt_menu(req: WoltMenuScanRequest, request: Request):
             ),
         )
         parsed = WoltDishList.model_validate_json(response.text)
-        result_dishes = []
-        for d in parsed.dishes:
-            item = d.model_dump()
-            item["wolt_url"] = _build_wolt_deep_link(item["search_query"] or item["dish_name"], city_slug)
-            item["isAI"] = True
-            item["fromMenuScan"] = True
-            result_dishes.append(item)
+        raw_dishes = [dict(d.model_dump(), isAI=True, fromMenuScan=True) for d in parsed.dishes]
+        result_dishes = _enrich_wolt_dishes_parallel(raw_dishes, city_info["lat"], city_info["lon"], city_slug)
         return {"dishes": result_dishes}
     except Exception as e:
         print(f"ERROR api_scan_wolt_menu: {e}")
