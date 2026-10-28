@@ -3521,82 +3521,187 @@ def api_add_photo_workout(req: PhotoWorkoutRequest, request: Request):
 @app.post("/api/google-fit/sync")
 def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
     import urllib.request
+    import concurrent.futures
+    from zoneinfo import ZoneInfo
+
     uid = require_approved_user(request)
     token = req.access_token.strip()
     if not token:
         raise HTTPException(status_code=400, detail="נא לספק Google OAuth access token")
 
-    target_date_str = req.log_date or str(date.today())
+    il_tz = ZoneInfo("Asia/Jerusalem")
+    now_il = datetime.now(il_tz)
+    target_date_str = req.log_date or str(now_il.date())
     try:
-        target_dt = datetime.strptime(target_date_str, "%Y-%m-%d")
+        parsed_dt = datetime.strptime(target_date_str, "%Y-%m-%d")
     except Exception:
-        target_dt = datetime.today()
+        parsed_dt = now_il
 
-    start_dt = datetime(target_dt.year, target_dt.month, target_dt.day, 0, 0, 0)
-    end_dt = datetime(target_dt.year, target_dt.month, target_dt.day, 23, 59, 59)
+    start_dt = datetime(parsed_dt.year, parsed_dt.month, parsed_dt.day, 0, 0, 0, tzinfo=il_tz)
+    end_dt = datetime(parsed_dt.year, parsed_dt.month, parsed_dt.day, 23, 59, 59, tzinfo=il_tz)
     start_ms = int(start_dt.timestamp() * 1000)
     end_ms = int(end_dt.timestamp() * 1000)
+    duration_ms = max(1000, end_ms - start_ms)
+    start_ns = start_ms * 1_000_000
+    end_ns = end_ms * 1_000_000
 
-    url = "https://fitness.googleapis.com/fitness/v1/users/me/dataset:aggregate"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
-    body = {
-        "aggregateBy": [
-            {"dataTypeName": "com.google.calories.expended"},
-            {"dataTypeName": "com.google.step_count.delta"},
-            {"dataTypeName": "com.google.activity.segment"},
-        ],
-        "bucketByTime": {"durationMillis": 86400000},
-        "startTimeMillis": start_ms,
-        "endTimeMillis": end_ms,
+
+    def _agg_single(agg_spec: dict) -> list:
+        agg_url = "https://fitness.googleapis.com/fitness/v1/users/me/dataset:aggregate"
+        agg_body = {
+            "aggregateBy": [agg_spec],
+            "bucketByTime": {"durationMillis": duration_ms},
+            "startTimeMillis": start_ms,
+            "endTimeMillis": end_ms,
+        }
+        r_obj = urllib.request.Request(agg_url, data=json.dumps(agg_body).encode("utf-8"), headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(r_obj, timeout=8) as r:
+                d = json.loads(r.read().decode("utf-8"))
+                pts = []
+                for b in d.get("bucket", []):
+                    for ds in b.get("dataset", []):
+                        pts.extend(ds.get("point", []))
+                return pts
+        except Exception as ex:
+            print(f"WARN Google Fit agg ({agg_spec}): {ex}")
+            return []
+
+    specs = {
+        "steps_est": {"dataTypeName": "com.google.step_count.delta", "dataSourceId": "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps"},
+        "steps_all": {"dataTypeName": "com.google.step_count.delta"},
+        "calories": {"dataTypeName": "com.google.calories.expended"},
+        "active_min": {"dataTypeName": "com.google.active_minutes"},
+        "heart_min": {"dataTypeName": "com.google.heart_minutes"},
+        "segments": {"dataTypeName": "com.google.activity.segment"},
     }
 
-    req_obj = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req_obj, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        print(f"ERROR Google Fit API: {e}")
-        raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם Google Health / Fit API: {e}")
+    agg_results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+        fut_map = {ex.submit(_agg_single, sp): k for k, sp in specs.items()}
+        for fut in concurrent.futures.as_completed(fut_map):
+            k = fut_map[fut]
+            agg_results[k] = fut.result()
 
-    raw_calories = 0.0
-    total_steps = 0
-    active_segment_minutes = 0
     from_samsung = False
 
-    buckets = data.get("bucket", [])
-    for b in buckets:
-        for ds in b.get("dataset", []):
-            dtype = ds.get("dataSourceId", "")
-            for pt in ds.get("point", []):
-                origin = (pt.get("originDataSourceId") or "").lower()
-                if "shealth" in origin or "samsung" in origin:
-                    from_samsung = True
-                val_list = pt.get("value", [])
-                if "calories" in dtype and val_list:
-                    raw_calories += float(val_list[0].get("fpVal", 0) or 0)
-                elif "step_count" in dtype and val_list:
-                    total_steps += int(val_list[0].get("intVal", 0) or 0)
-                elif "activity.segment" in dtype and val_list:
-                    act_code = int(val_list[0].get("intVal", 0) or 0)
-                    # Exclude Still (3), Unknown (4), Sleeping (72)
-                    if act_code not in (3, 4, 72):
-                        s_ns = int(pt.get("startTimeNanos") or 0)
-                        e_ns = int(pt.get("endTimeNanos") or 0)
-                        if e_ns > s_ns:
-                            active_segment_minutes += max(1, int((e_ns - s_ns) / 60_000_000_000))
+    def _sum_points_int(pts: list) -> int:
+        nonlocal from_samsung
+        total = 0
+        for pt in pts:
+            orig = (pt.get("originDataSourceId") or "").lower()
+            if "shealth" in orig or "samsung" in orig:
+                from_samsung = True
+            for v in pt.get("value", []):
+                iv = v.get("intVal")
+                fv = v.get("fpVal")
+                if iv is not None:
+                    total += int(iv)
+                elif fv is not None:
+                    total += int(round(float(fv)))
+        return total
 
-    # Also query explicit workout sessions (Google Fit + Samsung Health via Health Connect)
+    def _sum_points_float(pts: list) -> float:
+        nonlocal from_samsung
+        total = 0.0
+        for pt in pts:
+            orig = (pt.get("originDataSourceId") or "").lower()
+            if "shealth" in orig or "samsung" in orig:
+                from_samsung = True
+            for v in pt.get("value", []):
+                fv = v.get("fpVal")
+                iv = v.get("intVal")
+                if fv is not None:
+                    total += float(fv)
+                elif iv is not None:
+                    total += float(iv)
+        return total
+
+    steps_est = _sum_points_int(agg_results.get("steps_est", []))
+    steps_all = _sum_points_int(agg_results.get("steps_all", []))
+    total_steps = max(steps_est, steps_all)
+    raw_calories = _sum_points_float(agg_results.get("calories", []))
+    active_mins_val = _sum_points_int(agg_results.get("active_min", []))
+    heart_mins_val = _sum_points_int(agg_results.get("heart_min", []))
+
+    active_segment_minutes = 0
+    for pt in agg_results.get("segments", []):
+        orig = (pt.get("originDataSourceId") or "").lower()
+        if "shealth" in orig or "samsung" in orig:
+            from_samsung = True
+        val_list = pt.get("value", [])
+        if val_list:
+            act_code = int(val_list[0].get("intVal", 0) or 0)
+            if act_code not in (3, 4, 72):
+                s_ns = int(pt.get("startTimeNanos") or 0)
+                e_ns = int(pt.get("endTimeNanos") or 0)
+                if e_ns > s_ns:
+                    active_segment_minutes += max(1, int((e_ns - s_ns) / 60_000_000_000))
+
+    # Fallback: If aggregate steps/calories are 0, inspect raw dataSources directly in parallel!
+    ds_stream_count = 0
+    if total_steps == 0 or raw_calories <= 0:
+        try:
+            ds_url = "https://fitness.googleapis.com/fitness/v1/users/me/dataSources"
+            ds_req = urllib.request.Request(ds_url, headers=headers, method="GET")
+            with urllib.request.urlopen(ds_req, timeout=6) as ds_resp:
+                ds_list = json.loads(ds_resp.read().decode("utf-8")).get("dataSource", [])
+            ds_stream_count = len(ds_list)
+            target_dtypes = {
+                "com.google.step_count.delta",
+                "com.google.calories.expended",
+                "com.google.active_minutes",
+                "com.google.heart_minutes",
+            }
+            candidate_streams = []
+            for dsrc in ds_list:
+                d_stream_id = dsrc.get("dataStreamId", "")
+                dt_name = (dsrc.get("dataType") or {}).get("name", "")
+                if "shealth" in d_stream_id.lower() or "samsung" in d_stream_id.lower():
+                    from_samsung = True
+                if dt_name in target_dtypes and d_stream_id:
+                    candidate_streams.append((dt_name, d_stream_id))
+
+            def _fetch_stream_pts(item_tuple):
+                dt_n, s_id = item_tuple
+                enc_stream = urllib.parse.quote(s_id, safe="")
+                dset_url = f"https://fitness.googleapis.com/fitness/v1/users/me/dataSources/{enc_stream}/datasets/{start_ns}-{end_ns}"
+                try:
+                    dset_req = urllib.request.Request(dset_url, headers=headers, method="GET")
+                    with urllib.request.urlopen(dset_req, timeout=5) as dset_resp:
+                        return dt_n, s_id, json.loads(dset_resp.read().decode("utf-8")).get("point", [])
+                except Exception:
+                    return dt_n, s_id, []
+
+            if candidate_streams:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ds_ex:
+                    for dt_name, s_id, pts in ds_ex.map(_fetch_stream_pts, candidate_streams):
+                        if not pts:
+                            continue
+                        if dt_name == "com.google.step_count.delta":
+                            total_steps = max(total_steps, _sum_points_int(pts))
+                        elif dt_name == "com.google.calories.expended":
+                            raw_calories = max(raw_calories, _sum_points_float(pts))
+                        elif dt_name == "com.google.active_minutes":
+                            active_mins_val = max(active_mins_val, _sum_points_int(pts))
+                        elif dt_name == "com.google.heart_minutes":
+                            heart_mins_val = max(heart_mins_val, _sum_points_int(pts))
+        except Exception as dse:
+            print(f"WARN Google Fit dataSources fallback: {dse}")
+
+    # Query explicit workout sessions
     session_names = []
     session_minutes = 0
     try:
-        iso_start = start_dt.strftime("%Y-%m-%dT00:00:00.00Z")
-        iso_end = end_dt.strftime("%Y-%m-%dT23:59:59.99Z")
-        sess_url = f"https://fitness.googleapis.com/fitness/v1/users/me/sessions?startTime={iso_start}&endTime={iso_end}"
+        utc_start = start_dt.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%S.00Z")
+        utc_end = end_dt.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%S.99Z")
+        sess_url = f"https://fitness.googleapis.com/fitness/v1/users/me/sessions?startTime={utc_start}&endTime={utc_end}"
         sess_req = urllib.request.Request(sess_url, headers=headers, method="GET")
-        with urllib.request.urlopen(sess_req, timeout=8) as s_resp:
+        with urllib.request.urlopen(sess_req, timeout=6) as s_resp:
             sess_data = json.loads(s_resp.read().decode("utf-8"))
             for s in sess_data.get("session", []):
                 act_type = int(s.get("activityType") or 0)
@@ -3615,18 +3720,23 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
     except Exception as se:
         print(f"WARN Google Fit sessions fetch: {se}")
 
-    active_min = max(active_segment_minutes, session_minutes)
+    active_min = max(active_segment_minutes, session_minutes, active_mins_val, heart_mins_val)
     step_calories = int(round(total_steps * 0.045))
     session_est_calories = int(round(session_minutes * 6.5))
-
-    # Filter out 24h passive BMR calories when Google Fit returns total BMR + active
     raw_cal_int = int(round(raw_calories))
-    max_reasonable_active = step_calories + session_est_calories + max(active_min * 8, 280)
+
+    print(
+        f"INFO GoogleFitSync [{uid}] date={target_date_str}: "
+        f"steps={total_steps} (est={steps_est}, all={steps_all}), "
+        f"raw_cal={raw_cal_int}, active_min={active_min}, sessions={session_names}, streams={ds_stream_count}"
+    )
+
+    max_reasonable_active = step_calories + session_est_calories + max(active_min * 8, 300)
     if raw_cal_int > max_reasonable_active and (total_steps > 0 or active_min > 0):
-        total_calories = max(step_calories, step_calories + int(session_est_calories * 0.6))
-    elif raw_cal_int > 400 and total_steps == 0 and active_min == 0:
-        # Pure BMR with 0 steps and 0 active sessions
-        total_calories = 0
+        total_calories = max(step_calories, step_calories + int(session_est_calories * 0.6), active_min * 5)
+    elif raw_cal_int > 900 and total_steps == 0 and active_min == 0:
+        # Google Fit returned full-day BMR + active calories without separate step points; extract active ~20%
+        total_calories = max(120, int(round(raw_cal_int * 0.20)))
     else:
         total_calories = raw_cal_int
 
@@ -3635,10 +3745,106 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
     elif total_calories <= 0 and active_min > 0:
         total_calories = max(1, active_min * 6)
 
+    # If the target date has 0 data, check recent 7 days in case the phone only synced earlier days so far
     if total_calories <= 0 and total_steps <= 0 and active_min <= 0:
+        recent_synced = None
+        try:
+            lookback_start_dt = start_dt - timedelta(days=6)
+            lb_start_ms = int(lookback_start_dt.timestamp() * 1000)
+            agg_url = "https://fitness.googleapis.com/fitness/v1/users/me/dataset:aggregate"
+            lb_body = {
+                "aggregateBy": [
+                    {"dataTypeName": "com.google.step_count.delta"},
+                    {"dataTypeName": "com.google.calories.expended"},
+                ],
+                "bucketByTime": {"durationMillis": 86400000},
+                "startTimeMillis": lb_start_ms,
+                "endTimeMillis": end_ms,
+            }
+            lb_req = urllib.request.Request(agg_url, data=json.dumps(lb_body).encode("utf-8"), headers=headers, method="POST")
+            with urllib.request.urlopen(lb_req, timeout=7) as lb_resp:
+                lb_data = json.loads(lb_resp.read().decode("utf-8"))
+            for b in lb_data.get("bucket", []):
+                b_start_ms = int(b.get("startTimeMillis") or 0)
+                b_date_str = str(datetime.fromtimestamp(b_start_ms / 1000.0, tz=il_tz).date())
+                b_steps = 0
+                b_cal = 0.0
+                for ds in b.get("dataset", []):
+                    ds_id = (ds.get("dataSourceId") or "").lower()
+                    pts = ds.get("point", [])
+                    if "step_count" in ds_id:
+                        b_steps = max(b_steps, _sum_points_int(pts))
+                    elif "calories" in ds_id:
+                        b_cal = max(b_cal, _sum_points_float(pts))
+                if b_steps > 0 or b_cal > 0:
+                    b_step_cal = int(round(b_steps * 0.045))
+                    b_cal_int = int(round(b_cal))
+                    if b_cal_int > b_step_cal + 300 and b_steps > 0:
+                        b_final_cal = max(b_step_cal, 50)
+                    elif b_cal_int > 900 and b_steps == 0:
+                        b_final_cal = max(120, int(round(b_cal_int * 0.20)))
+                    else:
+                        b_final_cal = max(b_cal_int, b_step_cal, 1)
+                    b_dur = max(15, int(b_steps / 100)) if b_steps > 0 else 30
+                    b_dist = round(b_steps * 0.00075, 2) if b_steps >= 500 else None
+                    b_name = f"Google Health / Fit ({b_steps:,} צעדים)" if b_steps > 0 else f"פעילות Google Health / Fit ({b_final_cal} קק״ל)"
+                    b_entry = upsert_health_sync_workout_db(
+                        activity_name=b_name,
+                        burned_calories=b_final_cal,
+                        duration_min=b_dur,
+                        distance_km=b_dist,
+                        activity_type="walk" if b_steps > 0 else "other",
+                        log_date=b_date_str,
+                        source="google-fit",
+                        user_id=uid,
+                        notes=f"סונכרן אוטומטית מ-Google Fit ({b_date_str}): {b_steps:,} צעדים",
+                    )
+                    recent_synced = {
+                        "date": b_date_str,
+                        "steps": b_steps,
+                        "burned_calories": b_final_cal,
+                        "duration_min": b_dur,
+                        "workout": b_entry,
+                    }
+        except Exception as lbe:
+            print(f"WARN Google Fit 7d lookback: {lbe}")
+
+        if recent_synced:
+            return {
+                "status": "success",
+                "provider": f"Google Health / Fit ({recent_synced['date']})",
+                "burned_calories": recent_synced["burned_calories"],
+                "steps": recent_synced["steps"],
+                "active_minutes": recent_synced["duration_min"],
+                "sessions": [],
+                "workout": recent_synced["workout"],
+            }
+
+        token_email = ""
+        has_fit_scope = True
+        try:
+            ti_url = f"https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={urllib.parse.quote(token)}"
+            with urllib.request.urlopen(ti_url, timeout=4) as ti_resp:
+                ti_data = json.loads(ti_resp.read().decode("utf-8"))
+                token_email = ti_data.get("email", "")
+                scopes_str = ti_data.get("scope", "")
+                if "fitness" not in scopes_str:
+                    has_fit_scope = False
+        except Exception:
+            pass
+
+        if not has_fit_scope:
+            msg = "לא סומנה תיבת ההרשאה לנתוני פעילות (Google Fit) בחלון האישור של גוגל. נסה שוב וסמן ☑️ בחלון ההרשאות."
+        else:
+            acct_note = f" בחשבון {token_email}" if token_email else ""
+            msg = (
+                f"לא נמצאו נתונים בענן של Google Fit{acct_note} לתאריך {target_date_str}. "
+                "ודא שבאפליקציית Google Fit בטלפון מחובר אותו חשבון Gmail ושהסנכרון לענן פעיל."
+            )
+
         return {
             "status": "no_data",
-            "message": f"לא נמצאו נתוני פעילות או צעדים מ-Google / Samsung Health לתאריך {target_date_str}",
+            "message": msg,
             "burned_calories": 0,
             "steps": 0,
         }
@@ -3651,7 +3857,7 @@ def api_sync_google_fit(req: GoogleFitSyncRequest, request: Request):
     elif total_steps > 0:
         activity_name = f"{provider} ({total_steps:,} צעדים)"
     else:
-        activity_name = f"פעילות {provider}"
+        activity_name = f"פעילות {provider} ({total_calories} קק״ל)"
 
     duration_val = active_min if active_min > 0 else (max(15, int(total_steps / 100)) if total_steps > 0 else 30)
     dist_km = round(total_steps * 0.00075, 2) if total_steps >= 500 else None
