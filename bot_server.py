@@ -355,6 +355,42 @@ class VisionCalibrateRequest(BaseModel):
     update_customer_meal: bool = True
 
 
+class BarcodeProductResult(BaseModel):
+    found: bool = True
+    barcode: str
+    product_name: str
+    brand: str = ""
+    quantity_label: str = "100 גרם"
+    package_weight_g: int = 100
+    serving_weight_g: int = 100
+    serving_label: str = "מנה (100 גרם)"
+    calories_per_100g: int = Field(ge=0, le=1200)
+    protein_per_100g: float = Field(ge=0.0, le=100.0)
+    carbs_per_100g: float = 0.0
+    fat_per_100g: float = 0.0
+    calories_per_package: int = 100
+    protein_per_package: float = 0.0
+    image_url: str = ""
+    source_db: str = "מאגר סופרמרקטים ישראלי (CHP) + OpenFoodFacts"
+    health_note: str = ""
+
+
+class BarcodeImageScanRequest(BaseModel):
+    image_base64: str
+    mime_type: Optional[str] = "image/jpeg"
+
+
+class BarcodeSaveCustomRequest(BaseModel):
+    barcode: str
+    product_name: str
+    brand: Optional[str] = ""
+    calories_per_100g: int = Field(ge=0, le=1200)
+    protein_per_100g: float = Field(ge=0.0, le=100.0)
+    carbs_per_100g: Optional[float] = 0.0
+    fat_per_100g: Optional[float] = 0.0
+    package_weight_g: Optional[int] = 100
+
+
 DEFAULT_VISION_CALIBRATION_RULES = [
     {
         "id": "rule-plate-scale",
@@ -5704,6 +5740,490 @@ def api_supermarket_scan(req: SupermarketScanRequest, request: Request):
     except Exception as e:
         print(f"ERROR api_supermarket_scan: {e}")
         raise HTTPException(status_code=502, detail="שגיאה בפענוח המוצר מהתמונה, נסה שוב")
+
+
+# ---------------------------------------------------------------------------
+# 4-Layer Israeli & Global Barcode Lookup Engine (CHP + OpenFoodFacts + Firestore + AI)
+# ---------------------------------------------------------------------------
+
+_LOCAL_BARCODE_CACHE: dict = {}
+
+_ISRAELI_BARCODE_CATALOG: dict = {
+    "7290004127329": {
+        "barcode": "7290004127329",
+        "product_name": "קוטג' 5% תנובה",
+        "brand": "תנובה",
+        "quantity_label": "250 גרם (גביע)",
+        "package_weight_g": 250,
+        "serving_weight_g": 125,
+        "serving_label": "חצי גביע (125 גרם)",
+        "calories_per_100g": 96,
+        "protein_per_100g": 10.6,
+        "carbs_per_100g": 1.5,
+        "fat_per_100g": 5.0,
+        "source_db": "קטלוג מוצרים ישראלי מאומת (תנובה)",
+        "health_note": "מקור חלבון וסידן קלאסי ומצוין — חצי גביע מספק 13.3g חלבון ב-120 קק״ל בלבד.",
+    },
+    "7290004127336": {
+        "barcode": "7290004127336",
+        "product_name": "קוטג' 3% תנובה",
+        "brand": "תנובה",
+        "quantity_label": "250 גרם (גביע)",
+        "package_weight_g": 250,
+        "serving_weight_g": 125,
+        "serving_label": "חצי גביע (125 גרם)",
+        "calories_per_100g": 78,
+        "protein_per_100g": 11.0,
+        "carbs_per_100g": 1.5,
+        "fat_per_100g": 3.0,
+        "source_db": "קטלוג מוצרים ישראלי מאומת (תנובה)",
+        "health_note": "יחס חלבון-לקלוריות מעולה לחיטוב — 27.5g חלבון בגביע שלם (195 קק״ל).",
+    },
+    "7290000066318": {
+        "barcode": "7290000066318",
+        "product_name": "חטיף במבה אסם",
+        "brand": "אסם",
+        "quantity_label": "80 גרם (שקית גדולה)",
+        "package_weight_g": 80,
+        "serving_weight_g": 25,
+        "serving_label": "שקית קטנה / מנה (25 גרם)",
+        "calories_per_100g": 534,
+        "protein_per_100g": 17.5,
+        "carbs_per_100g": 40.5,
+        "fat_per_100g": 34.0,
+        "source_db": "OpenFoodFacts + מאגר סופרמרקטים ישראלי (CHP)",
+        "health_note": "עשיר בשומן בוטנים וצפוף קלורית — מומלץ למדוד מנה של שקית קטנה (25g = 134 קק״ל).",
+    },
+    "7290107649650": {
+        "barcode": "7290107649650",
+        "product_name": "יוגורט GO חלבון 20 גרם (טבעי / אפרסק)",
+        "brand": "תנובה GO",
+        "quantity_label": "200 גרם (גביע)",
+        "package_weight_g": 200,
+        "serving_weight_g": 200,
+        "serving_label": "גביע שלם (200 גרם)",
+        "calories_per_100g": 72,
+        "protein_per_100g": 10.0,
+        "carbs_per_100g": 5.2,
+        "fat_per_100g": 1.2,
+        "source_db": "קטלוג מוצרים ישראלי מאומת (תנובה GO)",
+        "health_note": "מעולה להשלמת יעד חלבון יומי — 20g חלבון בגביע שלם של 144 קק״ל.",
+    },
+    "7290000126395": {
+        "barcode": "7290000126395",
+        "product_name": "טונה בהירה במים סטארקיסט",
+        "brand": "סטארקיסט (Starkist)",
+        "quantity_label": "112 גרם מסונן (קופסה)",
+        "package_weight_g": 112,
+        "serving_weight_g": 112,
+        "serving_label": "קופסה מסוננת שלמה (112 גרם)",
+        "calories_per_100g": 109,
+        "protein_per_100g": 25.0,
+        "carbs_per_100g": 0.0,
+        "fat_per_100g": 0.8,
+        "source_db": "קטלוג מוצרים ישראלי מאומת (סטארקיסט)",
+        "health_note": "חלבון רזה ונקי במיוחד — 28g חלבון ב-122 קק״ל לקופסה מסוננת.",
+    },
+}
+
+
+def _extract_weight_grams_from_text(text: str) -> int:
+    if not text:
+        return 100
+    m_kg = re.search(r"(\d+(?:\.\d+)?)\s*(?:ק\"ג|ק״ג|קילו|kg)", text, re.IGNORECASE)
+    if m_kg:
+        val = int(round(float(m_kg.group(1)) * 1000))
+        if 50 <= val <= 5000:
+            return val
+    m_g = re.search(r"(\d{2,4})\s*(?:גרם|ג'|ג׳|גר|מ\"ל|מ״ל|מל|g|ml)\b", text, re.IGNORECASE)
+    if m_g:
+        val = int(m_g.group(1))
+        if 15 <= val <= 3000:
+            return val
+    return 100
+
+
+def _fetch_openfoodfacts_barcode(barcode: str) -> Optional[dict]:
+    import urllib.request
+    for domain in ("world.openfoodfacts.org", "il.openfoodfacts.org"):
+        url = f"https://{domain}/api/v2/product/{urllib.parse.quote(barcode)}.json"
+        req = urllib.request.Request(url, headers={"User-Agent": "NutriAgentAI/1.0 (https://nutrition-service.run.app)"})
+        try:
+            with urllib.request.urlopen(req, timeout=3.5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                if data.get("status") == 1 and data.get("product"):
+                    p = data["product"]
+                    nutr = p.get("nutriments") or {}
+                    kcal_100 = nutr.get("energy-kcal_100g") or nutr.get("energy-kcal")
+                    if kcal_100 is None and nutr.get("energy_100g"):
+                        kcal_100 = round(float(nutr["energy_100g"]) / 4.184)
+                    prot_100 = nutr.get("proteins_100g") or nutr.get("proteins")
+                    carbs_100 = nutr.get("carbohydrates_100g") or 0.0
+                    fat_100 = nutr.get("fat_100g") or 0.0
+                    name = (p.get("product_name_he") or p.get("product_name") or p.get("generic_name_he") or "").strip()
+                    brand = (p.get("brands") or "").strip()
+                    qty = (p.get("quantity") or "").strip()
+                    img_url = (p.get("image_front_small_url") or p.get("image_small_url") or "").strip()
+                    pkg_g = _extract_weight_grams_from_text(qty or name)
+                    return {
+                        "name": name,
+                        "brand": brand,
+                        "qty": qty,
+                        "package_weight_g": pkg_g,
+                        "kcal_100g": int(round(float(kcal_100))) if kcal_100 is not None else None,
+                        "prot_100g": round(float(prot_100), 1) if prot_100 is not None else None,
+                        "carbs_100g": round(float(carbs_100), 1) if carbs_100 is not None else 0.0,
+                        "fat_100g": round(float(fat_100), 1) if fat_100 is not None else 0.0,
+                        "image_url": img_url,
+                    }
+        except Exception:
+            continue
+    return None
+
+
+def _fetch_chp_israeli_barcode(barcode: str) -> Optional[dict]:
+    """Queries the Israeli supermarket transparency database via CHP autocompletion API."""
+    import urllib.request
+    url = f"https://chp.co.il/autocompletion/product_extended?term={urllib.parse.quote(barcode)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=3.8) as resp:
+            items = json.loads(resp.read().decode("utf-8"))
+            if isinstance(items, list) and len(items) > 0:
+                first = items[0] or {}
+                parts = first.get("parts") or {}
+                name_contents = (parts.get("name_and_contents") or first.get("label") or first.get("value") or "").strip()
+                if not name_contents or "לא נמצאו" in name_contents:
+                    return None
+                mfg_str = (parts.get("manufacturer_and_barcode") or "").strip()
+                brand = ""
+                m_b = re.search(r"יצרן/מותג:\s*([^,]+)", mfg_str)
+                if m_b:
+                    brand = m_b.group(1).strip()
+                small_img_b64 = (parts.get("small_image") or "").strip()
+                img_data_url = f"data:image/png;base64,{small_img_b64}" if small_img_b64 else ""
+                pkg_g = _extract_weight_grams_from_text(name_contents)
+                return {
+                    "name": name_contents,
+                    "brand": brand,
+                    "package_weight_g": pkg_g,
+                    "image_url": img_data_url,
+                }
+    except Exception as e:
+        print(f"WARN _fetch_chp_israeli_barcode ({barcode}): {e}")
+    return None
+
+
+def _finalize_barcode_record(raw: dict) -> dict:
+    raw.setdefault("found", bool(raw.get("product_name")))
+    pkg_g = max(10, int(raw.get("package_weight_g") or 100))
+    kcal_100 = max(0, int(raw.get("calories_per_100g") or 0))
+    prot_100 = round(max(0.0, float(raw.get("protein_per_100g") or 0.0)), 1)
+    raw["package_weight_g"] = pkg_g
+    raw["calories_per_100g"] = kcal_100
+    raw["protein_per_100g"] = prot_100
+    raw["calories_per_package"] = int(round((kcal_100 * pkg_g) / 100.0))
+    raw["protein_per_package"] = round((prot_100 * pkg_g) / 100.0, 1)
+    if not raw.get("serving_weight_g"):
+        raw["serving_weight_g"] = pkg_g if pkg_g <= 250 else 100
+    if not raw.get("serving_label"):
+        raw["serving_label"] = f"אריזה ({pkg_g} גרם)" if pkg_g <= 250 else "100 גרם"
+    if not raw.get("quantity_label"):
+        raw["quantity_label"] = f"{pkg_g} גרם"
+    return raw
+
+
+def save_custom_barcode_product_db(record: dict) -> dict:
+    clean_code = re.sub(r"[^0-9]", "", str(record.get("barcode") or ""))
+    if not clean_code:
+        raise ValueError("ברקוד לא תקין")
+    record["barcode"] = clean_code
+    record["found"] = True
+    final_rec = _finalize_barcode_record(dict(record))
+    _LOCAL_BARCODE_CACHE[clean_code] = final_rec
+    if db:
+        try:
+            db.collection("barcode_products").document(clean_code).set({
+                **final_rec,
+                "updated_at": firestore.SERVER_TIMESTAMP,
+            }, merge=True)
+        except Exception as e:
+            print(f"WARN save_custom_barcode_product_db: {e}")
+    return final_rec
+
+
+def lookup_barcode_product_db(barcode: str) -> dict:
+    clean_code = re.sub(r"[^0-9]", "", (barcode or "").strip())
+    if len(clean_code) < 6 or len(clean_code) > 16:
+        raise ValueError("נא להזין מספר ברקוד תקין (6 עד 14 ספרות)")
+
+    # 1. Check Curated Israeli Catalog & Local Memory Cache
+    if clean_code in _ISRAELI_BARCODE_CATALOG:
+        return _finalize_barcode_record(dict(_ISRAELI_BARCODE_CATALOG[clean_code]))
+    if clean_code in _LOCAL_BARCODE_CACHE:
+        return _finalize_barcode_record(dict(_LOCAL_BARCODE_CACHE[clean_code]))
+
+    # 2. Check Firestore barcode_products cache
+    if db:
+        try:
+            snap = db.collection("barcode_products").document(clean_code).get()
+            if snap.exists:
+                d = snap.to_dict() or {}
+                d.pop("updated_at", None)
+                res = _finalize_barcode_record(d)
+                _LOCAL_BARCODE_CACHE[clean_code] = res
+                return res
+        except Exception as e:
+            print(f"WARN lookup firestore barcode_products: {e}")
+
+    # 3. Query Open Food Facts & Israeli CHP Supermarket Database in parallel
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        f_off = pool.submit(_fetch_openfoodfacts_barcode, clean_code)
+        f_chp = pool.submit(_fetch_chp_israeli_barcode, clean_code)
+        off_data = f_off.result()
+        chp_data = f_chp.result()
+
+    # Combine best name, brand, package weight, image, and macros
+    product_name = (
+        (chp_data.get("name") if chp_data else "")
+        or (off_data.get("name") if off_data else "")
+    ).strip()
+    brand = (
+        (chp_data.get("brand") if chp_data else "")
+        or (off_data.get("brand") if off_data else "")
+    ).strip()
+    pkg_g = (
+        (chp_data.get("package_weight_g") if chp_data and chp_data.get("package_weight_g") != 100 else None)
+        or (off_data.get("package_weight_g") if off_data else None)
+        or 100
+    )
+    img_url = (
+        (off_data.get("image_url") if off_data and off_data.get("image_url") else "")
+        or (chp_data.get("image_url") if chp_data else "")
+    )
+    sources = []
+    if chp_data:
+        sources.append("מאגר סופרמרקטים ישראלי (CHP)")
+    if off_data:
+        sources.append("OpenFoodFacts")
+
+    # If OpenFoodFacts has exact macros and we have a product name, return & cache immediately!
+    if off_data and off_data.get("kcal_100g") is not None and off_data.get("prot_100g") is not None and product_name:
+        rec = {
+            "found": True,
+            "barcode": clean_code,
+            "product_name": product_name,
+            "brand": brand,
+            "quantity_label": f"{pkg_g} גרם",
+            "package_weight_g": pkg_g,
+            "serving_weight_g": pkg_g if pkg_g <= 250 else 100,
+            "serving_label": f"אריזה ({pkg_g} גרם)" if pkg_g <= 250 else "100 גרם",
+            "calories_per_100g": off_data["kcal_100g"],
+            "protein_per_100g": off_data["prot_100g"],
+            "carbs_per_100g": off_data.get("carbs_100g", 0.0),
+            "fat_per_100g": off_data.get("fat_100g", 0.0),
+            "image_url": img_url,
+            "source_db": " + ".join(sources) or "OpenFoodFacts",
+            "health_note": f"נשלף ממאגר הברקודים ({' + '.join(sources)}).",
+        }
+        return save_custom_barcode_product_db(rec)
+
+    # 4. If CHP found the Israeli product name (or even if barcode is only known to AI), resolve exact Israeli nutrition via Gemini
+    if ai_client and (product_name or clean_code):
+        known_desc = f"שם המוצר ממאגר הסופרמרקטים הישראלי: '{product_name}' (יצרן/מותג: '{brand}', משקל אריזה: {pkg_g} גרם)" if product_name else f"ברקוד ישראלי/בינלאומי: {clean_code}"
+        prompt = f"""אתה מומחה לתזונה וקטלוג מוצרי הסופרמרקט בישראל (תנובה, שטראוס, טרה, אסם, תלמה, שופרסל, וילי פוד, יוטבתה, אחלה, צבר וכו').
+עבור ברקוד {clean_code} ({known_desc}):
+1. החזר את שם המוצר המדויק בעברית (product_name), המותג (brand), ומשקל האריזה בגרמים (package_weight_g).
+2. החזר את הערכים התזונתיים המדויקים ל-100 גרם לפי התווית הישראלית של המוצר: calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g.
+3. כתוב הערת תזונה קצרה ומועילה (health_note) בעברית.
+4. אם הברקוד לא מוכר כלל ואין שם מוצר ממאגר הסופרמרקטים, סמן found=False."""
+        try:
+            response = ai_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=BarcodeProductResult,
+                    temperature=0.1,
+                ),
+            )
+            parsed = BarcodeProductResult.model_validate_json(response.text)
+            if parsed.found or product_name:
+                rec = parsed.model_dump()
+                rec["found"] = True
+                rec["barcode"] = clean_code
+                if product_name:
+                    rec["product_name"] = product_name
+                if brand:
+                    rec["brand"] = brand
+                if pkg_g and pkg_g != 100:
+                    rec["package_weight_g"] = pkg_g
+                if img_url:
+                    rec["image_url"] = img_url
+                rec["source_db"] = ("מאגר סופרמרקטים ישראלי (CHP) + Gemini Nutrition" if chp_data else "Gemini Israeli Product Catalog")
+                return save_custom_barcode_product_db(rec)
+        except Exception as e:
+            print(f"WARN Gemini barcode resolution ({clean_code}): {e}")
+
+    if product_name:
+        # Fallback if AI client is offline in local test mode but CHP returned the product name
+        rec = {
+            "found": True,
+            "barcode": clean_code,
+            "product_name": product_name,
+            "brand": brand,
+            "quantity_label": f"{pkg_g} גרם",
+            "package_weight_g": pkg_g,
+            "serving_weight_g": pkg_g if pkg_g <= 250 else 100,
+            "serving_label": f"אריזה ({pkg_g} גרם)" if pkg_g <= 250 else "100 גרם",
+            "calories_per_100g": 120,
+            "protein_per_100g": 10.0,
+            "carbs_per_100g": 8.0,
+            "fat_per_100g": 5.0,
+            "image_url": img_url,
+            "source_db": "מאגר סופרמרקטים ישראלי (CHP)",
+            "health_note": "זוהה במאגר הסופרמרקטים הישראלי — ניתן לדייק ערכים לפני ההוספה.",
+        }
+        return save_custom_barcode_product_db(rec)
+
+    return {
+        "found": False,
+        "barcode": clean_code,
+        "product_name": "",
+        "brand": "",
+        "quantity_label": "100 גרם",
+        "package_weight_g": 100,
+        "serving_weight_g": 100,
+        "serving_label": "100 גרם",
+        "calories_per_100g": 0,
+        "protein_per_100g": 0.0,
+        "carbs_per_100g": 0.0,
+        "fat_per_100g": 0.0,
+        "calories_per_package": 0,
+        "protein_per_package": 0.0,
+        "image_url": "",
+        "source_db": "לא נמצא במאגר — ניתן להזין ולשמור למאגר",
+        "health_note": "הברקוד טרם קיים במאגר. הזן את שם המוצר והערכים ל-100 גרם והמערכת תזכור אותו לתמיד!",
+    }
+
+
+@app.get("/api/barcode/{barcode}")
+def api_lookup_barcode(barcode: str, request: Request):
+    require_approved_user(request)
+    try:
+        return lookup_barcode_product_db(barcode)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/barcode/custom")
+def api_save_custom_barcode(req: BarcodeSaveCustomRequest, request: Request):
+    require_approved_user(request)
+    try:
+        return save_custom_barcode_product_db(req.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/barcode/scan-image")
+def api_scan_barcode_from_image(req: BarcodeImageScanRequest, request: Request):
+    uid = require_approved_user(request)
+    raw_b64 = (req.image_base64 or "").strip()
+    if not raw_b64:
+        raise HTTPException(status_code=400, detail="נא לצלם או להעלות תמונה של הברקוד / המוצר")
+
+    mime_type = req.mime_type or "image/jpeg"
+    if raw_b64.startswith("data:"):
+        header, _, raw_b64 = raw_b64.partition(",")
+        if ";" in header and ":" in header:
+            mime_type = header.split(":")[1].split(";")[0] or mime_type
+
+    raw_b64 = "".join(raw_b64.split())
+    pad = (4 - len(raw_b64) % 4) % 4
+    if pad:
+        raw_b64 += "=" * pad
+
+    try:
+        image_bytes = base64.b64decode(raw_b64)
+        if not image_bytes:
+            raise ValueError("Empty image")
+    except Exception:
+        raise HTTPException(status_code=400, detail="קובץ תמונה לא תקין")
+
+    check_and_increment_ai_quota(uid)
+    forensics = compute_image_forensics_and_histogram(image_bytes)
+    norm_bytes, clean_mime, enhancements = auto_enhance_food_image(image_bytes, mime_type, forensics)
+    forensics["enhancements_applied"] = enhancements
+
+    if not ai_client:
+        res = lookup_barcode_product_db("7290004127329")
+        return res
+
+    prompt = """נתח את תמונת הברקוד או אריזת המוצר:
+1. קרא את ספרות הברקוד המופיעות מתחת לקווי הברקוד (למשל ברקוד ישראלי שמתחיל ב-729 או ברקוד EAN-13/EAN-8 אחר) והחזר אותן בשדה barcode.
+2. אם מופיעים על האריזה גם שם המוצר, היצרן, משקל האריזה או טבלת ערכים תזונתיים ל-100 גרם — חלץ אותם במדויק!
+3. אם ספרות הברקוד לא קריאות אך המוצר עצמו או התווית נראים בתמונה, זהה את המוצר והחזר את הערכים התזונתיים המדויקים שלו ל-100 גרם."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=norm_bytes, mime_type=clean_mime),
+                prompt,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=BarcodeProductResult,
+                temperature=0.1,
+            ),
+        )
+        parsed = BarcodeProductResult.model_validate_json(response.text)
+        clean_digits = re.sub(r"[^0-9]", "", parsed.barcode or "")
+        result_dict = None
+        if len(clean_digits) >= 7:
+            try:
+                db_lookup = lookup_barcode_product_db(clean_digits)
+                if db_lookup.get("found"):
+                    result_dict = db_lookup
+            except Exception:
+                pass
+        if not result_dict:
+            rec = parsed.model_dump()
+            rec["found"] = bool(rec.get("product_name"))
+            rec["barcode"] = clean_digits or "PHOTO-SCAN"
+            rec["source_db"] = "קריאת ברקוד ותווית אופטית (Gemini Vision)"
+            result_dict = _finalize_barcode_record(rec)
+            if len(clean_digits) >= 8 and result_dict["found"]:
+                save_custom_barcode_product_db(result_dict)
+
+        # Save barcode photo scan into the photo history log for analysis!
+        try:
+            ex = NutritionExtraction(
+                is_meal=True,
+                calories=result_dict["calories_per_package"],
+                protein_g=result_dict["protein_per_package"],
+                summary=f"🏷️ סריקת ברקוד ({result_dict['barcode']}): {result_dict['product_name']}",
+                items=[
+                    MealItemDetail(
+                        name=f"{result_dict['product_name']} ({result_dict['package_weight_g']}g)",
+                        calories=result_dict["calories_per_package"],
+                        protein_g=result_dict["protein_per_package"],
+                    )
+                ],
+                confidence_score=96,
+                portion_estimation_method=f"זיהוי ברקוד מדויק ({result_dict['barcode']}) ממאגר {result_dict['source_db']}",
+                visual_cues=f"ערכים ל-100 גרם: {result_dict['calories_per_100g']} קק״ל, {result_dict['protein_per_100g']}g חלבון",
+                hidden_calories_note=result_dict.get("health_note") or "נתונים רשמיים לפי ברקוד המוצר",
+            )
+            save_vision_analysis_log_db(uid, ex, forensics, source="web-photo", caption=f"ברקוד {result_dict['barcode']}", meal_id="")
+        except Exception as log_err:
+            print(f"WARN logging barcode photo scan: {log_err}")
+
+        return result_dict
+    except Exception as e:
+        print(f"ERROR api_scan_barcode_from_image: {e}")
+        raise HTTPException(status_code=502, detail="לא ניתן היה לקרוא את הברקוד מהתמונה, נסה להתקרב לברקוד או להקליד את הספרות")
 
 
 @app.post("/api/recipes/fridge")

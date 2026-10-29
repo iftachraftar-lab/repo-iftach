@@ -175,5 +175,51 @@ class TestSecurityHardening(unittest.TestCase):
         self.assertIn("google_client_id", data)
         self.assertNotIn("primary_user_id", data)
 
+    def test_barcode_lookup_endpoint(self):
+        """Barcode lookup must require auth and return valid Israeli product information."""
+        # Unauthenticated -> 401
+        res_unauth = client.get("/api/barcode/7290004127329")
+        self.assertEqual(res_unauth.status_code, 401)
+
+        # Authenticated -> 200 with product details
+        res = client.get("/api/barcode/7290004127329", headers={"Authorization": f"Bearer {self.token_a}"})
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data.get("found"))
+        self.assertEqual(data.get("barcode"), "7290004127329")
+        self.assertIn("קוטג'", data.get("product_name", ""))
+        self.assertEqual(data.get("calories_per_100g"), 96)
+
+    def test_barcode_custom_save_endpoint(self):
+        """Custom barcode saving and resolution must require auth and work seamlessly."""
+        payload = {
+            "barcode": "7298888888888",
+            "product_name": "לחם כוסמין אורגני",
+            "brand": "מאפיית הבוטיק",
+            "calories_per_100g": 195,
+            "protein_per_100g": 9.2,
+            "carbs_per_100g": 38.0,
+            "fat_per_100g": 1.2,
+            "package_weight_g": 400
+        }
+        # Unauthenticated -> 401
+        res_unauth = client.post("/api/barcode/custom", json=payload)
+        self.assertEqual(res_unauth.status_code, 401)
+
+        # Authenticated -> 200
+        res_post = client.post("/api/barcode/custom", json=payload, headers={"Authorization": f"Bearer {self.token_a}"})
+        self.assertEqual(res_post.status_code, 200)
+        saved = res_post.json()
+        self.assertTrue(saved.get("found"))
+        self.assertEqual(saved.get("product_name"), "לחם כוסמין אורגני")
+
+        # Now lookup should return it from cache
+        res_get = client.get("/api/barcode/7298888888888", headers={"Authorization": f"Bearer {self.token_a}"})
+        self.assertEqual(res_get.status_code, 200)
+        retrieved = res_get.json()
+        self.assertTrue(retrieved.get("found"))
+        self.assertEqual(retrieved.get("protein_per_100g"), 9.2)
+
 if __name__ == "__main__":
     unittest.main()
+

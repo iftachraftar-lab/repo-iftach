@@ -533,6 +533,11 @@
                             class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
                         <span>🖼️ בחר מהגלריה</span>
                     </button>
+                    <button type="button" @click="openBarcodeScannerModal()" :disabled="supermarketScanning"
+                            class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                            title="סרוק ברקוד ישראלי עם מאגר מחירים וסופרמרקטים">
+                        <span>🏷️ סרוק ברקוד</span>
+                    </button>
                 </div>
 
                 <!-- Supermarket Scan Result -->
@@ -835,6 +840,16 @@
                                     title="צלם במצלמה">
                                 <span class="text-base">📷</span>
                                 <span class="hidden sm:inline">מצלמה</span>
+                            </button>
+
+                            <!-- Barcode Scanner Button (opens live barcode scanner + Israeli database lookup) -->
+                            <button type="button"
+                                    @click="openBarcodeScannerModal()"
+                                    :disabled="aiAnalyzing"
+                                    class="px-3 sm:px-3.5 py-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-semibold text-xs sm:text-sm flex items-center gap-1.5 flex-shrink-0 transition cursor-pointer"
+                                    title="סרוק ברקוד של מוצר ישראלי או בינלאומי">
+                                <span class="text-base">🏷️</span>
+                                <span class="hidden sm:inline">ברקוד</span>
                             </button>
 
                             <!-- Gallery / File Picker Button (works on both Mobile & Desktop) -->
@@ -3259,6 +3274,250 @@
         </div>
     </div>
 
+    <!-- =============================================================== -->
+    <!-- BARCODE SCANNER & ISRAELI SUPERMARKET DATABASE MODAL           -->
+    <!-- =============================================================== -->
+    <div x-cloak x-show="openBarcodeModal"
+         class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+         @click.self="closeBarcodeScannerModal()">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto" @click.stop>
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl">
+                        🏷️
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900">סורק ברקוד — מאגר סופרמרקטים ישראלי</h3>
+                        <p class="text-xs text-slate-500">זיהוי ממאגר שקיפות מחירים רשמי (CHP), תנובה, שטראוס, אסם ו-OpenFoodFacts</p>
+                    </div>
+                </div>
+                <button @click="closeBarcodeScannerModal()" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">✕</button>
+            </div>
+
+            <!-- Viewfinder / Camera Section -->
+            <div class="relative rounded-2xl overflow-hidden bg-slate-950 aspect-16/10 flex items-center justify-center border border-slate-800">
+                <video x-ref="barcodeCameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                
+                <!-- Target Box & Scanning Laser Animation -->
+                <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div class="w-4/5 h-28 border-2 border-dashed border-amber-400/90 rounded-2xl relative shadow-lg shadow-amber-500/10 flex items-center justify-center">
+                        <div class="absolute inset-x-2 h-0.5 bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse"></div>
+                        <span class="text-[11px] text-amber-200/90 font-bold bg-slate-950/70 px-2 py-0.5 rounded-full">כוון את הברקוד למסגרת</span>
+                    </div>
+                </div>
+
+                <!-- Camera Status / Scanning Indicator -->
+                <div x-show="barcodeScanningPhoto" class="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-2 text-white">
+                    <svg class="animate-spin h-7 w-7 text-amber-400" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span class="text-xs font-bold">מפענח ברקוד וערכים תזונתיים ב-AI...</span>
+                </div>
+            </div>
+
+            <!-- Camera Controls & Image Upload -->
+            <div class="flex items-center gap-2">
+                <input type="file" x-ref="barcodeGalleryInput" accept="image/*" class="hidden" @change="onBarcodePhotoSelected($event)">
+                <button type="button"
+                        @click="captureFromBarcodeCamera()"
+                        :disabled="barcodeScanningPhoto || barcodeSearching"
+                        class="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs">
+                    <span>📸</span>
+                    <span>צלם ברקוד וקרא</span>
+                </button>
+                <button type="button"
+                        @click="$refs.barcodeGalleryInput.click()"
+                        :disabled="barcodeScanningPhoto || barcodeSearching"
+                        class="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1 transition cursor-pointer">
+                    <span>🖼️ תמונה מגלריה</span>
+                </button>
+            </div>
+
+            <!-- Manual Barcode Lookup & Quick Israeli Samples -->
+            <div class="space-y-2 pt-1 border-t border-slate-100">
+                <label class="block text-xs font-bold text-slate-700">או הקלד מספר ברקוד ישירות (לדוגמה: 729...):</label>
+                <form @submit.prevent="lookupBarcode(barcodeInput)" class="flex items-center gap-2">
+                    <input type="text"
+                           x-model="barcodeInput"
+                           inputmode="numeric"
+                           placeholder="ספרות ברקוד (EAN-13)..."
+                           class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500">
+                    <button type="submit"
+                            :disabled="!barcodeInput || barcodeSearching"
+                            class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer">
+                        <span x-show="!barcodeSearching">חפש 🔍</span>
+                        <span x-show="barcodeSearching" class="flex items-center gap-1">
+                            <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            מחפש...
+                        </span>
+                    </button>
+                </form>
+
+                <!-- Israeli Demo Chips -->
+                <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span class="text-[11px] text-slate-400 font-semibold">דוגמאות מהסופר:</span>
+                    <button type="button" @click="barcodeInput='7290004127329'; lookupBarcode('7290004127329')"
+                            class="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 cursor-pointer transition">
+                        קוטג' 5% תנובה
+                    </button>
+                    <button type="button" @click="barcodeInput='7290004127336'; lookupBarcode('7290004127336')"
+                            class="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 cursor-pointer transition">
+                        קוטג' 3% תנובה
+                    </button>
+                    <button type="button" @click="barcodeInput='7290107649650'; lookupBarcode('7290107649650')"
+                            class="text-[11px] px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 cursor-pointer transition">
+                        יוגורט GO 20g
+                    </button>
+                    <button type="button" @click="barcodeInput='7290000066318'; lookupBarcode('7290000066318')"
+                            class="text-[11px] px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 cursor-pointer transition">
+                        במבה אסם
+                    </button>
+                    <button type="button" @click="barcodeInput='7290000542386'; lookupBarcode('7290000542386')"
+                            class="text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 cursor-pointer transition">
+                        טונה במים סטארקיסט
+                    </button>
+                </div>
+            </div>
+
+            <!-- PRODUCT RESULT CARD -->
+            <template x-if="barcodeResult && barcodeResult.found">
+                <div class="rounded-2xl p-4 bg-gradient-to-br from-amber-50/70 to-emerald-50/40 border border-amber-200/90 space-y-3.5 mt-2 animate-fadeIn">
+                    <div class="flex items-start gap-3">
+                        <template x-if="barcodeResult.image_url">
+                            <img :src="barcodeResult.image_url" alt="תמונת מוצר" class="w-16 h-16 object-contain rounded-xl bg-white p-1 border border-amber-100 flex-shrink-0 shadow-xs">
+                        </template>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200"
+                                      x-text="`ברקוד: ${barcodeResult.barcode}`"></span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700"
+                                      x-text="barcodeResult.source_db"></span>
+                            </div>
+                            <h4 class="text-base font-extrabold text-slate-900 leading-snug" x-text="barcodeResult.product_name"></h4>
+                            <p class="text-xs text-slate-500" x-show="barcodeResult.brand" x-text="`יצרן / מותג: ${barcodeResult.brand}`"></p>
+                        </div>
+                    </div>
+
+                    <!-- 100g Values Breakdown -->
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        <div class="p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
+                            <div class="text-[10px] text-slate-400 font-semibold">קלוריות (100g)</div>
+                            <div class="text-xs sm:text-sm font-extrabold text-slate-900 mt-0.5" x-text="barcodeResult.calories_per_100g"></div>
+                        </div>
+                        <div class="p-2 rounded-xl bg-white border border-emerald-100 shadow-2xs">
+                            <div class="text-[10px] text-emerald-600 font-semibold">חלבון (100g)</div>
+                            <div class="text-xs sm:text-sm font-extrabold text-emerald-700 mt-0.5" x-text="`${barcodeResult.protein_per_100g}g`"></div>
+                        </div>
+                        <div class="p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
+                            <div class="text-[10px] text-slate-400 font-semibold">פחמימות</div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-700 mt-0.5" x-text="`${barcodeResult.carbs_per_100g || 0}g`"></div>
+                        </div>
+                        <div class="p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
+                            <div class="text-[10px] text-slate-400 font-semibold">שומן</div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-700 mt-0.5" x-text="`${barcodeResult.fat_per_100g || 0}g`"></div>
+                        </div>
+                    </div>
+
+                    <!-- Portion / Weight Selector -->
+                    <div class="p-3 rounded-xl bg-white/90 border border-amber-200/60 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-800">כמות שנצרכה (גרם):</span>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" @click="barcodeGramsInput = (barcodeResult.serving_weight_g || 100)"
+                                        class="text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer">
+                                    מנה (<span x-text="barcodeResult.serving_weight_g || 100"></span>g)
+                                </button>
+                                <button type="button" @click="barcodeGramsInput = (barcodeResult.package_weight_g || 100)"
+                                        class="text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer">
+                                    אריזה (<span x-text="barcodeResult.package_weight_g || 100"></span>g)
+                                </button>
+                                <button type="button" @click="barcodeGramsInput = 100"
+                                        class="text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer">
+                                    100g
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <input type="number"
+                                   min="1"
+                                   max="5000"
+                                   x-model.number="barcodeGramsInput"
+                                   class="w-24 px-3 py-2 rounded-xl border border-slate-300 font-extrabold text-sm text-center focus:ring-2 focus:ring-amber-500/30">
+                            <div class="flex-1 flex items-center justify-around p-2 rounded-xl bg-amber-50/80 border border-amber-200 text-xs">
+                                <div>
+                                    <span class="text-slate-500">סה"כ קלוריות:</span>
+                                    <strong class="text-amber-950 font-extrabold block text-sm sm:text-base" x-text="`${calculatedBarcodeCalories} קק״ל`"></strong>
+                                </div>
+                                <div class="w-px h-8 bg-amber-200"></div>
+                                <div>
+                                    <span class="text-emerald-700">סה"כ חלבון:</span>
+                                    <strong class="text-emerald-900 font-extrabold block text-sm sm:text-base" x-text="`${calculatedBarcodeProtein}g`"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Health Note -->
+                    <div x-show="barcodeResult.health_note" class="text-xs text-amber-950/90 bg-amber-100/60 p-2.5 rounded-xl border border-amber-200 leading-relaxed">
+                        <span class="font-bold">💡 טיפ תזונתי: </span>
+                        <span x-text="barcodeResult.health_note"></span>
+                    </div>
+
+                    <!-- Action Button: Add to Diary -->
+                    <button type="button"
+                            @click="addBarcodeProductToMeal()"
+                            class="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-600/20">
+                        <span>➕ הוסף מנה ליומן היום</span>
+                        <span class="text-emerald-100 text-xs font-normal" x-text="`(${calculatedBarcodeCalories} קק״ל | ${calculatedBarcodeProtein}g חלבון)`"></span>
+                    </button>
+                </div>
+            </template>
+
+            <!-- PRODUCT NOT FOUND CARD & CUSTOM SAVER -->
+            <template x-if="barcodeResult && !barcodeResult.found">
+                <div class="rounded-2xl p-4 bg-slate-50 border border-slate-200 space-y-3 mt-2">
+                    <div class="text-center py-2 space-y-1">
+                        <span class="text-2xl">🔍</span>
+                        <h4 class="text-sm font-bold text-slate-800">הברקוד טרם נמצא במאגר הרשמי</h4>
+                        <p class="text-xs text-slate-500">תוכל להזין את פרטי המוצר פעם אחת, והוא יישמר עבורך לתמיד!</p>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-200">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">שם המוצר</label>
+                            <input type="text" x-model="barcodeCustomForm.product_name" placeholder="למשל: לחם כוסמין מלא"
+                                   class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-0.5">קלוריות ל-100 גרם</label>
+                                <input type="number" x-model.number="barcodeCustomForm.calories_per_100g"
+                                       class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-0.5">חלבון ל-100 גרם (g)</label>
+                                <input type="number" step="0.1" x-model.number="barcodeCustomForm.protein_per_100g"
+                                       class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+                            </div>
+                        </div>
+                        <button type="button"
+                                @click="saveCustomBarcodeProduct()"
+                                :disabled="!barcodeCustomForm.product_name"
+                                class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer">
+                            💾 שמור מוצר במאגר והוסף
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
     <!-- Live Camera Capture Modal (for PC Webcam / In-App Camera) -->
     <div x-cloak x-show="openCameraModal"
          class="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4"
@@ -3488,6 +3747,8 @@
 
         let deferredPWAPrompt = null;
         let activeCameraStream = null;
+        let barcodeCameraStream = null;
+        let barcodeScanIntervalTimer = null;
         let activeMediaRecorder = null;
         let recordedAudioChunks = [];
         let recordingInterval = null;
@@ -3600,6 +3861,24 @@
                 selectedPhotoMimeType: 'image/jpeg',
                 isMobileDevice: isMob,
                 openCameraModal: false,
+
+                // Barcode Scanner & Israeli Database State
+                openBarcodeModal: false,
+                barcodeInput: '',
+                barcodeSearching: false,
+                barcodeScanningPhoto: false,
+                barcodeResult: null,
+                barcodeGramsInput: 100,
+                barcodeCustomForm: {
+                    barcode: '',
+                    product_name: '',
+                    brand: '',
+                    calories_per_100g: 100,
+                    protein_per_100g: 10,
+                    carbs_per_100g: 0,
+                    fat_per_100g: 0,
+                    package_weight_g: 100
+                },
 
                 // Voice Recording State
                 isRecordingVoice: false,
@@ -6296,6 +6575,210 @@
                     const parts = dateStr.split('-').map(Number);
                     const d = new Date(parts[0], parts[1] - 1, parts[2]);
                     return d.toLocaleDateString('he-IL', { weekday: 'short' });
+                },
+
+                async openBarcodeScannerModal() {
+                    this.openBarcodeModal = true;
+                    this.barcodeSearching = false;
+                    this.barcodeScanningPhoto = false;
+                    try {
+                        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                            barcodeCameraStream = await navigator.mediaDevices.getUserMedia({
+                                video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                                audio: false
+                            });
+                            this.$nextTick(() => {
+                                if (this.$refs.barcodeCameraVideo) {
+                                    this.$refs.barcodeCameraVideo.srcObject = barcodeCameraStream;
+                                    this.startLiveBarcodeDetector();
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Live camera for barcode not available:', e);
+                    }
+                },
+
+                closeBarcodeScannerModal() {
+                    this.stopLiveBarcodeDetector();
+                    if (barcodeCameraStream) {
+                        barcodeCameraStream.getTracks().forEach(t => t.stop());
+                        barcodeCameraStream = null;
+                    }
+                    if (this.$refs.barcodeCameraVideo) {
+                        this.$refs.barcodeCameraVideo.srcObject = null;
+                    }
+                    this.openBarcodeModal = false;
+                },
+
+                startLiveBarcodeDetector() {
+                    if (!('BarcodeDetector' in window)) return;
+                    try {
+                        const detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128'] });
+                        const video = this.$refs.barcodeCameraVideo;
+                        if (barcodeScanIntervalTimer) clearInterval(barcodeScanIntervalTimer);
+                        barcodeScanIntervalTimer = setInterval(async () => {
+                            if (!this.openBarcodeModal || !video || video.readyState < 2) {
+                                return;
+                            }
+                            try {
+                                const barcodes = await detector.detect(video);
+                                if (barcodes && barcodes.length > 0) {
+                                    const rawVal = barcodes[0].rawValue;
+                                    if (rawVal && rawVal !== this.barcodeInput) {
+                                        this.stopLiveBarcodeDetector();
+                                        this.barcodeInput = rawVal;
+                                        this.showToast(`🏷️ זוהה ברקוד: ${rawVal}`);
+                                        await this.lookupBarcode(rawVal);
+                                    }
+                                }
+                            } catch (err) {}
+                        }, 350);
+                    } catch (e) {
+                        console.warn('BarcodeDetector init error:', e);
+                    }
+                },
+
+                stopLiveBarcodeDetector() {
+                    if (barcodeScanIntervalTimer) {
+                        clearInterval(barcodeScanIntervalTimer);
+                        barcodeScanIntervalTimer = null;
+                    }
+                },
+
+                async lookupBarcode(code) {
+                    const cleanCode = (code || this.barcodeInput || '').replace(/[^0-9]/g, '');
+                    if (!cleanCode) {
+                        this.showToast('נא להזין ספרות ברקוד תקינות', 'warning');
+                        return;
+                    }
+                    this.barcodeSearching = true;
+                    try {
+                        const res = await fetch(`/api/barcode/${cleanCode}`);
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.detail || 'שגיאה באיתור הברקוד');
+                        this.barcodeResult = data;
+                        if (data.found) {
+                            this.barcodeGramsInput = data.serving_weight_g || data.package_weight_g || 100;
+                            this.showToast(`✅ נמצא: ${data.product_name}`);
+                        } else {
+                            this.barcodeCustomForm.barcode = cleanCode;
+                            this.barcodeCustomForm.product_name = '';
+                            this.showToast('המוצר טרם קיים במאגר. תוכל להוסיף אותו כעת!', 'warning');
+                        }
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה באיתור הברקוד', 'error');
+                    } finally {
+                        this.barcodeSearching = false;
+                    }
+                },
+
+                async onBarcodePhotoSelected(event) {
+                    const file = event.target?.files?.[0];
+                    if (event.target) event.target.value = '';
+                    if (!file) return;
+                    this.barcodeScanningPhoto = true;
+                    try {
+                        const compressed = await compressImageFile(file, 1280, 0.85);
+                        await this.scanBarcodeImageBase64(compressed.dataUrl, compressed.mimeType || 'image/jpeg');
+                    } catch (e) {
+                        this.showToast('שגיאה בעיבוד התמונה', 'error');
+                    } finally {
+                        this.barcodeScanningPhoto = false;
+                    }
+                },
+
+                async captureFromBarcodeCamera() {
+                    const video = this.$refs.barcodeCameraVideo;
+                    if (!video || !video.videoWidth) {
+                        if (this.$refs.barcodeGalleryInput) this.$refs.barcodeGalleryInput.click();
+                        return;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                    this.barcodeScanningPhoto = true;
+                    try {
+                        await this.scanBarcodeImageBase64(dataUrl, 'image/jpeg');
+                    } finally {
+                        this.barcodeScanningPhoto = false;
+                    }
+                },
+
+                async scanBarcodeImageBase64(base64Data, mimeType) {
+                    this.barcodeScanningPhoto = true;
+                    try {
+                        const res = await fetch('/api/barcode/scan-image', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                image_base64: base64Data,
+                                mime_type: mimeType
+                            })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.detail || 'לא ניתן היה לקרוא את הברקוד');
+                        this.barcodeResult = data;
+                        if (data.barcode && data.barcode !== 'PHOTO-SCAN') {
+                            this.barcodeInput = data.barcode;
+                        }
+                        this.barcodeGramsInput = data.serving_weight_g || data.package_weight_g || 100;
+                        this.showToast(`🏷️ זוהה: ${data.product_name}`);
+                    } catch (e) {
+                        this.showToast(e.message || 'לא ניתן היה לפענח ברקוד מהתמונה', 'error');
+                    } finally {
+                        this.barcodeScanningPhoto = false;
+                    }
+                },
+
+                async addBarcodeProductToMeal() {
+                    if (!this.barcodeResult || !this.barcodeResult.found) return;
+                    const grams = Number(this.barcodeGramsInput) || 100;
+                    const cal = this.calculatedBarcodeCalories;
+                    const prot = this.calculatedBarcodeProtein;
+                    const desc = `${this.barcodeResult.product_name} (${grams} גרם)`;
+                    try {
+                        const res = await fetch('/api/meals/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                description: desc,
+                                calories: cal,
+                                protein_g: prot
+                            })
+                        });
+                        if (!res.ok) throw new Error('שגיאה בשמירת הארוחה');
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`✅ "${desc}" נוסף בהצלחה ליומן!`);
+                        this.closeBarcodeScannerModal();
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בהוספת המוצר ליומן', 'error');
+                    }
+                },
+
+                async saveCustomBarcodeProduct() {
+                    const form = this.barcodeCustomForm;
+                    if (!form.product_name || !form.barcode) {
+                        this.showToast('נא להזין שם מוצר וברקוד', 'warning');
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/barcode/custom', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(form)
+                        });
+                        const saved = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(saved.detail || 'שגיאה בשמירת מוצר');
+                        this.barcodeResult = saved;
+                        this.barcodeGramsInput = saved.package_weight_g || 100;
+                        this.showToast(`💾 מוצר נשמר בהצלחה: ${saved.product_name}`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בשמירת מוצר', 'error');
+                    }
                 },
 
                 formatHebrewDate(dateStr) {
