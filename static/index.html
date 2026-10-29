@@ -909,27 +909,118 @@
                         </div>
                     </div>
 
-                    <!-- Quick Preset / Custom Favorites Chips -->
-                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
-                        <span class="text-xs text-slate-400 flex-shrink-0">⭐ מועדפים להוספה מהירה:</span>
-                        <template x-for="chip in quickChips" :key="chip.id || chip.label">
-                            <div class="flex-shrink-0 inline-flex items-center bg-slate-100 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 rounded-full transition">
-                                <button type="button"
-                                        @click="quickLogPreset(chip)"
-                                        class="text-xs text-slate-700 hover:text-emerald-700 pl-2 pr-3 py-1.5 flex items-center gap-1 cursor-pointer">
-                                    <span x-text="chip.icon || '⭐'"></span>
-                                    <span x-text="chip.label"></span>
-                                    <span class="text-[10px] text-slate-400" x-text="`(${chip.calories} קק״ל)`"></span>
-                                </button>
-                                <button type="button"
-                                        x-show="chip.id"
-                                        @click.stop="removeFavoriteChip(chip)"
-                                        class="pl-2.5 pr-1 py-1 text-[11px] text-slate-400 hover:text-rose-600 transition cursor-pointer"
-                                        title="הסר מהמועדפים">
-                                    ×
-                                </button>
+                    <!-- Quick Preset / Custom Favorites Chips + Photo History Toggle -->
+                    <div class="flex items-center justify-between gap-2 pt-1">
+                        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                            <span class="text-xs text-slate-400 flex-shrink-0">⭐ מועדפים להוספה מהירה:</span>
+                            <template x-for="chip in quickChips" :key="chip.id || chip.label">
+                                <div class="flex-shrink-0 inline-flex items-center bg-slate-100 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 rounded-full transition">
+                                    <button type="button"
+                                            @click="quickLogPreset(chip)"
+                                            class="text-xs text-slate-700 hover:text-emerald-700 pl-2 pr-3 py-1.5 flex items-center gap-1 cursor-pointer">
+                                        <span x-text="chip.icon || '⭐'"></span>
+                                        <span x-text="chip.label"></span>
+                                        <span class="text-[10px] text-slate-400" x-text="`(${chip.calories} קק״ל)`"></span>
+                                    </button>
+                                    <button type="button"
+                                            x-show="chip.id"
+                                            @click.stop="removeFavoriteChip(chip)"
+                                            class="pl-2.5 pr-1 py-1 text-[11px] text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                                            title="הסר מהמועדפים">
+                                        ×
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+
+                        <button type="button"
+                                @click="showInlinePhotoHistory = !showInlinePhotoHistory; if (showInlinePhotoHistory) fetchVisionLogs()"
+                                class="flex-shrink-0 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer">
+                            <span>📸</span>
+                            <span x-text="`היסטוריית צילומים וניתוחים (${(visionLogs || []).length})`"></span>
+                        </button>
+                    </div>
+
+                    <!-- Inline Photo History & Analysis Drawer (accessible directly from the main logger) -->
+                    <div x-cloak x-show="showInlinePhotoHistory" x-transition class="mt-3 p-4 rounded-2xl bg-slate-50 border border-indigo-200/80 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                                    <span>📸</span> ארכיון צילומים, היסטוגרמות וניתוחי AI שמורים (<span x-text="(visionLogs || []).length"></span>)
+                                </h4>
+                                <p class="text-[11px] text-slate-500">כל צילום נשמר אוטומטית עם התמונה, היסטוגרמת 16 ערוצים, שיפורי Pre-Processor ואימות סכומים</p>
                             </div>
-                        </template>
+                            <div class="flex items-center gap-2">
+                                <button type="button"
+                                        @click="exportVisionLogsCSV()"
+                                        x-show="visionLogs && visionLogs.length > 0"
+                                        class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 text-emerald-700 text-[11px] font-bold transition cursor-pointer">
+                                    📥 ייצוא CSV לניתוח
+                                </button>
+                                <button type="button"
+                                        x-show="currentUser && currentUser.is_admin"
+                                        @click="switchTab('admin')"
+                                        class="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-extrabold transition cursor-pointer">
+                                    🔬 פתח מעבדת Vision מלאה
+                                </button>
+                                <button type="button" @click="showInlinePhotoHistory = false" class="text-slate-400 hover:text-slate-600 text-xs font-bold px-1.5 cursor-pointer">✕</button>
+                            </div>
+                        </div>
+
+                        <div x-show="!visionLogs || visionLogs.length === 0" class="text-center py-4 text-xs text-slate-500">
+                            טרם נשמרו צילומים בארכיון. צלם ארוחה כדי לראות כאן את הניתוח המלא!
+                        </div>
+
+                        <div class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                            <template x-for="vlog in (visionLogs || []).slice(0, 15)" :key="'inline-' + vlog.id">
+                                <div class="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-2xs space-y-2.5">
+                                    <div class="flex flex-col sm:flex-row gap-3">
+                                        <template x-if="vlog.forensics && vlog.forensics.thumbnail_data_url">
+                                            <img :src="vlog.forensics.thumbnail_data_url" alt="צילום מנה" class="w-20 h-20 rounded-xl object-cover border border-slate-200 flex-shrink-0">
+                                        </template>
+                                        <div class="flex-1 min-w-0 space-y-1">
+                                            <div class="flex flex-wrap items-center justify-between gap-1.5">
+                                                <span class="text-xs sm:text-sm font-extrabold text-slate-900" x-text="vlog.ai_analysis?.summary || 'צילום ארוחה'"></span>
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-extrabold"
+                                                          x-text="`🔥 ${vlog.ai_analysis?.calories || 0} קק״ל`"></span>
+                                                    <span class="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-extrabold"
+                                                          x-text="`💪 ${vlog.ai_analysis?.protein_g || 0}g`"></span>
+                                                    <span class="px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold"
+                                                          x-text="`🎯 ${vlog.ai_analysis?.confidence_score || 88}%`"></span>
+                                                </div>
+                                            </div>
+                                            <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                                                <span class="font-mono" dir="ltr" x-text="vlog.created_at_iso"></span>
+                                                <span x-text="`• ☀️ בהירות: ${vlog.forensics?.mean_brightness || 128}/255`"></span>
+                                                <span x-text="`• 🌗 ניגודיות: ${vlog.forensics?.contrast_std || 48}`"></span>
+                                                <span x-text="`• 🔍 חדות: ${vlog.forensics?.sharpness_score || 65}/100`"></span>
+                                                <span x-text="`• 🌡️ R/B: ${vlog.forensics?.warm_cool_ratio || 1.0}`"></span>
+                                            </div>
+                                            <div class="text-[11px] text-slate-600" x-text="`📏 ${vlog.ai_analysis?.portion_estimation_method || ''}`"></div>
+                                            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                                <span class="text-[10px] text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md font-semibold"
+                                                      x-text="(vlog.forensics?.enhancements_applied && vlog.forensics.enhancements_applied.length) ? `✨ ${vlog.forensics.enhancements_applied.join(' • ')}` : '✨ איכות אופטית מיטבית'"></span>
+                                                <div class="flex items-center gap-1.5">
+                                                    <button type="button"
+                                                            @click="reanalyzeVisionLog(vlog)"
+                                                            :disabled="reanalyzingLogId === vlog.id"
+                                                            class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[11px] font-bold transition cursor-pointer">
+                                                        <span x-text="reanalyzingLogId === vlog.id ? '⏳ מנתח...' : '🔄 נתח מחדש'"></span>
+                                                    </button>
+                                                    <button type="button"
+                                                            x-show="currentUser && currentUser.is_admin"
+                                                            @click="openPhotoAnalysisInLab(vlog)"
+                                                            class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition cursor-pointer">
+                                                        📊 היסטוגרמה וכיול
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
 
@@ -1035,6 +1126,9 @@
                         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/70 hover:border-slate-300 transition space-y-2">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="flex items-center gap-3.5 min-w-0">
+                                    <template x-if="meal.thumbnail_data_url">
+                                        <img :src="meal.thumbnail_data_url" alt="צילום מנה" class="w-12 h-12 rounded-2xl object-cover border border-emerald-200 shadow-2xs flex-shrink-0 cursor-pointer" @click="openMealPhotoAnalysis(meal)" title="לחץ לצפייה בניתוח התמונה וההיסטוגרמה">
+                                    </template>
                                     <div class="w-11 h-11 rounded-2xl bg-slate-100 flex flex-col items-center justify-center flex-shrink-0 text-slate-700">
                                         <span class="text-xs font-bold leading-none" x-text="meal.calories"></span>
                                         <span class="text-[9px] text-slate-400 mt-0.5">קק"ל</span>
@@ -1050,6 +1144,12 @@
                                             </span>
                                             <span class="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-500"
                                                   x-text="mealSourceLabel(meal.source)"></span>
+                                            <button type="button"
+                                                    x-show="meal.source === 'web-photo' || meal.source === 'telegram-photo' || meal.vision_log_id"
+                                                    @click="openMealPhotoAnalysis(meal)"
+                                                    class="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition cursor-pointer">
+                                                🔬 ניתוח צילום
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -2164,34 +2264,102 @@
                     </div>
                 </div>
 
+                <!-- Aggregate Photo History Analytics Dashboard -->
+                <div x-show="visionLogs && visionLogs.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
+                        <div class="text-[10px] font-bold text-slate-400">📸 סה״כ צילומים בארכיון</div>
+                        <div class="text-lg font-extrabold text-slate-900 mt-0.5" x-text="visionStats?.total_photos || (visionLogs || []).length"></div>
+                        <div class="text-[10px] text-emerald-700 font-bold" x-text="`זיהוי ארוחה: ${visionStats?.success_rate_pct ?? 100}%`"></div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
+                        <div class="text-[10px] font-bold text-slate-400">🎯 ביטחון AI ממוצע</div>
+                        <div class="text-lg font-extrabold text-indigo-700 mt-0.5" x-text="`${visionStats?.avg_confidence || 90}%`"></div>
+                        <div class="text-[10px] text-slate-500" x-text="`${visionStats?.recognized_meals || 0} ארוחות מזוהות`"></div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
+                        <div class="text-[10px] font-bold text-slate-400">☀️ בהירות ממוצעת (Luma)</div>
+                        <div class="text-lg font-extrabold text-slate-900 mt-0.5" x-text="`${visionStats?.avg_brightness || 127} / 255`"></div>
+                        <div class="text-[10px] text-slate-500" x-text="`ניגודיות Std: ${visionStats?.avg_contrast || 50}`"></div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
+                        <div class="text-[10px] font-bold text-slate-400">🔍 חדות אופטית ממוצעת</div>
+                        <div class="text-lg font-extrabold text-slate-900 mt-0.5" x-text="`${visionStats?.avg_sharpness || 60} / 100`"></div>
+                        <div class="text-[10px] text-slate-500">מדד חדות קצוות</div>
+                    </div>
+                    <div class="bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-3">
+                        <div class="text-[10px] font-bold text-indigo-700">✨ שופרו ב-Pre-Processor</div>
+                        <div class="text-lg font-extrabold text-indigo-950 mt-0.5" x-text="visionStats?.enhanced_count || 0"></div>
+                        <div class="text-[10px] text-indigo-700">תיקון אור/חדות/צבע אוטומטי</div>
+                    </div>
+                    <div class="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3">
+                        <div class="text-[10px] font-bold text-emerald-700">🛡️ אומתו / כוילו</div>
+                        <div class="text-lg font-extrabold text-emerald-950 mt-0.5" x-text="(visionStats?.calibrated_count || 0) + (visionStats?.verified_adjusted_count || 0)"></div>
+                        <div class="text-[10px] text-emerald-700" x-text="`ממוצע מנה: ${visionStats?.avg_calories_per_meal || 0} קק״ל`"></div>
+                    </div>
+                </div>
+
                 <!-- Analyzed Customer & Test Photos List -->
                 <div class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h4 class="text-xs sm:text-sm font-extrabold text-slate-800">
-                            📊 ניתוחי תמונות אחרונים והיסטוגרמות (<span x-text="(visionLogs || []).length"></span>)
-                        </h4>
-                        <div class="flex items-center gap-1.5 text-[11px]">
-                            <span class="text-slate-500">ערוץ היסטוגרמה:</span>
-                            <button type="button" @click="visionHistChannel = 'luma'"
-                                    class="px-2 py-0.5 rounded-lg font-bold transition cursor-pointer"
-                                    :class="visionHistChannel === 'luma' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'">☀️ בהירות (Luma)</button>
-                            <button type="button" @click="visionHistChannel = 'rgb'"
-                                    class="px-2 py-0.5 rounded-lg font-bold transition cursor-pointer"
-                                    :class="visionHistChannel === 'rgb' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'">🌈 RGB משולב</button>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h4 class="text-xs sm:text-sm font-extrabold text-slate-800">
+                                📊 היסטוריית כל הצילומים וההיסטוגרמות (<span x-text="filteredVisionLogs.length"></span>/<span x-text="(visionLogs || []).length"></span>)
+                            </h4>
+                            <div class="flex flex-wrap items-center gap-1 text-[11px]">
+                                <button type="button" @click="visionFilter = 'all'"
+                                        :class="visionFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-2.5 py-1 rounded-lg font-bold transition cursor-pointer">הכל</button>
+                                <button type="button" @click="visionFilter = 'meals'"
+                                        :class="visionFilter === 'meals' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-2.5 py-1 rounded-lg font-bold transition cursor-pointer">✓ זוהתה ארוחה</button>
+                                <button type="button" @click="visionFilter = 'enhanced'"
+                                        :class="visionFilter === 'enhanced' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-2.5 py-1 rounded-lg font-bold transition cursor-pointer">✨ שופרו אופטית</button>
+                                <button type="button" @click="visionFilter = 'calibrated'"
+                                        :class="visionFilter === 'calibrated' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-2.5 py-1 rounded-lg font-bold transition cursor-pointer">🎯 כוילו</button>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="text"
+                                   x-model="visionSearchQuery"
+                                   placeholder="חפש צילום לפי מאכל / משתמש / תאריך..."
+                                   class="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs outline-none focus:bg-white focus:border-indigo-500">
+                            <button type="button"
+                                    @click="exportVisionLogsCSV()"
+                                    x-show="visionLogs && visionLogs.length > 0"
+                                    class="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-extrabold transition cursor-pointer">
+                                📥 ייצוא CSV
+                            </button>
+                            <button type="button"
+                                    @click="exportVisionLogsJSON()"
+                                    x-show="visionLogs && visionLogs.length > 0"
+                                    class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition cursor-pointer">
+                                📥 JSON
+                            </button>
+                            <div class="flex items-center gap-1 text-[11px]">
+                                <button type="button" @click="visionHistChannel = 'luma'"
+                                        class="px-2 py-1 rounded-lg font-bold transition cursor-pointer"
+                                        :class="visionHistChannel === 'luma' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'">☀️ Luma</button>
+                                <button type="button" @click="visionHistChannel = 'rgb'"
+                                        class="px-2 py-1 rounded-lg font-bold transition cursor-pointer"
+                                        :class="visionHistChannel === 'rgb' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'">🌈 RGB</button>
+                            </div>
                         </div>
                     </div>
 
                     <template x-if="!visionLogs || visionLogs.length === 0">
                         <div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
                             <div class="text-2xl">📷</div>
-                            <div class="text-xs font-bold text-slate-700">טרם נותחו תמונות בסשן זה</div>
+                            <div class="text-xs font-bold text-slate-700">טרם נותחו תמונות בארכיון</div>
                             <div class="text-[11px] text-slate-500">העלה תמונה בכפתור "📸 העלה תמונה לבדיקת עומק" למעלה או צלם ארוחה מהמסך הראשי כדי לראות את ההיסטוגרמה המלאה וניתוח ה-AI</div>
                         </div>
                     </template>
 
                     <div class="space-y-4">
-                        <template x-for="vlog in visionLogs" :key="vlog.id">
-                            <div class="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 space-y-4">
+                        <template x-for="vlog in filteredVisionLogs" :key="vlog.id">
+                            <div :id="'vlog-card-' + vlog.id" class="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 space-y-4">
                                 <!-- Top Header: Thumbnail + AI Verdict + User Info -->
                                 <div class="flex flex-col md:flex-row gap-4">
                                     <!-- Photo Thumbnail -->
@@ -2220,11 +2388,26 @@
                                                 <span x-show="vlog.calibrated" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
                                                     ✓ כויל ע״י אדמין
                                                 </span>
+                                                <span x-show="vlog.reanalysis_count > 0" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 border border-violet-300"
+                                                      x-text="`🔄 נותח מחדש (${vlog.reanalysis_count})`"></span>
                                             </div>
-                                            <div class="flex items-center gap-2">
+                                            <div class="flex items-center gap-1.5">
+                                                <button type="button"
+                                                        @click="reanalyzeVisionLog(vlog)"
+                                                        :disabled="reanalyzingLogId === vlog.id"
+                                                        class="px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-extrabold transition cursor-pointer"
+                                                        title="הרץ שוב את סוכן השיפור האופטי ו-Gemini Vision על תמונה שמורה זו">
+                                                    <span x-text="reanalyzingLogId === vlog.id ? '⏳ מנתח מחדש...' : '🔄 נתח מחדש'"></span>
+                                                </button>
                                                 <span class="text-xs font-extrabold px-2.5 py-1 rounded-xl border"
                                                       :class="(vlog.ai_analysis?.confidence_score || 85) >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
                                                       x-text="`🎯 ביטחון מודל: ${vlog.ai_analysis?.confidence_score || 88}%`"></span>
+                                                <button type="button"
+                                                        @click="deleteVisionLog(vlog.id)"
+                                                        class="p-1.5 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 text-xs transition cursor-pointer"
+                                                        title="מחק רשומת צילום">
+                                                    🗑️
+                                                </button>
                                             </div>
                                         </div>
 
@@ -3619,7 +3802,12 @@
 
                 showAutocomplete: false,
                 showManualAutocomplete: false,
+                showInlinePhotoHistory: false,
                 visionLogs: [],
+                visionStats: null,
+                visionFilter: 'all',
+                visionSearchQuery: '',
+                reanalyzingLogId: null,
                 visionCalibrationRules: [],
                 visionLoading: false,
                 visionTestingPhoto: false,
@@ -3922,6 +4110,21 @@
                     );
                 },
 
+                get filteredVisionLogs() {
+                    const q = (this.visionSearchQuery || '').trim().toLowerCase();
+                    const flt = this.visionFilter || 'all';
+                    return (this.visionLogs || []).filter(vlog => {
+                        if (flt === 'meals' && !(vlog.ai_analysis && vlog.ai_analysis.is_meal)) return false;
+                        if (flt === 'enhanced' && !(vlog.forensics && vlog.forensics.enhancements_applied && vlog.forensics.enhancements_applied.length > 0)) return false;
+                        if (flt === 'calibrated' && !vlog.calibrated) return false;
+                        if (!q) return true;
+                        const summary = (vlog.ai_analysis?.summary || '').toLowerCase();
+                        const user = (vlog.user_name || vlog.user_id || '').toLowerCase();
+                        const dt = (vlog.created_at_iso || '').toLowerCase();
+                        return summary.includes(q) || user.includes(q) || dt.includes(q);
+                    });
+                },
+
                 async init() {
                     this.setupPWAInstallListeners();
                     await this.initGoogleAuth();
@@ -3930,6 +4133,7 @@
                     }
                     if (this.currentUser && (this.currentUser.is_approved !== false || this.currentUser.is_admin)) {
                         this.checkPushStatus();
+                        await this.fetchVisionLogs();
                         await Promise.all([
                             this.fetchSummary(),
                             this.fetchHistory(),
@@ -4640,12 +4844,13 @@
                         });
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
+                            await this.fetchVisionLogs();
                             throw new Error(err.detail || 'לא זוהתה ארוחה בתמונה');
                         }
                         const added = await res.json();
                         this.aiInputText = '';
                         this.clearPhoto();
-                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        await Promise.all([this.fetchSummary(), this.fetchHistory(), this.fetchVisionLogs()]);
                         this.showToast(`📸 נוסף מתמונה: ${added.description} (${added.calories} קק"ל, ${added.protein_g}g חלבון)`);
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בניתוח התמונה', 'error');
@@ -4657,6 +4862,7 @@
                 async refreshAll() {
                     this.refreshing = true;
                     await Promise.all([
+                        this.fetchVisionLogs(),
                         this.fetchSummary(),
                         this.fetchHistory(),
                         this.fetchFavorites(),
@@ -4701,19 +4907,140 @@
                 },
 
                 async fetchVisionLogs() {
-                    if (!this.currentUser || !this.currentUser.is_admin) return;
+                    if (!this.currentUser) return;
                     this.visionLoading = true;
                     try {
-                        const res = await fetch('/api/admin/vision-logs?limit=25');
+                        const endpoint = this.currentUser.is_admin ? '/api/admin/vision-logs?limit=150' : '/api/meals/photo-history?limit=150';
+                        const res = await fetch(endpoint);
                         if (!res.ok) return;
                         const data = await res.json();
                         this.visionLogs = data.logs || [];
                         this.visionCalibrationRules = data.calibration_rules || [];
+                        this.visionStats = data.stats || null;
                     } catch (e) {
                         console.error('fetchVisionLogs error:', e);
                     } finally {
                         this.visionLoading = false;
                     }
+                },
+
+                openMealPhotoAnalysis(meal) {
+                    if (!meal) return;
+                    if (this.currentUser && this.currentUser.is_admin) {
+                        this.switchTab('admin');
+                        this.$nextTick(() => {
+                            const match = (this.visionLogs || []).find(v => v.meal_id === meal.id || v.id === meal.vision_log_id);
+                            if (match) {
+                                const el = document.getElementById('vlog-card-' + match.id);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                        });
+                    } else {
+                        this.showInlinePhotoHistory = true;
+                        this.fetchVisionLogs();
+                    }
+                },
+
+                openPhotoAnalysisInLab(vlog) {
+                    if (!vlog) return;
+                    this.switchTab('admin');
+                    this.$nextTick(() => {
+                        const el = document.getElementById('vlog-card-' + vlog.id);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                },
+
+                async reanalyzeVisionLog(vlog) {
+                    if (!vlog || !vlog.id) return;
+                    this.reanalyzingLogId = vlog.id;
+                    try {
+                        const res = await fetch(`/api/vision-logs/${encodeURIComponent(vlog.id)}/reanalyze`, {
+                            method: 'POST'
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.detail || 'שגיאה בניתוח מחדש של הצילום');
+                        await this.fetchVisionLogs();
+                        this.showToast(`🔄 הצילום נותח מחדש: ${data.ai_analysis?.summary || ''} (${data.ai_analysis?.calories || 0} קק״ל)`);
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בניתוח מחדש', 'error');
+                    } finally {
+                        this.reanalyzingLogId = null;
+                    }
+                },
+
+                async deleteVisionLog(logId) {
+                    if (!logId) return;
+                    if (!confirm('האם למחוק רשומת צילום זו מהארכיון?')) return;
+                    try {
+                        const res = await fetch(`/api/vision-logs/${encodeURIComponent(logId)}`, {
+                            method: 'DELETE'
+                        });
+                        if (!res.ok) throw new Error('שגיאה במחיקת רשומת הצילום');
+                        await this.fetchVisionLogs();
+                        this.showToast('🗑️ רשומת הצילום הוסרה מהארכיון');
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה במחיקה', 'error');
+                    }
+                },
+
+                exportVisionLogsCSV() {
+                    const list = this.filteredVisionLogs || [];
+                    if (!list.length) return;
+                    const headers = [
+                        'ID', 'תאריך ושעה', 'משתמש', 'מקור', 'סטטוס', 'תיאור מנה',
+                        'קלוריות', 'חלבון (ג)', 'ביטחון AI (%)', 'בהירות ממוצעת (Luma)',
+                        'ניגודיות (Std)', 'טווח דינמי', 'חדות (/100)', 'יחס חם/קר (R/B)',
+                        'ממוצע R', 'ממוצע G', 'ממוצע B', 'שיפורים אופטיים', 'הערות מאמת', 'כויל ע״י אדמין'
+                    ];
+                    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+                    const rows = list.map(v => [
+                        v.id,
+                        v.created_at_iso,
+                        v.user_name || v.user_id,
+                        v.source,
+                        v.status || (v.ai_analysis?.is_meal ? 'success' : 'rejected'),
+                        v.ai_analysis?.summary || '',
+                        v.ai_analysis?.calories || 0,
+                        v.ai_analysis?.protein_g || 0,
+                        v.ai_analysis?.confidence_score || 88,
+                        v.forensics?.mean_brightness || 0,
+                        v.forensics?.contrast_std || 0,
+                        v.forensics?.dynamic_range || 0,
+                        v.forensics?.sharpness_score || 0,
+                        v.forensics?.warm_cool_ratio || 1.0,
+                        v.forensics?.mean_r || 0,
+                        v.forensics?.mean_g || 0,
+                        v.forensics?.mean_b || 0,
+                        (v.forensics?.enhancements_applied || []).join(' | '),
+                        (v.forensics?.verifier_notes || []).join(' | '),
+                        v.calibrated ? 'כן' : 'לא'
+                    ].map(esc).join(','));
+                    const csvContent = '\uFEFF' + [headers.map(esc).join(','), ...rows].join('\r\n');
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `nutriagent-photo-analysis-history-${this.todayStr}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    this.showToast('📥 קובץ ה-CSV של היסטוריית הצילומים ירד בהצלחה!');
+                },
+
+                exportVisionLogsJSON() {
+                    const list = this.filteredVisionLogs || [];
+                    if (!list.length) return;
+                    const cleanList = list.map(v => ({
+                        ...v,
+                        forensics: { ...(v.forensics || {}), thumbnail_data_url: '[BASE64_THUMBNAIL]' }
+                    }));
+                    const blob = new Blob([JSON.stringify({ stats: this.visionStats, logs: cleanList }, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `nutriagent-photo-analysis-history-${this.todayStr}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    this.showToast('📥 קובץ ה-JSON המלא של היסטוריית הצילומים ירד בהצלחה!');
                 },
 
                 async runAdminVisionTest(event) {
