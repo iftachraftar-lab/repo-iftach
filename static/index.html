@@ -1954,17 +1954,22 @@
                                 </div>
                             </div>
 
-                            <!-- Direct Wolt App Link + Log Meal Button -->
-                            <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <!-- Wolt Action Buttons (Customizer Drawer + Direct Link + Quick Log) -->
+                            <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-1.5 flex-wrap">
+                                <button type="button" @click="openWoltCustomizer(dish)"
+                                        class="flex-1 py-2 px-2.5 rounded-xl bg-[#00c2e8]/10 hover:bg-[#00c2e8]/20 text-[#008ba8] text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer">
+                                    <span class="material-symbols-outlined text-[15px]">tune</span>
+                                    <span>התאם ב-AI</span>
+                                </button>
                                 <button type="button" @click="openDishInWolt(dish)"
-                                        class="flex-1 py-2.5 px-3.5 rounded-xl bg-[#00c2e8] hover:bg-[#00a9ca] text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer">
-                                    <span class="material-symbols-outlined text-[16px]">open_in_new</span>
-                                    <span x-text="dish.wolt_item_id ? 'הזמן ישירות ב-Wolt' : 'פתח מסעדה ב-Wolt'"></span>
+                                        class="flex-1 py-2 px-2.5 rounded-xl bg-[#00c2e8] hover:bg-[#00a9ca] text-white text-xs font-black transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer">
+                                    <span class="material-symbols-outlined text-[15px]">open_in_new</span>
+                                    <span x-text="dish.wolt_item_id ? 'Wolt' : 'Wolt'"></span>
                                 </button>
                                 <button type="button" @click="logWoltMeal(dish)"
-                                        class="py-2.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer">
-                                    <span class="material-symbols-outlined text-[16px]">add_circle</span>
-                                    <span>הוסף ליומן</span>
+                                        class="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer">
+                                    <span class="material-symbols-outlined text-[15px]">add_circle</span>
+                                    <span>ליומן</span>
                                 </button>
                             </div>
                         </div>
@@ -2833,12 +2838,12 @@
                 <span class="text-[10px] mt-0.5">יומן</span>
             </button>
 
-            <!-- Center Elevated Action Button (+) for Quick Add & Camera -->
+            <!-- Center Elevated Action Button (+) for Quick Add & Live Viewfinder -->
             <div class="flex-1 flex justify-center -mt-6">
                 <button type="button"
-                        @click="document.getElementById('cameraMealInput')?.click()"
+                        @click="showLiveViewfinder = true"
                         class="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-[0_6px_20px_rgba(5,150,105,0.4)] active:scale-95 transition-transform cursor-pointer"
-                        title="סריקה וצילום ארוחה מהיר">
+                        title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
                     <span class="material-symbols-outlined text-[26px]">photo_camera</span>
                 </button>
             </div>
@@ -3905,7 +3910,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=42').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=43').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4155,6 +4160,20 @@
                 recipePreference: '',
                 generatingRecipes: false,
                 recipesSubTab: 'wolt',
+                showLiveViewfinder: false,
+                viewfinderMode: 'plate',
+                viewfinderSimulatedBoxes: [
+                    { name: 'חזה עוף בגריל', weight: 180, cals: 290, protein: 54, carbs: 0, fat: 5, confidence: 98, color: 'primary' },
+                    { name: 'אורז מלא מאודה', weight: 150, cals: 195, protein: 4, carbs: 42, fat: 1.5, confidence: 95, color: 'secondary' },
+                    { name: 'סלט קצוץ עם טחינה', weight: 120, cals: 110, protein: 3, carbs: 8, fat: 8, confidence: 93, color: 'tertiary' }
+                ],
+                showWoltDrawer: false,
+                activeWoltDrawerDish: null,
+                woltCustomSwaps: {
+                    swapRice: true,
+                    swapSauce: true,
+                    doubleEdamame: false
+                },
                 woltDishes: [],
                 woltLiveVenues: [],
                 woltLiveVenuesCount: 0,
@@ -4533,6 +4552,97 @@
                 get fatsPercent() {
                     if (!this.targetFats) return 0;
                     return Math.min(100, Math.round((this.totalFats / this.targetFats) * 100));
+                },
+
+                openWoltCustomizer(dish) {
+                    this.activeWoltDrawerDish = dish || {
+                        dish_name: 'קערת סלמון & פוקה אישית',
+                        restaurant_name: 'Poke Shop TLV',
+                        description: 'סלמון נורווגי טרי, אדממה, מלפפון פריך, יוזו וקינואה',
+                        price_ils: 58,
+                        calories: 760,
+                        protein_g: 32,
+                        carbs_g: 68,
+                        fat_g: 22,
+                        wolt_url: 'https://wolt.com/he/isr/tel-aviv'
+                    };
+                    this.woltCustomSwaps = { swapRice: true, swapSauce: true, doubleEdamame: false };
+                    this.showWoltDrawer = true;
+                },
+
+                get woltAdjustedCalories() {
+                    if (!this.activeWoltDrawerDish) return 485;
+                    let base = Number(this.activeWoltDrawerDish.calories) || 760;
+                    if (this.woltCustomSwaps.swapRice) base -= 180;
+                    if (this.woltCustomSwaps.swapSauce) base -= 95;
+                    if (this.woltCustomSwaps.doubleEdamame) base += 45;
+                    return Math.max(200, base);
+                },
+
+                get woltAdjustedProtein() {
+                    if (!this.activeWoltDrawerDish) return 44;
+                    let base = Number(this.activeWoltDrawerDish.protein_g) || 32;
+                    if (this.woltCustomSwaps.swapRice) base += 6;
+                    if (this.woltCustomSwaps.doubleEdamame) base += 6;
+                    return base;
+                },
+
+                get woltAdjustedCarbs() {
+                    if (!this.activeWoltDrawerDish) return 36;
+                    let base = Number(this.activeWoltDrawerDish.carbs_g) || 68;
+                    if (this.woltCustomSwaps.swapRice) base -= 24;
+                    if (this.woltCustomSwaps.swapSauce) base -= 18;
+                    return Math.max(10, base);
+                },
+
+                get woltAdjustedPrice() {
+                    if (!this.activeWoltDrawerDish) return 62;
+                    let base = Number(this.activeWoltDrawerDish.price_ils) || 58;
+                    if (this.woltCustomSwaps.doubleEdamame) base += 4;
+                    return base;
+                },
+
+                logCustomWoltDish() {
+                    const dish = {
+                        dish_name: `${this.activeWoltDrawerDish?.dish_name || 'פוקה מותאמת'} (התאמת AI)`,
+                        restaurant_name: this.activeWoltDrawerDish?.restaurant_name || 'Wolt',
+                        calories: this.woltAdjustedCalories,
+                        protein_g: this.woltAdjustedProtein,
+                        carbs_g: this.woltAdjustedCarbs
+                    };
+                    this.logWoltMeal(dish);
+                    this.showWoltDrawer = false;
+                    this.showToast('🎉 מנה מותאמת נשמרה ביומן היומי שלך!');
+                },
+
+                logViewfinderItem(item) {
+                    this.newMeal = {
+                        meal_name: item.name,
+                        calories: item.cals,
+                        protein_g: item.protein,
+                        carbs_g: item.carbs,
+                        fat_g: item.fat
+                    };
+                    this.submitManualMeal();
+                    this.showToast(`📸 נוסף ליומן: ${item.name} (${item.cals} קק״ל)`);
+                },
+
+                logAllViewfinderItems() {
+                    let totalC = 0, totalP = 0;
+                    const names = [];
+                    (this.viewfinderSimulatedBoxes || []).forEach(b => {
+                        totalC += b.cals;
+                        totalP += b.protein;
+                        names.push(b.name);
+                    });
+                    this.newMeal = {
+                        meal_name: names.join(' + '),
+                        calories: totalC,
+                        protein_g: totalP
+                    };
+                    this.submitManualMeal();
+                    this.showLiveViewfinder = false;
+                    this.showToast(`✨ ארוחה מלאה זוהתה ונשמרה: ${totalC} קק״ל ו-${totalP}g חלבון!`);
                 },
 
                 get todayMeals() {
@@ -7013,5 +7123,360 @@
             };
         }
     </script>
+
+    <!-- =============================================================== -->
+    <!-- STITCH: MULTI-MODAL AI FOOD & BARCODE LIVE VIEWFINDER MODAL     -->
+    <!-- =============================================================== -->
+    <div x-cloak x-show="showLiveViewfinder"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden select-none"
+         dir="rtl">
+        
+        <!-- Viewfinder Top Bar -->
+        <header class="w-full z-30 pt-safe bg-black/60 backdrop-blur-xl border-b border-white/10 px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <button type="button" @click="showLiveViewfinder = false"
+                            class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95 cursor-pointer">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                    <div>
+                        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">NutriAgent Vision</span>
+                        <h1 class="text-sm sm:text-base font-black text-white leading-tight">Live AI Scanner</h1>
+                    </div>
+                </div>
+
+                <!-- Mode Switcher Pill (Plate vs Barcode) -->
+                <div class="flex items-center bg-white/10 backdrop-blur-md p-1 rounded-full border border-white/15">
+                    <button type="button" @click="viewfinderMode = 'plate'"
+                            :class="viewfinderMode === 'plate' ? 'bg-emerald-600 text-white shadow-xs font-bold' : 'text-white/70 hover:text-white'"
+                            class="px-3 py-1 rounded-full text-xs transition flex items-center gap-1 cursor-pointer">
+                        <span class="material-symbols-outlined text-[14px]">restaurant</span>
+                        <span>צלחת AI</span>
+                    </button>
+                    <button type="button" @click="viewfinderMode = 'barcode'"
+                            :class="viewfinderMode === 'barcode' ? 'bg-amber-500 text-slate-950 shadow-xs font-bold' : 'text-white/70 hover:text-white'"
+                            class="px-3 py-1 rounded-full text-xs transition flex items-center gap-1 cursor-pointer">
+                        <span class="material-symbols-outlined text-[14px]">qr_code_scanner</span>
+                        <span>ברקוד לייזר</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                    <button type="button" @click="showToast('💡 פלאש מצלמה מופעל אוטומטית לפי תאורה')"
+                            class="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center transition active:scale-95 cursor-pointer" title="מבזק תאורה">
+                        <span class="material-symbols-outlined text-[18px]">flash_on</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Viewfinder Central View & Reticle HUD -->
+        <div class="relative flex-1 w-full bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+            <!-- Simulated Camera Feed Layer -->
+            <div class="absolute inset-0 z-0">
+                <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1000&q=80"
+                     alt="Camera Feed"
+                     class="w-full h-full object-cover opacity-85 scale-105">
+                <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 pointer-events-none"></div>
+            </div>
+
+            <!-- Reticle Crosshairs (Corner Brackets) -->
+            <div class="relative w-72 h-72 sm:w-80 sm:h-80 pointer-events-none z-10 flex items-center justify-center">
+                <div class="absolute top-0 right-0 w-7 h-7 border-t-2 border-r-2 border-emerald-400 rounded-tr-xl shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
+                <div class="absolute top-0 left-0 w-7 h-7 border-t-2 border-l-2 border-emerald-400 rounded-tl-xl shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
+                <div class="absolute bottom-0 right-0 w-7 h-7 border-b-2 border-r-2 border-emerald-400 rounded-br-xl shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
+                <div class="absolute bottom-0 left-0 w-7 h-7 border-b-2 border-l-2 border-emerald-400 rounded-bl-xl shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
+
+                <!-- Animated Laser Scanline Beam -->
+                <svg class="w-full h-full absolute inset-0 overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="laserGradStitch" x1="0%" x2="100%" y1="0%" y2="0%">
+                            <stop offset="0%" stop-color="#10b981" stop-opacity="0"></stop>
+                            <stop offset="25%" stop-color="#10b981" stop-opacity="0.8"></stop>
+                            <stop offset="50%" stop-color="#34d399" stop-opacity="1"></stop>
+                            <stop offset="75%" stop-color="#10b981" stop-opacity="0.8"></stop>
+                            <stop offset="100%" stop-color="#10b981" stop-opacity="0"></stop>
+                        </linearGradient>
+                    </defs>
+                    <line stroke="url(#laserGradStitch)" stroke-width="3" x1="10" x2="310" y1="12" y2="12">
+                        <animateTransform attributeName="transform" type="translate" values="0,15; 0,290; 0,15" dur="2.4s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+                    </line>
+                </svg>
+
+                <div class="absolute -bottom-10 inset-x-0 mx-auto w-fit px-3 py-1 rounded-full bg-black/75 backdrop-blur-md flex items-center gap-1.5 border border-white/10 shadow-lg">
+                    <span class="w-2 h-2 rounded-full" :class="viewfinderMode === 'plate' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-ping'"></span>
+                    <span class="text-[11px] font-bold text-white" x-text="viewfinderMode === 'plate' ? 'זיהוי מנות רב-מוקדי פעיל' : 'סורק ברקוד פעיל (מאגר רשתות מזון)'"></span>
+                </div>
+            </div>
+
+            <!-- Plate AI Detection Bounding Boxes Overlay (Mode: plate) -->
+            <div x-show="viewfinderMode === 'plate'" class="absolute inset-0 z-20 pointer-events-none p-4 overflow-hidden">
+                <!-- Box 1: Chicken Breast -->
+                <div class="absolute top-24 right-4 sm:right-16 max-w-[210px] pointer-events-auto transform hover:scale-105 transition">
+                    <div @click="logViewfinderItem(viewfinderSimulatedBoxes[0])"
+                         class="p-2.5 rounded-2xl bg-black/80 backdrop-blur-md border border-emerald-400/50 shadow-xl cursor-pointer">
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <span class="text-xs font-black text-white flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                                חזה עוף בגריל
+                            </span>
+                            <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-600 text-white">98% AI</span>
+                        </div>
+                        <div class="text-[11px] text-emerald-300 font-bold">180 גרם</div>
+                        <div class="flex items-center gap-1.5 mt-1 pt-1 border-t border-white/10 text-[10px]">
+                            <span class="px-1.5 py-0.5 rounded bg-white/10 text-emerald-300 font-bold">290 קק״ל</span>
+                            <span class="px-1.5 py-0.5 rounded bg-indigo-600 text-white font-bold">54g חלבון</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Box 2: Steamed Rice -->
+                <div class="absolute top-48 left-4 sm:left-16 max-w-[190px] pointer-events-auto transform hover:scale-105 transition">
+                    <div @click="logViewfinderItem(viewfinderSimulatedBoxes[1])"
+                         class="p-2.5 rounded-2xl bg-black/80 backdrop-blur-md border border-indigo-400/50 shadow-xl cursor-pointer">
+                        <div class="flex items-center justify-between gap-1 mb-1">
+                            <span class="text-xs font-black text-white flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_#818cf8]"></span>
+                                אורז מלא מאודה
+                            </span>
+                            <span class="text-[10px] text-indigo-300 font-bold">150g</span>
+                        </div>
+                        <div class="flex items-center gap-1 text-[10px] pt-1 border-t border-white/10">
+                            <span class="px-1.5 py-0.5 rounded bg-white/10 text-indigo-200 font-bold">195 קק״ל</span>
+                            <span class="px-1.5 py-0.5 rounded bg-indigo-500/40 text-indigo-100 font-bold">4g חלבון</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Box 3: Israeli Salad -->
+                <div class="absolute bottom-28 right-6 sm:right-24 max-w-[200px] pointer-events-auto transform hover:scale-105 transition">
+                    <div @click="logViewfinderItem(viewfinderSimulatedBoxes[2])"
+                         class="p-2.5 rounded-2xl bg-black/80 backdrop-blur-md border border-amber-400/50 shadow-xl cursor-pointer">
+                        <div class="flex items-center justify-between gap-1 mb-1">
+                            <span class="text-xs font-black text-white flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]"></span>
+                                סלט קצוץ עם טחינה
+                            </span>
+                            <span class="text-[10px] text-amber-300 font-bold">120g</span>
+                        </div>
+                        <div class="flex items-center gap-1 text-[10px] pt-1 border-t border-white/10">
+                            <span class="px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 font-bold">110 קק״ל</span>
+                            <span class="px-1.5 py-0.5 rounded bg-white/10 text-slate-300">3g חלבון</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Viewfinder Bottom Control Dock -->
+        <footer class="w-full z-30 pb-safe bg-black/75 backdrop-blur-xl border-t border-white/10 p-4">
+            <div class="max-w-md mx-auto flex items-center justify-between gap-4">
+                <button type="button" @click="$refs.cameraMealInput.click(); showLiveViewfinder = false"
+                        class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95 cursor-pointer"
+                        title="העלאה מגלריה">
+                    <span class="material-symbols-outlined text-[22px]">photo_library</span>
+                </button>
+
+                <!-- Center Shutter Action Button -->
+                <button type="button" @click="logAllViewfinderItems()"
+                        class="flex-1 py-3.5 px-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 active:scale-95 transition cursor-pointer">
+                    <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
+                    <span>צלם ורשום את כל הארוחה (595 קק״ל)</span>
+                </button>
+
+                <button type="button" @click="isRecordingVoice ? stopAndSubmitVoiceRecording() : startVoiceRecording(); showLiveViewfinder = false"
+                        class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95 cursor-pointer"
+                        title="הקלטה קולית">
+                    <span class="material-symbols-outlined text-[22px]">mic</span>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- =============================================================== -->
+    <!-- STITCH: WOLT AI MEAL CUSTOMIZATION DRAWER                       -->
+    <!-- =============================================================== -->
+    <div x-cloak x-show="showWoltDrawer"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end justify-center"
+         @click.self="showWoltDrawer = false"
+         dir="rtl">
+        <div x-show="showWoltDrawer"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="transform translate-y-full"
+             x-transition:enter-end="transform translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="transform translate-y-0"
+             x-transition:leave-end="transform translate-y-full"
+             class="bg-white rounded-t-3xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden"
+             @click.stop>
+
+            <!-- Top Handle Bar & Dismiss -->
+            <div class="pt-3 pb-2 px-4 flex items-center justify-between border-b border-slate-100">
+                <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto -mr-6"></div>
+                <button type="button" @click="showWoltDrawer = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                    <span class="material-symbols-outlined text-[22px]">close</span>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto p-5 space-y-4 flex-1">
+                <!-- Dish & Venue Header -->
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-[#00c2e8]/10 text-[#008ba8]"
+                                  x-text="activeWoltDrawerDish?.restaurant_name || 'Poke Shop TLV'"></span>
+                            <span class="text-xs text-slate-400 flex items-center gap-1 font-semibold">
+                                <span class="material-symbols-outlined text-[14px]">schedule</span>
+                                25-35 דק׳
+                            </span>
+                        </div>
+                        <h2 class="text-xl font-black text-slate-900" x-text="activeWoltDrawerDish?.dish_name || 'קערת סלמון & פוקה אישית'"></h2>
+                        <p class="text-xs text-slate-500 mt-0.5" x-text="activeWoltDrawerDish?.description || 'סלמון נורווגי טרי, אדממה, מלפפון פריך, יוזו וקינואה'"></p>
+                    </div>
+                    <div class="text-left flex-shrink-0">
+                        <span class="text-2xl font-black text-slate-900" x-text="`₪${woltAdjustedPrice}`"></span>
+                        <span class="block text-[10px] text-slate-400">מחיר מותאם</span>
+                    </div>
+                </div>
+
+                <!-- Metabolic Budget Fit Banner -->
+                <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                        <span class="material-symbols-outlined text-[22px]">health_metrics</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-emerald-900">התאמה מלאה ליעד הערב שלך</span>
+                            <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white">98% התאמה</span>
+                        </div>
+                        <p class="text-[11px] text-emerald-800 mt-0.5">
+                            תקציב פנוי: <strong><span x-text="summary.remaining_calories"></span> קק״ל</strong> • יעד נדרש: <strong><span x-text="summary.target_protein"></span>g חלבון</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Dynamic Live Macro Delta Meter (Before vs After) -->
+                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-indigo-600 text-[18px]">equalizer</span>
+                            <span class="text-xs font-black text-slate-900">מאזן מאקרו חי (מקורי ⟵ מותאם)</span>
+                        </div>
+                        <span class="text-[11px] font-black text-emerald-700"
+                              x-text="`חיסכון: -${(activeWoltDrawerDish?.calories || 760) - woltAdjustedCalories} קק״ל | +${woltAdjustedProtein - (activeWoltDrawerDish?.protein_g || 32)}g חלבון`">
+                        </span>
+                    </div>
+
+                    <!-- 3 Macro Gauges: Calories, Protein, Carbs -->
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <!-- Calories -->
+                        <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">קלוריות</span>
+                            <div class="flex items-baseline justify-center gap-1 mt-0.5">
+                                <span class="text-lg font-black text-emerald-700" x-text="woltAdjustedCalories"></span>
+                                <span class="text-[10px] text-slate-400 line-through" x-text="activeWoltDrawerDish?.calories || 760"></span>
+                            </div>
+                            <span class="text-[10px] font-extrabold text-emerald-600" x-text="`-${(activeWoltDrawerDish?.calories || 760) - woltAdjustedCalories} קק״ל`"></span>
+                        </div>
+
+                        <!-- Protein -->
+                        <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">חלבון</span>
+                            <div class="flex items-baseline justify-center gap-1 mt-0.5">
+                                <span class="text-lg font-black text-indigo-700" x-text="`${woltAdjustedProtein}g`"></span>
+                                <span class="text-[10px] text-slate-400 line-through" x-text="`${activeWoltDrawerDish?.protein_g || 32}g`"></span>
+                            </div>
+                            <span class="text-[10px] font-extrabold text-indigo-600" x-text="`+${woltAdjustedProtein - (activeWoltDrawerDish?.protein_g || 32)}g חלבון`"></span>
+                        </div>
+
+                        <!-- Carbs -->
+                        <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">פחמימות</span>
+                            <div class="flex items-baseline justify-center gap-1 mt-0.5">
+                                <span class="text-lg font-black text-amber-700" x-text="`${woltAdjustedCarbs}g`"></span>
+                                <span class="text-[10px] text-slate-400 line-through" x-text="`${activeWoltDrawerDish?.carbs_g || 68}g`"></span>
+                            </div>
+                            <span class="text-[10px] font-extrabold text-amber-600">דל גליקמי</span>
+                        </div>
+                    </div>
+
+                    <!-- Macro Distribution Bar -->
+                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden flex">
+                        <div class="bg-indigo-600 h-full transition-all duration-300" style="width: 48%;"></div>
+                        <div class="bg-amber-500 h-full transition-all duration-300" style="width: 32%;"></div>
+                        <div class="bg-emerald-500 h-full transition-all duration-300" style="width: 20%;"></div>
+                    </div>
+                </div>
+
+                <!-- AI Smart Swap Recommendations -->
+                <div class="space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black text-slate-900 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-emerald-600 text-[18px]">tune</span>
+                            התאמות חכמות לפי מדדי הגלוקוז והשובע
+                        </span>
+                        <span class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">מומלץ ע״י AI</span>
+                    </div>
+
+                    <!-- Swap Toggle 1 -->
+                    <label class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-300 flex items-center justify-between gap-3 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" x-model="woltCustomSwaps.swapRice" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <div class="text-xs font-black text-slate-900">החלף אורז לבן בקינואה וירקות ירוקים</div>
+                                <div class="text-[11px] text-emerald-700 font-bold">-180 קק״ל • +6g חלבון מורכב</div>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-slate-400">ללא עלות</span>
+                    </label>
+
+                    <!-- Swap Toggle 2 -->
+                    <label class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-300 flex items-center justify-between gap-3 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" x-model="woltCustomSwaps.swapSauce" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <div class="text-xs font-black text-slate-900">בקש רוטב בצד (חצי כמות טריאקי)</div>
+                                <div class="text-[11px] text-emerald-700 font-bold">-95 קק״ל • -18g סוכר מוסף</div>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-slate-400">ללא עלות</span>
+                    </label>
+
+                    <!-- Swap Toggle 3 -->
+                    <label class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-300 flex items-center justify-between gap-3 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" x-model="woltCustomSwaps.doubleEdamame" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <div class="text-xs font-black text-slate-900">תוספת אדממה כפולה (במקום בצל מטוגן)</div>
+                                <div class="text-[11px] text-indigo-700 font-bold">+6g חלבון נקי • שומן בריא</div>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-black text-slate-700">+₪4</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Drawer Bottom Action Footer -->
+            <div class="p-4 bg-white border-t border-slate-100 flex items-center gap-2.5">
+                <button type="button" @click="openDishInWolt(activeWoltDrawerDish || {})"
+                        class="flex-1 py-3 px-4 rounded-2xl bg-[#00c2e8] hover:bg-[#00a9ca] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-[#00c2e8]/25 transition active:scale-95 cursor-pointer">
+                    <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+                    <span>הזמן מותאם ב-Wolt (₪<span x-text="woltAdjustedPrice"></span>)</span>
+                </button>
+                <button type="button" @click="logCustomWoltDish()"
+                        class="py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1 shadow-sm transition active:scale-95 cursor-pointer">
+                    <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                    <span>שמור ביומן</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
