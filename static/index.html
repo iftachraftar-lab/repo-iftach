@@ -534,9 +534,12 @@
                         <span>🖼️ בחר מהגלריה</span>
                     </button>
                     <button type="button" @click="openBarcodeScannerModal()" :disabled="supermarketScanning"
-                            class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                            class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
                             title="סרוק ברקוד ישראלי עם מאגר מחירים וסופרמרקטים">
-                        <span>🏷️ סרוק ברקוד</span>
+                        <svg class="w-4 h-4 text-amber-800 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14M5 5v14M14 5v14M19 5v14"/>
+                        </svg>
+                        <span>סרוק ברקוד</span>
                     </button>
                 </div>
 
@@ -848,7 +851,9 @@
                                     :disabled="aiAnalyzing"
                                     class="px-3 sm:px-3.5 py-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-semibold text-xs sm:text-sm flex items-center gap-1.5 flex-shrink-0 transition cursor-pointer"
                                     title="סרוק ברקוד של מוצר ישראלי או בינלאומי">
-                                <span class="text-base">🏷️</span>
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14M5 5v14M14 5v14M19 5v14"/>
+                                </svg>
                                 <span class="hidden sm:inline">ברקוד</span>
                             </button>
 
@@ -3284,8 +3289,10 @@
             <!-- Header -->
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl">
-                        🏷️
+                    <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center flex-shrink-0 shadow-2xs">
+                        <svg class="w-5 h-5 text-amber-800" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7V4h3m10 0h3v3M4 17v3h3m10 0h3v-3M8 7v10m3-10v10m2-10v10m3-10v10"/>
+                        </svg>
                     </div>
                     <div>
                         <h3 class="text-base sm:text-lg font-extrabold text-slate-900">סורק ברקוד — מאגר סופרמרקטים ישראלי</h3>
