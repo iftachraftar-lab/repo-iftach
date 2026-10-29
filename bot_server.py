@@ -38,10 +38,12 @@ from pywebpush import webpush, WebPushException
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
 try:
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 except ImportError:
     Image = None
     ImageOps = None
+    ImageEnhance = None
+    ImageFilter = None
 
 load_dotenv()
 
@@ -1833,10 +1835,164 @@ def compute_image_forensics_and_histogram(image_bytes: bytes) -> dict:
                 "hist_luma": hist_luma,
                 "thumbnail_data_url": thumb_data_url,
                 "optical_warnings": warnings,
+                "enhancements_applied": [],
+                "verifier_notes": [],
             }
     except Exception as e:
         print(f"WARN compute_image_forensics_and_histogram: {e}")
         return fallback
+
+
+def auto_enhance_food_image(image_bytes: bytes, mime_type: str, forensics: dict) -> tuple[bytes, str, List[str]]:
+    """Pre-analysis optical agent: automatically fixes dark exposure, low contrast, warm yellow cast, and blur before Gemini Vision."""
+    enhancements: List[str] = []
+    if Image is None or not image_bytes:
+        norm_b, clean_m = _normalize_image_bytes(image_bytes, mime_type)
+        return norm_b, clean_m, enhancements
+
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as raw_img:
+            img = ImageOps.exif_transpose(raw_img) if ImageOps is not None else raw_img
+            if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+                bg = Image.new("RGB", img.size, (255, 255, 255))
+                rgba = img.convert("RGBA")
+                bg.paste(rgba, mask=rgba.split()[3])
+                img = bg
+            elif img.mode != "RGB":
+                img = img.convert("RGB")
+
+            img.thumbnail((1280, 1280))
+
+            mean_l = float(forensics.get("mean_brightness", 128.0))
+            contrast_std = float(forensics.get("contrast_std", 48.0))
+            dyn_range = int(forensics.get("dynamic_range", 140))
+            warm_cool = float(forensics.get("warm_cool_ratio", 1.15))
+            sharpness = int(forensics.get("sharpness_score", 68))
+
+            # 1. White-Balance Normalization if indoor lighting is overly yellow/warm
+            if warm_cool > 1.32:
+                r_ch, g_ch, b_ch = img.split()
+                r_factor = max(0.88, min(0.95, 1.22 / warm_cool))
+                b_factor = min(1.18, max(1.05, warm_cool / 1.22))
+                r_ch = r_ch.point(lambda v: int(min(255, max(0, round(v * r_factor)))))
+                b_ch = b_ch.point(lambda v: int(min(255, max(0, round(v * b_factor)))))
+                img = Image.merge("RGB", (r_ch, g_ch, b_ch))
+                enhancements.append(f"תיקון איזון לבן אוטומטי (נטרול תאורה צהובה R/B={warm_cool})")
+
+            # 2. Auto-Contrast if dynamic range or contrast is flat
+            if ImageOps is not None and (contrast_std < 38.0 or dyn_range < 115):
+                img = ImageOps.autocontrast(img, cutoff=1)
+                enhancements.append(f"הרחבת טווח דינמי וניגודיות (Auto-Contrast, Std={contrast_std})")
+
+            # 3. Exposure / Shadow Lift if image is underexposed or dark
+            if ImageEnhance is not None:
+                if mean_l < 92.0:
+                    boost = round(min(1.42, max(1.12, 110.0 / max(38.0, mean_l))), 2)
+                    img = ImageEnhance.Brightness(img).enhance(boost)
+                    enhancements.append(f"הבהרת חשיפה ופתיחת צללים (×{boost})")
+                elif mean_l > 202.0:
+                    img = ImageEnhance.Brightness(img).enhance(0.88)
+                    enhancements.append("איזון חשיפת יתר וסינוור (×0.88)")
+
+            # 4. Edge & Label Sharpening if slightly soft/blurry
+            if ImageFilter is not None and sharpness < 54:
+                img = img.filter(ImageFilter.UnsharpMask(radius=1.4, percent=135, threshold=3))
+                enhancements.append(f"חידוד קצוות וטקסט (Unsharp Mask, חדות={sharpness})")
+
+            out = io.BytesIO()
+            img.save(out, format="JPEG", quality=87, optimize=True)
+            forensics["enhancements_applied"] = enhancements
+            return out.getvalue(), "image/jpeg", enhancements
+    except Exception as e:
+        print(f"WARN auto_enhance_food_image fallback: {e}")
+        norm_b, clean_m = _normalize_image_bytes(image_bytes, mime_type)
+        return norm_b, clean_m, enhancements
+
+
+def verify_and_reconcile_nutrition_extraction(
+    extraction: NutritionExtraction,
+    forensics: dict,
+    norm_bytes: bytes,
+    clean_mime: str,
+    caption: str = "",
+    rules_block: str = "",
+) -> tuple[NutritionExtraction, List[str]]:
+    """Post-analysis Verifier Agent: runs 2nd-pass AI critic on low-confidence detections and enforces thermodynamic & sum consistency."""
+    verifier_notes: List[str] = []
+    if not extraction.is_meal:
+        forensics["verifier_notes"] = verifier_notes
+        return extraction, verifier_notes
+
+    # Step 1: Conditional Second-Pass AI Critic if initial confidence < 75%
+    conf = int(getattr(extraction, "confidence_score", 88) or 88)
+    if ai_client and conf < 75 and norm_bytes:
+        try:
+            items_preview = ", ".join(f"{it.name} ({it.calories} קק״ל, {it.protein_g}g חלבון)" for it in (extraction.items or []))
+            critic_prompt = f"""אתה סוכן מבקר ומאמת (Vision Verifier Agent) לבקרת איכות של פענוח תמונות מזון בישראל.
+הסוכן הראשוני ניתח את התמונה ברמת ביטחון נמוכה ({conf}%) והחזיר:
+- סיכום ראשוני: {extraction.summary}
+- רכיבים שזוהו: {items_preview}
+- סה"כ ראשוני: {extraction.calories} קק"ל, {extraction.protein_g}g חלבון
+- הערת משתמש: '{caption.strip() if caption else "ללא"}'{rules_block}
+
+בדוק שוב את התמונה בעיון:
+1. האם זוהו כל המרכיבים בצלחת/אריזה בצורה נכונה? האם יש מרכיב שפוספס או זוהה בטעות?
+2. האם משקלי המנה תואמים לקנה המידה של הצלחת/כלי ההגשה?
+3. החזר JSON מתוקן ומדויק עם סכומים עקביים ועדכן את confidence_score בהתאם."""
+            resp2 = ai_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    types.Part.from_bytes(data=norm_bytes, mime_type=clean_mime),
+                    critic_prompt,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=NutritionExtraction,
+                    temperature=0.05,
+                ),
+            )
+            refined = NutritionExtraction.model_validate_json(resp2.text)
+            if refined.is_meal and refined.calories > 0:
+                verifier_notes.append(
+                    f"בוצע אימות סוכן שני (Two-Pass AI Critic) עקב ביטחון ראשוני של {conf}%: עודכן מ-{extraction.calories} ל-{refined.calories} קק״ל"
+                )
+                extraction = refined
+        except Exception as e:
+            print(f"WARN second-pass vision critic skipped: {e}")
+
+    # Step 2: Thermodynamic & Item Sum Consistency Check
+    if extraction.items and len(extraction.items) >= 1:
+        for it in extraction.items:
+            it.calories = max(0, int(it.calories))
+            it.protein_g = round(max(0.0, float(it.protein_g)), 1)
+            min_thermo_cal = int(round(it.protein_g * 4.0))
+            if it.calories < min_thermo_cal:
+                verifier_notes.append(
+                    f"תיקון תרמודינמי לפריט '{it.name}': {it.protein_g}g חלבון חייבים להכיל לפחות {min_thermo_cal} קק״ל (עודכן מ-{it.calories})"
+                )
+                it.calories = min_thermo_cal
+
+        sum_cal = sum(int(it.calories) for it in extraction.items)
+        sum_prot = round(sum(float(it.protein_g) for it in extraction.items), 1)
+
+        if sum_cal > 0 and abs(sum_cal - int(extraction.calories)) > 15:
+            verifier_notes.append(f"סנכרון סכום רכיבים: סה״כ קלוריות תוקן מ-{extraction.calories} ל-{sum_cal} קק״ל בהתאם לפירוט המרכיבים")
+            extraction.calories = sum_cal
+
+        if sum_prot >= 0 and abs(sum_prot - float(extraction.protein_g)) > 1.5:
+            verifier_notes.append(f"סנכרון סכום חלבון: סה״כ חלבון תוקן מ-{extraction.protein_g}g ל-{sum_prot}g בהתאם לפירוט המרכיבים")
+            extraction.protein_g = sum_prot
+
+    min_total_cal = int(round(float(extraction.protein_g) * 4.0))
+    if extraction.calories < min_total_cal:
+        verifier_notes.append(f"תיקון מינימום קלוריות כולל לפי חלבון ({min_total_cal} קק״ל)")
+        extraction.calories = min_total_cal
+
+    if not verifier_notes:
+        verifier_notes.append("בדיקת סוכן אימות: סכומי הרכיבים והערכים התרמודינמיים נמצאו תקינים ועקביים ✓")
+
+    forensics["verifier_notes"] = verifier_notes
+    return extraction, verifier_notes
 
 
 def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "", forensics: Optional[dict] = None) -> NutritionExtraction:
@@ -1854,9 +2010,10 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
             applied_calibration_rules=[],
         )
 
-    norm_bytes, clean_mime = _normalize_image_bytes(image_bytes, mime_type)
     if forensics is None:
         forensics = compute_image_forensics_and_histogram(image_bytes)
+
+    norm_bytes, clean_mime, enhancements = auto_enhance_food_image(image_bytes, mime_type, forensics)
 
     active_rules = get_vision_calibration_rules_db()
     rules_block = ""
@@ -1864,15 +2021,22 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
         rules_lines = "\n".join(f"  - [{r.get('category', 'כיול')}]: {r.get('rule_text', '')}" for r in active_rules[:25])
         rules_block = f"\n\n🎯 חוקי כיול ודיוק מחייבים של סוכן ה-Vision (הוגדרו ע״י מנהל המערכת — חובה ליישם במידת הרלוונטיות):\n{rules_lines}"
 
+    enhancements_line = (
+        f"\n- שיפורי תמונה אופטיים שבוצעו אוטומטית לפני הפענוח: {' | '.join(enhancements)}"
+        if enhancements
+        else "\n- איכות אופטית: תקינה (לא נדרש תיקון חשיפה/איזון לבן)"
+    )
+
     optical_context = (
         f"\n\n📊 טלמטריה אופטית והיסטוגרמת התמונה (מחושב ע״י חיישן התמונה לפני הניתוח):\n"
         f"- רזולוציה מקורית: {forensics.get('orig_width')}x{forensics.get('orig_height')} פיקסלים\n"
         f"- בהירות ממוצעת (Luminance): {forensics.get('mean_brightness')}/255 ({forensics.get('brightness_label')}), חציון: {forensics.get('p50_luma')}\n"
         f"- ניגודיות (StdDev): {forensics.get('contrast_std')} ({forensics.get('contrast_label')}), טווח דינמי P10-P90: {forensics.get('dynamic_range')}\n"
-        f"- קטימת צללים כהים: {forensics.get('shadow_clipping_pct')}%, קטימת שיאי אור ( פלאש/סינוור): {forensics.get('highlight_clipping_pct')}%\n"
+        f"- קטימת צללים כהים: {forensics.get('shadow_clipping_pct')}%, קטימת שיאי אור (פלאש/סינוור): {forensics.get('highlight_clipping_pct')}%\n"
         f"- איזון צבעים ממוצע: R={forensics.get('mean_r')}, G={forensics.get('mean_g')}, B={forensics.get('mean_b')} | יחס חם/קר (R/B): {forensics.get('warm_cool_ratio')} ({forensics.get('lighting_temp_label')})\n"
         f"- חדות פרטים (Edge Sharpness): {forensics.get('sharpness_score')}/100 ({forensics.get('sharpness_label')})\n"
         f"- דומיננטיות ירוקים/טריים: {forensics.get('green_fresh_pct')}%, גוונים חמים/מבושלים/שחומים: {forensics.get('warm_cooked_pct')}%"
+        f"{enhancements_line}"
     )
     if forensics.get("optical_warnings"):
         optical_context += "\n- דגשים אופטיים למודל: " + " | ".join(forensics["optical_warnings"])
@@ -1887,7 +2051,7 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
 חשוב מאוד:
 - אם יש בתמונה כל דבר שקשור לאוכל, שתייה, אריזת מזון, כוס, צלחת, קערה, פרי, ירק, או טבלת ערכים תזונתיים — סמן תמיד is_meal=True!
 - החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף 180 ג' עם אורז לבן וסלט קצוץ").
-- ברשימת items, פרט כל פריט או רכיב בנפרד (כולל שמן/רוטב משמעותי אם זוהה) עם השם שלו (name, כולל משקל משוער בגרמים/כפות), כמות הקלוריות שלו (calories) וגרם החלבון שלו (protein_g).
+- ברשימת items, פרט כל פריט או רכיב בנפרד (כולל שמן/רוטב משמעותי אם זוהה) עם השם שלו (name, כולל משקל משוער בגרמים/כפות), כמות הקלוריות שלו (calories) וגרם החלבון שלו (protein_g). ודא שסכום הקלוריות והחלבון של items שווה ל-calories ו-protein_g הכוללים!
 - מלא את שדות הבקרה של הסוכן:
   * confidence_score: ציון ביטחון (0-100) בזיהוי המנה והכמויות.
   * portion_estimation_method: הסבר קצר בעברית איך הערכת את המשקל/נפח (למשל: "לפי צלחת מנה עיקרית 26 ס״מ וגובה ערימת האורז").
@@ -1910,7 +2074,16 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
                     temperature=0.15,
                 ),
             )
-            return NutritionExtraction.model_validate_json(response.text)
+            extracted = NutritionExtraction.model_validate_json(response.text)
+            extracted, _ = verify_and_reconcile_nutrition_extraction(
+                extraction=extracted,
+                forensics=forensics,
+                norm_bytes=norm_bytes,
+                clean_mime=clean_mime,
+                caption=caption,
+                rules_block=rules_block,
+            )
+            return extracted
         except Exception as e:
             last_err = e
             print(f"ERROR analyze_meal_image ({model_name}): {type(e).__name__} - {e}")

@@ -2359,6 +2359,24 @@
                                     </div>
                                 </div>
 
+                                <!-- Pre-Analysis Auto-Enhancements & Post-Analysis Verifier Agent Report -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    <div class="bg-indigo-50/70 border border-indigo-200/80 rounded-xl px-3.5 py-2 text-[11px] text-indigo-950 flex items-start gap-2">
+                                        <span>✨</span>
+                                        <div>
+                                            <strong>סוכן שיפור תמונה אוטומטי (Pre-Processor):</strong>
+                                            <span x-text="(vlog.forensics?.enhancements_applied && vlog.forensics.enhancements_applied.length > 0) ? vlog.forensics.enhancements_applied.join(' • ') : 'התמונה באיכות אופטית מיטבית — לא נדרש תיקון צבע/חשיפה'"></span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-xl px-3.5 py-2 text-[11px] text-emerald-950 flex items-start gap-2">
+                                        <span>🛡️</span>
+                                        <div>
+                                            <strong>סוכן אימות ובקרת סכומים (Verifier Agent):</strong>
+                                            <span x-text="(vlog.forensics?.verifier_notes && vlog.forensics.verifier_notes.length > 0) ? vlog.forensics.verifier_notes.join(' • ') : 'בדיקת סכומי רכיבים וערכים תרמודינמיים תקינה ✓'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Bottom Action Bar: Calibrate Agent on this Photo -->
                                 <div class="pt-2 border-t border-slate-200/60 flex flex-col gap-3">
                                     <div class="flex items-center justify-between">
