@@ -267,6 +267,14 @@
             <!-- Uniform Action Toolbar (All exact height h-8.5 / 34px) -->
             <div class="flex items-center gap-1.5 sm:gap-2">
 
+                <!-- Multi-Modal Live Viewfinder Header Button -->
+                <button @click="showLiveViewfinder = true"
+                        class="h-8.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                        title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
+                    <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+                    <span>סורק חי AI</span>
+                </button>
+
                 <!-- Install PWA Button (when available) -->
                 <button x-cloak x-show="canInstallPWA || showIOSInstallButton"
                     @click="installPWA()"
@@ -544,6 +552,33 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Prominent Multi-Modal Live Viewfinder Launcher Card (Stitch Frame) -->
+            <div @click="showLiveViewfinder = true"
+                 class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border-2 border-emerald-400/50 hover:border-emerald-300 transition cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-4 group relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition flex-shrink-0 shadow-lg">
+                        <span class="material-symbols-outlined text-[32px]">photo_camera</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-black uppercase tracking-wider flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                AI Vision 4.2 Pro
+                            </span>
+                            <span class="text-xs text-slate-400">זיהוי מרובה פריטים פעיל</span>
+                        </div>
+                        <h3 class="text-lg sm:text-xl font-black text-white mt-1">Multi-Modal AI Food & Barcode Live Viewfinder</h3>
+                        <p class="text-xs text-slate-300 mt-0.5">סורק צלחת רב-מוקדי, סורק ברקוד לייזר ומדד דנונה PRO (לחץ כאן לפתיחה במסך מלא)</p>
+                    </div>
+                </div>
+                <button type="button" @click.stop="showLiveViewfinder = true"
+                        class="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-500/30 flex items-center gap-2 flex-shrink-0 cursor-pointer">
+                    <span class="material-symbols-outlined text-[20px]">fullscreen</span>
+                    <span>פתח סורק חי עכשיו 📸</span>
+                </button>
             </div>
 
             <!-- Prominent Main Action Switcher: Meal vs Workout (Stitch Dock Style) -->
@@ -3910,7 +3945,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=43').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=44').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4710,6 +4745,10 @@
                 },
 
                 async init() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('scan') === '1' || urlParams.get('viewfinder') === '1' || window.location.hash.includes('scanner')) {
+                        setTimeout(() => { this.showLiveViewfinder = true; }, 300);
+                    }
                     this.setupPWAInstallListeners();
                     await this.initGoogleAuth();
                     if (this.currentUser) {
@@ -7124,8 +7163,9 @@
         }
     </script>
 
+
     <!-- =============================================================== -->
-    <!-- STITCH: MULTI-MODAL AI FOOD & BARCODE LIVE VIEWFINDER MODAL     -->
+    <!-- STITCH: 1:1 MULTI-MODAL AI FOOD & BARCODE LIVE VIEWFINDER MODAL -->
     <!-- =============================================================== -->
     <div x-cloak x-show="showLiveViewfinder"
          x-transition:enter="transition ease-out duration-300"
@@ -7134,169 +7174,312 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
-         class="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden select-none"
+         class="fixed inset-0 z-50 bg-black overflow-y-auto select-none"
          dir="rtl">
-        
-        <!-- Viewfinder Top Bar -->
-        <header class="w-full z-30 pt-safe bg-black/60 backdrop-blur-xl border-b border-white/10 px-4 py-3">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <button type="button" @click="showLiveViewfinder = false"
-                            class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95 cursor-pointer">
-                        <span class="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                    <div>
-                        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">NutriAgent Vision</span>
-                        <h1 class="text-sm sm:text-base font-black text-white leading-tight">Live AI Scanner</h1>
-                    </div>
-                </div>
+        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="showLiveViewfinder = false"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button class="px-3 py-1 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center gap-1 shadow-sm"><span class="material-symbols-outlined text-[16px]">barcode</span>Barcode</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">restaurant</span>Meal AI</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">nutrition</span>Label OCR</button></div></div></header>
+<main class="flex flex-col relative w-full pt-28 bg-transparent min-h-screen"><div class="flex flex-col w-full text-on-surface select-none pb-safe" dir="rtl">
+<!-- Viewfinder Frame Container -->
+<div class="relative w-full overflow-hidden rounded-b-xl shadow-2xl bg-black min-h-[460px] flex flex-col justify-between">
+<!-- Camera Feed Background Layer -->
+<div class="absolute inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center opacity-85 scale-105 transition-transform duration-700" data-alt="Top-down perspective close-up of a meticulously prepped Mediterranean fitness lunch on a dark slate plate. A golden grilled chicken breast cutlet sliced into strips, steamed fluffy brown basmati rice garnished with herbs, and finely chopped Israeli tomato-cucumber salad drizzled with creamy tahini dressing, soft warm indoor ambient lighting, crisp professional culinary photography." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCPbcVd5J9HpY392lgHtZQ11jVTVduOw515yp4HU6JfPb6OH67QpE9ewSwKep8QTuqOmVp1CweLrUmc_3CYlSpOieUl1xKb-Y8A5qW_C0Lq_Z5KwzW0YkpxtwE1Vx_FhcooS6AXcRCFZkj6Igy31WG9QvDkLanEd2vhVkw09PuEpbmUutoQaTRMN_7CNGQxIxyFhKemGK8dCG43PcMvxowdynroJ1Yyr0mLZUwe-AE')">
+</div>
+<div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 pointer-events-none"></div>
+</div>
+<!-- Scanning Reticle & Animated HUD Laser Layer -->
+<div class="absolute inset-0 z-10 pointer-events-none flex flex-col items-center justify-center p-space-md" id="laser-scan-container">
+<!-- Reticle Crosshairs (Corner Brackets) -->
+<div class="relative w-72 h-72">
+<div class="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-primary-fixed rounded-tr-lg shadow-[0_0_12px_rgba(133,248,196,0.6)]"></div>
+<div class="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-primary-fixed rounded-tl-lg shadow-[0_0_12px_rgba(133,248,196,0.6)]"></div>
+<div class="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-primary-fixed rounded-br-lg shadow-[0_0_12px_rgba(133,248,196,0.6)]"></div>
+<div class="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-primary-fixed rounded-bl-lg shadow-[0_0_12px_rgba(133,248,196,0.6)]"></div>
+<!-- Laser Beam Scanline (SVG Animation) -->
+<svg class="w-full h-full absolute inset-0 overflow-visible" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<lineargradient id="laserGrad" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#ef4444" stop-opacity="0"></stop>
+<stop offset="25%" stop-color="#ef4444" stop-opacity="0.8"></stop>
+<stop offset="50%" stop-color="#ffb77d" stop-opacity="1"></stop>
+<stop offset="75%" stop-color="#ef4444" stop-opacity="0.8"></stop>
+<stop offset="100%" stop-color="#ef4444" stop-opacity="0"></stop>
+</lineargradient>
+<filter id="laserGlow">
+<fegaussianblur result="glow" stddeviation="3"></fegaussianblur>
+<femerge>
+<femergenode in="glow"></femergenode>
+<femergenode in="SourceGraphic"></femergenode>
+</femerge>
+</filter>
+</defs>
+<g>
+<line filter="url(#laserGlow)" stroke="url(#laserGrad)" stroke-width="2.5" x1="8" x2="280" y1="12" y2="12">
+<animatetransform attributename="transform" calcmode="spline" dur="2.8s" keysplines="0.4 0 0.2 1; 0.4 0 0.2 1" repeatcount="indefinite" type="translate" values="0,10; 0,270; 0,10"></animatetransform>
+</line>
+</g>
+</svg>
+<!-- Dynamic Laser Overlay Mode Pill -->
+<div class="absolute -bottom-8 inset-x-0 mx-auto w-fit px-3 py-1 rounded-full bg-black/60 backdrop-blur-md flex items-center gap-1.5 shadow-lg">
+<span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
+<span class="font-label-subtle text-label-subtle text-on-primary">סורק ברקוד פעיל (מאגר רשתות מזון)</span>
+</div>
+</div>
+</div>
+<!-- Real-Time AI Detection Bounding Boxes Overlay -->
+<div class="absolute inset-0 z-20 pointer-events-none p-4 overflow-hidden">
+<!-- Box 1: Chicken Breast (Top Right) -->
+<div class="absolute top-20 right-6 max-w-[210px] pointer-events-auto transform hover:scale-102 transition-transform">
+<div class="p-2.5 rounded-xl bg-black/75 backdrop-blur-md shadow-xl">
+<div class="flex items-center justify-between gap-2 mb-1.5">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary-fixed shadow-[0_0_8px_rgba(133,248,196,0.9)]"></span>
+<span class="font-label-strong text-label-strong text-on-primary">חזה עוף בגריל</span>
+</div>
+<span class="font-label-subtle text-label-subtle px-1.5 py-0.5 rounded-full bg-primary text-on-primary font-bold">98% AI</span>
+</div>
+<div class="flex items-baseline gap-1 text-primary-fixed mb-1">
+<span class="font-metric-numeral-md text-metric-numeral-md leading-none">180</span>
+<span class="font-label-subtle text-label-subtle">גרם</span>
+</div>
+<div class="flex items-center gap-1.5 pt-1">
+<span class="px-1.5 py-0.5 rounded bg-white/10 font-code-biomarker text-code-biomarker text-primary-fixed">290 קק״ל</span>
+<span class="px-1.5 py-0.5 rounded bg-primary-container font-code-biomarker text-code-biomarker text-on-primary">54g חלבון</span>
+</div>
+</div>
+<!-- Pointer Anchor Line -->
+<div class="w-0.5 h-6 bg-primary-fixed mx-auto opacity-70"></div>
+</div>
+<!-- Box 2: Steamed Rice (Center Left) -->
+<div class="absolute top-44 left-5 max-w-[190px] pointer-events-auto transform hover:scale-102 transition-transform">
+<div class="p-2 rounded-xl bg-black/75 backdrop-blur-md shadow-xl">
+<div class="flex items-center justify-between gap-1 mb-1">
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_rgba(226,223,255,0.8)]"></span>
+<span class="font-label-strong text-label-strong text-on-primary">אורז מלא מאודה</span>
+</div>
+<span class="font-label-subtle text-label-subtle px-1 rounded-full bg-secondary-container text-on-secondary-container">150g</span>
+</div>
+<div class="flex items-center gap-1 pt-0.5">
+<span class="px-1.5 py-0.5 rounded bg-white/10 font-code-biomarker text-code-biomarker text-secondary-fixed">195 קק״ל</span>
+<span class="px-1.5 py-0.5 rounded bg-secondary/40 font-code-biomarker text-code-biomarker text-inverse-on-surface">4g חלבון</span>
+</div>
+</div>
+<div class="w-0.5 h-4 bg-secondary-fixed mr-6 opacity-70"></div>
+</div>
+<!-- Box 3: Israeli Salad with Tahini (Bottom Right) -->
+<div class="absolute bottom-24 right-8 max-w-[200px] pointer-events-auto transform hover:scale-102 transition-transform">
+<div class="p-2 rounded-xl bg-black/75 backdrop-blur-md shadow-xl">
+<div class="flex items-center justify-between gap-1 mb-1">
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed shadow-[0_0_8px_rgba(255,220,195,0.8)]"></span>
+<span class="font-label-strong text-label-strong text-on-primary">סלט קצוץ עם טחינה</span>
+</div>
+<span class="font-label-subtle text-label-subtle text-tertiary-fixed">120g</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded bg-tertiary-container font-code-biomarker text-code-biomarker text-on-tertiary-container">110 קק״ל</span>
+<span class="font-label-subtle text-label-subtle text-white/70">שומן צמחי בריא</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Viewfinder Controls (HUD Top Controls) -->
+<div class="relative z-30 pt-3 px-space-md flex items-center justify-between">
+<!-- AI Engine Telemetry Chip -->
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md shadow-sm">
+<span class="material-symbols-outlined text-primary-fixed text-[18px] animate-pulse">psychology</span>
+<div class="flex flex-col">
+<span class="font-label-subtle text-label-subtle text-primary-fixed leading-tight">AI VISION 4.2</span>
+<span class="font-label-subtle text-label-subtle text-white/60">זיהוי מרובה פריטים פעיל</span>
+</div>
+</div>
+<!-- Optical Zoom & Camera Lens Controls -->
+<div class="flex items-center p-1 rounded-full bg-black/50 backdrop-blur-md shadow-sm">
+<button class="w-7 h-7 rounded-full text-white/70 hover:text-white font-label-strong text-label-strong flex items-center justify-center transition-colors" id="zoom-uw" onclick="setZoom(this)">.5x</button>
+<button class="w-7 h-7 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center justify-center shadow" id="zoom-1x" onclick="setZoom(this)">1x</button>
+<button class="w-7 h-7 rounded-full text-white/70 hover:text-white font-label-strong text-label-strong flex items-center justify-center transition-colors" id="zoom-2x" onclick="setZoom(this)">2x</button>
+</div>
+<!-- Quick Supermarket Barcode Toggle -->
+<button aria-label="Toggle Barcode Mode" class="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-primary-fixed active:scale-95 transition-all shadow-sm" id="toggle-laser" onclick="toggleScanner()">
+<span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+</button>
+</div>
+<!-- Viewfinder Bottom Helper Tag -->
+<div class="relative z-30 pb-3 px-space-md flex items-center justify-between text-white/80">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary-fixed text-[16px]">verified</span>
+<span class="font-body-sm text-body-sm">3 רכיבים מזוהים בצלחת הנוכחית</span>
+</div>
+<span class="font-code-biomarker text-code-biomarker text-white/60">595 קק״ל סה״כ</span>
+</div>
+</div>
+<!-- Bottom Nutrition Verdict Sheet (Israeli Supermarket Data & Active Match) -->
+<div class="relative -mt-4 z-40 px-space-md flex flex-col gap-space-sm">
+<div class="w-full bg-surface-container-lowest rounded-xl shadow-xl p-space-md flex flex-col gap-3">
+<!-- Drag Handle Affordance -->
+<div class="w-10 h-1 bg-surface-variant rounded-full mx-auto -mt-1 opacity-70"></div>
+<!-- Supermarket Product Headline & Quality Score -->
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-2.5">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center shadow-inner shrink-0">
+<span class="material-symbols-outlined text-primary text-[28px]">lunch_dining</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface">דנונה PRO 20g חלבון</span>
+<span class="material-symbols-outlined text-primary text-[18px]" title="אימות משרד הבריאות">check_circle</span>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-subtle text-label-subtle px-1.5 py-0.5 rounded bg-primary/10 text-primary">מתאים לתקציב היומי</span>
+<span class="font-code-biomarker text-code-biomarker text-on-surface-variant">מאושר מאגר מזון ישראלי (CHP)</span>
+</div>
+</div>
+</div>
+<!-- Grade A / Score Pill -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-primary-container text-on-primary shadow-sm shrink-0 min-w-[54px]">
+<span class="font-label-subtle text-label-subtle uppercase opacity-90">ציון איכות</span>
+<span class="font-metric-numeral-md text-metric-numeral-md leading-none">94</span>
+</div>
+</div>
+<!-- Tabular Macronutrient Breakdown Strip -->
+<div class="grid grid-cols-4 gap-2 pt-1">
+<div class="flex flex-col items-center p-2 rounded-lg bg-surface-container-low">
+<span class="font-label-subtle text-label-subtle text-on-surface-variant">קלוריות</span>
+<span class="font-metric-numeral-md text-metric-numeral-md text-on-surface mt-0.5">138</span>
+<span class="font-code-biomarker text-code-biomarker text-outline">קק״ל</span>
+</div>
+<div class="flex flex-col items-center p-2 rounded-lg bg-primary-container/10">
+<span class="font-label-subtle text-label-subtle text-primary font-bold">חלבון</span>
+<span class="font-metric-numeral-md text-metric-numeral-md text-primary mt-0.5">20.0</span>
+<span class="font-code-biomarker text-code-biomarker text-primary">גרם</span>
+</div>
+<div class="flex flex-col items-center p-2 rounded-lg bg-secondary-fixed/30">
+<span class="font-label-subtle text-label-subtle text-secondary font-bold">פחמימות</span>
+<span class="font-metric-numeral-md text-metric-numeral-md text-secondary mt-0.5">8.0</span>
+<span class="font-code-biomarker text-code-biomarker text-secondary">גרם</span>
+</div>
+<div class="flex flex-col items-center p-2 rounded-lg bg-surface-container-low">
+<span class="font-label-subtle text-label-subtle text-on-surface-variant">שומן</span>
+<span class="font-metric-numeral-md text-metric-numeral-md text-on-surface mt-0.5">1.5</span>
+<span class="font-code-biomarker text-code-biomarker text-outline">גרם</span>
+</div>
+</div>
+<!-- Quick Portion Size Segmented Selector -->
+<div class="flex flex-col gap-1.5 pt-1">
+<span class="font-label-strong text-label-strong text-on-surface-variant">כמות שנצרכה בפועל:</span>
+<div class="flex items-center gap-2">
+<button class="portion-btn flex-1 py-1.5 px-2 rounded-lg bg-surface-container-low text-on-surface font-label-strong text-label-strong transition-all hover:bg-surface-container active:scale-95 text-center" onclick="setPortion(this, 150)">
+            150 גרם
+          </button>
+<button class="portion-btn flex-1 py-1.5 px-2 rounded-lg bg-primary text-on-primary font-label-strong text-label-strong transition-all shadow-sm active:scale-95 text-center" onclick="setPortion(this, 200)">
+            200g גביע שלם
+          </button>
+<button class="portion-btn flex-1 py-1.5 px-2 rounded-lg bg-surface-container-low text-on-surface font-label-strong text-label-strong transition-all hover:bg-surface-container active:scale-95 flex items-center justify-center gap-1" onclick="setPortion(this, 'custom')">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+            מותאם
+          </button>
+</div>
+</div>
+<!-- Health Biomarker Tags -->
+<div class="flex items-center flex-wrap gap-1.5 pt-1">
+<div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-subtle text-label-subtle">
+<span class="material-symbols-outlined text-primary text-[14px]">bolt</span>
+<span>מדד גליקמי נמוך</span>
+</div>
+<div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-subtle text-label-subtle">
+<span class="material-symbols-outlined text-secondary text-[14px]">bloodtype</span>
+<span>ללא תוספת סוכר</span>
+</div>
+<div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-subtle text-label-subtle">
+<span class="material-symbols-outlined text-tertiary text-[14px]">verified_user</span>
+<span>עשיר בסידן (360 מ״ג)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Action Pill Dock (Frosted Glass Floating Dock) -->
+<div class="p-space-md mt-1 w-full">
+<div class="p-2 rounded-full bg-surface-container-lowest/90 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2">
+<!-- Retake Button (צלם מחדש) -->
+<button aria-label="צלם מחדש" class="w-12 h-12 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high transition-transform active:scale-95 flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[22px]">restart_alt</span>
+</button>
+<!-- Voice Dictation with Live Waveform (תיעוד קולי) -->
+<button class="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-surface-container text-on-surface active:scale-95 transition-all shadow-sm" id="voice-btn" onclick="toggleVoice()">
+<span class="material-symbols-outlined text-primary text-[20px]" id="mic-icon">mic</span>
+<div class="flex items-end gap-0.5 h-4 w-6 px-0.5" id="audio-wave">
+<span class="w-1 bg-primary rounded-full h-1.5 animate-pulse"></span>
+<span class="w-1 bg-primary rounded-full h-3.5 animate-pulse delay-75"></span>
+<span class="w-1 bg-primary rounded-full h-2 animate-pulse delay-150"></span>
+<span class="w-1 bg-primary rounded-full h-4 animate-pulse"></span>
+</div>
+<span class="font-label-strong text-label-strong text-on-surface">תיעוד קולי</span>
+</button>
+<!-- Manual Edit Pencil (עריכה ידנית) -->
+<button aria-label="עריכה ידנית" class="w-12 h-12 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high transition-transform active:scale-95 flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<!-- Big Green Confirm Check Button (שמור ביומן) -->
+<button class="flex-1 py-3 px-4 rounded-full bg-primary text-on-primary font-headline-sm text-headline-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,105,72,0.35)] hover:bg-primary-container active:scale-95 transition-all" onclick="logDanoneProItem(this)">
+<span class="material-symbols-outlined text-[24px]">check</span>
+<span class="text-sm font-bold">שמור ביומן</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  function setZoom(button) {
+    const parent = button.parentElement;
+    parent.querySelectorAll('button').forEach(btn => {
+      btn.className = 'w-7 h-7 rounded-full text-white/70 hover:text-white font-label-strong text-label-strong flex items-center justify-center transition-colors';
+    });
+    button.className = 'w-7 h-7 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center justify-center shadow';
+  }
 
-                <!-- Mode Switcher Pill (Plate vs Barcode) -->
-                <div class="flex items-center bg-white/10 backdrop-blur-md p-1 rounded-full border border-white/15">
-                    <button type="button" @click="viewfinderMode = 'plate'"
-                            :class="viewfinderMode === 'plate' ? 'bg-emerald-600 text-white shadow-xs font-bold' : 'text-white/70 hover:text-white'"
-                            class="px-3 py-1 rounded-full text-xs transition flex items-center gap-1 cursor-pointer">
-                        <span class="material-symbols-outlined text-[14px]">restaurant</span>
-                        <span>צלחת AI</span>
-                    </button>
-                    <button type="button" @click="viewfinderMode = 'barcode'"
-                            :class="viewfinderMode === 'barcode' ? 'bg-amber-500 text-slate-950 shadow-xs font-bold' : 'text-white/70 hover:text-white'"
-                            class="px-3 py-1 rounded-full text-xs transition flex items-center gap-1 cursor-pointer">
-                        <span class="material-symbols-outlined text-[14px]">qr_code_scanner</span>
-                        <span>ברקוד לייזר</span>
-                    </button>
-                </div>
+  function setPortion(button, amount) {
+    const parent = button.parentElement;
+    parent.querySelectorAll('.portion-btn').forEach(btn => {
+      btn.className = 'portion-btn flex-1 py-1.5 px-2 rounded-lg bg-surface-container-low text-on-surface font-label-strong text-label-strong transition-all hover:bg-surface-container active:scale-95 text-center flex items-center justify-center gap-1';
+    });
+    button.className = 'portion-btn flex-1 py-1.5 px-2 rounded-lg bg-primary text-on-primary font-label-strong text-label-strong transition-all shadow-sm active:scale-95 text-center flex items-center justify-center gap-1';
+  }
 
-                <div class="flex items-center gap-1.5">
-                    <button type="button" @click="showToast('💡 פלאש מצלמה מופעל אוטומטית לפי תאורה')"
-                            class="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center transition active:scale-95 cursor-pointer" title="מבזק תאורה">
-                        <span class="material-symbols-outlined text-[18px]">flash_on</span>
-                    </button>
-                </div>
-            </div>
-        </header>
+  function toggleScanner() {
+    const laser = document.getElementById('laser-scan-container');
+    const toggleBtn = document.getElementById('toggle-laser');
+    if (laser.classList.contains('opacity-0')) {
+      laser.classList.remove('opacity-0');
+      toggleBtn.classList.add('text-primary-fixed');
+      toggleBtn.classList.remove('text-white/50');
+    } else {
+      laser.classList.add('opacity-0');
+      toggleBtn.classList.remove('text-primary-fixed');
+      toggleBtn.classList.add('text-white/50');
+    }
+  }
 
-        <!-- Viewfinder Central View & Reticle HUD -->
-        <div class="relative flex-1 w-full bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
-            <!-- Simulated Camera Feed Layer -->
-            <div class="absolute inset-0 z-0">
-                <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1000&q=80"
-                     alt="Camera Feed"
-                     class="w-full h-full object-cover opacity-85 scale-105">
-                <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 pointer-events-none"></div>
-            </div>
+  function toggleVoice() {
+    const wave = document.getElementById('audio-wave');
+    const mic = document.getElementById('mic-icon');
+    if (mic.innerText === 'mic') {
+      mic.innerText = 'graphic_eq';
+      wave.classList.add('opacity-100');
+    } else {
+      mic.innerText = 'mic';
+    }
+  }
 
-            <!-- Reticle Crosshairs (Corner Brackets) -->
-            <div class="relative w-72 h-72 sm:w-80 sm:h-80 pointer-events-none z-10 flex items-center justify-center">
-                <div class="absolute top-0 right-0 w-7 h-7 border-t-2 border-r-2 border-emerald-400 rounded-tr-xl shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
-                <div class="absolute top-0 left-0 w-7 h-7 border-t-2 border-l-2 border-emerald-400 rounded-tl-xl shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
-                <div class="absolute bottom-0 right-0 w-7 h-7 border-b-2 border-r-2 border-emerald-400 rounded-br-xl shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
-                <div class="absolute bottom-0 left-0 w-7 h-7 border-b-2 border-l-2 border-emerald-400 rounded-bl-xl shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
-
-                <!-- Animated Laser Scanline Beam -->
-                <svg class="w-full h-full absolute inset-0 overflow-visible" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="laserGradStitch" x1="0%" x2="100%" y1="0%" y2="0%">
-                            <stop offset="0%" stop-color="#10b981" stop-opacity="0"></stop>
-                            <stop offset="25%" stop-color="#10b981" stop-opacity="0.8"></stop>
-                            <stop offset="50%" stop-color="#34d399" stop-opacity="1"></stop>
-                            <stop offset="75%" stop-color="#10b981" stop-opacity="0.8"></stop>
-                            <stop offset="100%" stop-color="#10b981" stop-opacity="0"></stop>
-                        </linearGradient>
-                    </defs>
-                    <line stroke="url(#laserGradStitch)" stroke-width="3" x1="10" x2="310" y1="12" y2="12">
-                        <animateTransform attributeName="transform" type="translate" values="0,15; 0,290; 0,15" dur="2.4s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
-                    </line>
-                </svg>
-
-                <div class="absolute -bottom-10 inset-x-0 mx-auto w-fit px-3 py-1 rounded-full bg-black/75 backdrop-blur-md flex items-center gap-1.5 border border-white/10 shadow-lg">
-                    <span class="w-2 h-2 rounded-full" :class="viewfinderMode === 'plate' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-ping'"></span>
-                    <span class="text-[11px] font-bold text-white" x-text="viewfinderMode === 'plate' ? 'זיהוי מנות רב-מוקדי פעיל' : 'סורק ברקוד פעיל (מאגר רשתות מזון)'"></span>
-                </div>
-            </div>
-
-            <!-- Plate AI Detection Bounding Boxes Overlay (Mode: plate) -->
-            <div x-show="viewfinderMode === 'plate'" class="absolute inset-0 z-20 pointer-events-none p-4 overflow-hidden">
-                <!-- Box 1: Chicken Breast -->
-                <div class="absolute top-24 right-4 sm:right-16 max-w-[210px] pointer-events-auto transform hover:scale-105 transition">
-                    <div @click="logViewfinderItem(viewfinderSimulatedBoxes[0])"
-                         class="p-2.5 rounded-2xl bg-black/80 backdrop-blur-md border border-emerald-400/50 shadow-xl cursor-pointer">
-                        <div class="flex items-center justify-between gap-2 mb-1">
-                            <span class="text-xs font-black text-white flex items-center gap-1">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
-                                חזה עוף בגריל
-                            </span>
-                            <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-600 text-white">98% AI</span>
-                        </div>
-                        <div class="text-[11px] text-emerald-300 font-bold">180 גרם</div>
-                        <div class="flex items-center gap-1.5 mt-1 pt-1 border-t border-white/10 text-[10px]">
-                            <span class="px-1.5 py-0.5 rounded bg-white/10 text-emerald-300 font-bold">290 קק״ל</span>
-                            <span class="px-1.5 py-0.5 rounded bg-indigo-600 text-white font-bold">54g חלבון</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Box 2: Steamed Rice -->
-                <div class="absolute top-48 left-4 sm:left-16 max-w-[190px] pointer-events-auto transform hover:scale-105 transition">
-                    <div @click="logViewfinderItem(viewfinderSimulatedBoxes[1])"
-                         class="p-2.5 rounded-2xl bg-black/80 backdrop-blur-md border border-indigo-400/50 shadow-xl cursor-pointer">
-                        <div class="flex items-center justify-between gap-1 mb-1">
-                            <span class="text-xs font-black text-white flex items-center gap-1">
-                                <span class="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_#818cf8]"></span>
-                                אורז מלא מאודה
-                            </span>
-                            <span class="text-[10px] text-indigo-300 font-bold">150g</span>
-                        </div>
-                        <div class="flex items-center gap-1 text-[10px] pt-1 border-t border-white/10">
-                            <span class="px-1.5 py-0.5 rounded bg-white/10 text-indigo-200 font-bold">195 קק״ל</span>
-                            <span class="px-1.5 py-0.5 rounded bg-indigo-500/40 text-indigo-100 font-bold">4g חלבון</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Box 3: Israeli Salad -->
-                <div class="absolute bottom-28 right-6 sm:right-24 max-w-[200px] pointer-events-auto transform hover:scale-105 transition">
-                    <div @click="logViewfinderItem(viewfinderSimulatedBoxes[2])"
-                         class="p-2.5 rounded-2xl bg-black/80 backdrop-blur-md border border-amber-400/50 shadow-xl cursor-pointer">
-                        <div class="flex items-center justify-between gap-1 mb-1">
-                            <span class="text-xs font-black text-white flex items-center gap-1">
-                                <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]"></span>
-                                סלט קצוץ עם טחינה
-                            </span>
-                            <span class="text-[10px] text-amber-300 font-bold">120g</span>
-                        </div>
-                        <div class="flex items-center gap-1 text-[10px] pt-1 border-t border-white/10">
-                            <span class="px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 font-bold">110 קק״ל</span>
-                            <span class="px-1.5 py-0.5 rounded bg-white/10 text-slate-300">3g חלבון</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Viewfinder Bottom Control Dock -->
-        <footer class="w-full z-30 pb-safe bg-black/75 backdrop-blur-xl border-t border-white/10 p-4">
-            <div class="max-w-md mx-auto flex items-center justify-between gap-4">
-                <button type="button" @click="$refs.cameraMealInput.click(); showLiveViewfinder = false"
-                        class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95 cursor-pointer"
-                        title="העלאה מגלריה">
-                    <span class="material-symbols-outlined text-[22px]">photo_library</span>
-                </button>
-
-                <!-- Center Shutter Action Button -->
-                <button type="button" @click="logAllViewfinderItems()"
-                        class="flex-1 py-3.5 px-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 active:scale-95 transition cursor-pointer">
-                    <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
-                    <span>צלם ורשום את כל הארוחה (595 קק״ל)</span>
-                </button>
-
-                <button type="button" @click="isRecordingVoice ? stopAndSubmitVoiceRecording() : startVoiceRecording(); showLiveViewfinder = false"
-                        class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95 cursor-pointer"
-                        title="הקלטה קולית">
-                    <span class="material-symbols-outlined text-[22px]">mic</span>
-                </button>
-            </div>
-        </footer>
+  function saveEntry(btn) {
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="material-symbols-outlined text-[24px] animate-spin">progress_activity</span> <span class="text-sm font-bold">מתעד...</span>';
+    setTimeout(() => {
+      btn.innerHTML = '<span class="material-symbols-outlined text-[24px]">done_all</span> <span class="text-sm font-bold">נשמר בהצלחה!</span>';
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+      }, 1600);
+    }, 700);
+  }
+</script></main>
     </div>
 
     <!-- =============================================================== -->
