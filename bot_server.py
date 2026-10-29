@@ -2100,7 +2100,10 @@ def save_vision_analysis_log_db(
     meal_id: str = "",
 ) -> dict:
     uid = _normalize_user_id(user_id)
-    user_prof = get_user_profile_db(uid) or {}
+    try:
+        user_prof = get_user_doc_db(uid) or {}
+    except Exception:
+        user_prof = {}
     now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_id = f"vlog-{int(datetime.now().timestamp() * 1000)}"
     items_list = [it.model_dump() for it in (extraction.items or [])]
@@ -3982,9 +3985,12 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
     )
     if not entry:
         raise HTTPException(status_code=500, detail="Failed to save photo meal to Firestore")
-    vlog = save_vision_analysis_log_db(uid, extraction, forensics, source="web-photo", caption=req.caption or "", meal_id=entry.get("id", ""))
-    entry["vision_log_id"] = vlog.get("id", "")
-    entry["vision_confidence"] = vlog["ai_analysis"].get("confidence_score", 88)
+    try:
+        vlog = save_vision_analysis_log_db(uid, extraction, forensics, source="web-photo", caption=req.caption or "", meal_id=entry.get("id", ""))
+        entry["vision_log_id"] = vlog.get("id", "")
+        entry["vision_confidence"] = vlog["ai_analysis"].get("confidence_score", 88)
+    except Exception as e:
+        print(f"WARN save_vision_analysis_log_db in api_add_photo_meal: {e}")
     return entry
 
 
