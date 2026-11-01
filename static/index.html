@@ -3839,7 +3839,7 @@
                             <h3 class="text-base sm:text-lg font-black text-slate-900" x-text="t('achievementsTitle', 'הישגים ומסלול התמדה')">הישגים ומסלול התמדה</h3>
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800" x-text="`${unlockedAchievementsCount}/6 ${currentLang === 'en' ? 'Unlocked' : 'נפתחו'}`"></span>
                         </div>
-                        <p class="text-xs text-slate-500 mt-0.5" x-text="t('achievementsSub', 'ציוני דרך קליניים ומדעיים לבניית הרגלי תזונה לחיים')">ציוני דרך קליניים ומדעיים לבניית הרגלי תזונה לחיים</p>
+                        <p class="text-xs text-slate-500 mt-0.5" x-text="t('achievementsSub', 'ציוני דרך והרגלים יומיים לבניית אורח חיים בריא')">ציוני דרך קליניים ומדעיים לבניית הרגלי תזונה לחיים</p>
                     </div>
                 </div>
                 <button type="button" @click="showAchievementsModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
@@ -3854,14 +3854,14 @@
                         <span x-text="currentStreak"></span>
                         <span class="text-base sm:text-lg font-bold opacity-90" x-text="currentLang === 'en' ? 'Days Active' : 'ימים ברצף'">ימים ברצף</span>
                     </div>
-                    <p class="text-xs text-amber-50 max-w-xs sm:max-w-md pt-1" x-text="currentStreak >= 7 ? (currentLang === 'en' ? 'Incredible! 7+ consecutive days rewire your neuro-metabolic pathways.' : 'מדהים! מעל שבוע ברצף מקבע מסלולים נוירו-התנהגותיים להרגל קבוע.') : (currentLang === 'en' ? 'Keep logging each day to maintain momentum and build metabolic awareness.' : 'המשך לתעד מדי יום לבניית מודעות תזונתית ושמירה על המומנטום.')"></p>
+                    <p class="text-xs text-amber-50 max-w-xs sm:max-w-md pt-1" x-text="currentStreak >= 7 ? (currentLang === 'en' ? 'Incredible! 7+ consecutive days rewire your neuro-metabolic pathways.' : 'מדהים! מעל שבוע מלא ברצף — התיעוד הפך לחלק טבעי מהשגרה שלך!') : (currentLang === 'en' ? 'Keep logging each day to maintain momentum and build metabolic awareness.' : 'המשך לתעד מדי יום לבניית מודעות תזונתית ושמירה על המומנטום.')"></p>
                 </div>
                 <div class="text-5xl sm:text-6xl opacity-20 transform rotate-12 select-none">🏆</div>
             </div>
 
             <!-- Milestone Badges Grid -->
             <div class="space-y-3">
-                <div class="text-xs font-black text-slate-500 uppercase tracking-wider" x-text="currentLang === 'en' ? 'Clinical Milestones' : 'ציוני דרך מדעיים'">ציוני דרך מדעיים</div>
+                <div class="text-xs font-black text-slate-500 uppercase tracking-wider" x-text="currentLang === 'en' ? 'Milestones & Habits' : 'ציוני דרך והרגלים'">ציוני דרך מדעיים</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <template x-for="item in achievementsList" :key="item.id">
                         <div class="rounded-2xl p-3.5 border transition-all flex flex-col justify-between"
@@ -5036,7 +5036,7 @@
             streakDays: 'ימים ברצף',
             streakCardTitle: 'פתח הישגים ומסלול התמדה',
             achievementsTitle: 'הישגים ומסלול התמדה',
-            achievementsSub: 'ציוני דרך קליניים ומדעיים לבניית הרגלי תזונה לחיים',
+            achievementsSub: 'ציוני דרך והרגלים יומיים לבניית אורח חיים בריא',
             groceryTitle: 'רשימת קניות לסופר',
             groceryBadge: 'מחולל רשימת קניות AI חכמה',
             groceryHeroSub: 'רשימה מותאמת אישית ליעדים שלך (לפי קלוריות וחלבון) מחולקת למעברי סופרמרקט פרקטיים למניעת פיתויים וחיסכון בזמן.',
@@ -5140,7 +5140,7 @@
             streakDays: 'Days Streak',
             streakCardTitle: 'Open Habits & Milestones',
             achievementsTitle: 'Achievements & Habits Track',
-            achievementsSub: 'Clinical milestones for lifelong sustainable nutrition habits',
+            achievementsSub: 'Key milestones and daily habits for a sustainable healthy lifestyle',
             groceryTitle: 'Smart Grocery List',
             groceryBadge: 'Smart AI Supermarket List Generator',
             groceryHeroSub: 'Tailored to your daily calories and protein goals, categorized by supermarket aisles to save time and prevent cravings.',
@@ -7539,21 +7539,21 @@
                         },
                         {
                             id: 'streak3',
-                            icon: '⚡',
-                            title: 'התמדה מדעית (3 ימים)',
-                            titleEn: '3-Day Consistency',
-                            desc: 'רצף של 3 ימי תיעוד רצופים לביסוס הרגל תזונתי',
-                            descEn: '3 consecutive days of nutrition tracking',
+                            icon: '🌱',
+                            title: 'תחילתו של הרגל (3 ימים)',
+                            titleEn: 'Forming a Habit (3 Days)',
+                            desc: 'רצף יומי של 72 שעות שמקבע את שגרת המעקב',
+                            descEn: '72 hours of consecutive tracking to establish routine',
                             unlocked: streak >= 3,
                             progress: Math.min(100, Math.round((streak / 3) * 100))
                         },
                         {
                             id: 'streak7',
                             icon: '🔥',
-                            title: 'שבוע מטבולי מושלם (7 ימים)',
-                            titleEn: '7-Day Metabolic Champion',
-                            desc: 'שבוע שלם של מעקב קלורי ומודעות תזונתית',
-                            descEn: 'A full week of mindful nutrition logging',
+                            title: 'סוגרים שבוע (7 ימים)',
+                            titleEn: 'Closing a Week (7 Days)',
+                            desc: 'שבוע מלא של מעקב שמוכיח עקביות ונחישות אמיתית',
+                            descEn: 'A full week of tracking proving true consistency',
                             unlocked: streak >= 7,
                             progress: Math.min(100, Math.round((streak / 7) * 100))
                         },
