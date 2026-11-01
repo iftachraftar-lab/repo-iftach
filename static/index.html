@@ -3945,7 +3945,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=47').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=48').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4788,24 +4788,61 @@
                 },
 
                 async confirmAndSaveDetectedMeal() {
-                    if (!this.detectedMealCandidate) return;
+                    if (!this.detectedMealCandidate) {
+                        this.showToast('לא זוהתה מנה לאישור', 'error');
+                        return;
+                    }
                     try {
                         const m = this.detectedMealCandidate;
+                        const desc = m.description || m.name || 'מנה שנסרקה במצלמה';
+                        const cal = Math.round(Number(m.calories) || 0);
+                        const prot = Number(Number(m.protein_g || 0).toFixed(1));
+                        
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                meal_name: m.description,
-                                calories: m.calories,
-                                protein_g: m.protein_g,
-                                carbs: m.carbs_g || 0,
-                                fat: m.fat_g || 0
+                                description: desc,
+                                calories: cal,
+                                protein_g: prot,
+                                log_date: this.selectedDate || this.todayStr
                             })
                         });
-                        if (!res.ok) throw new Error('שגיאה בשמירת המנה ליומן');
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'שגיאה בשמירת המנה ליומן');
+                        }
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
-                        this.showToast(`🎉 נשמר בהצלחה ביומן: ${m.description} (${m.calories} קק״ל)!`);
+                        this.showToast(`🎉 נשמר בהצלחה ביומן: ${desc} (${cal} קק״ל, ${prot}g חלבון)!`);
                         this.resetDetectedCandidate();
+                        this.stopLiveViewfinderCamera();
+                    } catch (e) {
+                        console.error('confirmAndSaveDetectedMeal error:', e);
+                        this.showToast(e.message || 'שגיאה בשמירת המנה', 'error');
+                    }
+                },
+
+                async logBarcodeItemFromViewfinder() {
+                    if (!this.liveDetectedBarcodeItem) return;
+                    try {
+                        const item = this.liveDetectedBarcodeItem;
+                        const desc = item.product_name || 'מוצר ברקוד';
+                        const cal = Math.round(Number(item.calories) || 0);
+                        const prot = Number(Number(item.protein_g || 0).toFixed(1));
+                        const res = await fetch('/api/meals/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                description: desc,
+                                calories: cal,
+                                protein_g: prot,
+                                log_date: this.selectedDate || this.todayStr
+                            })
+                        });
+                        if (!res.ok) throw new Error('שגיאה בשמירת המוצר');
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`✅ ${desc} נשמר בהצלחה ביומן!`);
+                        this.liveDetectedBarcodeItem = null;
                         this.stopLiveViewfinderCamera();
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בשמירה', 'error');
@@ -7700,8 +7737,8 @@
 
         <div class="flex items-center gap-2 pt-1">
             <button type="button" @click="confirmAndSaveDetectedMeal()"
-                    class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/40 cursor-pointer">
-                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                    class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/40 cursor-pointer transition-all">
+                <span class="material-symbols-outlined text-[20px]">check_circle</span>
                 <span>אשר ושמור מנה זו ביומן</span>
             </button>
             <button type="button" @click="resetDetectedCandidate()"
