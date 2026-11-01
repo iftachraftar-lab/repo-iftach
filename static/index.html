@@ -3941,7 +3941,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=50').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=51').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4806,7 +4806,7 @@
                     sessionStorage.setItem(`morning_reminder_dismissed_${todayKey}`, '1');
                 },
 
-                confirmAndSaveDetectedMeal() {
+                async confirmAndSaveDetectedMeal() {
                     if (!this.detectedMealCandidate) {
                         this.showToast('לא זוהתה מנה לאישור', 'error');
                         return;
