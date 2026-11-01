@@ -412,7 +412,7 @@
 
                 <!-- 1. Daily Streak Pill -->
                 <button type="button" @click="showAchievementsModal = true"
-                    class="h-8.5 px-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 text-xs font-black flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
+                    class="h-8 px-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 text-xs font-black flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
                     :title="t('streakTitle', 'רצף יומי והישגים')">
                     <span class="text-sm">🔥</span>
                     <span x-text="currentStreak"></span>
@@ -421,7 +421,7 @@
 
                 <!-- 2. Language Switcher (Hebrew <-> English) -->
                 <button type="button" @click="toggleLanguage()"
-                    class="h-8.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-black flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
+                    class="h-8 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-black flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
                     :title="currentLang === 'he' ? 'Switch to English' : 'עבור לעברית'">
                     <svg class="w-4 h-4 text-emerald-600 flex-shrink-0"><use href="#icon-lang-globe"></use></svg>
                     <span class="font-extrabold uppercase text-[11px]" x-text="currentLang === 'he' ? 'EN' : 'עב'"></span>
@@ -429,7 +429,7 @@
 
                 <!-- 3. Multi-Modal Live Viewfinder Scanner -->
                 <button type="button" @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                    class="h-8.5 px-2.5 sm:px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 shadow-2xs transition cursor-pointer flex-shrink-0"
+                    class="h-8 px-2.5 sm:px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 shadow-2xs transition cursor-pointer flex-shrink-0"
                     title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
                     <span class="material-symbols-outlined text-[16px]">photo_camera</span>
                     <span class="hidden sm:inline">סורק חי</span>
@@ -438,7 +438,7 @@
                 <!-- 4. Install PWA (when available) -->
                 <button x-cloak x-show="canInstallPWA || showIOSInstallButton"
                     type="button" @click="installPWA()"
-                    class="hidden md:flex h-8.5 px-2 sm:px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold items-center gap-1 shadow-2xs transition cursor-pointer flex-shrink-0"
+                    class="hidden md:flex h-8 px-2 sm:px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold items-center gap-1 shadow-2xs transition cursor-pointer flex-shrink-0"
                     title="התקן כאפליקציה למסך הבית">
                     <span class="material-symbols-outlined text-[16px]">install_mobile</span>
                     <span class="hidden md:inline">התקן</span>
@@ -446,7 +446,7 @@
 
                 <!-- 5. Push Notifications -->
                 <button type="button" @click="openPushModal = true; checkPushStatus()"
-                    class="hidden sm:flex h-8.5 px-2 sm:px-2.5 rounded-xl text-xs font-bold items-center gap-1 transition cursor-pointer border shadow-2xs flex-shrink-0"
+                    class="hidden sm:flex h-8 px-2 sm:px-2.5 rounded-xl text-xs font-bold items-center gap-1 transition cursor-pointer border shadow-2xs flex-shrink-0"
                     :class="pushEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'"
                     title="התראות פוש לנייד">
                     <span class="material-symbols-outlined text-[16px]">notifications</span>
@@ -456,7 +456,7 @@
 
                 <!-- 6. Daily Targets -->
                 <button type="button" @click="openTargetModal = true"
-                    class="h-8.5 w-8.5 sm:w-auto sm:px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
+                    class="h-8 w-8 sm:w-auto sm:px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
                     title="הגדרת יעדים יומיים">
                     <svg class="w-3.5 h-3.5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -467,7 +467,7 @@
 
                 <!-- 7. Refresh Button -->
                 <button type="button" @click="refreshAll()"
-                    class="hidden sm:flex h-8.5 w-8.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 items-center justify-center transition cursor-pointer flex-shrink-0 shadow-2xs"
+                    class="hidden sm:flex h-8 w-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 items-center justify-center transition cursor-pointer flex-shrink-0 shadow-2xs"
                     :class="{'animate-spin': refreshing}"
                     title="רענן נתונים">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -477,14 +477,17 @@
 
                 <!-- 8. Google Sign-In / User Profile Pill -->
                 <button type="button" @click="openUserAuthModal()"
-                    class="h-8.5 w-8.5 sm:w-auto sm:px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer border shadow-2xs flex-shrink-0"
+                    class="h-8 w-8 sm:w-auto sm:px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer border shadow-2xs flex-shrink-0 overflow-hidden"
                     :class="currentUser ? 'bg-indigo-50/80 text-indigo-900 border-indigo-200 hover:bg-indigo-100' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'"
                     title="חשבון משתמש והתחברות Google">
                     <template x-if="currentUser && currentUser.picture">
-                        <img :src="currentUser.picture" alt="" class="w-4.5 h-4.5 rounded-full object-cover border border-indigo-200">
+                        <img :src="currentUser.picture" alt=""
+                             class="w-5 h-5 rounded-full object-cover border border-indigo-200 flex-shrink-0"
+                             style="width: 20px; height: 20px; min-width: 20px; min-height: 20px; max-width: 20px; max-height: 20px;">
                     </template>
                     <template x-if="currentUser && !currentUser.picture">
-                        <span class="w-4.5 h-4.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center"
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0"
+                              style="width: 20px; height: 20px; min-width: 20px; min-height: 20px;"
                               x-text="(currentUser.name || currentUser.email || 'U').slice(0,1).toUpperCase()"></span>
                     </template>
                     <template x-if="!currentUser">
@@ -495,7 +498,7 @@
                             <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
                         </svg>
                     </template>
-                    <span class="max-w-[70px] sm:max-w-[95px] truncate" x-text="currentUser ? currentUser.name : 'התחבר'"></span>
+                    <span class="hidden md:inline max-w-[95px] truncate" x-text="currentUser ? currentUser.name : 'התחבר'"></span>
                 </button>
 
             </div>
@@ -4930,7 +4933,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=61').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=62').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
