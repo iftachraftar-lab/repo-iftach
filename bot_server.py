@@ -165,6 +165,32 @@ class RecipeItem(BaseModel):
 class RecipeSuggestionList(BaseModel):
     recipes: List[RecipeItem]
 
+class GroceryItemSchema(BaseModel):
+    name: str = Field(description="שם המוצר כולל כמות משוערת")
+    amount: str = Field(default="", description="כמות או אריזה (למשל: 1 ק״ג, גביע, מארז 6)")
+    note: str = Field(default="", description="דגש תזונתי קצר או מותג מומלץ בסופר")
+
+
+class GroceryAisleSchema(BaseModel):
+    category: str = Field(description="קטגוריית מעבר בסופר: חלבונים ומוצרי חלב / ירקות ופירות / פחמימות מורכבות / שומנים ונשנושים")
+    icon: str = Field(default="🛒", description="אייקון אימוג'י מתאים")
+    items: List[GroceryItemSchema]
+
+
+class GroceryListSchema(BaseModel):
+    title: str = Field(description="כותרת מפורטת ומעודדת לרשימת הקניות")
+    aisles: List[GroceryAisleSchema]
+    tips: List[str] = Field(description="3 טיפים מומלצים לקנייה בריאה בסופר")
+
+
+class GroceryGenerateRequest(BaseModel):
+    target_calories: Optional[int] = 2000
+    target_protein: Optional[float] = 130
+    preferences: Optional[str] = ""
+    days: Optional[int] = 7
+    lang: Optional[str] = "he"
+
+
 
 class ManualMealRequest(BaseModel):
     description: str
@@ -2838,6 +2864,161 @@ def generate_ai_recipes(remaining_cal: int, remaining_prot: float, preference: s
 # ---------------------------------------------------------------------------
 # Curated Israeli High-Protein Recipes
 # ---------------------------------------------------------------------------
+
+
+
+def generate_ai_grocery_list(target_cal: int = 2000, target_prot: float = 130, preference: str = "", days: int = 7, lang: str = "he") -> dict:
+    is_en = (lang or "").lower() == "en"
+
+    fallback_he = {
+        "title": f"רשימת קניות שבועית חכמה ({days} ימים • {target_cal} קק״ל • {round(target_prot)}ג׳ חלבון)",
+        "aisles": [
+            {
+                "category": "חלבונים ומוצרי חלב",
+                "icon": "🥩",
+                "items": [
+                    {"name": "חזה עוף טרי פרוס", "amount": "1.2 ק״ג", "note": "בסיס רזה ועתיר חלבון להקפצה או צלייה", "checked": False},
+                    {"name": "ביצים טריות גודל L", "amount": "תבנית 12/18", "note": "מקור חלבון מלא ועשיר בלוטאין", "checked": False},
+                    {"name": "יוגורט PRO / חלבון 20ג׳", "amount": "6 גביעים", "note": "נשנוש עשיר בחלבון וללא תוספת סוכר", "checked": False},
+                    {"name": "גבינה לבנה / קוטג׳ 5%", "amount": "3 גביעים", "note": "חלבון קזאין משביע לאורך זמן", "checked": False},
+                    {"name": "פילה דג סלמון או אמנון", "amount": "800 גרם", "note": "אומגה 3 וחומצות שומן חיוניות", "checked": False},
+                    {"name": "טונה במים / שמן זית עדין", "amount": "4 קופסאות", "note": "חלבון מהיר ונוח לכל סלט", "checked": False},
+                ]
+            },
+            {
+                "category": "ירקות ופירות טריים",
+                "icon": "🥗",
+                "items": [
+                    {"name": "עגבניות ומלפפונים", "amount": "2 ק״ג", "note": "בסיס לסלט ישראלי טרי עשיר במים ונוגדי חמצון", "checked": False},
+                    {"name": "פלפלים בצבעים שונים", "amount": "1 ק״ג", "note": "עשיר מאוד בוויטמין C", "checked": False},
+                    {"name": "חסה ערבית / לקט עלים", "amount": "2 מארזים", "note": "נפח תזונתי גבוה בקלוריות מינימליות", "checked": False},
+                    {"name": "ברוקולי / כרובית / קישוא", "amount": "1.5 ק״ג", "note": "ירקות ממשפחת המצליבים לשובע ממושך", "checked": False},
+                    {"name": "תפוחים ירוקים / פירות יער", "amount": "1 ק״ג / 2 מארזים", "note": "מדד גליקמי מתון ועשיר בסיבים", "checked": False},
+                ]
+            },
+            {
+                "category": "פחמימות מורכבות ודגנים",
+                "icon": "🌾",
+                "items": [
+                    {"name": "שיבולת שועל עבה / דקה", "amount": "1 ק״ג", "note": "עשירה בבטא-גלוקן לשמירה על כולסטרול ושובע", "checked": False},
+                    {"name": "לחם כוסמין מלא / לחם קל", "amount": "2 כיכרות", "note": "סיבים תזונתיים ודגנים מלאים", "checked": False},
+                    {"name": "אורז בסמטי / קינואה", "amount": "1 ק״ג", "note": "פחמימה נקייה וקלה לעיכול לארוחות צהריים", "checked": False},
+                    {"name": "בטטה או תפוחי אדמה קטנים", "amount": "1.5 ק״ג", "note": "בטא-קרוטן ואשלגן טבעי", "checked": False},
+                ]
+            },
+            {
+                "category": "שומנים בריאים ונשנושים",
+                "icon": "🥑",
+                "items": [
+                    {"name": "שמן זית כתית מעולה", "amount": "בקבוק 750 מ״ל", "note": "חומצה אולאית נוגדת דלקת", "checked": False},
+                    {"name": "טחינה גולמית שומשום מלא", "amount": "צנצנת 500 גרם", "note": "עשירה בסידן, ברזל ושומן בריא", "checked": False},
+                    {"name": "אגוזי מלך ושקדים טבעיים", "amount": "300 גרם", "note": "שומן בריא בלתי רווי למוח וללב", "checked": False},
+                    {"name": "אבוקדו בשל", "amount": "4 יחידות", "note": "סיבים תזונתיים וחומצות שומן חיוניות", "checked": False},
+                ]
+            }
+        ],
+        "tips": [
+            "קנו ירקות במגוון 5 צבעים להבטחת כיסוי של כל סוגי נוגדי החמצון (אנטי-אוקסידנטים).",
+            "בדקו תמיד בטבלת הערכים שאין תוספת סוכר סמוי ביוגורטים ובממרחים.",
+            "סמנו צ'קבוקס על כל פריט במהלך הקנייה כדי לא לקנות דברים מחוץ לתפריט."
+        ]
+    }
+
+    fallback_en = {
+        "title": f"Smart Weekly Grocery List ({days} Days • {target_cal} kcal • {round(target_prot)}g Protein)",
+        "aisles": [
+            {
+                "category": "Proteins & Dairy",
+                "icon": "🥩",
+                "items": [
+                    {"name": "Fresh Chicken Breast", "amount": "1.2 kg", "note": "Lean protein foundation for meals", "checked": False},
+                    {"name": "Large Fresh Eggs", "amount": "Carton of 12-18", "note": "Complete biological value protein", "checked": False},
+                    {"name": "High-Protein Yogurt (20g)", "amount": "6 cups", "note": "Fast post-workout protein snack", "checked": False},
+                    {"name": "Cottage Cheese 5%", "amount": "3 tubs", "note": "Slow-digesting casein protein", "checked": False},
+                    {"name": "Salmon / White Fish Fillets", "amount": "800g", "note": "Rich in Omega-3 fatty acids", "checked": False},
+                    {"name": "Tuna in Water", "amount": "4 cans", "note": "Convenient pantry protein", "checked": False},
+                ]
+            },
+            {
+                "category": "Fresh Produce",
+                "icon": "🥗",
+                "items": [
+                    {"name": "Cucumbers & Tomatoes", "amount": "2 kg", "note": "Hydration, fiber and lycopene", "checked": False},
+                    {"name": "Bell Peppers (Mixed colors)", "amount": "1 kg", "note": "High in natural Vitamin C", "checked": False},
+                    {"name": "Romaine Lettuce & Mixed Greens", "amount": "2 packs", "note": "High volume with minimal calories", "checked": False},
+                    {"name": "Broccoli & Cauliflower", "amount": "1.5 kg", "note": "Cruciferous vegetables for prolonged satiety", "checked": False},
+                    {"name": "Green Apples / Berries", "amount": "1 kg", "note": "Moderate glycemic index and antioxidants", "checked": False},
+                ]
+            },
+            {
+                "category": "Complex Carbs & Grains",
+                "icon": "🌾",
+                "items": [
+                    {"name": "Rolled Oats", "amount": "1 kg", "note": "Beta-glucan fiber for cardiovascular health", "checked": False},
+                    {"name": "100% Spelt / Whole Grain Bread", "amount": "2 loaves", "note": "Complex carbohydrates and dietary fiber", "checked": False},
+                    {"name": "Basmati Rice / Quinoa", "amount": "1 kg", "note": "Clean, easily digestible carb source", "checked": False},
+                    {"name": "Sweet Potatoes", "amount": "1.5 kg", "note": "Beta-carotene and natural potassium", "checked": False},
+                ]
+            },
+            {
+                "category": "Healthy Fats & Snacks",
+                "icon": "🥑",
+                "items": [
+                    {"name": "Extra Virgin Olive Oil", "amount": "750 ml bottle", "note": "Cardioprotective oleic acid", "checked": False},
+                    {"name": "Raw Whole Sesame Tahini", "amount": "500g jar", "note": "Rich in calcium and magnesium", "checked": False},
+                    {"name": "Raw Walnuts & Almonds", "amount": "300g", "note": "Brain health and heart protection", "checked": False},
+                    {"name": "Ripe Avocados", "amount": "4 units", "note": "Monounsaturated fats and potassium", "checked": False},
+                ]
+            }
+        ],
+        "tips": [
+            "Shop from the perimeter of the store first where fresh, whole foods are located.",
+            "Always check nutrition labels for hidden added sugars in condiments and dressings.",
+            "Tick off items on your checklist in real-time to avoid impulse purchases."
+        ]
+    }
+
+    if not ai_client:
+        return fallback_en if is_en else fallback_he
+
+    lang_instruction = "Respond entirely in English." if is_en else "השב בעברית בלבד ובמונחים המוכרים בסופרמרקטים בישראל."
+    pref_text = f"העדפות/הגבלות מיוחדות: {preference}." if preference else "תפריט מאוזן מגוון ופרקטי."
+    prompt = f"""אתה תזונאי קליני מומחה לקניות חכמות ובריאות בסופרמרקט.
+בנה רשימת קניות שבועית חכמה ומדויקת ({days} ימים) המתאימה בדיוק ליעדי המשתמש:
+- יעד קלורי יומי: כ-{target_cal} קק"ל ליום
+- יעד חלבון יומי: כ-{round(target_prot)} גרם חלבון ליום
+- {pref_text}
+- {lang_instruction}
+
+חלק את הרשימה ל-4 מעברים מרכזיים בסופר:
+1. חלבונים ומוצרי חלב (או: Proteins & Dairy)
+2. ירקות ופירות טריים (או: Fresh Produce)
+3. פחמימות מורכבות ודגנים (או: Complex Carbs & Grains)
+4. שומנים בריאים ונשנושים (או: Healthy Fats & Snacks)
+
+לכל מוצר ציין שם ברור, כמות משוערת לשבוע (למשל: 1.2 ק"ג, תבנית 18, 6 גביעים), והערה תזונתית קצרה.
+הוסף גם 3 טיפים קליניים לקנייה חכמה ובריאה בסופר."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=GroceryListSchema,
+                temperature=0.3,
+            ),
+        )
+        parsed = GroceryListSchema.model_validate_json(response.text)
+        res_dict = parsed.model_dump()
+        for aisle in res_dict.get("aisles", []):
+            for itm in aisle.get("items", []):
+                itm["checked"] = False
+        return res_dict
+    except Exception as e:
+        print(f"ERROR generate_ai_grocery_list: {type(e).__name__} - {e}")
+        return fallback_en if is_en else fallback_he
+
 
 CURATED_RECIPES = [
     {
@@ -6352,6 +6533,22 @@ def api_fridge_recipes(req: FridgeRecipeRequest, request: Request):
 @app.get("/api/recipes")
 def api_get_recipes():
     return {"recipes": CURATED_RECIPES}
+
+
+
+
+@app.post("/api/grocery/generate")
+def api_generate_grocery_list(req: GroceryGenerateRequest, request: Request):
+    uid = require_approved_user(request)
+    check_and_increment_ai_quota(uid)
+    result = generate_ai_grocery_list(
+        target_cal=req.target_calories or 2000,
+        target_prot=req.target_protein or 130,
+        preference=req.preferences or "",
+        days=req.days or 7,
+        lang=req.lang or "he",
+    )
+    return result
 
 
 @app.post("/api/recipes/suggest")

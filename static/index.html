@@ -401,6 +401,14 @@
             <!-- Uniform Action Toolbar (All exact height h-8.5 / 34px) -->
             <div class="flex items-center gap-1.5 sm:gap-2">
 
+                <!-- Daily Streak & Achievements Pill -->
+                <button type="button" @click="showAchievementsModal = true"
+                    class="h-8.5 px-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-800 border border-amber-200/80 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                    :title="t('streakTitle', 'רצף יומי והישגים')">
+                    <span class="text-sm">🔥</span>
+                    <span class="font-black text-amber-900" x-text="currentStreak + (currentLang === 'en' ? 'd' : ' ימים')"></span>
+                </button>
+
                 <!-- Language Switcher Button (Hebrew <-> English) -->
                 <button type="button" @click="toggleLanguage()"
                     class="h-8.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/60 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
@@ -504,6 +512,13 @@
                     </div>
 
                     <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" @click="showAchievementsModal = true"
+                                class="px-3 py-1 rounded-full text-xs font-black bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+                                :title="t('streakCardTitle', 'פתח הישגים ומסלול התמדה')">
+                            <span class="text-sm">🔥</span>
+                            <span x-text="currentStreak + ' ' + t('streakDays', 'ימים ברצף')"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        </button>
                         <button type="button" @click="openBmiWizard()"
                                 class="px-3 py-1 rounded-full text-xs font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                                 :title="t('reopenWizard', 'אשף BMI וכיול קלוריות')">
@@ -677,8 +692,8 @@
                 </button>
             </div>
 
-            <!-- Smart Quick Tools Bar: Supermarket Scanner, Fridge AI & Wolt -->
-            <div class="grid grid-cols-3 gap-2">
+            <!-- Smart Quick Tools Bar: Supermarket Scanner, Fridge AI, Wolt & Grocery List -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button type="button" @click="activeEntryMode = (activeEntryMode === 'supermarket' ? 'meal' : 'supermarket')"
                         :class="activeEntryMode === 'supermarket' ? 'bg-amber-500 text-slate-950 font-black border-amber-500 shadow-sm' : 'bg-white hover:bg-amber-50/60 text-slate-700 border-slate-200/80 font-bold'"
                         class="py-2.5 px-2.5 rounded-2xl border text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs">
@@ -695,6 +710,12 @@
                     <svg class="w-4 h-4 text-[#008ba8] flex-shrink-0"><use href="#icon-wolt-delivery"></use></svg>
                     <span x-text="t('woltDishes', 'מנות מ-Wolt ליתרה')">מנות מ-Wolt ליתרה</span>
                 </button>
+                <button type="button" @click="openGroceryListModal()"
+                        class="py-2.5 px-2.5 rounded-2xl bg-white hover:bg-emerald-50/60 text-slate-700 border border-slate-200/80 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs">
+                    <span class="text-sm">🛒</span>
+                    <span x-text="t('groceryTitle', 'רשימת קניות לסופר')">רשימת קניות לסופר</span>
+                </button>
+            
             </div>
 
             <!-- Dedicated Supermarket Scanner Card ("Should I Buy This?") -->
@@ -1874,8 +1895,8 @@
         <!-- =============================================================== -->
         <div x-show="activeTab === 'recipes'" x-cloak x-transition.opacity class="space-y-6">
 
-            <!-- Sub-Mode Switcher: Wolt Delivery vs Home Recipes -->
-            <div class="grid grid-cols-3 gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs">
+            <!-- Sub-Mode Switcher: Wolt Delivery vs Home Recipes vs Grocery Checklist -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs">
                 <button type="button" @click="recipesSubTab = 'wolt'; if (!woltDishes.length) fetchWoltDishes()"
                         :class="recipesSubTab === 'wolt' ? 'bg-sky-500 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
                         class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
@@ -1893,6 +1914,12 @@
                         class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
                     <span>👨‍🍳</span>
                     <span>מתכונים לבית</span>
+                </button>
+                <button type="button" @click="recipesSubTab = 'grocery'; if (!groceryList) initGroceryList()"
+                        :class="recipesSubTab === 'grocery' ? 'bg-emerald-600 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
+                        class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                    <span>🛒</span>
+                    <span x-text="t('groceryTitle', 'רשימת קניות לסופר')">רשימת קניות לסופר</span>
                 </button>
             </div>
 
@@ -2278,6 +2305,176 @@
                 </template>
             </div>
         </div>
+
+            <!-- =========================================================== -->
+            <!-- SUB-TAB GROCERY: SMART AI SUPERMARKET CHECKLIST             -->
+            <!-- =========================================================== -->
+            <div x-show="recipesSubTab === 'grocery'" class="space-y-6">
+                <!-- AI Generator Header Card -->
+                <div class="bg-gradient-to-br from-emerald-900 via-teal-900 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+                    <div class="space-y-1.5">
+                        <div class="inline-flex items-center gap-1.5 text-xs font-extrabold bg-white/15 text-emerald-200 px-3 py-1 rounded-full">
+                            <span>🛒</span>
+                            <span x-text="t('groceryBadge', 'מחולל רשימת קניות AI חכמה')">מחולל רשימת קניות AI חכמה</span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold" x-text="t('groceryTitle', 'רשימת קניות לסופר')">רשימת קניות לסופר</h2>
+                        <p class="text-xs sm:text-sm text-emerald-100" x-text="t('groceryHeroSub', 'רשימה מותאמת אישית ליעדים שלך (לפי קלוריות וחלבון) מחולקת למעברי סופרמרקט פרקטיים למניעת פיתויים וחיסכון בזמן.')">
+                            רשימה מותאמת אישית ליעדים שלך (לפי קלוריות וחלבון) מחולקת למעברי סופרמרקט פרקטיים למניעת פיתויים וחיסכון בזמן.
+                        </p>
+                    </div>
+
+                    <!-- AI Generator Controls -->
+                    <div class="bg-white/10 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/15 space-y-3">
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <input type="text" x-model="groceryPreferences"
+                                   :placeholder="t('groceryPrefPlaceholder', 'העדפות תזונה (למשל: דגש על דגים, טבעוני, ללא לקטוז, דל סוכר...)')"
+                                   class="flex-1 bg-white/90 focus:bg-white text-slate-900 placeholder-slate-400 text-xs sm:text-sm px-4 py-2.5 rounded-xl border-none outline-none font-medium">
+                            <button type="button" @click="generateGroceryList()" :disabled="groceryGenerating"
+                                    class="py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-60 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-md transition cursor-pointer flex-shrink-0">
+                                <span x-show="!groceryGenerating">✨ <span x-text="t('generateGroceryBtn', 'צור רשימת קניות שבועית')">צור רשימת קניות שבועית</span></span>
+                                <span x-show="groceryGenerating" class="flex items-center gap-1.5">
+                                    <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                    <span x-text="t('analyzing', 'מרכיב רשימה ב-AI...')">מרכיב רשימה ב-AI...</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grocery Checklist Content Container -->
+                <div x-show="groceryList && groceryList.aisles" class="space-y-5">
+                    
+                    <!-- Progress & Actions Bar -->
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-black text-slate-900" x-text="groceryList.title || t('groceryTitle', 'רשימת קניות לסופר')"></h3>
+                                <div class="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                                    <span>🛒 <strong class="text-emerald-700" x-text="`${groceryCollectedCount} / ${groceryTotalCount}`"></strong> <span x-text="t('itemsCollected', 'מוצרים נאספו לסל')">מוצרים נאספו לסל</span></span>
+                                    <span class="text-slate-300">•</span>
+                                    <span x-text="groceryTotalCount ? `${Math.round((groceryCollectedCount / groceryTotalCount) * 100)}% הושלם` : ''"></span>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons: WhatsApp & Clear -->
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button type="button" @click="shareGroceryWhatsApp()"
+                                        class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs">
+                                    <span>💬</span>
+                                    <span x-text="t('shareWhatsAppGrocery', 'שתף לוואטסאפ')">שתף לוואטסאפ</span>
+                                </button>
+                                <button type="button" @click="clearCheckedGroceryItems()"
+                                        class="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                                    <span>🧹</span>
+                                    <span x-text="t('clearChecked', 'נקה מסומנים')">נקה מסומנים</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                 :style="`width: ${groceryTotalCount ? Math.round((groceryCollectedCount / groceryTotalCount) * 100) : 0}%`"></div>
+                        </div>
+
+                        <!-- Aisle Filter Tabs -->
+                        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+                            <button type="button" @click="groceryAisleFilter = 'all'"
+                                    :class="groceryAisleFilter === 'all' ? 'bg-slate-900 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-3 py-1 rounded-xl text-xs flex-shrink-0 transition cursor-pointer"
+                                    x-text="t('allAisles', 'הכל')">הכל</button>
+                            <template x-for="aisle in (groceryList.aisles || [])" :key="aisle.category">
+                                <button type="button" @click="groceryAisleFilter = aisle.category"
+                                        :class="groceryAisleFilter === aisle.category ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-3 py-1 rounded-xl text-xs flex-shrink-0 transition flex items-center gap-1 cursor-pointer">
+                                    <span x-text="aisle.icon"></span>
+                                    <span x-text="aisle.category"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Custom Item Adder Form -->
+                    <div class="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-2xs">
+                        <form @submit.prevent="addCustomGroceryItem()" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <input type="text" x-model="groceryCustomName" :placeholder="t('addCustomItemPlaceholder', '+ הוסף מוצר משלך (למשל: חלב שקדים, בננות...)')"
+                                   class="flex-1 bg-slate-50 focus:bg-white text-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none">
+                            <input type="text" x-model="groceryCustomAmount" :placeholder="t('amountPlaceholder', 'כמות (1 ליטר)')"
+                                   class="w-full sm:w-28 bg-slate-50 focus:bg-white text-slate-900 text-xs px-3 py-2.5 rounded-xl border border-slate-200 outline-none">
+                            <select x-model="groceryCustomAisle" class="bg-slate-50 text-slate-700 text-xs px-2.5 py-2.5 rounded-xl border border-slate-200 outline-none">
+                                <template x-for="aisle in (groceryList.aisles || [])" :key="aisle.category">
+                                    <option :value="aisle.category" x-text="aisle.category"></option>
+                                </template>
+                            </select>
+                            <button type="submit" class="py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer flex-shrink-0">
+                                <span>+</span>
+                                <span x-text="t('addItem', 'הוסף')">הוסף</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Aisles & Items List -->
+                    <div class="space-y-4">
+                        <template x-for="(aisle, aIdx) in filteredGroceryAisles" :key="aisle.category">
+                            <div class="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-2xs space-y-3">
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xl" x-text="aisle.icon"></span>
+                                        <h4 class="text-sm font-black text-slate-900" x-text="aisle.category"></h4>
+                                        <span class="text-xs text-slate-400 font-semibold" x-text="`(${(aisle.items || []).filter(i => i.checked).length}/${(aisle.items || []).length})`"></span>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <template x-for="(item, iIdx) in (aisle.items || [])" :key="iIdx">
+                                        <div class="p-3 rounded-2xl border transition-all flex items-start justify-between gap-3 cursor-pointer"
+                                             :class="item.checked ? 'bg-slate-50/80 border-slate-200/60 opacity-60' : 'bg-white hover:bg-slate-50/60 border-slate-200/90 shadow-2xs'"
+                                             @click="toggleGroceryItem(groceryList.aisles.indexOf(aisle), iIdx)">
+                                            
+                                            <div class="flex items-start gap-2.5 min-w-0 flex-1">
+                                                <!-- Checkbox -->
+                                                <div class="w-5 h-5 rounded-lg border-2 mt-0.5 flex items-center justify-center transition-all flex-shrink-0"
+                                                     :class="item.checked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'">
+                                                    <span x-show="item.checked" class="text-xs font-black">✓</span>
+                                                </div>
+
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-baseline gap-1.5 flex-wrap">
+                                                        <span class="text-xs font-black text-slate-900"
+                                                              :class="item.checked ? 'line-through text-slate-400' : ''"
+                                                              x-text="item.name"></span>
+                                                        <span x-show="item.amount" class="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded-md"
+                                                              x-text="item.amount"></span>
+                                                    </div>
+                                                    <p x-show="item.note" class="text-[10px] text-slate-500 mt-0.5 leading-snug line-clamp-1"
+                                                       x-text="item.note"></p>
+                                                </div>
+                                            </div>
+
+                                            <button type="button" @click.stop="removeGroceryItem(groceryList.aisles.indexOf(aisle), iIdx)"
+                                                    class="text-slate-300 hover:text-rose-500 p-1 text-xs cursor-pointer transition">✕</button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Clinical Supermarket Tips -->
+                    <div x-show="groceryList.tips && groceryList.tips.length" class="bg-amber-50/80 rounded-2xl p-4 border border-amber-200/80 space-y-2">
+                        <div class="flex items-center gap-1.5 text-xs font-black text-amber-900">
+                            <span>💡</span>
+                            <span x-text="t('supermarketTipsTitle', 'טיפים קליניים לקנייה חכמה ובריאה בסופר')">טיפים קליניים לקנייה חכמה ובריאה בסופר</span>
+                        </div>
+                        <ul class="text-xs text-amber-900/90 space-y-1.5 list-disc list-inside">
+                            <template x-for="(tip, idx) in groceryList.tips" :key="idx">
+                                <li x-text="tip"></li>
+                            </template>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
 
         <!-- =============================================================== -->
         </div>
@@ -3616,6 +3813,209 @@
     </div>
 
 
+    
+    <!-- =============================================================== -->
+    <!-- STREAKS & SCIENTIFIC MILESTONES GAMIFICATION MODAL               -->
+    <!-- =============================================================== -->
+    <div x-cloak x-show="showAchievementsModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+         @click.self="showAchievementsModal = false">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-6 sm:p-7 space-y-5 border border-slate-100 relative max-h-[92vh] overflow-y-auto" @click.stop>
+            
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center text-2xl shadow-md flex-shrink-0">
+                        🔥
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-base sm:text-lg font-black text-slate-900" x-text="t('achievementsTitle', 'הישגים ומסלול התמדה')">הישגים ומסלול התמדה</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800" x-text="`${unlockedAchievementsCount}/6 ${currentLang === 'en' ? 'Unlocked' : 'נפתחו'}`"></span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5" x-text="t('achievementsSub', 'ציוני דרך קליניים ומדעיים לבניית הרגלי תזונה לחיים')">ציוני דרך קליניים ומדעיים לבניית הרגלי תזונה לחיים</p>
+                    </div>
+                </div>
+                <button type="button" @click="showAchievementsModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
+            </div>
+
+            <!-- Glowing Streak Banner -->
+            <div class="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 rounded-2xl p-4 sm:p-5 text-white shadow-md relative overflow-hidden flex items-center justify-between">
+                <div class="space-y-1 relative z-10">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-amber-100" x-text="currentLang === 'en' ? 'Current Habit Streak' : 'רצף הרגל נוכחי'">רצף הרגל נוכחי</div>
+                    <div class="text-2xl sm:text-3xl font-black flex items-center gap-2">
+                        <span>🔥</span>
+                        <span x-text="currentStreak"></span>
+                        <span class="text-base sm:text-lg font-bold opacity-90" x-text="currentLang === 'en' ? 'Days Active' : 'ימים ברצף'">ימים ברצף</span>
+                    </div>
+                    <p class="text-xs text-amber-50 max-w-xs sm:max-w-md pt-1" x-text="currentStreak >= 7 ? (currentLang === 'en' ? 'Incredible! 7+ consecutive days rewire your neuro-metabolic pathways.' : 'מדהים! מעל שבוע ברצף מקבע מסלולים נוירו-התנהגותיים להרגל קבוע.') : (currentLang === 'en' ? 'Keep logging each day to maintain momentum and build metabolic awareness.' : 'המשך לתעד מדי יום לבניית מודעות תזונתית ושמירה על המומנטום.')"></p>
+                </div>
+                <div class="text-5xl sm:text-6xl opacity-20 transform rotate-12 select-none">🏆</div>
+            </div>
+
+            <!-- Milestone Badges Grid -->
+            <div class="space-y-3">
+                <div class="text-xs font-black text-slate-500 uppercase tracking-wider" x-text="currentLang === 'en' ? 'Clinical Milestones' : 'ציוני דרך מדעיים'">ציוני דרך מדעיים</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <template x-for="item in achievementsList" :key="item.id">
+                        <div class="rounded-2xl p-3.5 border transition-all flex flex-col justify-between"
+                             :class="item.unlocked ? 'bg-emerald-50/60 border-emerald-200/90 shadow-2xs' : 'bg-slate-50/70 border-slate-200/70 opacity-80'">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                                     :class="item.unlocked ? 'bg-white shadow-2xs text-emerald-600 border border-emerald-200' : 'bg-slate-200/60 text-slate-400 grayscale'">
+                                    <span x-text="item.icon"></span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <h4 class="text-xs sm:text-sm font-black text-slate-900 truncate" x-text="currentLang === 'en' ? item.titleEn : item.title"></h4>
+                                        <span x-show="item.unlocked" class="text-emerald-600 text-xs font-black flex items-center gap-0.5">
+                                            <span>✓</span>
+                                            <span class="text-[10px]" x-text="currentLang === 'en' ? 'Done' : 'הושג'"></span>
+                                        </span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-2" x-text="currentLang === 'en' ? item.descEn : item.desc"></p>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="mt-3 pt-2 border-t border-slate-200/40">
+                                <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                    <span x-text="item.unlocked ? (currentLang === 'en' ? 'Completed' : 'הושלם במלואו') : (currentLang === 'en' ? 'Progress' : 'התקדמות')"></span>
+                                    <span x-text="`${item.progress}%`"></span>
+                                </div>
+                                <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all duration-500"
+                                         :class="item.unlocked ? 'bg-emerald-500' : 'bg-amber-500'"
+                                         :style="`width: ${item.progress}%`"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button type="button" @click="showAchievementsModal = false"
+                        class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-2xs">
+                    <span x-text="t('close', 'סגור')">סגור</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =============================================================== -->
+    <!-- SMART GROCERY LIST QUICK MODAL (POPUP ACCESS FROM DOCK)         -->
+    <!-- =============================================================== -->
+    <div x-cloak x-show="showGroceryModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+         @click.self="showGroceryModal = false">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-5 sm:p-6 space-y-4 border border-slate-100 relative max-h-[92vh] overflow-y-auto" @click.stop>
+            
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xl shadow-md flex-shrink-0">
+                        🛒
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900" x-text="t('groceryTitle', 'רשימת קניות לסופר')">רשימת קניות לסופר</h3>
+                        <p class="text-xs text-slate-500 mt-0.5" x-text="t('groceryHeroSub', 'צ'קבוקסים אינטראקטיביים לקנייה חכמה ובריאה לפי מעברים')">צ'קבוקסים אינטראקטיביים לקנייה חכמה ובריאה לפי מעברים</p>
+                    </div>
+                </div>
+                <button type="button" @click="showGroceryModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
+            </div>
+
+            <!-- Quick Action & Generator Bar in Modal -->
+            <div class="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-700">🛒 <span x-text="`${groceryCollectedCount} / ${groceryTotalCount}`"></span> <span x-text="t('itemsCollected', 'נאספו לסל')">נאספו לסל</span></span>
+                    <span class="text-xs font-black text-emerald-700" x-text="groceryTotalCount ? `(${Math.round((groceryCollectedCount / groceryTotalCount) * 100)}%)` : ''"></span>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button type="button" @click="generateGroceryList()" :disabled="groceryGenerating"
+                            class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span x-show="!groceryGenerating">✨ <span x-text="t('generateGroceryBtn', 'צור רשימה חדשה')">צור רשימה חדשה</span></span>
+                        <span x-show="groceryGenerating" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    </button>
+                    <button type="button" @click="shareGroceryWhatsApp()"
+                            class="px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>💬</span>
+                        <span x-text="t('shareWhatsAppGrocery', 'וואטסאפ')">וואטסאפ</span>
+                    </button>
+                    <button type="button" @click="clearCheckedGroceryItems()"
+                            class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-semibold transition cursor-pointer">
+                        <span>🧹</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Item Adder Form in Modal -->
+            <form @submit.prevent="addCustomGroceryItem()" class="flex items-center gap-2">
+                <input type="text" x-model="groceryCustomName" :placeholder="t('addCustomItemPlaceholder', '+ הוסף מוצר משלך לרשימה...')"
+                       class="flex-1 bg-slate-50 focus:bg-white text-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none">
+                <input type="text" x-model="groceryCustomAmount" :placeholder="t('amountPlaceholder', 'כמות')"
+                       class="w-20 bg-slate-50 focus:bg-white text-slate-900 text-xs px-2.5 py-2.5 rounded-xl border border-slate-200 outline-none">
+                <button type="submit" class="py-2.5 px-3 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer">+</button>
+            </form>
+
+            <!-- Aisles Checklist in Modal -->
+            <div x-show="groceryList && groceryList.aisles" class="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                <template x-for="(aisle, aIdx) in (groceryList?.aisles || [])" :key="aisle.category">
+                    <div class="bg-slate-50/70 rounded-2xl p-3.5 border border-slate-200/80 space-y-2">
+                        <div class="flex items-center justify-between border-b border-slate-200/50 pb-1.5">
+                            <div class="flex items-center gap-1.5 font-bold text-xs text-slate-800">
+                                <span x-text="aisle.icon"></span>
+                                <span x-text="aisle.category"></span>
+                            </div>
+                            <span class="text-[11px] text-slate-400" x-text="`(${(aisle.items || []).filter(i => i.checked).length}/${(aisle.items || []).length})`"></span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <template x-for="(item, iIdx) in (aisle.items || [])" :key="iIdx">
+                                <div class="p-2.5 rounded-xl bg-white border transition-all flex items-center justify-between gap-2 cursor-pointer"
+                                     :class="item.checked ? 'opacity-50 border-slate-200 bg-slate-100' : 'border-slate-200/80 shadow-2xs'"
+                                     @click="toggleGroceryItem(aIdx, iIdx)">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                                        <div class="w-4 h-4 rounded border flex items-center justify-center text-[10px] flex-shrink-0"
+                                             :class="item.checked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300'">
+                                            <span x-show="item.checked">✓</span>
+                                        </div>
+                                        <span class="text-xs font-bold text-slate-800 truncate" :class="item.checked ? 'line-through text-slate-400' : ''" x-text="item.name"></span>
+                                        <span x-show="item.amount" class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-1 py-0.2 rounded" x-text="item.amount"></span>
+                                    </div>
+                                    <button type="button" @click.stop="removeGroceryItem(aIdx, iIdx)" class="text-slate-300 hover:text-rose-500 text-xs p-0.5">✕</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="pt-2 flex justify-between items-center border-t border-slate-100">
+                <button type="button" @click="showGroceryModal = false; switchTab('recipes'); recipesSubTab = 'grocery';"
+                        class="text-xs font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer">
+                    <span x-text="t('openFullGroceryTab', 'פתח רשימה במסך מלא ➔')">פתח רשימה במסך מלא ➔</span>
+                </button>
+                <button type="button" @click="showGroceryModal = false"
+                        class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-2xs">
+                    <span x-text="t('close', 'סגור')">סגור</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Edit Meal Modal -->
     <div x-cloak x-show="mealToEdit"
          class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
@@ -4631,7 +5031,27 @@
             currentBmiLabel: 'מדד ה-BMI הנוכחי שלך:',
             nextStep: 'המשך לשלב הבא ➔',
             prevStep: 'חזור',
-            applyToJournal: '🎯 החל יעדים אלו על היומן שלי עכשיו'
+            applyToJournal: '🎯 החל יעדים אלו על היומן שלי עכשיו',
+            streakTitle: 'רצף יומי והישגים',
+            streakDays: 'ימים ברצף',
+            streakCardTitle: 'פתח הישגים ומסלול התמדה',
+            achievementsTitle: 'הישגים ומסלול התמדה',
+            achievementsSub: 'ציוני דרך קליניים ומדעיים לבניית הרגלי תזונה לחיים',
+            groceryTitle: 'רשימת קניות לסופר',
+            groceryBadge: 'מחולל רשימת קניות AI חכמה',
+            groceryHeroSub: 'רשימה מותאמת אישית ליעדים שלך (לפי קלוריות וחלבון) מחולקת למעברי סופרמרקט פרקטיים למניעת פיתויים וחיסכון בזמן.',
+            groceryPrefPlaceholder: 'העדפות תזונה (למשל: דגש על דגים, טבעוני, ללא לקטוז, דל סוכר...)',
+            generateGroceryBtn: 'צור רשימת קניות שבועית',
+            shareWhatsAppGrocery: 'שתף לוואטסאפ',
+            clearChecked: 'נקה מסומנים',
+            addItem: 'הוסף',
+            allAisles: 'הכל',
+            itemsCollected: 'מוצרים בסל',
+            addCustomItemPlaceholder: '+ הוסף מוצר משלך (למשל: חלב שקדים, בננות...)',
+            amountPlaceholder: 'כמות',
+            supermarketTipsTitle: 'טיפים קליניים לקנייה חכמה ובריאה בסופר',
+            openFullGroceryTab: 'פתח רשימה במסך מלא ➔'
+
         },
         en: {
             appName: 'NutriAgent AI',
@@ -4715,7 +5135,27 @@
             currentBmiLabel: 'Your Current BMI:',
             nextStep: 'Next Step ➔',
             prevStep: 'Back',
-            applyToJournal: '🎯 Apply These Targets to My Journal'
+            applyToJournal: '🎯 Apply These Targets to My Journal',
+            streakTitle: 'Daily Streaks & Milestones',
+            streakDays: 'Days Streak',
+            streakCardTitle: 'Open Habits & Milestones',
+            achievementsTitle: 'Achievements & Habits Track',
+            achievementsSub: 'Clinical milestones for lifelong sustainable nutrition habits',
+            groceryTitle: 'Smart Grocery List',
+            groceryBadge: 'Smart AI Supermarket List Generator',
+            groceryHeroSub: 'Tailored to your daily calories and protein goals, categorized by supermarket aisles to save time and prevent cravings.',
+            groceryPrefPlaceholder: 'Dietary preferences (e.g. pescatarian, high protein, lactose free, low sugar...)',
+            generateGroceryBtn: 'Generate Weekly Grocery List',
+            shareWhatsAppGrocery: 'Share via WhatsApp',
+            clearChecked: 'Clear Completed',
+            addItem: 'Add',
+            allAisles: 'All Aisles',
+            itemsCollected: 'items in cart',
+            addCustomItemPlaceholder: '+ Add your own item (e.g. almond milk, bananas...)',
+            amountPlaceholder: 'Amount',
+            supermarketTipsTitle: 'Clinical Tips for Healthy Supermarket Shopping',
+            openFullGroceryTab: 'Open Full Screen List ➔'
+
         }
     };
 
@@ -5984,7 +6424,7 @@
                             })
                         });
                         if (!res.ok) throw new Error('Failed updating targets');
-                        this.showBmiWizard = false;
+                        localStorage.setItem('nutri_bmi_calibrated', 'true'); this.showBmiWizard = false;
                         this.openTargetModal = false;
                         await this.fetchSummary();
                         this.showToast(this.currentLang === 'en' ? `🎯 BMI calibrated targets applied: ${cals} kcal & ${prot}g protein!` : `🎯 יעדי BMI ומאקרו הוחלו בהצלחה: ${cals} קק״ל ו-${prot} גרם חלבון!`);
@@ -6129,6 +6569,16 @@
                 recipePreference: '',
                 generatingRecipes: false,
                 recipesSubTab: 'wolt',
+                showAchievementsModal: false,
+                showGroceryModal: false,
+                groceryList: null,
+                groceryGenerating: false,
+                groceryPreferences: '',
+                groceryAisleFilter: 'all',
+                groceryCustomName: '',
+                groceryCustomAmount: '',
+                groceryCustomAisle: 'חלבונים ומוצרי חלב',
+
                 showLiveViewfinder: false,
                 liveViewfinderCameraStream: null,
                 liveCameraActive: false,
@@ -6577,7 +7027,7 @@
                         this.$refs.liveViewfinderVideo.srcObject = null;
                     }
                     this.liveCameraActive = false;
-                    this.showLiveViewfinder = false;
+                    localStorage.setItem('nutri_scanner_used', 'true'); this.showLiveViewfinder = false;
                 },
 
                 toggleCameraLens() {
@@ -6963,7 +7413,7 @@
                         protein_g: totalP
                     };
                     this.submitManualMeal();
-                    this.showLiveViewfinder = false;
+                    localStorage.setItem('nutri_scanner_used', 'true'); this.showLiveViewfinder = false;
                     this.showToast(`✨ ארוחה מלאה זוהתה ונשמרה: ${totalC} קק״ל ו-${totalP}g חלבון!`);
                 },
 
@@ -7031,7 +7481,284 @@
                     });
                 },
 
+                
+                get currentStreak() {
+                    const activeDates = new Set();
+                    if (this.todayMeals && this.todayMeals.length > 0) {
+                        activeDates.add(new Date().toISOString().slice(0, 10));
+                    }
+                    (this.dailyTrend || []).forEach(d => {
+                        if (Number(d.calories) > 0 || Number(d.meals_count) > 0) {
+                            activeDates.add(d.date);
+                        }
+                    });
+                    (this.allMeals || []).forEach(m => {
+                        if (m.log_date) activeDates.add(m.log_date);
+                    });
+
+                    if (activeDates.size === 0) return 1;
+
+                    const now = new Date();
+                    const fmt = d => d.toISOString().slice(0, 10);
+                    const todayStr = fmt(now);
+
+                    let checkDate = new Date(now);
+                    if (!activeDates.has(todayStr)) {
+                        checkDate.setDate(checkDate.getDate() - 1);
+                    }
+
+                    let streak = 0;
+                    while (activeDates.has(fmt(checkDate))) {
+                        streak++;
+                        checkDate.setDate(checkDate.getDate() - 1);
+                    }
+                    return Math.max(streak, 1);
+                },
+
+                get achievementsList() {
+                    const mealsCount = (this.todayMeals || []).length + (this.allMeals || []).length;
+                    const streak = this.currentStreak;
+                    const isProteinMet = Number(this.summary.total_protein) >= Number(this.summary.target_protein || 1);
+                    const hasUsedScanner = Boolean(
+                        (this.todayMeals || []).some(m => (m.description || '').includes('סורק') || (m.notes || '').includes('סורק') || m.photo_url || m.image_url) ||
+                        (this.allMeals || []).some(m => (m.description || '').includes('סורק') || (m.notes || '').includes('סורק') || m.photo_url || m.image_url) ||
+                        localStorage.getItem('nutri_scanner_used')
+                    );
+                    const isBmiCalibrated = Boolean(localStorage.getItem('nutri_bmi_calibrated'));
+
+                    return [
+                        {
+                            id: 'starter',
+                            icon: '🌱',
+                            title: 'צעד ראשון במסע',
+                            titleEn: 'First Step',
+                            desc: 'תיעוד הארוחה הראשונה שלך באפליקציה',
+                            descEn: 'Log your very first meal in the app',
+                            unlocked: mealsCount > 0,
+                            progress: mealsCount > 0 ? 100 : 0
+                        },
+                        {
+                            id: 'streak3',
+                            icon: '⚡',
+                            title: 'התמדה מדעית (3 ימים)',
+                            titleEn: '3-Day Consistency',
+                            desc: 'רצף של 3 ימי תיעוד רצופים לביסוס הרגל תזונתי',
+                            descEn: '3 consecutive days of nutrition tracking',
+                            unlocked: streak >= 3,
+                            progress: Math.min(100, Math.round((streak / 3) * 100))
+                        },
+                        {
+                            id: 'streak7',
+                            icon: '🔥',
+                            title: 'שבוע מטבולי מושלם (7 ימים)',
+                            titleEn: '7-Day Metabolic Champion',
+                            desc: 'שבוע שלם של מעקב קלורי ומודעות תזונתית',
+                            descEn: 'A full week of mindful nutrition logging',
+                            unlocked: streak >= 7,
+                            progress: Math.min(100, Math.round((streak / 7) * 100))
+                        },
+                        {
+                            id: 'protein',
+                            icon: '🥩',
+                            title: 'מאסטר חלבון יומי',
+                            titleEn: 'Daily Protein Master',
+                            desc: 'הגעה ל-100% מיעד החלבון היומי לשמירה על מסת שריר',
+                            descEn: 'Reach 100% of your daily protein target',
+                            unlocked: isProteinMet,
+                            progress: Math.min(100, Math.round(((Number(this.summary.total_protein) || 0) / (Number(this.summary.target_protein) || 1)) * 100))
+                        },
+                        {
+                            id: 'scanner',
+                            icon: '📸',
+                            title: 'סורק AI מתקדם',
+                            titleEn: 'Vision AI Pioneer',
+                            desc: 'שימוש בסורק המצלמה החי לזיהוי וניתוח צלחת או ברקוד',
+                            descEn: 'Use Live AI camera or scanner to log a meal',
+                            unlocked: hasUsedScanner,
+                            progress: hasUsedScanner ? 100 : 0
+                        },
+                        {
+                            id: 'calibrated',
+                            icon: '⚖️',
+                            title: 'כיול מטבולי אישי',
+                            titleEn: 'Scientifically Calibrated',
+                            desc: 'התאמת יעדים מדויקת באמצעות אשף ה-BMI וחישוב TDEE',
+                            descEn: 'Calibrate your daily targets with the BMI Wizard',
+                            unlocked: isBmiCalibrated,
+                            progress: isBmiCalibrated ? 100 : 0
+                        }
+                    ];
+                },
+
+                get unlockedAchievementsCount() {
+                    return (this.achievementsList || []).filter(a => a.unlocked).length;
+                },
+
+                get groceryTotalCount() {
+                    if (!this.groceryList || !this.groceryList.aisles) return 0;
+                    return this.groceryList.aisles.reduce((acc, a) => acc + (a.items || []).length, 0);
+                },
+
+                get groceryCollectedCount() {
+                    if (!this.groceryList || !this.groceryList.aisles) return 0;
+                    return this.groceryList.aisles.reduce((acc, a) => acc + (a.items || []).filter(i => i.checked).length, 0);
+                },
+
+                get filteredGroceryAisles() {
+                    if (!this.groceryList || !this.groceryList.aisles) return [];
+                    if (this.groceryAisleFilter === 'all') return this.groceryList.aisles;
+                    return this.groceryList.aisles.filter(a => a.category === this.groceryAisleFilter);
+                },
+
+                initGroceryList() {
+                    try {
+                        const saved = localStorage.getItem('nutri_grocery_list');
+                        if (saved) {
+                            this.groceryList = JSON.parse(saved);
+                        } else {
+                            this.generateGroceryList();
+                        }
+                    } catch(e) {
+                        console.error('Error loading grocery list:', e);
+                    }
+                },
+
+                saveGroceryList() {
+                    try {
+                        if (this.groceryList) {
+                            localStorage.setItem('nutri_grocery_list', JSON.stringify(this.groceryList));
+                        }
+                    } catch(e) {
+                        console.error('Error saving grocery list:', e);
+                    }
+                },
+
+                async generateGroceryList() {
+                    this.groceryGenerating = true;
+                    try {
+                        const cal = Math.round(Number(this.summary.target_calories) || 2000);
+                        const prot = Math.round(Number(this.summary.target_protein) || 130);
+                        const res = await fetch('/api/grocery/generate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                target_calories: cal,
+                                target_protein: prot,
+                                preferences: this.groceryPreferences || '',
+                                days: 7,
+                                lang: this.currentLang || 'he'
+                            })
+                        });
+                        if (!res.ok) throw new Error('Failed to generate grocery list');
+                        const data = await res.json();
+                        this.groceryList = data;
+                        this.saveGroceryList();
+                        this.showToast(this.currentLang === 'en' ? '🛒 Smart grocery list generated successfully!' : '🛒 רשימת קניות שבועית חכמה נוצרה בהצלחה!');
+                    } catch(e) {
+                        console.error(e);
+                        this.showToast(this.currentLang === 'en' ? 'Failed generating grocery list' : 'שגיאה ביצירת רשימת קניות', 'error');
+                    } finally {
+                        this.groceryGenerating = false;
+                    }
+                },
+
+                toggleGroceryItem(aisleIdx, itemIdx) {
+                    if (!this.groceryList || !this.groceryList.aisles || !this.groceryList.aisles[aisleIdx]) return;
+                    const itm = this.groceryList.aisles[aisleIdx].items[itemIdx];
+                    if (itm) {
+                        itm.checked = !itm.checked;
+                        this.saveGroceryList();
+                    }
+                },
+
+                addCustomGroceryItem() {
+                    const name = (this.groceryCustomName || '').trim();
+                    if (!name) return;
+                    if (!this.groceryList || !this.groceryList.aisles) {
+                        this.groceryList = {
+                            title: this.currentLang === 'en' ? 'My Custom Grocery List' : 'רשימת קניות אישית לסופר',
+                            aisles: [
+                                { category: this.currentLang === 'en' ? 'Proteins & Dairy' : 'חלבונים ומוצרי חלב', icon: '🥩', items: [] },
+                                { category: this.currentLang === 'en' ? 'Fresh Produce' : 'ירקות ופירות טריים', icon: '🥗', items: [] },
+                                { category: this.currentLang === 'en' ? 'Complex Carbs & Grains' : 'פחמימות מורכבות ודגנים', icon: '🌾', items: [] },
+                                { category: this.currentLang === 'en' ? 'Healthy Fats & Snacks' : 'שומנים בריאים ונשנושים', icon: '🥑', items: [] }
+                            ],
+                            tips: []
+                        };
+                    }
+                    const catName = this.groceryCustomAisle || (this.currentLang === 'en' ? 'Proteins & Dairy' : 'חלבונים ומוצרי חלב');
+                    let targetAisle = this.groceryList.aisles.find(a => a.category === catName);
+                    if (!targetAisle) {
+                        targetAisle = this.groceryList.aisles[0];
+                    }
+                    targetAisle.items.push({
+                        name: name,
+                        amount: (this.groceryCustomAmount || '').trim(),
+                        note: this.currentLang === 'en' ? 'Custom item' : 'פריט שהוספת ידנית',
+                        checked: false
+                    });
+                    this.groceryCustomName = '';
+                    this.groceryCustomAmount = '';
+                    this.saveGroceryList();
+                    this.showToast(this.currentLang === 'en' ? 'Item added to list' : 'מוצר נוסף לרשימה');
+                },
+
+                removeGroceryItem(aisleIdx, itemIdx) {
+                    if (!this.groceryList || !this.groceryList.aisles || !this.groceryList.aisles[aisleIdx]) return;
+                    this.groceryList.aisles[aisleIdx].items.splice(itemIdx, 1);
+                    this.saveGroceryList();
+                },
+
+                clearCheckedGroceryItems() {
+                    if (!this.groceryList || !this.groceryList.aisles) return;
+                    this.groceryList.aisles.forEach(a => {
+                        a.items = (a.items || []).filter(i => !i.checked);
+                    });
+                    this.saveGroceryList();
+                    this.showToast(this.currentLang === 'en' ? 'Checked items cleared' : 'הפריטים שסומנו נוקו בהצלחה');
+                },
+
+                shareGroceryWhatsApp() {
+                    if (!this.groceryList || !this.groceryList.aisles) {
+                        this.showToast(this.currentLang === 'en' ? 'No grocery items to share' : 'אין פריטים ברשימה לשיתוף', 'error');
+                        return;
+                    }
+                    const isEn = this.currentLang === 'en';
+                    let text = isEn ? `🛒 *NutriAgent - Smart Weekly Grocery List* 🛒\n\n` : `🛒 *נוטרי-אייג'נט - רשימת קניות שבועית חכמה* 🛒\n\n`;
+                    
+                    let uncompletedCount = 0;
+                    this.groceryList.aisles.forEach(a => {
+                        const remaining = (a.items || []).filter(i => !i.checked);
+                        if (remaining.length > 0) {
+                            text += `*${a.icon || '▫️'} ${a.category}:*\n`;
+                            remaining.forEach(i => {
+                                uncompletedCount++;
+                                const amt = i.amount ? ` (${i.amount})` : '';
+                                text += `• ${i.name}${amt}\n`;
+                            });
+                            text += `\n`;
+                        }
+                    });
+
+                    if (uncompletedCount === 0) {
+                        this.showToast(isEn ? 'All items are already checked off!' : 'כל המוצרים ברשימה כבר נאספו!', 'info');
+                        return;
+                    }
+
+                    text += isEn ? `_Sent via NutriAgent AI_` : `_נשלח מ-NutriAgent AI_`;
+                    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                    window.open(url, '_blank');
+                },
+
+                openGroceryListModal() {
+                    if (!this.groceryList) {
+                        this.initGroceryList();
+                    }
+                    this.showGroceryModal = true;
+                },
+
                 async init() {
+                    this.initGroceryList();
                     if (this.currentLang === 'en' && window.applyTranslations) {
                         this.$nextTick(() => { window.applyTranslations('en'); });
                     }
