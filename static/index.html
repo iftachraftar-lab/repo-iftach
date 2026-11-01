@@ -504,6 +504,12 @@
                     </div>
 
                     <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" @click="openBmiWizard()"
+                                class="px-3 py-1 rounded-full text-xs font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+                                :title="t('reopenWizard', 'אשף BMI וכיול קלוריות')">
+                            <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0"><use href="#icon-scale-weight"></use></svg>
+                            <span x-text="t('calibrateBmi', 'כייל לפי BMI')">כייל לפי BMI</span>
+                        </button>
                         <span class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs"
                               :class="summary.remaining_calories >= 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'">
                             <span class="w-2 h-2 rounded-full" :class="summary.remaining_calories >= 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500 animate-ping'"></span>
@@ -3164,6 +3170,13 @@
                 <button @click="openTargetModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
+            <!-- Prominent Launch Button for BMI & Metabolic Wizard -->
+            <button type="button" @click="openTargetModal = false; openBmiWizard();"
+                    class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition cursor-pointer">
+                <svg class="w-5 h-5 text-emerald-200"><use href="#icon-scale-weight"></use></svg>
+                <span x-text="t('reopenWizard', '🧙‍♂️ פתח אשף חישוב BMI ויעדים חכם')">🧙‍♂️ פתח אשף חישוב BMI ויעדים חכם</span>
+            </button>
+
             <!-- Mode Switcher: Manual vs Smart Calculator -->
             <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-2xl text-xs font-semibold">
                 <button type="button"
@@ -3254,6 +3267,354 @@
             </form>
         </div>
     </div>
+
+    
+    <!-- =============================================================== -->
+    <!-- COMPREHENSIVE CLINICAL BMI & CALORIE TARGET WIZARD MODAL        -->
+    <!-- =============================================================== -->
+    <div x-cloak x-show="showBmiWizard"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+         @click.self="showBmiWizard = false">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-7 space-y-5 border border-slate-100 relative max-h-[92vh] overflow-y-auto" @click.stop>
+            
+            <!-- Wizard Header -->
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
+                        <svg class="w-6 h-6"><use href="#icon-scale-weight"></use></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900" x-text="t('bmiWizardTitle', 'אשף BMI וכיול יעדים מטבוליים')">אשף BMI וכיול יעדים מטבוליים</h3>
+                        <p class="text-xs text-slate-500 mt-0.5" x-text="t('bmiWizardSub', 'חישוב קליני מבוסס Mifflin-St Jeor להתאמת יעדי קלוריות ומאקרו מדויקים')">חישוב קליני מבוסס Mifflin-St Jeor להתאמת יעדי קלוריות ומאקרו מדויקים</p>
+                    </div>
+                </div>
+                <button type="button" @click="showBmiWizard = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">✕</button>
+            </div>
+
+            <!-- 4-Step Progress Indicator Bar -->
+            <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 px-1">
+                    <span :class="bmiStep >= 1 ? 'text-emerald-700 font-extrabold' : ''">1. <span x-text="t('step1Title', 'מדדים')">מדדים</span></span>
+                    <span :class="bmiStep >= 2 ? 'text-emerald-700 font-extrabold' : ''">2. <span x-text="t('step2Title', 'פעילות')">פעילות</span></span>
+                    <span :class="bmiStep >= 3 ? 'text-emerald-700 font-extrabold' : ''">3. <span x-text="t('step3Title', 'יעד')">יעד</span></span>
+                    <span :class="bmiStep >= 4 ? 'text-emerald-700 font-extrabold' : ''">4. <span x-text="t('step4Title', 'תוצאה')">תוצאה</span></span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-300"
+                         :style="`width: ${(bmiStep / 4) * 100}%`"></div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- STEP 1: PERSONAL BODY METRICS               -->
+            <!-- ========================================== -->
+            <div x-show="bmiStep === 1" x-transition class="space-y-4">
+                <!-- Gender Selector -->
+                <div>
+                    <label class="block text-xs font-extrabold text-slate-700 mb-1.5">מין ביולוגי (משפיע על חילוף החומרים הבסיסי BMR)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" @click="bmiForm.gender = 'male'"
+                                :class="bmiForm.gender === 'male' ? 'bg-emerald-600 text-white font-black border-emerald-600 shadow-sm' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-bold'"
+                                class="py-2.5 px-3 rounded-2xl border text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer">
+                            <span>👨</span> <span x-text="t('genderMale', 'גבר')">גבר</span>
+                        </button>
+                        <button type="button" @click="bmiForm.gender = 'female'"
+                                :class="bmiForm.gender === 'female' ? 'bg-emerald-600 text-white font-black border-emerald-600 shadow-sm' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-bold'"
+                                class="py-2.5 px-3 rounded-2xl border text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer">
+                            <span>👩</span> <span x-text="t('genderFemale', 'אישה')">אישה</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Age, Height, Weight Inputs -->
+                <div class="grid grid-cols-3 gap-2.5">
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 mb-1" x-text="t('ageLabel', 'גיל (שנים)')">גיל (שנים)</label>
+                        <input type="number" min="14" max="100" x-model.number="bmiForm.age"
+                               class="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-sm text-center focus:bg-white focus:border-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 mb-1" x-text="t('heightLabel', 'גובה (ס״מ)')">גובה (ס״מ)</label>
+                        <input type="number" min="120" max="230" x-model.number="bmiForm.height_cm"
+                               class="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-sm text-center focus:bg-white focus:border-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 mb-1" x-text="t('weightLabel', 'משקל (ק״ג)')">משקל (ק״ג)</label>
+                        <input type="number" step="0.1" min="35" max="250" x-model.number="bmiForm.weight_kg"
+                               class="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-sm text-center focus:bg-white focus:border-emerald-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- Real-time Live BMI Preview Box in Step 1 -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <span class="text-[11px] text-slate-500 block font-semibold" x-text="t('currentBmiLabel', 'מדד ה-BMI הנוכחי שלך:')">מדד ה-BMI הנוכחי שלך:</span>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="text-2xl font-black text-slate-900" x-text="currentBmiValue">24.5</span>
+                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border"
+                                  :class="`${currentBmiCategory.bg} ${currentBmiCategory.color} ${currentBmiCategory.border}`"
+                                  x-text="currentLang === 'en' ? currentBmiCategory.labelEn : currentBmiCategory.label"></span>
+                        </div>
+                    </div>
+                    <div class="text-left text-[11px] text-slate-400 font-mono">
+                        BMR: <span class="font-bold text-slate-700" x-text="`${calculatedBmr} kcal`"></span>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end">
+                    <button type="button" @click="bmiStep = 2"
+                            class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-sm transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <span x-text="t('nextStep', 'המשך לשלב הבא ➔')">המשך לשלב הבא ➔</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- STEP 2: ACTIVITY LEVEL                      -->
+            <!-- ========================================== -->
+            <div x-show="bmiStep === 2" x-transition class="space-y-3">
+                <label class="block text-xs font-extrabold text-slate-700 mb-1">בחר את רמת הפעילות השבועית שלך:</label>
+                
+                <div class="space-y-2">
+                    <!-- Option 1: Sedentary -->
+                    <div @click="bmiForm.activity = 1.2"
+                         :class="bmiForm.activity === 1.2 ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-2xs' : 'border border-slate-200 bg-white hover:bg-slate-50'"
+                         class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🛋️</span>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900">יושבני / משרדי</h4>
+                                <p class="text-[11px] text-slate-500">עבודה בישיבה, מעט מאוד פעילות ספורטיבית (TDEE x1.2)</p>
+                            </div>
+                        </div>
+                        <span x-show="bmiForm.activity === 1.2" class="text-emerald-700 font-bold text-lg">✓</span>
+                    </div>
+
+                    <!-- Option 2: Light -->
+                    <div @click="bmiForm.activity = 1.375"
+                         :class="bmiForm.activity === 1.375 ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-2xs' : 'border border-slate-200 bg-white hover:bg-slate-50'"
+                         class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🚶</span>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900">פעילות קלה</h4>
+                                <p class="text-[11px] text-slate-500">1–2 אימונים קלים בשבוע או 7,000 צעדים ביום (TDEE x1.375)</p>
+                            </div>
+                        </div>
+                        <span x-show="bmiForm.activity === 1.375" class="text-emerald-700 font-bold text-lg">✓</span>
+                    </div>
+
+                    <!-- Option 3: Moderate -->
+                    <div @click="bmiForm.activity = 1.55"
+                         :class="bmiForm.activity === 1.55 ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-2xs' : 'border border-slate-200 bg-white hover:bg-slate-50'"
+                         class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🏋️</span>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900">פעיל / כושר קבוע (מומלץ למתאמנים)</h4>
+                                <p class="text-[11px] text-slate-500">3–5 אימוני כוח או אירובי בשבוע (TDEE x1.55)</p>
+                            </div>
+                        </div>
+                        <span x-show="bmiForm.activity === 1.55" class="text-emerald-700 font-bold text-lg">✓</span>
+                    </div>
+
+                    <!-- Option 4: Intense -->
+                    <div @click="bmiForm.activity = 1.725"
+                         :class="bmiForm.activity === 1.725 ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-2xs' : 'border border-slate-200 bg-white hover:bg-slate-50'"
+                         class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">⚡</span>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900">ספורטאי אינטנסיבי</h4>
+                                <p class="text-[11px] text-slate-500">6+ אימונים כבדים בשבוע או עבודה פיזית מאומצת (TDEE x1.725)</p>
+                            </div>
+                        </div>
+                        <span x-show="bmiForm.activity === 1.725" class="text-emerald-700 font-bold text-lg">✓</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex items-center justify-between gap-2">
+                    <button type="button" @click="bmiStep = 1" class="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer" x-text="t('prevStep', 'חזור')">חזור</button>
+                    <button type="button" @click="bmiStep = 3" class="px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer" x-text="t('nextStep', 'המשך לשלב הבא ➔')">המשך לשלב הבא ➔</button>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- STEP 3: METABOLIC GOAL SELECTION            -->
+            <!-- ========================================== -->
+            <div x-show="bmiStep === 3" x-transition class="space-y-3">
+                <label class="block text-xs font-extrabold text-slate-700 mb-1">בחר את היעד המטבולי שלך:</label>
+
+                <div class="space-y-2">
+                    <!-- Goal 1: Cut Moderate -->
+                    <div @click="bmiForm.goal = 'cut_moderate'"
+                         :class="bmiForm.goal === 'cut_moderate' ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-2xs' : 'border border-slate-200 bg-white hover:bg-slate-50'"
+                         class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">📉</span>
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <h4 class="text-xs sm:text-sm font-bold text-slate-900">חיטוב מבוקר (ירידה הדרגתית)</h4>
+                                    <span class="text-[10px] font-black px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">מומלץ</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500">גירעון מתון של כ-400 קק״ל לשמירה מקסימלית על מסת שריר</p>
+                            </div>
+                        </div>
+                        <span x-show="bmiForm.goal === 'cut_moderate'" class="text-emerald-700 font-bold text-lg">✓</span>
+                    </div>
+
+                    <!-- Goal 2: Cut Aggressive -->
+                    <div @click="bmiForm.goal = 'cut_aggressive'"
+                         :class="bmiForm.goal === 'cut_aggressive' ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-2xs' : 'border border-slate-200 bg-white hover:bg-slate-50'"
+                         class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">⚡</span>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900">חיטוב מואץ (גירעון עמוק)</h4>
+                                <p class="text-[11px] text-slate-500">גירעון של 600 קק״ל לירידה מהירה יותר במשקל</p>
+                            </div>
+                        </div>
+                        <span x-show="bmiForm.goal === 'cut_aggressive'" class="text-emerald-700 font-bold text-lg">✓</span>
+                    </div>
+
+                    <!-- Goal 3: Maintenance -->
+                    <div @click="bmiForm.goal = 'maintain'"
+                         :class="bmiForm.goal === 'maintain' ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-2xs' : 'border border-slate-200 bg-white hover:bg-slate-50'"
+                         class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">⚖️</span>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900">שמירה על הקיים ואיזון מטבולי</h4>
+                                <p class="text-[11px] text-slate-500">צריכה שווה להוצאה האנרגטית היומית (0 גירעון)</p>
+                            </div>
+                        </div>
+                        <span x-show="bmiForm.goal === 'maintain'" class="text-emerald-700 font-bold text-lg">✓</span>
+                    </div>
+
+                    <!-- Goal 4: Lean Bulk -->
+                    <div @click="bmiForm.goal = 'bulk'"
+                         :class="bmiForm.goal === 'bulk' ? 'border-2 border-emerald-600 bg-emerald-50/50 shadow-2xs' : 'border border-slate-200 bg-white hover:bg-slate-50'"
+                         class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">💪</span>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900">עלייה נקייה במסת שריר (Lean Bulk)</h4>
+                                <p class="text-[11px] text-slate-500">עודף קלורי מבוקר (+300 קק״ל) עם דגש חלבון גבוה</p>
+                            </div>
+                        </div>
+                        <span x-show="bmiForm.goal === 'bulk'" class="text-emerald-700 font-bold text-lg">✓</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex items-center justify-between gap-2">
+                    <button type="button" @click="bmiStep = 2" class="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer" x-text="t('prevStep', 'חזור')">חזור</button>
+                    <button type="button" @click="bmiStep = 4" class="px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer" x-text="t('nextStep', 'צפה בתוצאות וכיול ➔')">צפה בתוצאות וכיול ➔</button>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- STEP 4: RESULTS, BMI SPECTRUM & CALIBRATION -->
+            <!-- ========================================== -->
+            <div x-show="bmiStep === 4" x-transition class="space-y-4">
+                
+                <!-- Visual BMI Spectrum Bar Gauge -->
+                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-extrabold text-slate-700">מדד מסת הגוף (BMI):</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xl font-black text-slate-900" x-text="currentBmiValue"></span>
+                            <span class="text-xs font-bold px-2 py-0.5 rounded-full border"
+                                  :class="`${currentBmiCategory.bg} ${currentBmiCategory.color} ${currentBmiCategory.border}`"
+                                  x-text="currentLang === 'en' ? currentBmiCategory.labelEn : currentBmiCategory.label"></span>
+                        </div>
+                    </div>
+
+                    <!-- 4-Color Gradient Spectrum Strip -->
+                    <div class="space-y-1">
+                        <div class="h-3 w-full rounded-full bg-gradient-to-r from-blue-400 via-emerald-400 via-amber-400 to-rose-500 relative overflow-hidden"></div>
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-semibold px-0.5">
+                            <span>תת-משקל (&lt;18.5)</span>
+                            <span class="text-emerald-700 font-bold">תקין (18.5-24.9)</span>
+                            <span>עודף (25-29.9)</span>
+                            <span>השמנה (30+)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3 Energy KPIs: BMR, TDEE, Calibrated Target -->
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
+                        <span class="text-[10px] text-slate-500 font-bold block">שריפה במנוחה (BMR)</span>
+                        <span class="text-sm sm:text-base font-black text-slate-800 block mt-0.5" x-text="`${calculatedBmr}`"></span>
+                        <span class="text-[9px] text-slate-400">קק״ל/יום</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
+                        <span class="text-[10px] text-slate-500 font-bold block">הוצאה כוללת (TDEE)</span>
+                        <span class="text-sm sm:text-base font-black text-indigo-700 block mt-0.5" x-text="`${calculatedTdee}`"></span>
+                        <span class="text-[9px] text-slate-400">קק״ל/יום</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-300">
+                        <span class="text-[10px] text-emerald-800 font-bold block">יעד קלורי מכויל</span>
+                        <span class="text-base sm:text-lg font-black text-emerald-950 block mt-0.5" x-text="`${wizardTargetCalories}`"></span>
+                        <span class="text-[9px] text-emerald-700 font-bold">קק״ל מומלץ</span>
+                    </div>
+                </div>
+
+                <!-- 3 Calibrated Macro Cards (Protein, Carbs, Fat) -->
+                <div class="space-y-1.5">
+                    <span class="text-xs font-bold text-slate-700 block px-1">חלוקת מאקרו מדעית מותאמת אישית:</span>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <!-- Protein -->
+                        <div class="p-2.5 rounded-2xl bg-indigo-50/80 border border-indigo-200">
+                            <div class="flex items-center justify-center gap-1 text-[11px] font-black text-indigo-800">
+                                <svg class="w-3.5 h-3.5"><use href="#icon-protein-shaker"></use></svg>
+                                <span>חלבון</span>
+                            </div>
+                            <div class="text-base sm:text-lg font-black text-indigo-950 mt-0.5" x-text="`${wizardTargetProtein}g`"></div>
+                            <span class="text-[9px] text-indigo-600 font-semibold" x-text="`~${Math.round((wizardTargetProtein * 4 / wizardTargetCalories) * 100)}% מסך הקלוריות`"></span>
+                        </div>
+
+                        <!-- Carbs -->
+                        <div class="p-2.5 rounded-2xl bg-amber-50/80 border border-amber-200">
+                            <div class="flex items-center justify-center gap-1 text-[11px] font-black text-amber-800">
+                                <svg class="w-3.5 h-3.5"><use href="#icon-target-goal"></use></svg>
+                                <span>פחמימות</span>
+                            </div>
+                            <div class="text-base sm:text-lg font-black text-amber-950 mt-0.5" x-text="`${wizardTargetCarbs}g`"></div>
+                            <span class="text-[9px] text-amber-700 font-semibold" x-text="`~${Math.round((wizardTargetCarbs * 4 / wizardTargetCalories) * 100)}% מסך הקלוריות`"></span>
+                        </div>
+
+                        <!-- Fats -->
+                        <div class="p-2.5 rounded-2xl bg-teal-50/80 border border-teal-200">
+                            <div class="flex items-center justify-center gap-1 text-[11px] font-black text-teal-800">
+                                <svg class="w-3.5 h-3.5"><use href="#icon-scale-weight"></use></svg>
+                                <span>שומנים</span>
+                            </div>
+                            <div class="text-base sm:text-lg font-black text-teal-950 mt-0.5" x-text="`${wizardTargetFats}g`"></div>
+                            <span class="text-[9px] text-teal-700 font-semibold" x-text="`~${Math.round((wizardTargetFats * 9 / wizardTargetCalories) * 100)}% מסך הקלוריות`"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Big Primary Action: Apply Targets to App -->
+                <div class="pt-2 space-y-2">
+                    <button type="button" @click="applyWizardTargetsToApp()"
+                            class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition cursor-pointer active:scale-98">
+                        <span x-text="t('applyToJournal', '🎯 החל יעדים אלו על היומן שלי עכשיו')">🎯 החל יעדים אלו על היומן שלי עכשיו</span>
+                    </button>
+                    <button type="button" @click="bmiStep = 3" class="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer" x-text="t('prevStep', 'חזור לשינוי יעד')">חזור לשינוי יעד</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
 
     <!-- Edit Meal Modal -->
     <div x-cloak x-show="mealToEdit"
@@ -4093,7 +4454,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=53').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=54').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4187,6 +4548,182 @@
             return `${year}-${month}-${day}`;
         }
 
+    window.APP_I18N = {
+        he: {
+            appName: 'NutriAgent AI',
+            slaActive: 'SLA 99.98% פעיל',
+            tabSummary: 'סיכום יומי',
+            tabHistory: 'היסטוריה ומגמות',
+            tabRecipes: 'מתכונים ו-Wolt',
+            tabAdmin: 'ניהול משתמשים',
+            liveAiScanner: 'סורק חי AI',
+            install: 'התקן',
+            alerts: 'התראות',
+            pushActive: 'פוש פעיל',
+            targets: 'יעדים',
+            refresh: 'רענן',
+            login: 'התחבר',
+            logout: 'התנתק',
+            dailyOverview: 'מבט על יומי',
+            mealsLogged: 'ארוחות שתועדו',
+            metabolicJournal: 'יומן מטבולי וערכים מותאמים',
+            inBudget: 'נותרו {0} קק״ל (בתקציב)',
+            overBudget: 'חריגת יעד: {0} קק״ל',
+            burnedCalories: '{0} קק״ל נשרפו',
+            outOfCalories: 'מתוך {0} קק״ל',
+            protein: 'חלבון',
+            carbs: 'פחמימות',
+            fats: 'שומנים',
+            calories: 'קלוריות',
+            realtimeAIInsight: 'המלצת מנוע AI בזמן אמת',
+            analyzeDay: 'נתח יום',
+            analyzing: 'מנתח...',
+            proteinGoalMet: '🎉 הגעת ליעד החלבון היומי שלך בהצלחה!',
+            openLiveScannerNow: 'פתח סורק חי עכשיו 📸',
+            addMeal: 'הוספת ארוחה (AI / צילום)',
+            logWorkout: 'תיעוד אימון (AI / כושר)',
+            supermarketScanner: 'סורק סופר ("האם לקנות?")',
+            whatsInFridge: 'מה יש לי במקרר?',
+            woltDishes: 'מנות מ-Wolt ליתרה',
+            quickFavorites: 'מנות מועדפות מהירות',
+            todayMealsTitle: 'ארוחות שתועדו היום',
+            noMealsYet: 'טרם תועדו ארוחות להיום. הוסף ארוחה ראשונה!',
+            aiCoachTitle: 'מאמן תזונה ואימונים אישי AI',
+            aiCoachSub: 'ניתוח רפואי ומטבולי של צריכת היום, עמידה ביעדים והמלצות לפעולה',
+            askCoachPlaceholder: 'שאל את המאמן (למשל: מה כדאי לאכול בערב? האם אכלתי מספיק חלבון?)',
+            send: 'שלח',
+            scannerTitle: 'סורק חי NutriAgent AI',
+            barcodeMode: 'סורק ברקוד',
+            mealAiMode: 'זיהוי מנה',
+            labelOcrMode: 'סריקת תווית',
+            cameraLiveFeed: 'מצלמת וידאו חיה פעילה (Live Feed)',
+            switchCamera: 'החלף מצלמה',
+            aimCameraNotice: 'כוון את המצלמה לצלחת או למוצר המזון',
+            tapToScanNotice: 'לחץ על כפתור הצילום הירוק למטה וה-AI יזהה ויחשב את המרכיבים בזמן אמת',
+            geminiAnalyzing: 'Gemini Vision מנתח את הצלחת שלך...',
+            confirmAndSave: 'אשר ושמור מנה זו ביומן',
+            cancel: 'ביטול',
+            save: 'שמור',
+            close: 'סגור',
+            bottomHome: 'ראשי',
+            bottomJournal: 'יומן',
+            bottomRecipes: 'מתכונים',
+            bottomAdmin: 'אדמין',
+            shareWhatsApp: 'שלח סיכום לוואטסאפ',
+            morningReminderTitle: 'בוקר טוב! ☀️',
+            morningReminderSub: 'השעה כבר 10:00 וטרם תועדה ארוחה ראשונה להיום. בוא נשמור על רצף המעקב!',
+            morningCaptureBtn: 'צלם ארוחה עכשיו 📸',
+            morningRemindLater: 'אזכיר לי אחר כך',
+            inputPlaceholder: 'רשום או ספר מה אכלת... (למשל: סנדוויץ חביתה עם ירקות וכוס קפה)',
+            calibrateBmi: 'כייל לפי BMI',
+            reopenWizard: '🧙‍♂️ פתח אשף חישוב BMI ויעדים חכם',
+            bmiWizardTitle: 'אשף BMI וכיול יעדים מטבוליים',
+            bmiWizardSub: 'חישוב קליני מבוסס Mifflin-St Jeor להתאמת יעדי קלוריות ומאקרו מדויקים',
+            step1Title: 'מדדים',
+            step2Title: 'פעילות',
+            step3Title: 'יעד',
+            step4Title: 'תוצאה',
+            genderMale: 'גבר 👨',
+            genderFemale: 'אישה 👩',
+            ageLabel: 'גיל (שנים)',
+            heightLabel: 'גובה (ס״מ)',
+            weightLabel: 'משקל נוכחי (ק״ג)',
+            currentBmiLabel: 'מדד ה-BMI הנוכחי שלך:',
+            nextStep: 'המשך לשלב הבא ➔',
+            prevStep: 'חזור',
+            applyToJournal: '🎯 החל יעדים אלו על היומן שלי עכשיו'
+        },
+        en: {
+            appName: 'NutriAgent AI',
+            slaActive: 'SLA 99.98% Active',
+            tabSummary: 'Daily Summary',
+            tabHistory: 'History & Trends',
+            tabRecipes: 'Recipes & Wolt',
+            tabAdmin: 'User Management',
+            liveAiScanner: 'Live AI Scanner',
+            install: 'Install',
+            alerts: 'Alerts',
+            pushActive: 'Push Active',
+            targets: 'Goals',
+            refresh: 'Refresh',
+            login: 'Sign In',
+            logout: 'Sign Out',
+            dailyOverview: 'Daily Overview',
+            mealsLogged: 'meals logged',
+            metabolicJournal: 'Metabolic Log & Calibrated Macros',
+            inBudget: '{0} kcal left (on budget)',
+            overBudget: 'Over budget: {0} kcal',
+            burnedCalories: '{0} kcal burned',
+            outOfCalories: 'of {0} kcal',
+            protein: 'Protein',
+            carbs: 'Carbs',
+            fats: 'Fats',
+            calories: 'Calories',
+            realtimeAIInsight: 'Real-Time AI Clinical Insight',
+            analyzeDay: 'Analyze Day',
+            analyzing: 'Analyzing...',
+            proteinGoalMet: '🎉 You have hit your daily protein goal!',
+            openLiveScannerNow: 'Open Live Scanner 📸',
+            addMeal: 'Add Meal (AI / Camera)',
+            logWorkout: 'Log Workout (AI / Fitness)',
+            supermarketScanner: 'Supermarket ("Should I Buy?")',
+            whatsInFridge: "What's in my Fridge?",
+            woltDishes: 'Wolt Dishes for Balance',
+            quickFavorites: 'Quick Favorite Meals',
+            todayMealsTitle: "Today's Logged Meals",
+            noMealsYet: 'No meals logged yet today. Add your first meal!',
+            aiCoachTitle: 'Personal AI Nutrition & Fitness Coach',
+            aiCoachSub: 'Clinical metabolic analysis of today\'s intake, targets & next actions',
+            askCoachPlaceholder: 'Ask coach (e.g. what should I eat tonight? did I hit protein?)',
+            send: 'Send',
+            scannerTitle: 'NutriAgent AI Scanner',
+            barcodeMode: 'Barcode Scanner',
+            mealAiMode: 'Meal AI',
+            labelOcrMode: 'Label OCR',
+            cameraLiveFeed: 'Live Video Feed Active',
+            switchCamera: 'Switch Camera',
+            aimCameraNotice: 'Aim camera at plate or food item',
+            tapToScanNotice: 'Tap the green shutter button below for instant AI recognition',
+            geminiAnalyzing: 'Gemini Vision is analyzing your plate...',
+            confirmAndSave: 'Confirm & Save Meal to Journal',
+            cancel: 'Cancel',
+            save: 'Save',
+            close: 'Close',
+            bottomHome: 'Home',
+            bottomJournal: 'Journal',
+            bottomRecipes: 'Recipes',
+            bottomAdmin: 'Admin',
+            shareWhatsApp: 'Send Summary to WhatsApp',
+            morningReminderTitle: 'Good Morning! ☀️',
+            morningReminderSub: "It's past 10:00 AM and no meals logged yet today. Let's keep your streak!",
+            morningCaptureBtn: 'Capture Meal Now 📸',
+            morningRemindLater: 'Remind Me Later',
+            inputPlaceholder: 'Type or speak what you ate... (e.g. 2 eggs, avocado toast and black coffee)',
+            calibrateBmi: 'Calibrate via BMI',
+            reopenWizard: '🧙‍♂️ Open Smart BMI & Targets Wizard',
+            bmiWizardTitle: 'Metabolic BMI & Calorie Target Wizard',
+            bmiWizardSub: 'Clinical Mifflin-St Jeor metabolic calibration for calories and macros',
+            step1Title: 'Metrics',
+            step2Title: 'Activity',
+            step3Title: 'Goal',
+            step4Title: 'Results',
+            genderMale: 'Male 👨',
+            genderFemale: 'Female 👩',
+            ageLabel: 'Age (years)',
+            heightLabel: 'Height (cm)',
+            weightLabel: 'Current Weight (kg)',
+            currentBmiLabel: 'Your Current BMI:',
+            nextStep: 'Next Step ➔',
+            prevStep: 'Back',
+            applyToJournal: '🎯 Apply These Targets to My Journal'
+        }
+    };
+    (function() {
+        var savedLang = localStorage.getItem('nutri_lang') || 'he';
+        document.documentElement.dir = savedLang === 'en' ? 'ltr' : 'rtl';
+        document.documentElement.lang = savedLang;
+    })();
+
         function nutritionApp() {
             const today = getLocalTodayStr();
             const isMob = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
@@ -4218,6 +4755,95 @@
                         return window.APP_I18N[this.currentLang][key];
                     }
                     return fallback !== undefined ? fallback : key;
+                },
+                // BMI & Calorie Target Wizard State
+                showBmiWizard: false,
+                bmiStep: 1,
+                bmiForm: {
+                    gender: 'male',
+                    age: 30,
+                    height_cm: 175,
+                    weight_kg: 78,
+                    activity: 1.55,
+                    goal: 'cut_moderate'
+                },
+                openBmiWizard() {
+                    this.bmiStep = 1;
+                    this.showBmiWizard = true;
+                },
+                get currentBmiValue() {
+                    const hM = (Number(this.bmiForm.height_cm) || 175) / 100;
+                    const w = Number(this.bmiForm.weight_kg) || 75;
+                    return (w / (hM * hM)).toFixed(1);
+                },
+                get currentBmiCategory() {
+                    const bmi = parseFloat(this.currentBmiValue);
+                    if (bmi < 18.5) return { label: 'תת משקל', labelEn: 'Underweight', color: 'text-amber-500', bg: 'bg-amber-100', border: 'border-amber-300' };
+                    if (bmi < 25) return { label: 'משקל תקין ומאוזן', labelEn: 'Normal weight', color: 'text-emerald-700', bg: 'bg-emerald-100', border: 'border-emerald-300' };
+                    if (bmi < 30) return { label: 'משקל עודף', labelEn: 'Overweight', color: 'text-amber-600', bg: 'bg-amber-100', border: 'border-amber-300' };
+                    return { label: 'השמנה', labelEn: 'Obese', color: 'text-rose-600', bg: 'bg-rose-100', border: 'border-rose-300' };
+                },
+                get calculatedBmr() {
+                    const w = Number(this.bmiForm.weight_kg) || 75;
+                    const h = Number(this.bmiForm.height_cm) || 175;
+                    const a = Number(this.bmiForm.age) || 30;
+                    if (this.bmiForm.gender === 'female') {
+                        return Math.round(10 * w + 6.25 * h - 5 * a - 161);
+                    }
+                    return Math.round(10 * w + 6.25 * h - 5 * a + 5);
+                },
+                get calculatedTdee() {
+                    return Math.round(this.calculatedBmr * (Number(this.bmiForm.activity) || 1.375));
+                },
+                get wizardTargetCalories() {
+                    const tdee = this.calculatedTdee;
+                    if (this.bmiForm.goal === 'cut_aggressive') return Math.max(1200, tdee - 600);
+                    if (this.bmiForm.goal === 'cut_moderate') return Math.max(1200, tdee - 400);
+                    if (this.bmiForm.goal === 'bulk') return tdee + 300;
+                    return tdee;
+                },
+                get wizardTargetProtein() {
+                    const w = Number(this.bmiForm.weight_kg) || 75;
+                    if (this.bmiForm.goal === 'cut_aggressive' || this.bmiForm.goal === 'cut_moderate') {
+                        return Math.round(w * 2.0);
+                    }
+                    if (this.bmiForm.goal === 'bulk') {
+                        return Math.round(w * 2.2);
+                    }
+                    return Math.round(w * 1.8);
+                },
+                get wizardTargetCarbs() {
+                    const cals = this.wizardTargetCalories;
+                    const protCals = this.wizardTargetProtein * 4;
+                    const fatCals = this.wizardTargetFats * 9;
+                    return Math.max(50, Math.round((cals - protCals - fatCals) / 4));
+                },
+                get wizardTargetFats() {
+                    const w = Number(this.bmiForm.weight_kg) || 75;
+                    return Math.round(w * 0.9);
+                },
+                async applyWizardTargetsToApp() {
+                    const cals = this.wizardTargetCalories;
+                    const prot = this.wizardTargetProtein;
+                    this.targetForm.calories = cals;
+                    this.targetForm.protein = prot;
+                    try {
+                        const res = await fetch('/api/targets', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                target_calories: cals,
+                                target_protein: prot
+                            })
+                        });
+                        if (!res.ok) throw new Error('Failed updating targets');
+                        this.showBmiWizard = false;
+                        this.openTargetModal = false;
+                        await this.fetchSummary();
+                        this.showToast(this.currentLang === 'en' ? `🎯 BMI calibrated targets applied: ${cals} kcal & ${prot}g protein!` : `🎯 יעדי BMI ומאקרו הוחלו בהצלחה: ${cals} קק״ל ו-${prot} גרם חלבון!`);
+                    } catch(e) {
+                        this.showToast(this.currentLang === 'en' ? 'Failed applying targets' : 'שגיאה בעדכון יעדים', 'error');
+                    }
                 },
                 activeTab: 'summary',
                 todayStr: today,
