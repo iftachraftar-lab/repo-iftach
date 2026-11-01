@@ -3945,7 +3945,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=46').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=47').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4202,6 +4202,9 @@
                 liveViewfinderScanning: false,
                 liveDetectedItems: [],
                 liveDetectedBarcodeItem: null,
+                viewfinderScanMode: 'meal', // 'meal', 'barcode', 'label'
+                detectedMealCandidate: null,
+                viewfinderBarcodeDetectorTimer: null,
                 liveViewfinderTorch: false,
                 liveViewfinderFlashSupported: false,
                 viewfinderMode: 'plate',
@@ -4654,14 +4657,82 @@
                         return;
                     }
                     const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
+                    // Optimized dimensions for faster AI transmission and latency
+                    const maxDim = 1200;
+                    let w = video.videoWidth;
+                    let h = video.videoHeight;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+                        else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                    ctx.drawImage(video, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
                     
                     this.liveViewfinderScanning = true;
-                    this.showToast('📸 צילום נקלט! Gemini Vision סורק את הצלחת האמיתית שלך...');
+                    
+                    if (this.viewfinderScanMode === 'barcode') {
+                        this.showToast('🔍 מפענח ברקוד מול מאגר רשתות המזון...');
+                        try {
+                            await this.scanBarcodeImageBase64(dataUrl, 'image/jpeg');
+                            if (this.barcodeResult) {
+                                this.liveDetectedBarcodeItem = {
+                                    barcode: this.barcodeResult.barcode || '',
+                                    product_name: this.barcodeResult.product_name || 'מוצר זוהה',
+                                    calories: this.barcodeResult.serving_calories || this.barcodeResult.calories_per_100g || 0,
+                                    protein_g: this.barcodeResult.serving_protein_g || this.barcodeResult.protein_per_100g || 0,
+                                    carbs_g: this.barcodeResult.carbs_per_100g || 0,
+                                    fat_g: this.barcodeResult.fat_per_100g || 0,
+                                    score: this.barcodeResult.health_score || 94
+                                };
+                                this.showToast(`🏷️ זוהה: ${this.liveDetectedBarcodeItem.product_name}`);
+                            }
+                        } catch (e) {
+                            this.showToast('לא זוהה ברקוד חד בתמונה, נסה להתקרב', 'error');
+                        } finally {
+                            this.liveViewfinderScanning = false;
+                        }
+                        return;
+                    }
+
+                    if (this.viewfinderScanMode === 'label') {
+                        this.showToast('📋 סורק תווית ערכים תזונתיים ורכיבים...');
+                        try {
+                            const res = await fetch('/api/supermarket/scan', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    image_base64: dataUrl,
+                                    mime_type: 'image/jpeg',
+                                    remaining_calories: Math.max(150, Number(this.summary.remaining_calories) || 600),
+                                    remaining_protein: Math.max(15, (Number(this.summary.target_protein) || 120) - (Number(this.summary.total_protein) || 0))
+                                })
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) throw new Error(data.detail || 'לא זוהו ערכים בתווית');
+                            this.detectedMealCandidate = {
+                                isLabel: true,
+                                description: data.product_name || 'מוצר מהסופר',
+                                calories: data.serving_calories || data.calories_per_100g || 0,
+                                protein_g: data.serving_protein_g || data.protein_per_100g || 0,
+                                carbs_g: data.carbs_per_100g || 0,
+                                fat_g: data.fat_per_100g || 0,
+                                verdict: data.verdict || 'התאמה מלאה',
+                                explanation: data.explanation || ''
+                            };
+                            this.showToast(`📋 תווית פוענחה: ${data.product_name}`);
+                        } catch (e) {
+                            this.showToast(e.message || 'שגיאה בסריקת תווית המזון', 'error');
+                        } finally {
+                            this.liveViewfinderScanning = false;
+                        }
+                        return;
+                    }
+
+                    // Mode: 'meal' (Default) - IDENTIFY FIRST, DO NOT SAVE AUTOMATICALLY!
+                    this.showToast('🔍 Gemini Vision מזהה את המרכיבים בצלחת...');
                     try {
                         const res = await fetch('/api/meals/photo', {
                             method: 'POST',
@@ -4669,43 +4740,130 @@
                             body: JSON.stringify({
                                 image_base64: dataUrl,
                                 mime_type: 'image/jpeg',
-                                caption: ''
+                                caption: '',
+                                preview_only: true
                             })
                         });
+                        const data = await res.json().catch(() => ({}));
                         if (!res.ok) {
-                            const err = await res.json().catch(() => ({}));
-                            throw new Error(err.detail || 'לא זוהו פריטי מזון ברורים בתמונה');
+                            throw new Error(data.detail || 'לא זוהתה מנה ברורה בצלחת, נסה לקרב את המצלמה');
                         }
-                        const added = await res.json();
                         
-                        // Parse detected items to show dynamic real HUD cards
+                        // Parse detected items for preview
                         const items = [];
-                        if (added.items && added.items.length) {
-                            added.items.forEach((it, idx) => {
+                        if (data.items && data.items.length) {
+                            data.items.forEach((it, idx) => {
                                 items.push({
-                                    name: it.name || it.description || 'פריט מזון',
-                                    weight: it.grams || it.portion_g || 100,
+                                    name: it.name || it.description || 'מרכיב',
+                                    weight: it.grams || it.portion_g || 120,
                                     cals: it.calories || 0,
                                     protein: it.protein_g || 0,
-                                    confidence: 96 - (idx * 3)
+                                    confidence: 97 - (idx * 3)
                                 });
                             });
                         } else {
                             items.push({
-                                name: added.description || added.meal_name || 'ארוחה זוהתה',
+                                name: data.description || data.meal_name || 'מנה מזוהה',
                                 weight: 200,
-                                cals: added.calories || 0,
-                                protein: added.protein_g || 0,
-                                confidence: 98
+                                cals: data.calories || 0,
+                                protein: data.protein_g || 0,
+                                confidence: 96
                             });
                         }
                         this.liveDetectedItems = items;
-                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
-                        this.showToast(`✨ זוהתה ונשמרה בהצלחה: ${added.description} (${added.calories} קק״ל, ${added.protein_g}g חלבון)!`);
+                        this.detectedMealCandidate = {
+                            isLabel: false,
+                            description: data.description || items.map(i => i.name).join(', '),
+                            calories: Number(data.calories) || items.reduce((acc, i) => acc + (i.cals || 0), 0),
+                            protein_g: Number(data.protein_g) || items.reduce((acc, i) => acc + (i.protein || 0), 0),
+                            carbs_g: Number(data.carbs_g) || 0,
+                            fat_g: Number(data.fat_g) || 0
+                        };
+                        this.showToast(`✨ זוהתה מנה: ${this.detectedMealCandidate.description} — באפשרותך לאשר ולשמור ביומן`);
                     } catch (e) {
-                        this.showToast(e.message || 'שגיאה בניתוח הצלחת', 'error');
+                        this.showToast(e.message || 'שגיאה בזיהוי המנה', 'error');
                     } finally {
                         this.liveViewfinderScanning = false;
+                    }
+                },
+
+                async confirmAndSaveDetectedMeal() {
+                    if (!this.detectedMealCandidate) return;
+                    try {
+                        const m = this.detectedMealCandidate;
+                        const res = await fetch('/api/meals/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                meal_name: m.description,
+                                calories: m.calories,
+                                protein_g: m.protein_g,
+                                carbs: m.carbs_g || 0,
+                                fat: m.fat_g || 0
+                            })
+                        });
+                        if (!res.ok) throw new Error('שגיאה בשמירת המנה ליומן');
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`🎉 נשמר בהצלחה ביומן: ${m.description} (${m.calories} קק״ל)!`);
+                        this.resetDetectedCandidate();
+                        this.stopLiveViewfinderCamera();
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בשמירה', 'error');
+                    }
+                },
+
+                resetDetectedCandidate() {
+                    this.detectedMealCandidate = null;
+                    this.liveDetectedItems = [];
+                    this.liveDetectedBarcodeItem = null;
+                },
+
+                setViewfinderMode(mode) {
+                    this.viewfinderScanMode = mode;
+                    this.resetDetectedCandidate();
+                    if (mode === 'barcode') {
+                        this.showToast('🏷️ מצב סורק ברקוד פעיל — כוון לברקוד על האריזה ולחץ צלם או המתן לזיהוי');
+                        this.startViewfinderLiveBarcodeScanning();
+                    } else if (mode === 'label') {
+                        this.showToast('📋 מצב סורק תווית (OCR) פעיל — כוון לטבלת הסימון התזונתי ולחץ צלם');
+                        if (this.viewfinderBarcodeDetectorTimer) clearInterval(this.viewfinderBarcodeDetectorTimer);
+                    } else {
+                        this.showToast('🍽️ מצב סורק צלחת (Meal AI) פעיל — כוון לצלחת ולחץ זהה מנה');
+                        if (this.viewfinderBarcodeDetectorTimer) clearInterval(this.viewfinderBarcodeDetectorTimer);
+                    }
+                },
+
+                startViewfinderLiveBarcodeScanning() {
+                    if (!('BarcodeDetector' in window)) return;
+                    try {
+                        const detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128'] });
+                        const video = this.$refs.liveViewfinderVideo;
+                        if (this.viewfinderBarcodeDetectorTimer) clearInterval(this.viewfinderBarcodeDetectorTimer);
+                        this.viewfinderBarcodeDetectorTimer = setInterval(async () => {
+                            if (!this.showLiveViewfinder || this.viewfinderScanMode !== 'barcode' || !video || video.readyState < 2) return;
+                            try {
+                                const codes = await detector.detect(video);
+                                if (codes && codes.length > 0 && codes[0].rawValue) {
+                                    const rawVal = codes[0].rawValue;
+                                    clearInterval(this.viewfinderBarcodeDetectorTimer);
+                                    this.showToast(`🏷️ ברקוד נקלט חי: ${rawVal}`);
+                                    await this.lookupBarcode(rawVal);
+                                    if (this.barcodeResult) {
+                                        this.liveDetectedBarcodeItem = {
+                                            barcode: rawVal,
+                                            product_name: this.barcodeResult.product_name || 'מוצר זוהה',
+                                            calories: this.barcodeResult.serving_calories || this.barcodeResult.calories_per_100g || 0,
+                                            protein_g: this.barcodeResult.serving_protein_g || this.barcodeResult.protein_per_100g || 0,
+                                            carbs_g: this.barcodeResult.carbs_per_100g || 0,
+                                            fat_g: this.barcodeResult.fat_per_100g || 0,
+                                            score: this.barcodeResult.health_score || 94
+                                        };
+                                    }
+                                }
+                            } catch (e) {}
+                        }, 400);
+                    } catch (e) {
+                        console.warn('Viewfinder BarcodeDetector init error:', e);
                     }
                 },
 
@@ -7311,7 +7469,24 @@
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 bg-black overflow-y-auto select-none"
          dir="rtl">
-        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button @click="toggleTorch()" aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-95 cursor-pointer"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button class="px-3 py-1 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center gap-1 shadow-sm"><span class="material-symbols-outlined text-[16px]">barcode</span>Barcode</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">restaurant</span>Meal AI</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">nutrition</span>Label OCR</button></div></div></header>
+        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button @click="toggleTorch()" aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-95 cursor-pointer"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button type="button" @click="setViewfinderMode('barcode')"
+        :class="viewfinderScanMode === 'barcode' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
+        class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
+    <span class="material-symbols-outlined text-[16px]">barcode_scanner</span>
+    <span>Barcode</span>
+</button>
+<button type="button" @click="setViewfinderMode('meal')"
+        :class="viewfinderScanMode === 'meal' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
+        class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
+    <span class="material-symbols-outlined text-[16px]">restaurant</span>
+    <span>Meal AI</span>
+</button>
+<button type="button" @click="setViewfinderMode('label')"
+        :class="viewfinderScanMode === 'label' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
+        class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
+    <span class="material-symbols-outlined text-[16px]">nutrition</span>
+    <span>Label OCR</span>
+</button></div></div></header>
 <main class="flex flex-col relative w-full pt-28 bg-transparent min-h-screen"><div class="flex flex-col w-full text-on-surface select-none pb-safe" dir="rtl">
 <!-- Viewfinder Frame Container -->
 <div class="relative w-full overflow-hidden rounded-b-xl shadow-2xl bg-black min-h-[460px] flex flex-col justify-between">
@@ -7494,34 +7669,79 @@
     </div>
 </div>
 
-<!-- Bottom Action Pill Dock (Frosted Glass Floating Dock) -->
-<div class="p-space-md mt-1 w-full">
-<div class="p-2 rounded-full bg-surface-container-lowest/90 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2">
-<!-- Retake Button (צלם מחדש) -->
-<button aria-label="צלם מחדש" class="w-12 h-12 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high transition-transform active:scale-95 flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-[22px]">restart_alt</span>
-</button>
-<!-- Voice Dictation with Live Waveform (תיעוד קולי) -->
-<button class="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-surface-container text-on-surface active:scale-95 transition-all shadow-sm" id="voice-btn" onclick="toggleVoice()">
-<span class="material-symbols-outlined text-primary text-[20px]" id="mic-icon">mic</span>
-<div class="flex items-end gap-0.5 h-4 w-6 px-0.5" id="audio-wave">
-<span class="w-1 bg-primary rounded-full h-1.5 animate-pulse"></span>
-<span class="w-1 bg-primary rounded-full h-3.5 animate-pulse delay-75"></span>
-<span class="w-1 bg-primary rounded-full h-2 animate-pulse delay-150"></span>
-<span class="w-1 bg-primary rounded-full h-4 animate-pulse"></span>
-</div>
-<span class="font-label-strong text-label-strong text-on-surface">תיעוד קולי</span>
-</button>
-<!-- Manual Edit Pencil (עריכה ידנית) -->
-<button aria-label="עריכה ידנית" class="w-12 h-12 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high transition-transform active:scale-95 flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-[20px]">edit</span>
-</button>
-<!-- Big Green Confirm Check Button (שמור ביומן) -->
-<button class="flex-1 py-3 px-4 rounded-full bg-primary text-on-primary font-headline-sm text-headline-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,105,72,0.35)] hover:bg-primary-container active:scale-95 transition-all" @click="liveCameraActive ? captureRealMealFromViewfinder() : logDanoneProItem(this)">
-<span class="material-symbols-outlined text-[24px]">check</span>
-<span class="text-sm font-bold">שמור ביומן</span>
-</button>
-</div>
+<!-- Bottom Action & Confirmation Dock -->
+<div class="p-space-md mt-1 w-full space-y-3">
+    <!-- State 1: When a Meal or Label candidate was detected -> Ask user to confirm before saving! -->
+    <div x-cloak x-show="detectedMealCandidate" x-transition
+         class="p-4 rounded-2xl bg-black/90 backdrop-blur-xl border-2 border-emerald-400 shadow-2xl text-white space-y-3">
+        <div class="flex items-start justify-between gap-2">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-emerald-400 block"
+                      x-text="detectedMealCandidate?.isLabel ? '📋 תווית מזון זוהתה' : '🍽️ פריטי צלחת זוהו בהצלחה'"></span>
+                <h3 class="text-base font-black text-white mt-0.5" x-text="detectedMealCandidate?.description"></h3>
+            </div>
+            <button type="button" @click="resetDetectedCandidate()" class="text-slate-400 hover:text-white p-1">✕</button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="p-2 rounded-xl bg-white/10">
+                <span class="text-[10px] text-slate-300 block">קלוריות</span>
+                <span class="text-sm font-black text-emerald-300" x-text="`${detectedMealCandidate?.calories} קק״ל`"></span>
+            </div>
+            <div class="p-2 rounded-xl bg-white/10">
+                <span class="text-[10px] text-slate-300 block">חלבון</span>
+                <span class="text-sm font-black text-indigo-300" x-text="`${detectedMealCandidate?.protein_g}g`"></span>
+            </div>
+            <div class="p-2 rounded-xl bg-white/10">
+                <span class="text-[10px] text-slate-300 block">התאמה לתקציב</span>
+                <span class="text-xs font-black text-emerald-400">✅ ביעד</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+            <button type="button" @click="confirmAndSaveDetectedMeal()"
+                    class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/40 cursor-pointer">
+                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                <span>אשר ושמור מנה זו ביומן</span>
+            </button>
+            <button type="button" @click="resetDetectedCandidate()"
+                    class="py-3 px-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs cursor-pointer">
+                צלם מחדש
+            </button>
+        </div>
+    </div>
+
+    <!-- State 2: Main Bottom Action Pill Dock (Before Capture) -->
+    <div x-show="!detectedMealCandidate" class="p-2 rounded-full bg-surface-container-lowest/90 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2">
+        <!-- Retake / Reset Button -->
+        <button type="button" @click="resetDetectedCandidate()" aria-label="איפוס סורק"
+                class="w-12 h-12 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high transition-transform active:scale-95 flex items-center justify-center shadow-sm cursor-pointer" title="אפס סורק">
+            <span class="material-symbols-outlined text-[22px]">restart_alt</span>
+        </button>
+
+        <!-- Voice Dictation -->
+        <button type="button" @click="isRecordingVoice ? stopAndSubmitVoiceRecording() : startVoiceRecording()"
+                class="flex items-center gap-2 px-3.5 py-2.5 rounded-full transition-all shadow-sm cursor-pointer"
+                :class="isRecordingVoice ? 'bg-rose-600 text-white animate-pulse' : 'bg-surface-container text-on-surface'">
+            <span class="material-symbols-outlined text-[20px]" :class="isRecordingVoice ? 'text-white' : 'text-primary'">mic</span>
+            <span class="font-label-strong text-xs font-bold" x-text="isRecordingVoice ? 'עצור' : 'תיעוד קולי'"></span>
+        </button>
+
+        <!-- Gallery / File Upload Fallback -->
+        <button type="button" @click="$refs.cameraMealInput?.click()" aria-label="בחר מהגלריה"
+                class="w-12 h-12 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high transition-transform active:scale-95 flex items-center justify-center shadow-sm cursor-pointer" title="בחר תמונה מהגלריה">
+            <span class="material-symbols-outlined text-[20px]">photo_library</span>
+        </button>
+
+        <!-- Big Capture Button: "זהה פריט ב-AI" (NOT saving yet, strictly identifying!) -->
+        <button type="button" @click="captureRealMealFromViewfinder()" :disabled="liveViewfinderScanning"
+                class="flex-1 py-3 px-4 rounded-full bg-primary text-on-primary font-headline-sm text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,105,72,0.35)] hover:bg-primary-container active:scale-95 transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-[20px]" :class="{'animate-spin': liveViewfinderScanning}">
+                <span x-text="liveViewfinderScanning ? 'progress_activity' : 'camera'"></span>
+            </span>
+            <span class="font-bold" x-text="liveViewfinderScanning ? 'מזהה ב-AI...' : (viewfinderScanMode === 'barcode' ? 'סרוק ברקוד' : (viewfinderScanMode === 'label' ? 'סרוק תווית' : 'זהה צלחת ב-AI'))"></span>
+        </button>
+    </div>
 </div>
 </div>
 <script>

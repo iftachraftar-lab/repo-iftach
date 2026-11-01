@@ -184,6 +184,7 @@ class PhotoMealRequest(BaseModel):
     mime_type: str = "image/jpeg"
     caption: Optional[str] = ""
     log_date: Optional[str] = None
+    preview_only: Optional[bool] = False
 
 
 class VoiceMealRequest(BaseModel):
@@ -4407,6 +4408,19 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
         raise HTTPException(status_code=422, detail="לא זוהו אוכל, משקה או תווית מזון בתמונה")
 
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
+    if req.preview_only:
+        # Return detected meal analysis without saving to Firestore yet!
+        return {
+            "status": "preview",
+            "description": extraction.summary,
+            "calories": extraction.calories,
+            "protein_g": extraction.protein_g,
+            "carbs_g": getattr(extraction, 'carbs_g', 0) or 0,
+            "fat_g": getattr(extraction, 'fat_g', 0) or 0,
+            "items": items_data,
+            "is_meal": True
+        }
+
     entry = log_meal_db(
         description=extraction.summary,
         calories=extraction.calories,
