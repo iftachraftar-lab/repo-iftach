@@ -79,6 +79,142 @@
     </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col" :class="currentUser ? 'pb-24 md:pb-8' : ''" x-data="nutritionApp()" x-init="init()">
+    <!-- =============================================================== -->
+    <!-- STITCH CLINICAL DUOTONE SVG ICON SPRITE (30 ICONS + LANG GLOBE)  -->
+    <!-- =============================================================== -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+      <defs>
+        <!-- 1. Barcode Scanner -->
+        <symbol id="icon-barcode-scanner" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="16" rx="2" width="18" x="3" y="4"></rect>
+          <path d="M7 8V16M10 8V16M14 8V16M17 8V16" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+        </symbol>
+        <!-- 2. Meal Camera -->
+        <symbol id="icon-meal-camera" viewBox="0 0 24 24">
+          <path d="M4 7C4 5.89543 4.89543 5 6 5H8L10 3H14L16 5H18C19.1046 5 20 5.89543 20 7V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V7Z" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="2"></path>
+          <circle cx="12" cy="13" r="3" stroke="currentColor" stroke-width="2"></circle>
+        </symbol>
+        <!-- 3. Supermarket Cart -->
+        <symbol id="icon-supermarket-cart" viewBox="0 0 24 24">
+          <path d="M3 3H5L6.68 14.39C6.77 14.99 7.29 15.43 7.9 15.43H18.4C19 15.43 19.5 15 19.6 14.4L21 7H6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+          <path d="M6 7H21L19.6 14.4H7.9L6 7Z" fill="currentColor" fill-opacity="0.15"></path>
+          <circle cx="9" cy="19" fill="currentColor" r="1.5"></circle>
+          <circle cx="17" cy="19" fill="currentColor" r="1.5"></circle>
+        </symbol>
+        <!-- 4. Fridge Chef -->
+        <symbol id="icon-fridge-chef" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="18" rx="2" stroke="currentColor" stroke-width="2" width="14" x="5" y="3"></rect>
+          <line stroke="currentColor" stroke-width="2" x1="5" x2="19" y1="10" y2="10"></line>
+          <line stroke="currentColor" stroke-linecap="round" stroke-width="2" x1="8" x2="8" y1="6" y2="8"></line>
+          <line stroke="currentColor" stroke-linecap="round" stroke-width="2" x1="8" x2="8" y1="13" y2="16"></line>
+        </symbol>
+        <!-- 5. Protein Shaker -->
+        <symbol id="icon-protein-shaker" viewBox="0 0 24 24">
+          <path d="M7 6L8 20C8 20.55 8.45 21 9 21H15C15.55 21 16 20.55 16 20L17 6H7Z" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="2"></path>
+          <path d="M6 3H18V6H6V3Z" stroke="currentColor" stroke-width="2"></path>
+          <line stroke="currentColor" stroke-linecap="round" stroke-width="2" x1="10" x2="14" y1="12" y2="12"></line>
+        </symbol>
+        <!-- 6. Calorie Fire -->
+        <symbol id="icon-calorie-fire" viewBox="0 0 24 24">
+          <path d="M12 2C12 2 16 6 16 11C16 15.4183 12.4183 19 8 19C7 19 6 18.5 5 18C5 18 6 15 8 13C10 11 10 9 10 9C10 9 12 7 12 2Z" fill="currentColor" fill-opacity="0.15"></path>
+          <path d="M12 2C12 7 8 9 8 13C8 17 11 20 16 20C19.5 20 21 16.5 21 13C21 8.5 17 5 12 2Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+        </symbol>
+        <!-- 7. Workout Dumbbell -->
+        <symbol id="icon-workout-dumbbell" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="6" rx="1" stroke="currentColor" stroke-width="2" width="3" x="2" y="9"></rect>
+          <rect fill="currentColor" fill-opacity="0.15" height="6" rx="1" stroke="currentColor" stroke-width="2" width="3" x="19" y="9"></rect>
+          <line stroke="currentColor" stroke-linecap="round" stroke-width="2" x1="5" x2="19" y1="12" y2="12"></line>
+          <rect height="10" rx="0.5" stroke="currentColor" stroke-width="1.5" width="2" x="5" y="7"></rect>
+          <rect height="10" rx="0.5" stroke="currentColor" stroke-width="1.5" width="2" x="17" y="7"></rect>
+        </symbol>
+        <!-- 8. Scale Weight -->
+        <symbol id="icon-scale-weight" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="16" rx="3" stroke="currentColor" stroke-width="2" width="18" x="3" y="4"></rect>
+          <path d="M12 9V12M12 12L14 10" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"></circle>
+        </symbol>
+        <!-- 9. Target Goal -->
+        <symbol id="icon-target-goal" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" fill="currentColor" fill-opacity="0.15" r="9" stroke="currentColor" stroke-width="2"></circle>
+          <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"></circle>
+          <circle cx="12" cy="12" fill="currentColor" r="1.5"></circle>
+        </symbol>
+        <!-- 10. Weekly Chart -->
+        <symbol id="icon-weekly-chart" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="18" rx="2" width="18" x="3" y="3"></rect>
+          <path d="M7 16L10 12L13 14L17 8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+        </symbol>
+        <!-- 11. Timeline Journal -->
+        <symbol id="icon-timeline-journal" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="16" rx="2" stroke="currentColor" stroke-width="2" width="16" x="4" y="4"></rect>
+          <line stroke="currentColor" stroke-linecap="round" stroke-width="2" x1="8" x2="16" y1="9" y2="9"></line>
+          <line stroke="currentColor" stroke-linecap="round" stroke-width="2" x1="8" x2="13" y1="13" y2="13"></line>
+        </symbol>
+        <!-- 12. Clock History -->
+        <symbol id="icon-clock-history" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" fill="currentColor" fill-opacity="0.15" r="9" stroke="currentColor" stroke-width="2"></circle>
+          <polyline points="12 7 12 12 15 15" stroke="currentColor" stroke-linecap="round" stroke-width="2"></polyline>
+        </symbol>
+        <!-- 13. AI Coach -->
+        <symbol id="icon-ai-coach" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="12" rx="3" stroke="currentColor" stroke-width="2" width="16" x="4" y="6"></rect>
+          <circle cx="9" cy="12" fill="currentColor" r="1.5"></circle>
+          <circle cx="15" cy="12" fill="currentColor" r="1.5"></circle>
+          <line stroke="currentColor" stroke-width="2" x1="12" x2="12" y1="2" y2="6"></line>
+        </symbol>
+        <!-- 14. Voice Mic -->
+        <symbol id="icon-voice-mic" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="11" rx="3" stroke="currentColor" stroke-width="2" width="6" x="9" y="3"></rect>
+          <path d="M5 10C5 13.87 8.13 17 12 17C15.87 17 19 10 19 10" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+          <line stroke="currentColor" stroke-width="2" x1="12" x2="12" y1="17" y2="21"></line>
+        </symbol>
+        <!-- 15. WhatsApp Share -->
+        <symbol id="icon-whatsapp-share" viewBox="0 0 24 24">
+          <path d="M21 11.5C21.0039 13.1634 20.5517 14.7937 19.69 16.22L20.89 20.61L16.36 19.42C14.9785 20.218 13.4042 20.6385 11.8 20.64C6.83 20.64 2.8 16.55 2.8 11.5C2.8 6.45 6.83 2.36 11.8 2.36C16.77 2.36 21 6.45 21 11.5Z" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="2"></path>
+        </symbol>
+        <!-- 16. User Profile -->
+        <symbol id="icon-user-profile" viewBox="0 0 24 24">
+          <circle cx="12" cy="7" fill="currentColor" fill-opacity="0.15" r="4" stroke="currentColor" stroke-width="2"></circle>
+          <path d="M4 21C4 17.5 7.5 15 12 15C16.5 15 20 17.5 20 21" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+        </symbol>
+        <!-- 17. Admin Shield -->
+        <symbol id="icon-admin-shield" viewBox="0 0 24 24">
+          <path d="M12 2L4 5.5V11.5C4 16.5 7.5 21 12 22C16.5 21 20 16.5 20 11.5V5.5L12 2Z" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="2"></path>
+          <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+        </symbol>
+        <!-- 18. Wolt Delivery -->
+        <symbol id="icon-wolt-delivery" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="12" rx="2" stroke="currentColor" stroke-width="2" width="14" x="5" y="7"></rect>
+          <circle cx="8" cy="19" fill="currentColor" r="2"></circle>
+          <circle cx="16" cy="19" fill="currentColor" r="2"></circle>
+          <path d="M5 11H19M12 7V4" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+        </symbol>
+        <!-- 19. Wolt Dish -->
+        <symbol id="icon-wolt-dish" viewBox="0 0 24 24">
+          <path d="M3 17C3 13.6863 5.68629 11 9 11H15C18.3137 11 21 13.6863 21 17H3Z" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="2"></path>
+          <line stroke="currentColor" stroke-linecap="round" stroke-width="2" x1="2" x2="22" y1="19" y2="19"></line>
+          <circle cx="12" cy="8" fill="currentColor" r="1.5"></circle>
+        </symbol>
+        <!-- 20. Quota Meter -->
+        <symbol id="icon-quota-meter" viewBox="0 0 24 24">
+          <path d="M4 17C4 12.5817 7.58172 9 12 9C16.4183 9 20 12.5817 20 17" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+          <line stroke="currentColor" stroke-linecap="round" stroke-width="2" x1="12" x2="15" y1="15" y2="11"></line>
+          <circle cx="12" cy="17" fill="currentColor" r="2"></circle>
+        </symbol>
+        <!-- 21. Language Globe (Translation Toggle) -->
+        <symbol id="icon-lang-globe" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="2"></circle>
+          <path d="M3.6 9h16.8M3.6 15h16.8M12 3a14 14 0 0 0 0 18M12 3a14 14 0 0 1 0 18" stroke="currentColor" stroke-width="1.8"></path>
+        </symbol>
+        <!-- 22. Gallery Image -->
+        <symbol id="icon-gallery-image" viewBox="0 0 24 24">
+          <rect fill="currentColor" fill-opacity="0.15" height="18" rx="2" stroke="currentColor" stroke-width="2" width="18" x="3" y="3"></rect>
+          <circle cx="8.5" cy="8.5" fill="currentColor" r="1.5"></circle>
+          <path d="M21 15L16 10L5 21" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+        </symbol>
+      </defs>
+    </svg>
+
 
     <!-- =============================================================== -->
     <!-- FULL-SCREEN GOOGLE LOGIN GATE (SHOWN BEFORE AUTHENTICATION)     -->
@@ -238,28 +374,40 @@
                 <button @click="switchTab('summary')"
                     :class="activeTab === 'summary' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900 font-medium'"
                     class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[16px] text-emerald-700">dashboard</span> סיכום יומי
+                    <svg class="w-4 h-4 text-emerald-700 flex-shrink-0"><use href="#icon-timeline-journal"></use></svg>
+                    <span x-text="t('tabSummary', 'סיכום יומי')">סיכום יומי</span>
                 </button>
                 <button @click="switchTab('history')"
                     :class="activeTab === 'history' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900 font-medium'"
                     class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[16px] text-emerald-700">history_edu</span> היסטוריה ומגמות
+                    <svg class="w-4 h-4 text-emerald-700 flex-shrink-0"><use href="#icon-weekly-chart"></use></svg>
+                    <span x-text="t('tabHistory', 'היסטוריה ומגמות')">היסטוריה ומגמות</span>
                 </button>
                 <button @click="switchTab('recipes')"
                     :class="activeTab === 'recipes' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900 font-medium'"
                     class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[16px] text-emerald-700">restaurant_menu</span> מתכונים ו-Wolt
+                    <svg class="w-4 h-4 text-emerald-700 flex-shrink-0"><use href="#icon-wolt-dish"></use></svg>
+                    <span x-text="t('tabRecipes', 'מתכונים ו-Wolt')">מתכונים ו-Wolt</span>
                 </button>
                 <button x-cloak x-show="currentUser && currentUser.is_admin"
                     @click="switchTab('admin')"
                     :class="activeTab === 'admin' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-indigo-700 hover:bg-indigo-50 font-semibold'"
                     class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[16px]">admin_panel_settings</span> ניהול משתמשים
+                    <svg class="w-4 h-4 text-white flex-shrink-0"><use href="#icon-admin-shield"></use></svg>
+                    <span x-text="t('tabAdmin', 'ניהול משתמשים')">ניהול משתמשים</span>
                 </button>
             </nav>
 
             <!-- Uniform Action Toolbar (All exact height h-8.5 / 34px) -->
             <div class="flex items-center gap-1.5 sm:gap-2">
+
+                <!-- Language Switcher Button (Hebrew <-> English) -->
+                <button type="button" @click="toggleLanguage()"
+                    class="h-8.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/60 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                    :title="currentLang === 'he' ? 'Switch to English' : 'עבור לעברית'">
+                    <svg class="w-4 h-4 text-emerald-600 flex-shrink-0"><use href="#icon-lang-globe"></use></svg>
+                    <span class="font-extrabold uppercase text-[11px]" x-text="currentLang === 'he' ? 'EN' : 'עב'"></span>
+                </button>
 
                 <!-- Multi-Modal Live Viewfinder Header Button -->
                 <button @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
@@ -412,7 +560,10 @@
                             <!-- Card 1: Protein -->
                             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                                 <div>
-                                    <span class="text-xs font-black text-indigo-700 block mb-0.5">חלבון</span>
+                                    <div class="flex items-center justify-center gap-1 text-xs font-black text-indigo-700 mb-0.5">
+                                        <svg class="w-3.5 h-3.5"><use href="#icon-protein-shaker"></use></svg>
+                                        <span x-text="t('protein', 'חלבון')">חלבון</span>
+                                    </div>
                                     <div class="text-lg sm:text-xl font-black text-slate-900">
                                         <span x-text="summary.total_protein.toFixed(0)">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="summary.target_protein">120</span>g</span>
                                     </div>
@@ -425,7 +576,10 @@
                             <!-- Card 2: Carbs -->
                             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                                 <div>
-                                    <span class="text-xs font-black text-amber-700 block mb-0.5">פחמימות</span>
+                                    <div class="flex items-center justify-center gap-1 text-xs font-black text-amber-700 mb-0.5">
+                                        <svg class="w-3.5 h-3.5"><use href="#icon-target-goal"></use></svg>
+                                        <span x-text="t('carbs', 'פחמימות')">פחמימות</span>
+                                    </div>
                                     <div class="text-lg sm:text-xl font-black text-slate-900">
                                         <span x-text="totalCarbs">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="targetCarbs">200</span>g</span>
                                     </div>
@@ -438,7 +592,10 @@
                             <!-- Card 3: Fats -->
                             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                                 <div>
-                                    <span class="text-xs font-black text-teal-700 block mb-0.5">שומנים</span>
+                                    <div class="flex items-center justify-center gap-1 text-xs font-black text-teal-700 mb-0.5">
+                                        <svg class="w-3.5 h-3.5"><use href="#icon-scale-weight"></use></svg>
+                                        <span x-text="t('fats', 'שומנים')">שומנים</span>
+                                    </div>
                                     <div class="text-lg sm:text-xl font-black text-slate-900">
                                         <span x-text="totalFats">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="targetFats">60</span>g</span>
                                     </div>
@@ -503,14 +660,14 @@
                 <button type="button" @click="activeEntryMode = 'meal'"
                         :class="activeEntryMode === 'meal' ? 'bg-emerald-600 text-white font-black shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-semibold'"
                         class="flex-1 py-3 px-3 sm:px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
-                    <span class="material-symbols-outlined text-[20px]">restaurant</span>
-                    <span>הוספת ארוחה (AI / צילום)</span>
+                    <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-meal-camera"></use></svg>
+                    <span x-text="t('addMeal', 'הוספת ארוחה (AI / צילום)')">הוספת ארוחה (AI / צילום)</span>
                 </button>
                 <button type="button" @click="activeEntryMode = 'workout'"
                         :class="activeEntryMode === 'workout' ? 'bg-indigo-600 text-white font-black shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-semibold'"
                         class="flex-1 py-3 px-3 sm:px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
-                    <span class="material-symbols-outlined text-[20px]">fitness_center</span>
-                    <span>תיעוד אימון (AI / Google Fit)</span>
+                    <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-workout-dumbbell"></use></svg>
+                    <span x-text="t('logWorkout', 'תיעוד אימון (AI / כושר)')">תיעוד אימון (AI / כושר)</span>
                 </button>
             </div>
 
@@ -519,18 +676,18 @@
                 <button type="button" @click="activeEntryMode = (activeEntryMode === 'supermarket' ? 'meal' : 'supermarket')"
                         :class="activeEntryMode === 'supermarket' ? 'bg-amber-500 text-slate-950 font-black border-amber-500 shadow-sm' : 'bg-white hover:bg-amber-50/60 text-slate-700 border-slate-200/80 font-bold'"
                         class="py-2.5 px-2.5 rounded-2xl border text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs">
-                    <span class="material-symbols-outlined text-[16px] text-amber-800">shopping_cart</span>
-                    <span>סורק סופר ("האם לקנות?")</span>
+                    <svg class="w-4 h-4 text-amber-800 flex-shrink-0"><use href="#icon-supermarket-cart"></use></svg>
+                    <span x-text="t('supermarketScanner', 'סורק סופר ("האם לקנות?")')">סורק סופר ("האם לקנות?")</span>
                 </button>
                 <button type="button" @click="switchTab('recipes'); recipesSubTab = 'fridge'"
                         class="py-2.5 px-2.5 rounded-2xl bg-white hover:bg-indigo-50/60 text-slate-700 border border-slate-200/80 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs">
-                    <span class="material-symbols-outlined text-[16px] text-indigo-700">kitchen</span>
-                    <span>מה יש לי במקרר?</span>
+                    <svg class="w-4 h-4 text-indigo-700 flex-shrink-0"><use href="#icon-fridge-chef"></use></svg>
+                    <span x-text="t('whatsInFridge', 'מה יש לי במקרר?')">מה יש לי במקרר?</span>
                 </button>
                 <button type="button" @click="switchTab('recipes'); recipesSubTab = 'wolt'; fetchWoltDishes()"
                         class="py-2.5 px-2.5 rounded-2xl bg-white hover:bg-[#00c2e8]/10 text-slate-700 border border-slate-200/80 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs">
-                    <span class="material-symbols-outlined text-[16px] text-[#008ba8]">delivery_dining</span>
-                    <span>מנות מ-Wolt ליתרה</span>
+                    <svg class="w-4 h-4 text-[#008ba8] flex-shrink-0"><use href="#icon-wolt-delivery"></use></svg>
+                    <span x-text="t('woltDishes', 'מנות מ-Wolt ליתרה')">מנות מ-Wolt ליתרה</span>
                 </button>
             </div>
 
@@ -842,16 +999,16 @@
                                     :disabled="aiAnalyzing"
                                     :class="isRecordingVoice ? 'bg-rose-600 text-white border-rose-600 animate-pulse' : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200 text-indigo-800'"
                                     class="px-3 sm:px-3.5 py-3.5 rounded-2xl border font-semibold text-xs sm:text-sm flex items-center gap-1.5 flex-shrink-0 transition cursor-pointer"
-                                    title="הקלט דיווח קולי בעברית">
-                                <span class="text-base">🎙️</span>
-                                <span class="hidden sm:inline" x-text="isRecordingVoice ? 'עצור' : 'קולי'"></span>
+                                    :title="t('recordVoice', 'הקלטה קולית')">
+                                <svg class="w-4.5 h-4.5 flex-shrink-0"><use href="#icon-voice-mic"></use></svg>
+                                <span class="hidden sm:inline" x-text="isRecordingVoice ? (currentLang === 'en' ? 'Stop' : 'עצור') : (currentLang === 'en' ? 'Voice' : 'קולי')"></span>
                             </button>
 
                             <!-- Mobile Native Camera Button (opens phone rear camera directly) -->
                             <label x-show="isMobileDevice"
                                    :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : ' cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'"
                                    class="px-3 sm:px-3.5 py-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-emerald-800 font-semibold text-xs sm:text-sm flex items-center gap-1.5 flex-shrink-0 transition"
-                                   title="צלם מנה או תווית במצלמת הטלפון">
+                                   :title="t('takePhoto', 'צלם ארוחה')">
                                 <input type="file"
                                        accept="image/*"
                                        capture="environment"
@@ -859,8 +1016,8 @@
                                        @change="handlePhotoSelect($event, true)"
                                        :disabled="aiAnalyzing"
                                        class="sr-only">
-                                <span class="text-base">📷</span>
-                                <span>צלם</span>
+                                <svg class="w-4.5 h-4.5 flex-shrink-0"><use href="#icon-meal-camera"></use></svg>
+                                <span x-text="currentLang === 'en' ? 'Photo' : 'צלם'">צלם</span>
                             </label>
 
                             <!-- Desktop Live Camera Button (opens webcam modal or fallback file picker) -->
@@ -869,9 +1026,9 @@
                                     @click="openLiveCamera()"
                                     :disabled="aiAnalyzing"
                                     class="px-3.5 py-3.5 rounded-2xl bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-xs sm:text-sm flex items-center gap-1.5 flex-shrink-0 transition cursor-pointer"
-                                    title="צלם במצלמה">
-                                <span class="text-base">📷</span>
-                                <span class="hidden sm:inline">מצלמה</span>
+                                    :title="t('takePhoto', 'צלם במצלמה')">
+                                <svg class="w-4.5 h-4.5 flex-shrink-0"><use href="#icon-meal-camera"></use></svg>
+                                <span class="hidden sm:inline" x-text="currentLang === 'en' ? 'Camera' : 'מצלמה'">מצלמה</span>
                             </button>
 
                             <!-- Barcode Scanner Button (opens live barcode scanner + Israeli database lookup) -->
@@ -879,28 +1036,23 @@
                                     @click="openBarcodeScannerModal()"
                                     :disabled="aiAnalyzing"
                                     class="px-3 sm:px-3.5 py-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-semibold text-xs sm:text-sm flex items-center gap-1.5 flex-shrink-0 transition cursor-pointer"
-                                    title="סרוק ברקוד של מוצר ישראלי או בינלאומי">
-                                <svg class="w-4 h-4 sm:w-5 sm:h-5 text-amber-800 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                                    <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m10 0h2a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" fill-opacity="0.16"/>
-                                    <path d="M8 8.5v7M11 8.5v7M13 8.5v7M16 8.5v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                                    <line x1="4" y1="12" x2="20" y2="12" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/>
-                                </svg>
-                                <span class="hidden sm:inline">ברקוד</span>
+                                    :title="t('barcodeMode', 'סריקת ברקוד')">
+                                <svg class="w-4.5 h-4.5 text-amber-800 flex-shrink-0"><use href="#icon-barcode-scanner"></use></svg>
+                                <span class="hidden sm:inline" x-text="currentLang === 'en' ? 'Barcode' : 'ברקוד'">ברקוד</span>
                             </button>
 
                             <!-- Gallery / File Picker Button (works on both Mobile & Desktop) -->
                             <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-200/70'"
                                    class="px-3 py-3.5 rounded-2xl bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs sm:text-sm flex items-center gap-1.5 flex-shrink-0 transition"
-                                   title="בחר תמונה מהגלריה או מהמחשב">
+                                   :title="t('uploadGallery', 'העלאה מגלריה')">
                                 <input type="file"
                                        accept="image/*"
                                        x-ref="photoInput"
                                        @change="handlePhotoSelect($event, true)"
                                        :disabled="aiAnalyzing"
                                        class="sr-only">
-                                <span class="text-base">🖼️</span>
-                                <span class="hidden sm:inline">גלריה</span>
+                                <svg class="w-4.5 h-4.5 flex-shrink-0"><use href="#icon-gallery-image"></use></svg>
+                                <span class="hidden sm:inline" x-text="currentLang === 'en' ? 'Gallery' : 'גלריה'">גלריה</span>
                             </label>
                         </div>
                         <button type="submit"
@@ -966,7 +1118,7 @@
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-amber-500 text-[18px]">star</span>
-                                מנות מועדפות ומהירות (לחץ להוספה בטאפ אחד):
+                                <span x-text="t('quickFavorites', 'מנות מועדפות מהירות (לחץ להוספה בטאפ אחד):')">מנות מועדפות ומהירות (לחץ להוספה בטאפ אחד):</span>
                             </span>
                             <span class="text-[11px] text-slate-400" x-text="`${(quickChips || []).length} מנות שמורות`"></span>
                         </div>
@@ -1157,7 +1309,7 @@
             <!-- Today's Logged Meals List -->
             <div class="space-y-3">
                 <div class="flex items-center justify-between px-1">
-                    <h2 class="text-lg font-bold text-slate-900">הארוחות שלי היום</h2>
+                    <h2 class="text-lg font-bold text-slate-900" x-text="t('todayMealsTitle', 'הארוחות שלי היום')">הארוחות שלי היום</h2>
                     <span class="text-xs text-slate-500" x-text="`${todayMeals.length} רשומות`"></span>
                 </div>
 
@@ -1253,11 +1405,11 @@
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div class="flex items-start sm:items-center gap-3.5">
                         <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 flex-shrink-0">
-                            <span class="material-symbols-outlined text-[28px]">psychology</span>
+                            <svg class="w-7 h-7 text-indigo-300"><use href="#icon-ai-coach"></use></svg>
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <h2 class="text-base sm:text-lg font-bold text-white">המאמן היומי שלי (AI Coach)</h2>
+                                <h2 class="text-base sm:text-lg font-bold text-white" x-text="t('aiCoachTitle', 'המאמן היומי שלי (AI Coach)')">המאמן היומי שלי (AI Coach)</h2>
                                 <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
                                     Gemini 2.5
                                 </span>
@@ -2858,15 +3010,15 @@
             <button @click="switchTab('summary')"
                     :class="activeTab === 'summary' ? 'text-emerald-700 font-bold' : 'text-slate-500 hover:text-slate-800'"
                     class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer">
-                <span class="material-symbols-outlined text-[22px]">dashboard</span>
-                <span class="text-[10px] mt-0.5">ראשי</span>
+                <svg class="w-5 h-5 mb-0.5"><use href="#icon-timeline-journal"></use></svg>
+                <span class="text-[10px]" x-text="t('bottomHome', 'ראשי')">ראשי</span>
             </button>
 
             <button @click="switchTab('history')"
                     :class="activeTab === 'history' ? 'text-emerald-700 font-bold' : 'text-slate-500 hover:text-slate-800'"
                     class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer">
-                <span class="material-symbols-outlined text-[22px]">history_edu</span>
-                <span class="text-[10px] mt-0.5">יומן</span>
+                <svg class="w-5 h-5 mb-0.5"><use href="#icon-weekly-chart"></use></svg>
+                <span class="text-[10px]" x-text="t('bottomJournal', 'יומן')">יומן</span>
             </button>
 
             <!-- Center Elevated Action Button (+) for Quick Add & Live Viewfinder -->
@@ -2874,24 +3026,24 @@
                 <button type="button"
                         @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
                         class="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-[0_6px_20px_rgba(5,150,105,0.4)] active:scale-95 transition-transform cursor-pointer"
-                        title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
-                    <span class="material-symbols-outlined text-[26px]">photo_camera</span>
+                        :title="t('liveAiScanner', 'סורק חי AI')">
+                    <svg class="w-6 h-6 text-white"><use href="#icon-meal-camera"></use></svg>
                 </button>
             </div>
 
             <button @click="switchTab('recipes')"
                     :class="activeTab === 'recipes' ? 'text-emerald-700 font-bold' : 'text-slate-500 hover:text-slate-800'"
                     class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer">
-                <span class="material-symbols-outlined text-[22px]">restaurant_menu</span>
-                <span class="text-[10px] mt-0.5">מתכונים</span>
+                <svg class="w-5 h-5 mb-0.5"><use href="#icon-wolt-dish"></use></svg>
+                <span class="text-[10px]" x-text="t('bottomRecipes', 'מתכונים')">מתכונים</span>
             </button>
 
             <button x-cloak x-show="currentUser && currentUser.is_admin"
                     @click="switchTab('admin')"
                     :class="activeTab === 'admin' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'"
                     class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer">
-                <span class="material-symbols-outlined text-[22px]">admin_panel_settings</span>
-                <span class="text-[10px] mt-0.5">אדמין</span>
+                <svg class="w-5 h-5 mb-0.5"><use href="#icon-admin-shield"></use></svg>
+                <span class="text-[10px]" x-text="t('bottomAdmin', 'אדמין')">אדמין</span>
             </button>
         </div>
     </nav>
@@ -3941,7 +4093,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=51').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=52').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4054,6 +4206,19 @@
             }
 
             return {
+                currentLang: localStorage.getItem('nutri_lang') || 'he',
+                toggleLanguage() {
+                    this.currentLang = this.currentLang === 'he' ? 'en' : 'he';
+                    localStorage.setItem('nutri_lang', this.currentLang);
+                    document.documentElement.dir = this.currentLang === 'en' ? 'ltr' : 'rtl';
+                    document.documentElement.lang = this.currentLang;
+                },
+                t(key, fallback) {
+                    if (window.APP_I18N && window.APP_I18N[this.currentLang] && window.APP_I18N[this.currentLang][key] !== undefined) {
+                        return window.APP_I18N[this.currentLang][key];
+                    }
+                    return fallback !== undefined ? fallback : key;
+                },
                 activeTab: 'summary',
                 todayStr: today,
                 selectedDate: today,
@@ -7529,20 +7694,20 @@
         <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button @click="toggleTorch()" aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-95 cursor-pointer"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button type="button" @click="setViewfinderMode('barcode')"
         :class="viewfinderScanMode === 'barcode' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
         class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
-    <span class="material-symbols-outlined text-[16px]">barcode_scanner</span>
-    <span>Barcode</span>
+    <svg class="w-4 h-4"><use href="#icon-barcode-scanner"></use></svg>
+    <span x-text="t('barcodeMode', 'Barcode')">Barcode</span>
 </button>
 <button type="button" @click="setViewfinderMode('meal')"
         :class="viewfinderScanMode === 'meal' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
         class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
-    <span class="material-symbols-outlined text-[16px]">restaurant</span>
-    <span>Meal AI</span>
+    <svg class="w-4 h-4"><use href="#icon-meal-camera"></use></svg>
+    <span x-text="t('mealAiMode', 'Meal AI')">Meal AI</span>
 </button>
 <button type="button" @click="setViewfinderMode('label')"
         :class="viewfinderScanMode === 'label' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
         class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
-    <span class="material-symbols-outlined text-[16px]">nutrition</span>
-    <span>Label OCR</span>
+    <svg class="w-4 h-4"><use href="#icon-target-goal"></use></svg>
+    <span x-text="t('labelOcrMode', 'Label OCR')">Label OCR</span>
 </button></div></div></header>
 <main class="flex flex-col relative w-full pt-28 bg-transparent min-h-screen"><div class="flex flex-col w-full text-on-surface select-none pb-safe" dir="rtl">
 <!-- Viewfinder Frame Container -->
