@@ -3694,7 +3694,11 @@ def api_auth_google(req: GoogleAuthRequest, response: Response):
 
 @app.get("/api/auth/dev-bypass")
 @app.post("/api/auth/dev-bypass")
-def api_auth_dev_bypass(response: Response):
+def api_auth_dev_bypass(response: Response, request: Request):
+    # Strictly disable in production environments
+    host = request.headers.get("host", "")
+    if not ("localhost" in host or "127.0.0.1" in host):
+        raise HTTPException(status_code=403, detail="Local development bypass is disabled in production")
     """Local development authentication bypass for testing."""
     admin_email = "iftach.raftar@gmail.com"
     uid = _make_user_id_from_email(admin_email)

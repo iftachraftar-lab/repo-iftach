@@ -109,23 +109,6 @@
                 </div>
             </div>
 
-            <!-- Local Dev Bypass Button for Localhost (Only shown on local development) -->
-            <div x-show="window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'" class="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-300 text-center space-y-2 shadow-sm">
-                <div class="flex items-center justify-center gap-1.5 text-xs font-extrabold text-emerald-950">
-                    <span class="w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span>
-                    <span>סביבת בדיקה מקומית (Localhost)</span>
-                </div>
-                <p class="text-[11px] text-emerald-800">
-                    עקוף את אימות Google והיכנס ישירות עם הרשאות מנהל מערכת מלאות לבדיקת הממשק:
-                </p>
-                <button type="button"
-                        @click="devLoginBypass()"
-                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-600/30 flex items-center justify-center gap-2 transition cursor-pointer">
-                    <span class="material-symbols-outlined text-[18px]">verified_user</span>
-                    <span>כניסה מהירה למצב בדיקה מקומי (עקוף גוגל)</span>
-                </button>
-            </div>
-
             <!-- Official Google Identity Services Sign-In Box -->
             <div x-show="googleClientId" class="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center space-y-4 text-center">
                 <div class="space-y-1">
@@ -3945,7 +3928,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=48').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=49').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
