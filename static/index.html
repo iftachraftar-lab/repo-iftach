@@ -212,6 +212,10 @@
           <circle cx="8.5" cy="8.5" fill="currentColor" r="1.5"></circle>
           <path d="M21 15L16 10L5 21" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
         </symbol>
+        <symbol id="icon-edit-pencil" viewBox="0 0 24 24">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="currentColor" fill-opacity="0.16"></path>
+        </symbol>
       </defs>
     </svg>
 
@@ -398,66 +402,67 @@
                 </button>
             </nav>
 
-            <!-- Uniform Action Toolbar (All exact height h-8.5 / 34px) -->
-            <div class="flex items-center gap-1.5 sm:gap-2">
+            <!-- Uniform Action Toolbar (Strict Single-Row, Perfectly Aligned) -->
+            <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 flex-nowrap">
 
-                <!-- Daily Streak & Achievements Pill -->
+                <!-- 1. Daily Streak Pill -->
                 <button type="button" @click="showAchievementsModal = true"
-                    class="h-8.5 px-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-800 border border-amber-200/80 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                    class="h-8.5 px-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 text-xs font-black flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
                     :title="t('streakTitle', 'רצף יומי והישגים')">
                     <span class="text-sm">🔥</span>
-                    <span class="font-black text-amber-900" x-text="currentStreak + (currentLang === 'en' ? 'd' : ' ימים')"></span>
+                    <span x-text="currentStreak"></span>
+                    <span class="hidden sm:inline text-[11px] font-bold" x-text="currentLang === 'en' ? 'd' : ' ימים'"></span>
                 </button>
 
-                <!-- Language Switcher Button (Hebrew <-> English) -->
+                <!-- 2. Language Switcher (Hebrew <-> English) -->
                 <button type="button" @click="toggleLanguage()"
-                    class="h-8.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/60 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                    class="h-8.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-black flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
                     :title="currentLang === 'he' ? 'Switch to English' : 'עבור לעברית'">
                     <svg class="w-4 h-4 text-emerald-600 flex-shrink-0"><use href="#icon-lang-globe"></use></svg>
                     <span class="font-extrabold uppercase text-[11px]" x-text="currentLang === 'he' ? 'EN' : 'עב'"></span>
                 </button>
 
-                <!-- Multi-Modal Live Viewfinder Header Button -->
-                <button @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                        class="h-8.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-                        title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
+                <!-- 3. Multi-Modal Live Viewfinder Scanner -->
+                <button type="button" @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
+                    class="h-8.5 px-2.5 sm:px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 shadow-2xs transition cursor-pointer flex-shrink-0"
+                    title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
                     <span class="material-symbols-outlined text-[16px]">photo_camera</span>
-                    <span>סורק חי AI</span>
+                    <span class="hidden sm:inline">סורק חי</span>
                 </button>
 
-                <!-- Install PWA Button (when available) -->
+                <!-- 4. Install PWA (when available) -->
                 <button x-cloak x-show="canInstallPWA || showIOSInstallButton"
-                    @click="installPWA()"
-                    class="h-8.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1 shadow-2xs transition cursor-pointer"
+                    type="button" @click="installPWA()"
+                    class="h-8.5 px-2 sm:px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-2xs transition cursor-pointer flex-shrink-0"
                     title="התקן כאפליקציה למסך הבית">
                     <span class="material-symbols-outlined text-[16px]">install_mobile</span>
-                    <span class="hidden sm:inline">התקן</span>
+                    <span class="hidden md:inline">התקן</span>
                 </button>
 
-                <!-- Push Notifications -->
-                <button @click="openPushModal = true; checkPushStatus()"
-                    class="h-8.5 px-2 sm:px-2.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition cursor-pointer border"
-                    :class="pushEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200/60'"
+                <!-- 5. Push Notifications -->
+                <button type="button" @click="openPushModal = true; checkPushStatus()"
+                    class="h-8.5 px-2 sm:px-2.5 rounded-xl text-xs font-bold flex items-center gap-1 transition cursor-pointer border shadow-2xs flex-shrink-0"
+                    :class="pushEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'"
                     title="התראות פוש לנייד">
                     <span class="material-symbols-outlined text-[16px]">notifications</span>
-                    <span class="hidden sm:inline" x-text="pushEnabled ? 'פוש פעיל' : 'התראות'"></span>
+                    <span class="hidden lg:inline" x-text="pushEnabled ? 'פוש פעיל' : 'התראות'"></span>
                     <span x-show="pushEnabled" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 </button>
 
-                <!-- Daily Targets -->
-                <button @click="openTargetModal = true"
-                    class="h-8.5 px-2 sm:px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/60 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer"
+                <!-- 6. Daily Targets -->
+                <button type="button" @click="openTargetModal = true"
+                    class="h-8.5 px-2 sm:px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
                     title="הגדרת יעדים יומיים">
-                    <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <svg class="w-3.5 h-3.5 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    <span class="hidden sm:inline">יעדים</span>
+                    <span class="hidden md:inline">יעדים</span>
                 </button>
 
-                <!-- Refresh Button -->
-                <button @click="refreshAll()"
-                    class="h-8.5 w-8.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/60 flex items-center justify-center transition cursor-pointer"
+                <!-- 7. Refresh Button -->
+                <button type="button" @click="refreshAll()"
+                    class="h-8.5 w-8.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center transition cursor-pointer flex-shrink-0 shadow-2xs"
                     :class="{'animate-spin': refreshing}"
                     title="רענן נתונים">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -465,27 +470,27 @@
                     </svg>
                 </button>
 
-                <!-- Google Sign-In / User Profile Pill -->
-                <button @click="openUserAuthModal()"
-                    class="h-8.5 px-2 sm:px-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border shadow-2xs"
+                <!-- 8. Google Sign-In / User Profile Pill -->
+                <button type="button" @click="openUserAuthModal()"
+                    class="h-8.5 px-2 sm:px-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border shadow-2xs flex-shrink-0"
                     :class="currentUser ? 'bg-indigo-50/80 text-indigo-900 border-indigo-200 hover:bg-indigo-100' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'"
                     title="חשבון משתמש והתחברות Google">
                     <template x-if="currentUser && currentUser.picture">
-                        <img :src="currentUser.picture" alt="" class="w-5 h-5 rounded-full object-cover border border-indigo-200">
+                        <img :src="currentUser.picture" alt="" class="w-4.5 h-4.5 rounded-full object-cover border border-indigo-200">
                     </template>
                     <template x-if="currentUser && !currentUser.picture">
-                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center"
+                        <span class="w-4.5 h-4.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center"
                               x-text="(currentUser.name || currentUser.email || 'U').slice(0,1).toUpperCase()"></span>
                     </template>
                     <template x-if="!currentUser">
-                        <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
                             <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
                             <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
                             <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
                         </svg>
                     </template>
-                    <span class="max-w-[80px] sm:max-w-[105px] truncate" x-text="currentUser ? currentUser.name : 'התחבר'"></span>
+                    <span class="max-w-[70px] sm:max-w-[95px] truncate" x-text="currentUser ? currentUser.name : 'התחבר'"></span>
                 </button>
 
             </div>
@@ -676,17 +681,17 @@
                 </button>
             </div>
 
-            <!-- Prominent Main Action Switcher: Meal vs Workout (Stitch Dock Style) -->
-            <div class="bg-white rounded-3xl p-2 shadow-sm border border-slate-200/80 flex items-center gap-2">
+            <!-- Prominent Main Action Switcher: Meal vs Workout (100% Equal Size Grid) -->
+            <div class="bg-white rounded-3xl p-1.5 sm:p-2 shadow-sm border border-slate-200/80 grid grid-cols-2 gap-2">
                 <button type="button" @click="activeEntryMode = 'meal'"
-                        :class="activeEntryMode === 'meal' ? 'bg-emerald-600 text-white font-black shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-semibold'"
-                        class="flex-1 py-3 px-3 sm:px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+                        :class="activeEntryMode === 'meal' ? 'bg-emerald-600 text-white font-black shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-bold bg-slate-50 hover:bg-slate-100'"
+                        class="h-11 sm:h-12 px-3 sm:px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
                     <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-meal-camera"></use></svg>
                     <span x-text="t('addMeal', 'הוספת ארוחה (AI / צילום)')">הוספת ארוחה (AI / צילום)</span>
                 </button>
                 <button type="button" @click="activeEntryMode = 'workout'"
-                        :class="activeEntryMode === 'workout' ? 'bg-indigo-600 text-white font-black shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-semibold'"
-                        class="flex-1 py-3 px-3 sm:px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+                        :class="activeEntryMode === 'workout' ? 'bg-indigo-600 text-white font-black shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-bold bg-slate-50 hover:bg-slate-100'"
+                        class="h-11 sm:h-12 px-3 sm:px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
                     <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-workout-dumbbell"></use></svg>
                     <span x-text="t('logWorkout', 'תיעוד אימון (AI / כושר)')">תיעוד אימון (AI / כושר)</span>
                 </button>
@@ -1008,14 +1013,19 @@
                             <p class="text-xs text-slate-500">כתוב, הקלט בקול או צלם את הצלחת / תווית המוצר וה-AI יחשב קלוריות וחלבון</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button @click="openWorkoutLogger()"
-                                class="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition cursor-pointer flex items-center gap-1.5">
-                            <span>🏃‍♂️</span> תעד אימון
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <!-- Workout Logger Button (Equal Height & Icon Styling) -->
+                        <button type="button" @click="openWorkoutLogger()"
+                                class="h-8.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                            <svg class="w-4 h-4 text-indigo-600 flex-shrink-0"><use href="#icon-workout-dumbbell"></use></svg>
+                            <span x-text="t('logWorkoutBtn', 'תעד אימון')">תעד אימון</span>
                         </button>
-                        <button @click="manualMode = !manualMode"
-                                class="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
-                            <span x-text="manualMode ? '✨ מעבר להזנת AI' : '✍️ הזנה ידנית'"></span>
+                        <!-- Manual Entry Toggle Button (Identical Height & Icon Styling) -->
+                        <button type="button" @click="manualMode = !manualMode"
+                                class="h-8.5 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border shadow-2xs"
+                                :class="manualMode ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'">
+                            <svg class="w-4 h-4 flex-shrink-0" :class="manualMode ? 'text-emerald-600' : 'text-slate-600'"><use :href="manualMode ? '#icon-ai-coach' : '#icon-edit-pencil'"></use></svg>
+                            <span x-text="manualMode ? t('switchToAi', 'מעבר ל-AI') : t('manualEntry', 'הזנה ידנית')">הזנה ידנית</span>
                         </button>
                     </div>
                 </div>
@@ -5110,7 +5120,10 @@
             addCustomItemPlaceholder: '+ הוסף מוצר משלך (למשל: חלב שקדים, בננות...)',
             amountPlaceholder: 'כמות',
             supermarketTipsTitle: 'טיפים קליניים לקנייה חכמה ובריאה בסופר',
-            openFullGroceryTab: 'פתח רשימה במסך מלא ➔'
+            openFullGroceryTab: 'פתח רשימה במסך מלא ➔',
+            logWorkoutBtn: 'תעד אימון',
+            switchToAi: 'מעבר ל-AI',
+            manualEntry: 'הזנה ידנית'
 
         },
         en: {
@@ -5214,7 +5227,10 @@
             addCustomItemPlaceholder: '+ Add your own item (e.g. almond milk, bananas...)',
             amountPlaceholder: 'Amount',
             supermarketTipsTitle: 'Clinical Tips for Healthy Supermarket Shopping',
-            openFullGroceryTab: 'Open Full Screen List ➔'
+            openFullGroceryTab: 'Open Full Screen List ➔',
+            logWorkoutBtn: 'Log Workout',
+            switchToAi: 'Switch to AI',
+            manualEntry: 'Manual Entry'
 
         }
     };
