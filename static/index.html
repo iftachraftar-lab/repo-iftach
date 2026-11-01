@@ -1080,7 +1080,7 @@
                          @click.outside="showAutocomplete = false"
                          class="rounded-2xl bg-white border border-emerald-200 shadow-lg overflow-hidden divide-y divide-slate-100">
                         <div class="px-3.5 py-2 bg-emerald-50/70 flex items-center justify-between text-[11px] font-bold text-emerald-900">
-                            <span>⚡ השלמה אוטומטית מקטלוג המוצרים (לחיצה מוסיפה מיד ללא המתנה ל-AI)</span>
+                            <span x-text="currentLang === 'en' ? '⚡ Instant food catalog autocomplete (tap to log immediately)' : '⚡ השלמה אוטומטית מקטלוג המוצרים (לחיצה מוסיפה מיד ללא המתנה ל-AI)'">⚡ השלמה אוטומטית מקטלוג המוצרים (לחיצה מוסיפה מיד ללא המתנה ל-AI)</span>
                             <button type="button" @click="showAutocomplete = false" class="text-slate-400 hover:text-slate-600 px-1 cursor-pointer">✕</button>
                         </div>
                         <div class="max-h-64 overflow-y-auto divide-y divide-slate-100">
@@ -1091,13 +1091,13 @@
                                             class="flex-1 flex items-center gap-2.5 text-right min-w-0 cursor-pointer">
                                         <span class="text-lg flex-shrink-0" x-text="item.icon || '🍽️'"></span>
                                         <div class="min-w-0 flex-1">
-                                            <div class="text-xs sm:text-sm font-bold text-slate-900 truncate" x-text="item.label"></div>
+                                            <div class="text-xs sm:text-sm font-bold text-slate-900 truncate" x-text="tr(item.label)"></div>
                                             <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-800 text-[11px] font-extrabold"
-                                                      x-text="`${item.calories} קק״ל`"></span>
+                                                      x-text="currentLang === 'en' ? `${item.calories} kcal` : `${item.calories} קק״ל`"></span>
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100/80 text-indigo-800 text-[11px] font-extrabold"
-                                                      x-text="`${item.protein_g}g חלבון`"></span>
-                                                <span x-show="item.category" class="text-[10px] text-slate-400" x-text="item.category"></span>
+                                                      x-text="currentLang === 'en' ? `${item.protein_g}g protein` : `${item.protein_g}g חלבון`"></span>
+                                                <span x-show="item.category" class="text-[10px] text-slate-400" x-text="tr(item.category)"></span>
                                             </div>
                                         </div>
                                     </button>
@@ -1105,13 +1105,13 @@
                                         <button type="button"
                                                 @click="appendAutocompleteToInput(item)"
                                                 class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition cursor-pointer"
-                                                title="הוסף לתיבת הטקסט כדי לשלב עם מוצרים נוספים">
-                                            + שלב בטקסט
+                                                :title="currentLang === 'en' ? 'Add to input to combine with more items' : 'הוסף לתיבת הטקסט כדי לשלב עם מוצרים נוספים'">
+                                            <span x-text="currentLang === 'en' ? '+ Combine' : '+ שלב בטקסט'">+ שלב בטקסט</span>
                                         </button>
                                         <button type="button"
                                                 @click="selectAutocompleteQuickLog(item)"
                                                 class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition cursor-pointer">
-                                            ⚡ הוסף מיד
+                                            <span x-text="currentLang === 'en' ? '⚡ Log Now' : '⚡ הוסף מיד'">⚡ הוסף מיד</span>
                                         </button>
                                     </div>
                                 </div>
@@ -1126,7 +1126,7 @@
                                 <span class="material-symbols-outlined text-amber-500 text-[18px]">star</span>
                                 <span x-text="t('quickFavorites', 'מנות מועדפות מהירות (לחץ להוספה בטאפ אחד):')">מנות מועדפות ומהירות (לחץ להוספה בטאפ אחד):</span>
                             </span>
-                            <span class="text-[11px] text-slate-400" x-text="`${(quickChips || []).length} מנות שמורות`"></span>
+                            <span class="text-[11px] text-slate-400" x-text="currentLang === 'en' ? `${(quickChips || []).length} saved meals` : `${(quickChips || []).length} מנות שמורות`"></span>
                         </div>
                         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
                             <template x-for="chip in quickChips" :key="chip.id || chip.label">
@@ -1135,8 +1135,8 @@
                                             @click="quickLogPreset(chip)"
                                             class="text-xs font-bold text-slate-800 hover:text-emerald-800 px-3 py-2 flex items-center gap-1.5 cursor-pointer">
                                         <span x-text="chip.icon || '⭐'"></span>
-                                        <span x-text="chip.label"></span>
-                                        <span class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded" x-text="`${chip.calories} קק״ל`"></span>
+                                        <span x-text="tr(chip.label)"></span>
+                                        <span class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded" x-text="currentLang === 'en' ? `${chip.calories} kcal` : `${chip.calories} קק״ל`"></span>
                                     </button>
                                     <button type="button"
                                             x-show="chip.id"
@@ -1261,11 +1261,11 @@
                                     class="w-full px-3.5 py-2.5 hover:bg-emerald-50/50 transition flex items-center justify-between gap-2 text-right cursor-pointer">
                                 <div class="flex items-center gap-2 min-w-0">
                                     <span class="text-base" x-text="item.icon || '🍽️'"></span>
-                                    <span class="text-xs sm:text-sm font-bold text-slate-900 truncate" x-text="item.label"></span>
+                                    <span class="text-xs sm:text-sm font-bold text-slate-900 truncate" x-text="tr(item.label)"></span>
                                 </div>
                                 <div class="flex items-center gap-1.5 flex-shrink-0">
-                                    <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-extrabold" x-text="`${item.calories} קק״ל`"></span>
-                                    <span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-[11px] font-extrabold" x-text="`${item.protein_g}g חלבון`"></span>
+                                    <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-extrabold" x-text="currentLang === 'en' ? `${item.calories} kcal` : `${item.calories} קק״ל`"></span>
+                                    <span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-[11px] font-extrabold" x-text="currentLang === 'en' ? `${item.protein_g}g protein` : `${item.protein_g}g חלבון`"></span>
                                 </div>
                             </button>
                         </template>
@@ -1343,7 +1343,7 @@
                                         <span class="text-[9px] text-slate-400 mt-0.5">קק"ל</span>
                                     </div>
                                     <div class="min-w-0">
-                                        <p class="font-semibold text-slate-900 text-sm sm:text-base truncate" x-text="meal.description"></p>
+                                        <p class="font-semibold text-slate-900 text-sm sm:text-base truncate" x-text="tr(meal.description)"></p>
                                         <div class="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
                                             <span class="inline-flex items-center gap-1 font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
                                                 💪 <span x-text="`${Number(meal.protein_g).toFixed(1)}g חלבון`"></span>
@@ -1393,7 +1393,7 @@
                             <div x-show="meal.items && meal.items.length > 1" class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
                                 <template x-for="item in meal.items" :key="item.name">
                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-700">
-                                        <span class="font-bold text-slate-900" x-text="item.name"></span>
+                                        <span class="font-bold text-slate-900" x-text="tr(item.name)"></span>
                                         <span class="text-emerald-700 font-extrabold" x-text="`${item.calories} קק״ל`"></span>
                                         <span x-show="item.protein_g > 0" class="text-indigo-600 font-semibold" x-text="`(${Number(item.protein_g).toFixed(0)}g חלבון)`"></span>
                                     </span>
@@ -1821,7 +1821,7 @@
                                     <span class="text-[9px] text-slate-400 mt-0.5">קק"ל</span>
                                 </div>
                                 <div class="min-w-0">
-                                    <p class="font-semibold text-slate-900 text-sm sm:text-base truncate" x-text="meal.description"></p>
+                                    <p class="font-semibold text-slate-900 text-sm sm:text-base truncate" x-text="tr(meal.description)"></p>
                                     <div class="flex items-center gap-2 mt-1 text-xs text-slate-500">
                                         <span class="text-indigo-600 font-medium" x-text="`💪 ${Number(meal.protein_g).toFixed(1)}g חלבון`"></span>
                                         <span x-show="meal.log_time" x-text="`• 🕒 ${meal.log_time}`"></span>
@@ -1858,7 +1858,7 @@
                         <div x-show="meal.items && meal.items.length > 1" class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
                             <template x-for="item in meal.items" :key="item.name">
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-700">
-                                    <span class="font-bold text-slate-900" x-text="item.name"></span>
+                                    <span class="font-bold text-slate-900" x-text="tr(item.name)"></span>
                                     <span class="text-emerald-700 font-extrabold" x-text="`${item.calories} קק״ל`"></span>
                                     <span x-show="item.protein_g > 0" class="text-indigo-600 font-semibold" x-text="`(${Number(item.protein_g).toFixed(0)}g חלבון)`"></span>
                                 </span>
@@ -1969,17 +1969,17 @@
                                               x-text="`💪 ${Number(recipe.protein_g).toFixed(0)}g חלבון`"></span>
                                     </div>
                                 </div>
-                                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" x-text="recipe.description"></p>
+                                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" x-text="tr(recipe.description)"></p>
                                 <div class="bg-slate-50 rounded-2xl p-3 text-xs space-y-1">
                                     <div class="font-bold text-slate-800">🛒 מצרכים והכנה:</div>
                                     <ul class="list-disc list-inside text-slate-600 space-y-0.5">
                                         <template x-for="ing in (recipe.ingredients || [])" :key="ing">
-                                            <li x-text="ing"></li>
+                                            <li x-text="tr(ing)"></li>
                                         </template>
                                     </ul>
                                     <ol class="list-decimal list-inside text-slate-700 pt-1.5 border-t border-slate-200/70 space-y-0.5">
                                         <template x-for="step in (recipe.preparation_steps || [])" :key="step">
-                                            <li x-text="step"></li>
+                                            <li x-text="tr(step)"></li>
                                         </template>
                                     </ol>
                                 </div>
@@ -2117,18 +2117,18 @@
                                         <span x-show="dish.fromMenuScan" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">📸 סריקת תפריט</span>
                                     </div>
                                     <span class="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-xs shadow-2xs">
-                                        <span x-text="dish.calories <= Math.max(250, summary.remaining_calories) ? '98% התאמה' : '91% התאמה'"></span>
+                                        <span x-text="dish.calories <= Math.max(250, summary.remaining_calories) ? (currentLang === 'en' ? '98% Match' : '98% התאמה') : (currentLang === 'en' ? '91% Match' : '91% התאמה')"></span>
                                     </span>
                                 </div>
 
                                 <div>
-                                    <h3 class="text-base sm:text-lg font-black text-slate-900" x-text="dish.live_dish_name || dish.dish_name"></h3>
-                                    <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mt-1" x-text="dish.description"></p>
+                                    <h3 class="text-base sm:text-lg font-black text-slate-900" x-text="tr(dish.live_dish_name || dish.dish_name)"></h3>
+                                    <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mt-1" x-text="tr(dish.description)"></p>
                                 </div>
 
                                 <div class="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs sm:text-sm flex-wrap">
-                                    <span class="font-black text-emerald-700" x-text="`${dish.calories} קק״ל`"></span>
-                                    <span class="font-black text-indigo-600" x-text="`${Number(dish.protein_g).toFixed(0)}g חלבון`"></span>
+                                    <span class="font-black text-emerald-700" x-text="currentLang === 'en' ? `${dish.calories} kcal` : `${dish.calories} קק״ל`"></span>
+                                    <span class="font-black text-indigo-600" x-text="currentLang === 'en' ? `${Number(dish.protein_g).toFixed(0)}g protein` : `${Number(dish.protein_g).toFixed(0)}g חלבון`"></span>
                                     <span x-show="dish.carbs_g" class="font-semibold text-amber-700" x-text="`${dish.carbs_g}g פחמימה`"></span>
                                     <span x-show="dish.fat_g" class="text-slate-500" x-text="`${dish.fat_g}g שומן`"></span>
                                 </div>
@@ -2230,17 +2230,17 @@
                                         <span x-show="recipe.prep_time" class="text-[11px] text-slate-400" x-text="`⏱️ ${recipe.prep_time}`"></span>
                                         <span x-show="recipe.isAI" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">✨ שף AI</span>
                                     </div>
-                                    <h3 class="text-lg font-bold text-slate-900" x-text="recipe.name"></h3>
+                                    <h3 class="text-lg font-bold text-slate-900" x-text="tr(recipe.name)"></h3>
                                 </div>
                                 <div class="text-left flex-shrink-0">
                                     <span class="inline-block px-3 py-1 rounded-xl bg-emerald-50 text-emerald-800 font-extrabold text-sm"
-                                          x-text="`${recipe.calories} קק״ל`"></span>
+                                          x-text="currentLang === 'en' ? `${recipe.calories} kcal` : `${recipe.calories} קק״ל`"></span>
                                     <span class="block text-xs font-bold text-indigo-600 mt-1"
-                                          x-text="`💪 ${Number(recipe.protein_g).toFixed(0)}g חלבון`"></span>
+                                          x-text="currentLang === 'en' ? `💪 ${Number(recipe.protein_g).toFixed(0)}g protein` : `💪 ${Number(recipe.protein_g).toFixed(0)}g חלבון`"></span>
                                 </div>
                             </div>
 
-                            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" x-text="recipe.description"></p>
+                            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" x-text="tr(recipe.description)"></p>
 
                             <!-- Expandable Ingredients & Prep Steps -->
                             <div x-show="recipe.showDetails" x-transition class="pt-3 border-t border-slate-100 space-y-3 text-xs sm:text-sm">
@@ -2248,7 +2248,7 @@
                                     <h4 class="font-bold text-slate-800 mb-1.5">🛒 מצרכים:</h4>
                                     <ul class="list-disc list-inside space-y-1 text-slate-600">
                                         <template x-for="ing in recipe.ingredients" :key="ing">
-                                            <li x-text="ing"></li>
+                                            <li x-text="tr(ing)"></li>
                                         </template>
                                     </ul>
                                 </div>
@@ -2256,7 +2256,7 @@
                                     <h4 class="font-bold text-slate-800 mb-1.5">👩‍🍳 אופן הכנה:</h4>
                                     <ol class="list-decimal list-inside space-y-1 text-slate-600">
                                         <template x-for="step in recipe.preparation_steps" :key="step">
-                                            <li x-text="step"></li>
+                                            <li x-text="tr(step)"></li>
                                         </template>
                                     </ol>
                                 </div>
@@ -4454,7 +4454,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=55').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=56').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -5598,7 +5598,103 @@
   "תפוח עץ ירוק": "Green Apple",
   "בננה בינונית": "Medium Banana",
   "יוגורט פרוטאין": "Protein Yogurt",
-  "שייק חלבון": "Protein Shake"
+  "שייק חלבון": "Protein Shake",
+  "קוטג' 3% (תנובה) - כף גדושה (30ג')": "Cottage Cheese 3% (Tnuva) - 1 heaping tbsp (30g)",
+  "קוטג' 3% (תנובה) - חצי גביע (125ג')": "Cottage Cheese 3% (Tnuva) - 1/2 tub (125g)",
+  "קוטג' 3% (תנובה) - גביע שלם (250ג')": "Cottage Cheese 3% (Tnuva) - 1 full tub (250g)",
+  "קוטג' 5% (תנובה) - כף גדושה (30ג')": "Cottage Cheese 5% (Tnuva) - 1 heaping tbsp (30g)",
+  "קוטג' 5% (תנובה) - חצי גביע (125ג')": "Cottage Cheese 5% (Tnuva) - 1/2 tub (125g)",
+  "קוטג' 5% (תנובה) - גביע שלם (250ג')": "Cottage Cheese 5% (Tnuva) - 1 full tub (250g)",
+  "קוטג' 1% - חצי גביע (125ג')": "Cottage Cheese 1% - 1/2 tub (125g)",
+  "קוטג' 9% - חצי גביע (125ג')": "Cottage Cheese 9% - 1/2 tub (125g)",
+  "גבינה לבנה סקי / תנובה 5% - כף (30ג')": "White Cheese 5% (Ski / Tnuva) - 1 tbsp (30g)",
+  "גבינה לבנה 5% - חצי גביע (125ג')": "White Cheese 5% - 1/2 tub (125g)",
+  "גבינה לבנה 3% - חצי גביע (125ג')": "White Cheese 3% - 1/2 tub (125g)",
+  "גבינה צהובה עמק 28% - פרוסה (25ג')": "Emek Yellow Cheese 28% - 1 slice (25g)",
+  "גבינה צהובה עמק לייט 9% - פרוסה (25ג')": "Emek Light Cheese 9% - 1 slice (25g)",
+  "גבינה צהובה נעם 15% - פרוסה (25ג')": "Noam Yellow Cheese 15% - 1 slice (25g)",
+  "גבינה בולגרית / פטה 5% - קובייה (50ג')": "Bulgarian / Feta Cheese 5% - 1 cube (50g)",
+  "צפתית 5% (גד / פיראוס) - 50 גרם": "Tzfatit Cheese 5% (Gad / Piraeus) - 50g",
+  "לאבנה 5% - כף גדושה (30ג')": "Labneh 5% - 1 heaping tbsp (30g)",
+  "גבינת שמנת נפוליאון / פילדלפיה 16% - כף": "Cream Cheese 16% (Napoleon / Philadelphia) - 1 tbsp",
+  "יוגורט PRO / GO חלבון (20ג' חלבון) - גביע": "PRO / GO Protein Yogurt (20g protein) - 1 tub",
+  "יוגורט PRO / GO חלבון (25ג' חלבון) - גביע": "PRO / GO Protein Yogurt (25g protein) - 1 tub",
+  "משקה חלבון יטבתה / תנובה GO (בקבוק 25ג' חלבון)": "Yotvata / Tnuva GO Protein Drink (25g protein bottle)",
+  "מעדן חלבון PRO / מילקי PRO - גביע": "PRO Protein Pudding / Milky PRO - 1 cup",
+  "יוגורט טבעי ביו 3% (דנונה / תנובה) - גביע": "Natural Bio Yogurt 3% (Danone / Tnuva) - 1 cup",
+  "יוגורט יווני 2% / דנונה Greek - גביע": "Greek Yogurt 2% (Danone Greek) - 1 cup",
+  "ביצה קשה / עין / שלוקה (1 יחידה L)": "Hard Boiled / Fried / Poached Egg (1 large egg)",
+  "2 ביצים (קשות / שלוקות)": "2 Eggs (Hard Boiled / Poached)",
+  "חביתה / מקושקשת מ-2 ביצים (עם מעט שמן/תרסיס)": "2-Egg Omelette / Scrambled (light oil spray)",
+  "חביתה מ-3 ביצים": "3-Egg Omelette",
+  "טונה במים (סטארקיסט / ריו מרה) - קופסה מסוננת": "Tuna in Water (Starkist / Rio Mare) - 1 can drained",
+  "טונה בשמן - קופסה מסוננת היטב": "Tuna in Oil - 1 can well drained",
+  "חזה עוף על הפלנצ'ה / בתנור (150 גרם)": "Grilled / Baked Chicken Breast (150g)",
+  "חזה עוף על הפלנצ'ה / בתנור (200 גרם)": "Grilled / Baked Chicken Breast (200g)",
+  "חזה עוף על הפלנצ'ה / גריל - 150 גרם": "Grilled Chicken Breast - 150g",
+  "חזה עוף על הפלנצ'ה / גריל - 200 גרם": "Grilled Chicken Breast - 200g",
+  "פרגית צלויה / שיפודי פרגית (150 גרם)": "Grilled Chicken Thigh / Skewers (150g)",
+  "שניצל עוף ביתי מטוגן (יחידה בינונית 130ג')": "Homemade Fried Chicken Schnitzel (medium 130g)",
+  "שניצל תירס טבעול / לייט (יחידה)": "Tivall Corn Schnitzel / Light (1 piece)",
+  "קציצות בקר / עוף ברוטב (3 יחידות בינוניות)": "Beef / Chicken Meatballs in Sauce (3 medium pieces)",
+  "סטייק סינטה / פילה בקר רזה (200 גרם)": "Sirloin / Lean Beef Tenderloin Steak (200g)",
+  "פסטרמה חזה הודו דלת שומן (4 פרוסות - 60ג')": "Low Fat Turkey Breast Pastrami (4 slices - 60g)",
+  "פילה סלמון אפוי בתנור (150 גרם)": "Baked Salmon Fillet (150g)",
+  "פילה אמנון / מושט / דניס אפוי (150 גרם)": "Baked Tilapia / Sea Bream Fillet (150g)",
+  "סקופ אבקת חלבון (Whey על בסיס מים)": "Whey Protein Powder Scoop (in water)",
+  "סקופ אבקת חלבון עם כוס חלב 3%": "Whey Protein Powder Scoop with 1 cup milk 3%",
+  "פרוסת לחם קל (שיפון / דגנים / מלא)": "Light Bread Slice (Rye / Multigrain / Whole)",
+  "2 פרוסות לחם קל": "2 Slices Light Bread",
+  "פרוסת לחם מלא / מחמצת / כוסמין": "Whole Wheat / Sourdough / Spelt Bread Slice",
+  "פיתה קלה (99 קק״ל)": "Light Pita (99 kcal)",
+  "פיתה רגילה (יחידה שלמה)": "Standard Pita (1 whole)",
+  "לחמניית כוסמין / קלה": "Spelt / Light Bun",
+  "פריכית אורז (יחידה אחת)": "Rice Cake (1 piece)",
+  "3 פריכיות אורז": "3 Rice Cakes",
+  "אורז לבן / בסמטי מבושל - כוס (150ג')": "Cooked White / Basmati Rice - 1 cup (150g)",
+  "אורז מבושל - 3 כפות (90ג')": "Cooked Rice - 3 tbsp (90g)",
+  "פסטה מבושלת - כוס (150ג')": "Cooked Pasta - 1 cup (150g)",
+  "פסטה מבושלת - כוס (140ג')": "Cooked Pasta - 1 cup (140g)",
+  "קינואה / כוסמת מבושלת - כוס (150ג')": "Cooked Quinoa / Buckwheat - 1 cup (150g)",
+  "תפוח אדמה אפוי בתנור (יחידה בינונית)": "Baked Potato (medium)",
+  "בטטה אפויה בתנור (בינונית)": "Baked Sweet Potato (medium)",
+  "דייסת שיבולת שועל (40ג' קוואקר + חלב/מים)": "Oatmeal Porridge (40g oats + milk/water)",
+  "דייסת שיבולת שועל (40ג' קוואקר עם מים/חלב)": "Oatmeal Porridge (40g oats with water/milk)",
+  "טחינה מוכנה - כף גדושה (20ג')": "Prepared Tahini - 1 heaping tbsp (20g)",
+  "טחינה גולמית - כף (15ג')": "Raw Tahini - 1 tbsp (15g)",
+  "חומוס (אחלה / צבר) - כף גדושה (30ג')": "Hummus (Achla / Tzabar) - 1 heaping tbsp (30g)",
+  "אבוקדו - חצי יחידה בינונית": "Avocado - 1/2 medium",
+  "שמן זית - כפית (5 מ״ל)": "Olive Oil - 1 tsp (5ml)",
+  "חמאת בוטנים טבעית - כף (16ג')": "Natural Peanut Butter - 1 tbsp (16g)",
+  "שקדים / אגוזי מלך טבעיים (חופן קטן - 10 יח')": "Raw Almonds / Walnuts (small handful - 10 pcs)",
+  "סלט ירקות ישראלי קצוץ (ללא שמן)": "Chopped Israeli Vegetable Salad (no oil)",
+  "סלט ירקות קצוץ עם כפית שמן זית": "Chopped Vegetable Salad with 1 tsp olive oil",
+  "תפוח עץ בינוני": "Medium Apple",
+  "תמר מג'הול (יחידה אחת)": "Medjool Date (1 piece)",
+  "תמר מג'הול ענק (1 יחידה)": "Jumbo Medjool Date (1 pc)",
+  "קפה הפוך קטן על חלב 3% (ללא סוכר)": "Small Cappuccino / Latte on 3% Milk (unsweetened)",
+  "קפה הפוך על חלב דל / סויה / שיבולת שועל": "Cappuccino on Skim / Soy / Oat Milk",
+  "נס קפה עם מעט חלב (ללא סוכר)": "Instant Coffee with a splash of milk (unsweetened)",
+  "קפה שחור / אספרסו (ללא סוכר)": "Black Coffee / Espresso (unsweetened)",
+  "חטיף חלבון (Allin / Today / Fulfil - 60ג')": "Protein Bar (Allin / Today / Fulfil - 60g)",
+  "במבה אסם - שקית קטנה (25ג')": "Osem Bamba - Small Bag (25g)",
+  "2 קוביות שוקולד מריר 70%": "2 Squares 70% Dark Chocolate",
+  "הפוך קטן": "Small Cappuccino / Latte",
+  "2 ביצים וקוטג׳": "2 Eggs & Cottage Cheese",
+  "חזה עוף ואורז": "Chicken Breast & Rice",
+  "סלט טונה וביצה": "Tuna Salad & Egg",
+  "יוגורט PRO / שייק": "PRO Yogurt / Protein Shake",
+  "חלבי": "Dairy",
+  "חלבון וחלבי": "Protein & Dairy",
+  "ביצים": "Eggs",
+  "עוף, בשר ודגים": "Poultry, Meat & Fish",
+  "אבקות ותוספי חלבון": "Protein Powders & Supplements",
+  "פחמימות ולחמים": "Carbs & Breads",
+  "שומנים בריאים": "Healthy Fats",
+  "ירקות ופירות": "Vegetables & Fruits",
+  "משקאות ונשנושים": "Beverages & Snacks",
+  "מההיסטוריה שלך": "From your history",
+  "⭐ מהמועדפים שלך": "⭐ From your favorites"
 };
 
     window.EN_TO_HE = {};
@@ -5799,6 +5895,13 @@
                         return this.currentLang === 'en' ? (window.translateText ? window.translateText(fallback, 'en') : fallback) : fallback;
                     }
                     return key;
+                },
+                tr(text) {
+                    if (!text || typeof text !== 'string') return text;
+                    if (this.currentLang === 'en') {
+                        return window.translateText ? window.translateText(text, 'en') : text;
+                    }
+                    return text;
                 },
                 // BMI & Calorie Target Wizard State
                 showBmiWizard: false,
