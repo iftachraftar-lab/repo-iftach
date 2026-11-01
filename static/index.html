@@ -268,7 +268,7 @@
             <div class="flex items-center gap-1.5 sm:gap-2">
 
                 <!-- Multi-Modal Live Viewfinder Header Button -->
-                <button @click="showLiveViewfinder = true"
+                <button @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
                         class="h-8.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                         title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
                     <span class="material-symbols-outlined text-[16px]">photo_camera</span>
@@ -555,7 +555,7 @@
             </div>
 
             <!-- Prominent Multi-Modal Live Viewfinder Launcher Card (Stitch Frame) -->
-            <div @click="showLiveViewfinder = true"
+            <div @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
                  class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border-2 border-emerald-400/50 hover:border-emerald-300 transition cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-4 group relative overflow-hidden">
                 <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="flex items-center gap-4">
@@ -574,7 +574,7 @@
                         <p class="text-xs text-slate-300 mt-0.5">סורק צלחת רב-מוקדי, סורק ברקוד לייזר ומדד דנונה PRO (לחץ כאן לפתיחה במסך מלא)</p>
                     </div>
                 </div>
-                <button type="button" @click.stop="showLiveViewfinder = true"
+                <button type="button" @click.stop="showLiveViewfinder = true; startLiveViewfinderCamera();"
                         class="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-500/30 flex items-center gap-2 flex-shrink-0 cursor-pointer">
                     <span class="material-symbols-outlined text-[20px]">fullscreen</span>
                     <span>פתח סורק חי עכשיו 📸</span>
@@ -2876,7 +2876,7 @@
             <!-- Center Elevated Action Button (+) for Quick Add & Live Viewfinder -->
             <div class="flex-1 flex justify-center -mt-6">
                 <button type="button"
-                        @click="showLiveViewfinder = true"
+                        @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
                         class="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-[0_6px_20px_rgba(5,150,105,0.4)] active:scale-95 transition-transform cursor-pointer"
                         title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
                     <span class="material-symbols-outlined text-[26px]">photo_camera</span>
@@ -3945,7 +3945,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=44').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=45').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4196,6 +4196,10 @@
                 generatingRecipes: false,
                 recipesSubTab: 'wolt',
                 showLiveViewfinder: false,
+                liveViewfinderCameraStream: null,
+                liveCameraActive: false,
+                liveCameraFacingMode: 'environment',
+                liveViewfinderScanning: false,
                 viewfinderMode: 'plate',
                 viewfinderSimulatedBoxes: [
                     { name: 'חזה עוף בגריל', weight: 180, cals: 290, protein: 54, carbs: 0, fat: 5, confidence: 98, color: 'primary' },
@@ -4587,6 +4591,83 @@
                 get fatsPercent() {
                     if (!this.targetFats) return 0;
                     return Math.min(100, Math.round((this.totalFats / this.targetFats) * 100));
+                },
+
+                async startLiveViewfinderCamera() {
+                    this.liveCameraActive = false;
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        this.showToast('המכשיר או הדפדפן אינם תומכים בגישה ישירה למצלמה', 'error');
+                        return;
+                    }
+                    try {
+                        if (this.liveViewfinderCameraStream) {
+                            this.liveViewfinderCameraStream.getTracks().forEach(t => t.stop());
+                        }
+                        this.liveViewfinderCameraStream = await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                facingMode: { ideal: this.liveCameraFacingMode || 'environment' },
+                                width: { ideal: 1920 },
+                                height: { ideal: 1080 }
+                            },
+                            audio: false
+                        });
+                        this.$nextTick(() => {
+                            const video = this.$refs.liveViewfinderVideo;
+                            if (video) {
+                                video.srcObject = this.liveViewfinderCameraStream;
+                                video.play().catch(e => console.warn('Video play error:', e));
+                                this.liveCameraActive = true;
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('getUserMedia error:', e);
+                        this.liveCameraActive = false;
+                        this.showToast('לא ניתן לגשת למצלמה (אנא אשר הרשאת מצלמה בדפדפן)', 'error');
+                    }
+                },
+
+                stopLiveViewfinderCamera() {
+                    if (this.liveViewfinderCameraStream) {
+                        this.liveViewfinderCameraStream.getTracks().forEach(t => t.stop());
+                        this.liveViewfinderCameraStream = null;
+                    }
+                    if (this.$refs.liveViewfinderVideo) {
+                        this.$refs.liveViewfinderVideo.srcObject = null;
+                    }
+                    this.liveCameraActive = false;
+                    this.showLiveViewfinder = false;
+                },
+
+                toggleCameraLens() {
+                    this.liveCameraFacingMode = (this.liveCameraFacingMode === 'environment') ? 'user' : 'environment';
+                    this.startLiveViewfinderCamera();
+                },
+
+                async captureRealMealFromViewfinder() {
+                    const video = this.$refs.liveViewfinderVideo;
+                    if (!video || !video.videoWidth || !this.liveCameraActive) {
+                        // Fallback to gallery upload
+                        if (this.$refs.cameraMealInput) this.$refs.cameraMealInput.click();
+                        return;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    
+                    this.liveViewfinderScanning = true;
+                    this.showToast('📸 צילום נקלט! Gemini Vision מנתח מרכיבים וערכים...');
+                    try {
+                        this.selectedPhotoDataUrl = dataUrl;
+                        this.stopLiveViewfinderCamera();
+                        await this.submitPhotoMeal();
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בניתוח תמונת הצלחת', 'error');
+                    } finally {
+                        this.liveViewfinderScanning = false;
+                    }
                 },
 
                 openWoltCustomizer(dish) {
@@ -7176,15 +7257,31 @@
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 bg-black overflow-y-auto select-none"
          dir="rtl">
-        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="showLiveViewfinder = false"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button class="px-3 py-1 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center gap-1 shadow-sm"><span class="material-symbols-outlined text-[16px]">barcode</span>Barcode</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">restaurant</span>Meal AI</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">nutrition</span>Label OCR</button></div></div></header>
+        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button class="px-3 py-1 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center gap-1 shadow-sm"><span class="material-symbols-outlined text-[16px]">barcode</span>Barcode</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">restaurant</span>Meal AI</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">nutrition</span>Label OCR</button></div></div></header>
 <main class="flex flex-col relative w-full pt-28 bg-transparent min-h-screen"><div class="flex flex-col w-full text-on-surface select-none pb-safe" dir="rtl">
 <!-- Viewfinder Frame Container -->
 <div class="relative w-full overflow-hidden rounded-b-xl shadow-2xl bg-black min-h-[460px] flex flex-col justify-between">
-<!-- Camera Feed Background Layer -->
-<div class="absolute inset-0 z-0">
-<div class="w-full h-full bg-cover bg-center opacity-85 scale-105 transition-transform duration-700" data-alt="Top-down perspective close-up of a meticulously prepped Mediterranean fitness lunch on a dark slate plate. A golden grilled chicken breast cutlet sliced into strips, steamed fluffy brown basmati rice garnished with herbs, and finely chopped Israeli tomato-cucumber salad drizzled with creamy tahini dressing, soft warm indoor ambient lighting, crisp professional culinary photography." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCPbcVd5J9HpY392lgHtZQ11jVTVduOw515yp4HU6JfPb6OH67QpE9ewSwKep8QTuqOmVp1CweLrUmc_3CYlSpOieUl1xKb-Y8A5qW_C0Lq_Z5KwzW0YkpxtwE1Vx_FhcooS6AXcRCFZkj6Igy31WG9QvDkLanEd2vhVkw09PuEpbmUutoQaTRMN_7CNGQxIxyFhKemGK8dCG43PcMvxowdynroJ1Yyr0mLZUwe-AE')">
-</div>
-<div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 pointer-events-none"></div>
+<!-- Real Live Camera Feed Layer with Live <video> element -->
+<div class="absolute inset-0 z-0 bg-black overflow-hidden flex items-center justify-center">
+    <!-- 1. Real Camera Video Feed -->
+    <video x-ref="liveViewfinderVideo" autoplay playsinline muted
+           class="w-full h-full object-cover"
+           :class="liveCameraActive ? 'opacity-100' : 'opacity-0'"></video>
+
+    <!-- 2. Fallback Photo when camera permission is not yet granted or desktop without webcam -->
+    <div x-show="!liveCameraActive" class="absolute inset-0 w-full h-full bg-cover bg-center opacity-85 scale-105 transition-transform duration-700"
+         style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCPbcVd5J9HpY392lgHtZQ11jVTVduOw515yp4HU6JfPb6OH67QpE9ewSwKep8QTuqOmVp1CweLrUmc_3CYlSpOieUl1xKb-Y8A5qW_C0Lq_Z5KwzW0YkpxtwE1Vx_FhcooS6AXcRCFZkj6Igy31WG9QvDkLanEd2vhVkw09PuEpbmUutoQaTRMN_7CNGQxIxyFhKemGK8dCG43PcMvxowdynroJ1Yyr0mLZUwe-AE')">
+    </div>
+
+    <!-- Camera Activation Status Badge -->
+    <div class="absolute top-20 inset-x-0 mx-auto w-fit z-20 flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md shadow-lg"
+         :class="liveCameraActive ? 'bg-emerald-950/80 border border-emerald-400/40 text-emerald-300' : 'bg-black/70 border border-white/20 text-white/80'">
+        <span class="w-2.5 h-2.5 rounded-full" :class="liveCameraActive ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'"></span>
+        <span class="text-xs font-bold" x-text="liveCameraActive ? 'מצלמת וידאו חיה פעילה (Live Feed)' : 'טוען גישה למצלמה... (לחץ לאישור)'" @click="startLiveViewfinderCamera()"></span>
+        <button x-show="liveCameraActive" type="button" @click="toggleCameraLens()" class="text-xs underline text-white font-bold mr-1">החלף מצלמה</button>
+    </div>
+
+    <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 pointer-events-none"></div>
 </div>
 <!-- Scanning Reticle & Animated HUD Laser Layer -->
 <div class="absolute inset-0 z-10 pointer-events-none flex flex-col items-center justify-center p-space-md" id="laser-scan-container">
@@ -7420,7 +7517,7 @@
 <span class="material-symbols-outlined text-[20px]">edit</span>
 </button>
 <!-- Big Green Confirm Check Button (שמור ביומן) -->
-<button class="flex-1 py-3 px-4 rounded-full bg-primary text-on-primary font-headline-sm text-headline-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,105,72,0.35)] hover:bg-primary-container active:scale-95 transition-all" onclick="logDanoneProItem(this)">
+<button class="flex-1 py-3 px-4 rounded-full bg-primary text-on-primary font-headline-sm text-headline-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,105,72,0.35)] hover:bg-primary-container active:scale-95 transition-all" @click="liveCameraActive ? captureRealMealFromViewfinder() : logDanoneProItem(this)">
 <span class="material-symbols-outlined text-[24px]">check</span>
 <span class="text-sm font-bold">שמור ביומן</span>
 </button>
