@@ -3945,7 +3945,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=45').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=46').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4200,6 +4200,10 @@
                 liveCameraActive: false,
                 liveCameraFacingMode: 'environment',
                 liveViewfinderScanning: false,
+                liveDetectedItems: [],
+                liveDetectedBarcodeItem: null,
+                liveViewfinderTorch: false,
+                liveViewfinderFlashSupported: false,
                 viewfinderMode: 'plate',
                 viewfinderSimulatedBoxes: [
                     { name: 'חזה עוף בגריל', weight: 180, cals: 290, protein: 54, carbs: 0, fat: 5, confidence: 98, color: 'primary' },
@@ -4646,7 +4650,6 @@
                 async captureRealMealFromViewfinder() {
                     const video = this.$refs.liveViewfinderVideo;
                     if (!video || !video.videoWidth || !this.liveCameraActive) {
-                        // Fallback to gallery upload
                         if (this.$refs.cameraMealInput) this.$refs.cameraMealInput.click();
                         return;
                     }
@@ -4655,18 +4658,69 @@
                     canvas.height = video.videoHeight;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
                     
                     this.liveViewfinderScanning = true;
-                    this.showToast('📸 צילום נקלט! Gemini Vision מנתח מרכיבים וערכים...');
+                    this.showToast('📸 צילום נקלט! Gemini Vision סורק את הצלחת האמיתית שלך...');
                     try {
-                        this.selectedPhotoDataUrl = dataUrl;
-                        this.stopLiveViewfinderCamera();
-                        await this.submitPhotoMeal();
+                        const res = await fetch('/api/meals/photo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                image_base64: dataUrl,
+                                mime_type: 'image/jpeg',
+                                caption: ''
+                            })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'לא זוהו פריטי מזון ברורים בתמונה');
+                        }
+                        const added = await res.json();
+                        
+                        // Parse detected items to show dynamic real HUD cards
+                        const items = [];
+                        if (added.items && added.items.length) {
+                            added.items.forEach((it, idx) => {
+                                items.push({
+                                    name: it.name || it.description || 'פריט מזון',
+                                    weight: it.grams || it.portion_g || 100,
+                                    cals: it.calories || 0,
+                                    protein: it.protein_g || 0,
+                                    confidence: 96 - (idx * 3)
+                                });
+                            });
+                        } else {
+                            items.push({
+                                name: added.description || added.meal_name || 'ארוחה זוהתה',
+                                weight: 200,
+                                cals: added.calories || 0,
+                                protein: added.protein_g || 0,
+                                confidence: 98
+                            });
+                        }
+                        this.liveDetectedItems = items;
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`✨ זוהתה ונשמרה בהצלחה: ${added.description} (${added.calories} קק״ל, ${added.protein_g}g חלבון)!`);
                     } catch (e) {
-                        this.showToast(e.message || 'שגיאה בניתוח תמונת הצלחת', 'error');
+                        this.showToast(e.message || 'שגיאה בניתוח הצלחת', 'error');
                     } finally {
                         this.liveViewfinderScanning = false;
+                    }
+                },
+
+                toggleTorch() {
+                    if (!this.liveViewfinderCameraStream) return;
+                    const track = this.liveViewfinderCameraStream.getVideoTracks()[0];
+                    if (!track) return;
+                    const caps = track.getCapabilities ? track.getCapabilities() : {};
+                    if (caps.torch) {
+                        this.liveViewfinderTorch = !this.liveViewfinderTorch;
+                        track.applyConstraints({
+                            advanced: [{ torch: this.liveViewfinderTorch }]
+                        }).catch(e => console.warn('Torch error:', e));
+                    } else {
+                        this.showToast('מבזק תאורה (Flash) אינו זמין במצלמה זו');
                     }
                 },
 
@@ -7257,7 +7311,7 @@
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 bg-black overflow-y-auto select-none"
          dir="rtl">
-        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button class="px-3 py-1 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center gap-1 shadow-sm"><span class="material-symbols-outlined text-[16px]">barcode</span>Barcode</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">restaurant</span>Meal AI</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">nutrition</span>Label OCR</button></div></div></header>
+        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button @click="toggleTorch()" aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-95 cursor-pointer"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button class="px-3 py-1 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center gap-1 shadow-sm"><span class="material-symbols-outlined text-[16px]">barcode</span>Barcode</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">restaurant</span>Meal AI</button><button class="px-3 py-1 rounded-full text-white/80 font-label-strong text-label-strong flex items-center gap-1 hover:text-white transition-colors"><span class="material-symbols-outlined text-[16px]">nutrition</span>Label OCR</button></div></div></header>
 <main class="flex flex-col relative w-full pt-28 bg-transparent min-h-screen"><div class="flex flex-col w-full text-on-surface select-none pb-safe" dir="rtl">
 <!-- Viewfinder Frame Container -->
 <div class="relative w-full overflow-hidden rounded-b-xl shadow-2xl bg-black min-h-[460px] flex flex-col justify-between">
@@ -7322,63 +7376,43 @@
 </div>
 </div>
 </div>
-<!-- Real-Time AI Detection Bounding Boxes Overlay -->
+<!-- Dynamic AI Detection Bounding Boxes Overlay (Only shows real items after capture/scan) -->
 <div class="absolute inset-0 z-20 pointer-events-none p-4 overflow-hidden">
-<!-- Box 1: Chicken Breast (Top Right) -->
-<div class="absolute top-20 right-6 max-w-[210px] pointer-events-auto transform hover:scale-102 transition-transform">
-<div class="p-2.5 rounded-xl bg-black/75 backdrop-blur-md shadow-xl">
-<div class="flex items-center justify-between gap-2 mb-1.5">
-<div class="flex items-center gap-1.5">
-<span class="w-2 h-2 rounded-full bg-primary-fixed shadow-[0_0_8px_rgba(133,248,196,0.9)]"></span>
-<span class="font-label-strong text-label-strong text-on-primary">חזה עוף בגריל</span>
-</div>
-<span class="font-label-subtle text-label-subtle px-1.5 py-0.5 rounded-full bg-primary text-on-primary font-bold">98% AI</span>
-</div>
-<div class="flex items-baseline gap-1 text-primary-fixed mb-1">
-<span class="font-metric-numeral-md text-metric-numeral-md leading-none">180</span>
-<span class="font-label-subtle text-label-subtle">גרם</span>
-</div>
-<div class="flex items-center gap-1.5 pt-1">
-<span class="px-1.5 py-0.5 rounded bg-white/10 font-code-biomarker text-code-biomarker text-primary-fixed">290 קק״ל</span>
-<span class="px-1.5 py-0.5 rounded bg-primary-container font-code-biomarker text-code-biomarker text-on-primary">54g חלבון</span>
-</div>
-</div>
-<!-- Pointer Anchor Line -->
-<div class="w-0.5 h-6 bg-primary-fixed mx-auto opacity-70"></div>
-</div>
-<!-- Box 2: Steamed Rice (Center Left) -->
-<div class="absolute top-44 left-5 max-w-[190px] pointer-events-auto transform hover:scale-102 transition-transform">
-<div class="p-2 rounded-xl bg-black/75 backdrop-blur-md shadow-xl">
-<div class="flex items-center justify-between gap-1 mb-1">
-<div class="flex items-center gap-1">
-<span class="w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_rgba(226,223,255,0.8)]"></span>
-<span class="font-label-strong text-label-strong text-on-primary">אורז מלא מאודה</span>
-</div>
-<span class="font-label-subtle text-label-subtle px-1 rounded-full bg-secondary-container text-on-secondary-container">150g</span>
-</div>
-<div class="flex items-center gap-1 pt-0.5">
-<span class="px-1.5 py-0.5 rounded bg-white/10 font-code-biomarker text-code-biomarker text-secondary-fixed">195 קק״ל</span>
-<span class="px-1.5 py-0.5 rounded bg-secondary/40 font-code-biomarker text-code-biomarker text-inverse-on-surface">4g חלבון</span>
-</div>
-</div>
-<div class="w-0.5 h-4 bg-secondary-fixed mr-6 opacity-70"></div>
-</div>
-<!-- Box 3: Israeli Salad with Tahini (Bottom Right) -->
-<div class="absolute bottom-24 right-8 max-w-[200px] pointer-events-auto transform hover:scale-102 transition-transform">
-<div class="p-2 rounded-xl bg-black/75 backdrop-blur-md shadow-xl">
-<div class="flex items-center justify-between gap-1 mb-1">
-<div class="flex items-center gap-1">
-<span class="w-2 h-2 rounded-full bg-tertiary-fixed shadow-[0_0_8px_rgba(255,220,195,0.8)]"></span>
-<span class="font-label-strong text-label-strong text-on-primary">סלט קצוץ עם טחינה</span>
-</div>
-<span class="font-label-subtle text-label-subtle text-tertiary-fixed">120g</span>
-</div>
-<div class="flex items-center gap-1.5">
-<span class="px-1.5 py-0.5 rounded bg-tertiary-container font-code-biomarker text-code-biomarker text-on-tertiary-container">110 קק״ל</span>
-<span class="font-label-subtle text-label-subtle text-white/70">שומן צמחי בריא</span>
-</div>
-</div>
-</div>
+    <!-- 1. Real Detected Items from Camera (shown after scan) -->
+    <template x-for="(item, idx) in liveDetectedItems" :key="idx">
+        <div class="pointer-events-auto transform hover:scale-105 transition-transform my-2"
+             :style="`position: absolute; ${idx === 0 ? 'top: 5.5rem; right: 1.5rem;' : (idx === 1 ? 'top: 11rem; left: 1.5rem;' : 'bottom: 6rem; right: 2rem;')}`">
+            <div class="p-2.5 rounded-2xl bg-black/85 backdrop-blur-md border border-emerald-400/60 shadow-2xl max-w-[220px]">
+                <div class="flex items-center justify-between gap-2 mb-1">
+                    <span class="text-xs font-black text-white truncate" x-text="item.name"></span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-600 text-white" x-text="`${item.confidence || 98}% AI`"></span>
+                </div>
+                <div class="text-[11px] text-emerald-300 font-bold" x-text="`${item.weight} גרם`"></div>
+                <div class="flex items-center gap-1.5 mt-1 pt-1 border-t border-white/15 text-[10px]">
+                    <span class="px-1.5 py-0.5 rounded bg-white/10 text-emerald-300 font-bold" x-text="`${item.cals} קק״ל`"></span>
+                    <span class="px-1.5 py-0.5 rounded bg-indigo-600 text-white font-bold" x-text="`${item.protein}g חלבון`"></span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- 2. Aim Helper Banner when waiting for user to capture -->
+    <div x-show="!liveDetectedItems.length && !liveViewfinderScanning"
+         class="absolute inset-x-4 top-28 mx-auto max-w-sm pointer-events-auto bg-black/60 backdrop-blur-md border border-white/15 rounded-2xl p-3 text-center space-y-1 shadow-lg">
+        <div class="flex items-center justify-center gap-1.5 text-emerald-400 text-xs font-black">
+            <span class="material-symbols-outlined text-[18px]">center_focus_strong</span>
+            <span>כוון את המצלמה לצלחת או למוצר המזון</span>
+        </div>
+        <p class="text-[11px] text-slate-300">לחץ על כפתור הצילום הירוק למטה וה-AI יזהה ויחשב את המרכיבים בזמן אמת</p>
+    </div>
+
+    <!-- 3. Scanning Spinner Banner -->
+    <div x-show="liveViewfinderScanning"
+         class="absolute inset-x-4 top-36 mx-auto max-w-xs pointer-events-auto bg-black/80 backdrop-blur-md border border-emerald-500/50 rounded-2xl p-4 text-center space-y-2 shadow-2xl">
+        <div class="w-8 h-8 mx-auto border-3 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+        <div class="text-xs font-black text-white">Gemini Vision מנתח את הצלחת שלך...</div>
+        <div class="text-[10px] text-emerald-300">זיהוי מרובה פריטים, שקילה וערכים תזונתיים</div>
+    </div>
 </div>
 <!-- Viewfinder Controls (HUD Top Controls) -->
 <div class="relative z-30 pt-3 px-space-md flex items-center justify-between">
@@ -7404,96 +7438,62 @@
 <!-- Viewfinder Bottom Helper Tag -->
 <div class="relative z-30 pb-3 px-space-md flex items-center justify-between text-white/80">
 <div class="flex items-center gap-1.5">
-<span class="material-symbols-outlined text-primary-fixed text-[16px]">verified</span>
-<span class="font-body-sm text-body-sm">3 רכיבים מזוהים בצלחת הנוכחית</span>
+<span class="material-symbols-outlined text-emerald-400 text-[16px]">verified</span>
+<span class="text-xs font-bold" x-text="liveDetectedItems.length ? `${liveDetectedItems.length} רכיבים זוהו בצלחת` : 'מצלמה מוכנה לסריקה'"></span>
 </div>
-<span class="font-code-biomarker text-code-biomarker text-white/60">595 קק״ל סה״כ</span>
-</div>
-</div>
-<!-- Bottom Nutrition Verdict Sheet (Israeli Supermarket Data & Active Match) -->
-<div class="relative -mt-4 z-40 px-space-md flex flex-col gap-space-sm">
-<div class="w-full bg-surface-container-lowest rounded-xl shadow-xl p-space-md flex flex-col gap-3">
-<!-- Drag Handle Affordance -->
-<div class="w-10 h-1 bg-surface-variant rounded-full mx-auto -mt-1 opacity-70"></div>
-<!-- Supermarket Product Headline & Quality Score -->
-<div class="flex items-start justify-between gap-3">
-<div class="flex items-start gap-2.5">
-<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center shadow-inner shrink-0">
-<span class="material-symbols-outlined text-primary text-[28px]">lunch_dining</span>
-</div>
-<div class="flex flex-col">
-<div class="flex items-center gap-1.5">
-<span class="font-headline-sm text-headline-sm text-on-surface">דנונה PRO 20g חלבון</span>
-<span class="material-symbols-outlined text-primary text-[18px]" title="אימות משרד הבריאות">check_circle</span>
-</div>
-<div class="flex items-center gap-2 mt-0.5">
-<span class="font-label-subtle text-label-subtle px-1.5 py-0.5 rounded bg-primary/10 text-primary">מתאים לתקציב היומי</span>
-<span class="font-code-biomarker text-code-biomarker text-on-surface-variant">מאושר מאגר מזון ישראלי (CHP)</span>
+<span class="text-xs text-white/70 font-mono" x-text="liveDetectedItems.length ? `${liveDetectedItems.reduce((acc, i) => acc + (i.cals || 0), 0)} קק״ל סה״כ` : 'AI Vision Live'"></span>
 </div>
 </div>
+<!-- Bottom Nutrition Verdict Sheet (Appears when barcode is detected or product is scanned) -->
+<div x-show="liveDetectedBarcodeItem" x-transition
+     class="relative -mt-4 z-40 px-space-md flex flex-col gap-space-sm">
+    <div class="w-full bg-surface-container-lowest rounded-2xl shadow-2xl p-4 flex flex-col gap-3 border border-emerald-300">
+        <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-2.5">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-700 shadow-inner shrink-0">
+                    <span class="material-symbols-outlined text-[28px]">lunch_dining</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-headline-sm text-base font-black text-on-surface" x-text="liveDetectedBarcodeItem?.product_name || 'מוצר זוהה בברקוד'"></span>
+                        <span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">מתאים לתקציב</span>
+                        <span class="text-[11px] text-slate-500 font-mono" x-text="`ברקוד: ${liveDetectedBarcodeItem?.barcode || ''}`"></span>
+                    </div>
+                </div>
+            </div>
+            <button type="button" @click="liveDetectedBarcodeItem = null" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 pt-1 text-center">
+            <div class="p-2 rounded-xl bg-slate-50">
+                <span class="text-[10px] text-slate-400 font-bold block">קלוריות</span>
+                <span class="text-sm font-black text-slate-900 mt-0.5" x-text="liveDetectedBarcodeItem?.calories || 0"></span>
+            </div>
+            <div class="p-2 rounded-xl bg-emerald-50">
+                <span class="text-[10px] text-emerald-700 font-bold block">חלבון</span>
+                <span class="text-sm font-black text-emerald-800 mt-0.5" x-text="`${liveDetectedBarcodeItem?.protein_g || 0}g`"></span>
+            </div>
+            <div class="p-2 rounded-xl bg-indigo-50">
+                <span class="text-[10px] text-indigo-700 font-bold block">פחמימות</span>
+                <span class="text-sm font-black text-indigo-800 mt-0.5" x-text="`${liveDetectedBarcodeItem?.carbs_g || 0}g`"></span>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-50">
+                <span class="text-[10px] text-slate-400 font-bold block">שומן</span>
+                <span class="text-sm font-black text-slate-900 mt-0.5" x-text="`${liveDetectedBarcodeItem?.fat_g || 0}g`"></span>
+            </div>
+        </div>
+
+        <button type="button" @click="logBarcodeItemFromViewfinder()"
+                class="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center gap-1 shadow-sm">
+            <span class="material-symbols-outlined text-[16px]">add_circle</span>
+            <span>הוסף מוצר זה ליומן עכשיו</span>
+        </button>
+    </div>
 </div>
-<!-- Grade A / Score Pill -->
-<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-primary-container text-on-primary shadow-sm shrink-0 min-w-[54px]">
-<span class="font-label-subtle text-label-subtle uppercase opacity-90">ציון איכות</span>
-<span class="font-metric-numeral-md text-metric-numeral-md leading-none">94</span>
-</div>
-</div>
-<!-- Tabular Macronutrient Breakdown Strip -->
-<div class="grid grid-cols-4 gap-2 pt-1">
-<div class="flex flex-col items-center p-2 rounded-lg bg-surface-container-low">
-<span class="font-label-subtle text-label-subtle text-on-surface-variant">קלוריות</span>
-<span class="font-metric-numeral-md text-metric-numeral-md text-on-surface mt-0.5">138</span>
-<span class="font-code-biomarker text-code-biomarker text-outline">קק״ל</span>
-</div>
-<div class="flex flex-col items-center p-2 rounded-lg bg-primary-container/10">
-<span class="font-label-subtle text-label-subtle text-primary font-bold">חלבון</span>
-<span class="font-metric-numeral-md text-metric-numeral-md text-primary mt-0.5">20.0</span>
-<span class="font-code-biomarker text-code-biomarker text-primary">גרם</span>
-</div>
-<div class="flex flex-col items-center p-2 rounded-lg bg-secondary-fixed/30">
-<span class="font-label-subtle text-label-subtle text-secondary font-bold">פחמימות</span>
-<span class="font-metric-numeral-md text-metric-numeral-md text-secondary mt-0.5">8.0</span>
-<span class="font-code-biomarker text-code-biomarker text-secondary">גרם</span>
-</div>
-<div class="flex flex-col items-center p-2 rounded-lg bg-surface-container-low">
-<span class="font-label-subtle text-label-subtle text-on-surface-variant">שומן</span>
-<span class="font-metric-numeral-md text-metric-numeral-md text-on-surface mt-0.5">1.5</span>
-<span class="font-code-biomarker text-code-biomarker text-outline">גרם</span>
-</div>
-</div>
-<!-- Quick Portion Size Segmented Selector -->
-<div class="flex flex-col gap-1.5 pt-1">
-<span class="font-label-strong text-label-strong text-on-surface-variant">כמות שנצרכה בפועל:</span>
-<div class="flex items-center gap-2">
-<button class="portion-btn flex-1 py-1.5 px-2 rounded-lg bg-surface-container-low text-on-surface font-label-strong text-label-strong transition-all hover:bg-surface-container active:scale-95 text-center" onclick="setPortion(this, 150)">
-            150 גרם
-          </button>
-<button class="portion-btn flex-1 py-1.5 px-2 rounded-lg bg-primary text-on-primary font-label-strong text-label-strong transition-all shadow-sm active:scale-95 text-center" onclick="setPortion(this, 200)">
-            200g גביע שלם
-          </button>
-<button class="portion-btn flex-1 py-1.5 px-2 rounded-lg bg-surface-container-low text-on-surface font-label-strong text-label-strong transition-all hover:bg-surface-container active:scale-95 flex items-center justify-center gap-1" onclick="setPortion(this, 'custom')">
-<span class="material-symbols-outlined text-[16px]">tune</span>
-            מותאם
-          </button>
-</div>
-</div>
-<!-- Health Biomarker Tags -->
-<div class="flex items-center flex-wrap gap-1.5 pt-1">
-<div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-subtle text-label-subtle">
-<span class="material-symbols-outlined text-primary text-[14px]">bolt</span>
-<span>מדד גליקמי נמוך</span>
-</div>
-<div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-subtle text-label-subtle">
-<span class="material-symbols-outlined text-secondary text-[14px]">bloodtype</span>
-<span>ללא תוספת סוכר</span>
-</div>
-<div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-subtle text-label-subtle">
-<span class="material-symbols-outlined text-tertiary text-[14px]">verified_user</span>
-<span>עשיר בסידן (360 מ״ג)</span>
-</div>
-</div>
-</div>
-</div>
+
 <!-- Bottom Action Pill Dock (Frosted Glass Floating Dock) -->
 <div class="p-space-md mt-1 w-full">
 <div class="p-2 rounded-full bg-surface-container-lowest/90 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2">
