@@ -274,16 +274,17 @@ class WoltMenuScanRequest(BaseModel):
 
 
 class SupermarketScanResult(BaseModel):
-    product_name: str = Field(description="שם המוצר והמותג בעברית")
-    verdict: str = Field(description="פסק דין קצר: מומלץ מאוד ✅ / אפשרי במידה ⚖️ / פחות מומלץ ⚠️")
-    score: int = Field(description="ציון התאמה בין 1 ל-100 עבור היתרה היומית ויחס חלבון-קלוריות")
-    calories_per_100g: int = Field(description="קלוריות ל-100 גרם")
-    protein_per_100g: float = Field(description="חלבון בגרמים ל-100 גרם")
-    serving_description: str = Field(description="תיאור מנה מומלצת או יחידה (למשל גביע 200 גרם, חטיף 50 גרם, 2 פרוסות)")
-    serving_calories: int = Field(description="קלוריות למנה/יחידה")
-    serving_protein_g: float = Field(description="חלבון בגרמים למנה/יחידה")
-    fits_today_budget: bool = Field(description="האם מנה אחת נכנסת ביתרת הקלוריות של המשתמש להיום")
-    explanation: str = Field(description="הסבר קצר וחד בעברית למה כדאי או לא כדאי לקנות בהתחשב ביתרה היומית וברכיבים")
+    is_food: bool = Field(default=True, description="האם התמונה מציגה מוצר מזון, משקה, מצרך סופרמרקט או תווית תזונתית למאכל. אם התמונה מציגה חפץ דומם, מכשיר חשמלי (כגון קמין חשמלי, תנור, רהיט, מוצר חשמל, מאוורר), אלקטרוניקה, כלי בית, בגד או חיה - חובה לסמן False!")
+    product_name: str = Field(description="שם המוצר/החפץ שזוהה בעברית (למשל: 'קמין חשמלי' או 'חזה עוף טרי')")
+    verdict: str = Field(description="אם אינו מזון: 'נדחה: אינו מוצר מזון ❌'. אם מזון: 'מומלץ מאוד ✅' / 'אפשרי במידה ⚖️' / 'פחות מומלץ ⚠️'")
+    score: int = Field(default=0, description="ציון התאמה בין 1 ל-100 למזון, או 0 אם אינו מוצר מזון")
+    calories_per_100g: int = Field(default=0, description="קלוריות ל-100 גרם (0 אם אינו מזון)")
+    protein_per_100g: float = Field(default=0.0, description="חלבון בגרמים ל-100 גרם (0 אם אינו מזון)")
+    serving_description: str = Field(default="", description="תיאור מנה מומלצת או יחידה (או 'אינו מוצר מזון')")
+    serving_calories: int = Field(default=0, description="קלוריות למנה/יחידה (0 אם אינו מזון)")
+    serving_protein_g: float = Field(default=0.0, description="חלבון בגרמים למנה/יחידה (0 אם אינו מזון)")
+    fits_today_budget: bool = Field(default=False, description="האם מנה אחת נכנסת ביתרת הקלוריות (False אם אינו מזון)")
+    explanation: str = Field(description="הסבר קצר וחד בעברית. אם נדחה, הסבר בבירור מדוע האובייקט אינו מזון לצריכה")
     better_alternative: Optional[str] = Field(default="", description="חלופה עדיפה בסופר הישראלי אם המוצר פחות מומלץ")
 
 
@@ -2109,16 +2110,22 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
         optical_context += "\n- דגשים אופטיים למודל: " + " | ".join(forensics["optical_warnings"])
 
     caption_note = f"\nהערת המשתמש לתמונה: '{caption.strip()}'." if caption and caption.strip() else ""
-    prompt = f"""אתה סוכן Vision AI מומחה לניתוח תמונות מזון, שקילת נפחים חזותית וזיהוי ערכים תזונתיים בישראל.{caption_note}{optical_context}{rules_block}
+    prompt = f"""אתה סוכן Vision AI קפדני לניתוח תמונות מזון, ארוחות ושקילת נפחים בישראל.{caption_note}{optical_context}{rules_block}
 
-התמונה יכולה להיות:
-1. צילום של מנה / צלחת אוכל / משקה / קפה / חטיף / פרי / כריך / סלט / מרק / קינוח — זהה את כל המרכיבים, הערך את גודל המנה בצורה מציאותית לפי קנה מידה חזותי (קוטר צלחת, סכו"ם, כוס, עומק קערה), התחשב בטלמטריה האופטית (למשל אל תבלבל בין תאורת חדר צהובה לבין טיגון עמוק), וחשב סך קלוריות וחלבון בגרמים.
-2. תווית ערכים תזונתיים / אריזת מוצר / ברקוד / תפריט — קרא במדויק את הערכים התזונתיים או שם המוצר הישראלי וחשב את הקלוריות והחלבון למנה/יחידה שנצרכה.
+בדיקת סף קריטית ראשונה (סינון ודחייה של חפצים שאינם מזון):
+- בדוק היטב האם בתמונה אכן מופיע אוכל, מנה, מאכל, משקה, קפה, פרי, ירק, חטיף או תווית ערכים תזונתיים.
+- אם התמונה מציגה חפץ דומם, מכשיר חשמלי (כגון קמין חשמלי, טוסטר, רדיאטור, תנור, מאוורר, טלפון, כלי עבודה), רהיט, מכשיר אלקטרוני, מסמך לא תזונתי, צעצוע, בגד או חיה:
+  * חובה לסמן: is_meal=False
+  * קבע: calories=0, protein_g=0, items=[]
+  * בשדה summary ציין בדיוק מה האובייקט שזוהה (למשל: "קמין חשמלי / מכשיר חשמלי — אינו מזון").
+  * בשדה confidence_score תן ציון ביטחון בזיהוי האובייקט.
+  * אל תמציא בשום אופן קלוריות או חלבון לחפצים שאינם מזון!
 
-חשוב מאוד:
-- אם יש בתמונה כל דבר שקשור לאוכל, שתייה, אריזת מזון, כוס, צלחת, קערה, פרי, ירק, או טבלת ערכים תזונתיים — סמן תמיד is_meal=True!
+אם ורק אם התמונה מציגה מזון או משקה אכילים:
+- סמן is_meal=True
+- זהה את כל המרכיבים בצלחת/במנה, הערך את גודל המנה בצורה מציאותית לפי קנה מידה חזותי וחשב סך קלוריות וחלבון בגרמים.
 - החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף 180 ג' עם אורז לבן וסלט קצוץ").
-- ברשימת items, פרט כל פריט או רכיב בנפרד (כולל שמן/רוטב משמעותי אם זוהה) עם השם שלו (name, כולל משקל משוער בגרמים/כפות), כמות הקלוריות שלו (calories) וגרם החלבון שלו (protein_g). ודא שסכום הקלוריות והחלבון של items שווה ל-calories ו-protein_g הכוללים!
+- ברשימת items, פרט כל פריט או רכיב בנפרד עם השם שלו, משקל משוער, קלוריות וחלבון. ודא שסכום הרכיבים תואם לסך הכל!
 - מלא את שדות הבקרה של הסוכן:
   * confidence_score: ציון ביטחון (0-100) בזיהוי המנה והכמויות.
   * portion_estimation_method: הסבר קצר בעברית איך הערכת את המשקל/נפח (למשל: "לפי צלחת מנה עיקרית 26 ס״מ וגובה ערימת האורז").
@@ -4590,7 +4597,18 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
             save_vision_analysis_log_db(uid, extraction, forensics, source="web-photo", caption=req.caption or "", meal_id="")
         except Exception:
             pass
-        raise HTTPException(status_code=422, detail="לא זוהו אוכל, משקה או תווית מזון בתמונה")
+        object_name = extraction.summary or "חפץ שאינו מזון"
+        if req.preview_only:
+            return {
+                "status": "rejected_not_food",
+                "is_meal": False,
+                "description": object_name,
+                "calories": 0,
+                "protein_g": 0.0,
+                "items": [],
+                "detail": f"נדחה על הסף: זוהה '{object_name}' שאינו מוצר מזון או שתייה."
+            }
+        raise HTTPException(status_code=422, detail=f"נדחה על הסף: זוהה '{object_name}' שאינו מוצר מזון או שתייה.")
 
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
     if req.preview_only:
@@ -5959,12 +5977,25 @@ def api_supermarket_scan(req: SupermarketScanRequest, request: Request):
             "better_alternative": "",
         }
 
-    prompt = f"""נתח את המוצר או התווית התזונתית שבתמונה מתוך הסופר הישראלי ("האם לקנות?").
-יתרת הקלוריות של המשתמש להיום: {budget_cal} קק"ל, ויתרת החלבון להשלמה: {budget_prot} גרם.
-1. זהה את שם המוצר והמותג (או סוג המזון), וחשב/קרא את הקלוריות והחלבון ל-100 גרם וגם למנה מומלצת או אריזה אישית (serving_calories, serving_protein_g).
-2. קבע פסק דין ברור (verdict): 'מומלץ מאוד ✅', 'אפשרי במידה ⚖️', או 'פחות מומלץ ⚠️', ותן ציון התאמה (score) בין 1 ל-100.
-3. בדוק אם מנה אחת נכנסת בתקציב של {budget_cal} קק"ל (fits_today_budget).
-4. כתוב הסבר קצר, חד ופרקטי בעברית (explanation) ואם המוצר עתיר סוכר/שומן או דל חלבון הצע חלופה ישראלית עדיפה בסופר (better_alternative)."""
+    prompt = f"""אתה סוכן Vision AI קפדני ומומחה בקרת איכות לסריקת מוצרי סופרמרקט ומזון בישראל ("האם לקנות?").
+
+שלב 1 — בדיקת סף קריטית מחייבת (סינון ודחייה של חפצים שאינם מזון):
+- בדוק היטב האם בתמונה מופיע מוצר מזון, משקה, מצרך סופרמרקט, חטיף, פרי, ירק, מנה או תווית ערכים תזונתיים.
+- אם התמונה מציגה מכשיר חשמלי (כגון קמין חשמלי, רדיאטור, תנור, טלוויזיה, מאוורר, טלפון, גאדג'ט), רהיט, כלי עבודה, בגד, כלי בית, חיה, או כל חפץ דומם שאינו מוצר מזון או שתייה למאכל:
+  * חובה לסמן: is_food=False
+  * קבע פסק דין (verdict): "נדחה: אינו מוצר מזון ❌"
+  * קבע: score=0, calories_per_100g=0, protein_per_100g=0, serving_calories=0, serving_protein_g=0, fits_today_budget=False, serving_description="אינו מוצר מזון"
+  * בשדה product_name ציין בדיוק מה האובייקט שזוהה (למשל: "קמין חשמלי / מכשיר חימום ביתי").
+  * בשדה explanation הסבר בבירור: "התמונה זוהתה כחפץ או מכשיר שאינו מוצר מזון או שתייה למאכל, ולכן נדחה על הסף ולא ניתן להוסיפו ליומן כמזון."
+  * חל איסור מוחלט להמציא קלוריות או חלבון לחפצים שאינם מזון!
+
+שלב 2 — אם ורק אם התמונה מציגה מוצר מזון, משקה או תווית תזונתית:
+- קבע is_food=True
+- יתרת הקלוריות של המשתמש להיום: {budget_cal} קק"ל, ויתרת החלבון להשלמה: {budget_prot} גרם.
+- זהה את שם המוצר והמותג, וחשב קלוריות וחלבון ל-100 גרם וגם למנה מומלצת או אריזה אישית (serving_calories, serving_protein_g).
+- קבע פסק דין: 'מומלץ מאוד ✅', 'אפשרי במידה ⚖️', או 'פחות מומלץ ⚠️', ותן ציון התאמה בין 1 ל-100.
+- בדוק אם מנה אחת נכנסת בתקציב ({budget_cal} קק"ל).
+- כתוב הסבר קצר ופרקטי והצע חלופה עדיפה בסופר הישראלי אם המוצר פחות מומלץ."""
 
     try:
         response = ai_client.models.generate_content(
