@@ -4454,7 +4454,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=54').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=55').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4718,11 +4718,1049 @@
             applyToJournal: '🎯 Apply These Targets to My Journal'
         }
     };
+
+    window.HE_TO_EN = {
+  "SLA 99.98% פעיל": "SLA 99.98% Active",
+  "סיכום יומי": "Daily Summary",
+  "היסטוריה ומגמות": "History & Trends",
+  "מתכונים ו-Wolt": "Recipes & Wolt",
+  "ניהול משתמשים": "User Management",
+  "סורק חי AI": "Live AI Scanner",
+  "התקן": "Install",
+  "התקן אפליקציה": "Install App",
+  "התראות": "Alerts",
+  "פוש פעיל": "Push Active",
+  "יעדים": "Goals",
+  "רענן": "Refresh",
+  "התחבר": "Sign In",
+  "התנתק": "Sign Out",
+  "ראשי": "Home",
+  "יומן": "Journal",
+  "מתכונים": "Recipes",
+  "אדמין": "Admin",
+  "Switch to English": "Switch to English",
+  "עבור לעברית": "Switch to Hebrew",
+  "עב": "HE",
+  "EN": "EN",
+  "סגור": "Close",
+  "ביטול": "Cancel",
+  "שמור": "Save",
+  "אישור": "Confirm",
+  "המשך": "Continue",
+  "חזור": "Back",
+  "מחק": "Delete",
+  "ערוך": "Edit",
+  "שלח": "Send",
+  "הוסף": "Add",
+  "חפש": "Search",
+  "טוען...": "Loading...",
+  "מנתח...": "Analyzing...",
+  "שומר...": "Saving...",
+  "מבט על יומי": "Daily Overview",
+  "ארוחות שתועדו": "meals logged",
+  "יומן מטבולי וערכים מותאמים": "Metabolic Log & Calibrated Targets",
+  "כייל לפי BMI": "Calibrate via BMI",
+  "חלבון": "Protein",
+  "פחמימות": "Carbs",
+  "שומנים": "Fats",
+  "קלוריות": "Calories",
+  "המלצת מנוע AI בזמן אמת": "Real-Time AI Clinical Recommendation",
+  "נתח יום": "Analyze Day",
+  "פתח סורק חי עכשיו 📸": "Open Live Scanner Now 📸",
+  "שלח סיכום לוואטסאפ": "Send Summary to WhatsApp",
+  "שתף": "Share",
+  "העתק סיכום": "Copy Summary",
+  "היום הקודם": "Previous Day",
+  "היום הבא": "Next Day",
+  "היום": "Today",
+  "הוספת ארוחה (AI / צילום)": "Add Meal (AI / Photo)",
+  "תיעוד אימון (AI / כושר)": "Log Workout (AI / Fitness)",
+  "סורק סופר (\"האם לקנות?\")": "Supermarket (\"Should I Buy?\")",
+  "מה יש לי במקרר?": "What's in my Fridge?",
+  "מנות מ-Wolt ליתרה": "Wolt Dishes for Balance",
+  "מנות מועדפות מהירות": "Quick Favorite Meals",
+  "קולי": "Voice",
+  "עצור": "Stop",
+  "צלם": "Photo",
+  "ברקוד": "Barcode",
+  "גלריה": "Gallery",
+  "העלה תמונה": "Upload Photo",
+  "תיעוד קולי": "Voice Log",
+  "הזנה ידנית": "Manual Entry",
+  "מעבר להזנת AI": "Switch to AI Entry",
+  "מאמן תזונה ואימונים אישי AI": "Personal AI Nutrition & Fitness Coach",
+  "ניתוח רפואי ומטבולי של צריכת היום, עמידה ביעדים והמלצות לפעולה": "Clinical & metabolic analysis of today's intake, targets and recommendations",
+  "שאל את המאמן (למשל: מה כדאי לאכול בערב? האם אכלתי מספיק חלבון?)": "Ask Coach (e.g. what should I eat tonight? did I hit protein?)",
+  "ארוחות שתועדו היום": "Today's Logged Meals",
+  "טרם תועדו ארוחות להיום. הוסף ארוחה ראשונה!": "No meals logged yet today. Add your first meal!",
+  "ערוך ארוחה": "Edit Meal",
+  "מחק ארוחה": "Delete Meal",
+  "שמור שינויים": "Save Changes",
+  "רכיבי המנה": "Meal Items",
+  "שם המנה / פירוט": "Dish Name / Details",
+  "גרם": "grams",
+  "קק״ל": "kcal",
+  "קק\"ל": "kcal",
+  "חלבון (ג׳)": "Protein (g)",
+  "פחמימות (ג׳)": "Carbs (g)",
+  "שומנים (ג׳)": "Fats (g)",
+  "אשף BMI וכיול יעדים מטבוליים": "Metabolic BMI & Calorie Target Wizard",
+  "חישוב קליני מבוסס Mifflin-St Jeor להתאמת יעדי קלוריות ומאקרו מדויקים": "Clinical Mifflin-St Jeor formula to precisely calibrate calories and macros",
+  "מדדים אישיים": "Personal Metrics",
+  "רמת פעילות": "Activity Level",
+  "יעד מטבולי": "Metabolic Goal",
+  "תוצאות וכיול": "Results & Calibration",
+  "מדדים": "Metrics",
+  "פעילות": "Activity",
+  "יעד": "Goal",
+  "תוצאה": "Result",
+  "מין ביולוגי:": "Biological Sex:",
+  "גבר 👨": "Male 👨",
+  "אישה 👩": "Female 👩",
+  "גיל (שנים)": "Age (years)",
+  "גובה (ס״מ)": "Height (cm)",
+  "משקל נוכחי (ק״ג)": "Current Weight (kg)",
+  "מדד ה-BMI הנוכחי שלך:": "Your Current BMI:",
+  "המשך לשלב הבא ➔": "Continue to Next Step ➔",
+  "רמת פעילות גופנית שבועית": "Weekly Physical Activity Level",
+  "בחר את רמת הפעילות המייצגת את שגרת יומך:": "Select activity level representing your daily routine:",
+  "יושבני - משרד, ללא ספורט": "Sedentary - Desk job, no exercise",
+  "יושבני": "Sedentary",
+  "עבודה משרדית / נהיגה, מעט מאוד תנועה יומיומית (מכפיל 1.2)": "Desk work / driving, very little daily movement (multiplier 1.2)",
+  "פעיל קל - אימונים 1-3 פעמים בשבוע": "Lightly Active - 1-3 workouts per week",
+  "הליכות, פעילות ספורטיבית קלה 1-3 פעמים בשבוע (מכפיל 1.375)": "Walking, light sports 1-3 times a week (multiplier 1.375)",
+  "פעיל בינוני - 3-5 אימונים בשבוע": "Moderately Active - 3-5 workouts per week",
+  "אימוני חדר כושר/ריצה סדירים בעצימות בינונית (מכפיל 1.55)": "Regular gym/running workouts of moderate intensity (multiplier 1.55)",
+  "פעיל מאוד - 6-7 אימונים בשבוע": "Very Active - 6-7 workouts per week",
+  "עצימות גבוהה כמעט בכל יום או עבודה פיזית קבועה (מכפיל 1.725)": "High intensity almost daily or regular physical labor (multiplier 1.725)",
+  "אתלט מקצועי / עבודה פיזית קשה": "Professional Athlete / Heavy Physical Labor",
+  "2 אימונים ביום או ספורטאי תחרותי (מכפיל 1.9)": "2 workouts per day or competitive athlete (multiplier 1.9)",
+  "הגדרת יעד מטבולי": "Metabolic Goal Setting",
+  "בחר את היעד הגופני שלך:": "Select your physical goal:",
+  "חיטוב אגרסיבי (-650 קק״ל)": "Aggressive Cut (-650 kcal)",
+  "הורדת שומן מהירה, גרעון קלורי משמעותי עם דגש על שימור שריר": "Rapid fat loss, significant calorie deficit with muscle preservation",
+  "חיטוב מתון (-400 קק״ל)": "Moderate Cut (-400 kcal)",
+  "הורדת שומן הדרגתית, מתאימה לאורח חיים בר קיימא (מומלץ)": "Gradual fat loss, sustainable long-term lifestyle (Recommended)",
+  "שמירה על משקל (איזון TDEE)": "Weight Maintenance (TDEE Balance)",
+  "איזון אנרגטי מלא, תחזוקת הרכב גוף וביצועים ספורטיביים": "Full energy balance, body composition & athletic performance",
+  "מסה נקייה (+300 קק״ל)": "Lean Bulk (+300 kcal)",
+  "עלייה מתונה במסת שריר עם מינימום שומן עודף (מומלץ למתאמנים)": "Controlled muscle mass gain with minimal fat (Recommended for lifters)",
+  "מסה אגרסיבית (+550 קק״ל)": "Aggressive Bulk (+550 kcal)",
+  "בניית מסה מהירה למתאמנים רזים או מתקשים לעלות במשקל": "Fast bulking for hardgainers and ectomorph lifters",
+  "תוצאות החישוב והמלצת מאקרו": "Calculation Results & Macro Recommendation",
+  "BMR (מנוחה מוחלטת):": "BMR (Basal Metabolic Rate):",
+  "TDEE (שריפה יומית כוללת):": "TDEE (Total Daily Energy Expenditure):",
+  "יעד קלורי יומי מומלץ:": "Recommended Daily Calorie Goal:",
+  "קלוריות ליום": "calories / day",
+  "חלוקת מאקרו מומלצת ליעד שבחרת:": "Recommended macro split for your goal:",
+  "חלבון יומי": "Daily Protein",
+  "סקאלת BMI קלינית:": "Clinical BMI Scale:",
+  "תת משקל": "Underweight",
+  "משקל תקין": "Normal Weight",
+  "עודף משקל": "Overweight",
+  "השמנה": "Obesity",
+  "השמנת יתר": "Severe Obesity",
+  "🎯 החל יעדים אלו על היומן שלי עכשיו": "🎯 Apply These Targets to My Journal",
+  "🧙‍♂️ פתח אשף חישוב BMI ויעדים חכם": "🧙‍♂️ Open Smart BMI & Targets Wizard",
+  "סורק חי NutriAgent AI": "NutriAgent AI Live Scanner",
+  "סורק ברקוד": "Barcode Scanner",
+  "זיהוי מנה": "Meal AI",
+  "סריקת תווית": "Label OCR",
+  "מצלמת וידאו חיה פעילה (Live Feed)": "Live Video Feed Active",
+  "החלף מצלמה": "Switch Camera",
+  "כוון את המצלמה לצלחת או למוצר המזון": "Aim camera at your plate or food item",
+  "לחץ על כפתור הצילום הירוק למטה וה-AI יזהה ויחשב את המרכיבים בזמן אמת": "Tap green shutter button below for instant AI recognition and calorie breakdown",
+  "Gemini Vision מנתח את הצלחת שלך...": "Gemini Vision is analyzing your plate...",
+  "אשר ושמור מנה זו ביומן": "Confirm & Save Meal to Journal",
+  "שמור ביומן": "Save to Journal",
+  "רכיבים זוהו בצלחת": "items detected on plate",
+  "סך הכל": "Total",
+  "זיהוי אוטומטי": "Auto Detection",
+  "תיעוד אימון": "Workout Logger",
+  "סוג אימון": "Workout Type",
+  "משך (דקות)": "Duration (minutes)",
+  "קלוריות שנשרפו": "Calories Burned",
+  "סנכרן מ-Google Fit": "Sync from Google Fit",
+  "שמור אימון": "Save Workout",
+  "שמור צעדים": "Save Steps",
+  "אימון כוח": "Strength Training",
+  "אירובי": "Cardio",
+  "ריצה": "Running",
+  "הליכה": "Walking",
+  "שחייה": "Swimming",
+  "אופניים": "Cycling",
+  "יוגה": "Yoga",
+  "אימון גוף מלא": "Full Body Workout",
+  "האם לקנות?": "Should I Buy?",
+  "סרוק מוצר בסופר": "Scan Product at Supermarket",
+  "ציון התאמה": "Match Score",
+  "למנה": "Per serving",
+  "ל-100 גרם": "Per 100g",
+  "מומלץ לצריכה": "Recommended",
+  "לצרוך במתינות": "Consume in moderation",
+  "לא מומלץ ליעדים שלך": "Not recommended for your goals",
+  "ערכים תזונתיים": "Nutritional Values",
+  "מרכיבים במקרר": "Fridge Ingredients",
+  "הצע ארוחות": "Suggest Meals",
+  "מתכונים מהמקרר": "Fridge Recipes",
+  "הוסף מצרך": "Add Ingredient",
+  "המלצות Wolt": "Wolt Recommendations",
+  "התאמה לתקציב הקלורי": "Calorie Budget Fit",
+  "הזמן ב-Wolt": "Order on Wolt",
+  "סנן לפי מסעדה": "Filter by Restaurant",
+  "בוקר טוב! ☀️": "Good Morning! ☀️",
+  "השעה כבר 10:00 וטרם תועדה ארוחה ראשונה להיום. בוא נשמור על רצף המעקב!": "It's past 10:00 AM and no meals logged yet today. Let's keep your streak!",
+  "צלם ארוחה עכשיו 📸": "Capture Meal Now 📸",
+  "אזכיר לי אחר כך": "Remind Me Later",
+  "התחברות עם Google": "Sign In with Google",
+  "התחבר לחשבונך": "Sign In to Your Account",
+  "הפרופיל האישי שלי": "My Personal Profile",
+  "ברוך הבא,": "Welcome,",
+  "המתנה לאישור גישה": "Pending Access Approval",
+  "בקשתך נשלחה למנהל המערכת": "Your request has been submitted to the administrator",
+  "ממוצע שבועי": "Weekly Average",
+  "סה״כ קלוריות שנצרכו": "Total Calories Consumed",
+  "גרם חלבון ממוצע": "Avg Protein (g)",
+  "ימים בעמידה ביעד": "Days on Target",
+  "התפלגות מקורות קלוריים": "Calorie Source Distribution",
+  "מעקב משקל": "Weight Tracker",
+  "תיעוד משקל": "Log Weight",
+  "שמור משקל": "Save Weight",
+  "הורד דוח שבועי כ-PDF": "Download Weekly Report (PDF)",
+  "משקל התחלתי": "Starting Weight",
+  "משקל נוכחי": "Current Weight",
+  "יעד משקל": "Target Weight",
+  "לוח בקרת אדמין": "Admin Control Board",
+  "משתמשים פעילים": "Active Users",
+  "סטטיסטיקות שימוש": "Usage Statistics",
+  "הוסף משתמש": "Add User",
+  "אישור משתמש": "Approve User",
+  "חסימת משתמש": "Block User",
+  "יעד קלוריות": "Calorie Target",
+  "יעד חלבון": "Protein Target",
+  "מכסת שאילתות": "Query Quota",
+  "כדי שגוגל תציג את חלון בחירת החשבון והאימות הרשמי שלה בדומיין שלך, יש ליצור": "To enable Google official account selection and secure authentication on your domain, create",
+  "תאר מה אכלת בתאריך זה... (למשל: סלט קינואה, 200 גרם חזה עוף וכף טחינה)": "Describe what you ate on this date... (e.g. quinoa salad, 200g chicken breast and a tbsp of tahini)",
+  "🔥 מסעדות פתוחות כעת סביבך ב-Wolt (לחץ להתאמת מנות מהמסעדה ליתרה שלך):": "🔥 Open restaurants around you on Wolt (Tap to fit menu dishes to your balance):",
+  "חפש מסעדה או חשק ב-Wolt (למשל: ג׳ירף, סושי, המבורגר, פוקי, ארומה)...": "Search restaurant or craving on Wolt (e.g. Giraffe, sushi, burger, poke, Aroma)...",
+  "מגביל כמה פעמים ביום המשתמש יכול להפעיל ניתוח AI / תמונה / קול / שף.": "Limits how many times per day this user can run AI / Photo / Voice / Chef analysis.",
+  "טרם נשמרו צילומים בארכיון. צלם ארוחה כדי לראות כאן את הניתוח המלא!": "No photos saved in archive yet. Capture a meal to inspect full analysis here!",
+  "מנות מועדפות מהירות (לחץ להוספה בטאפ אחד):": "Quick Favorite Meals (Tap to add in 1-click):",
+  "התמונה באיכות אופטית מיטבית — לא נדרש תיקון צבע/חשיפה": "Image has optimal optical quality — no color/exposure correction needed",
+  "כרגע רק המחשב מחובר להתראות! כדי שהפוש יגיע לטלפון,": "Currently only your computer is connected to alerts! For mobile push notifications,",
+  "סלמון נורווגי טרי, אדממה, מלפפון פריך, יוזו וקינואה": "Fresh Norwegian salmon, edamame, crisp cucumber, yuzu & quinoa",
+  "יש להתחבר עם חשבון Google כדי לגשת ליומן האישי שלך": "Please sign in with your Google account to access your personal journal",
+  "מעקב תזונה, קלוריות וחלבון חכם מבוסס בינה מלאכותית": "Smart AI-Powered Nutrition, Calories & Protein Tracker",
+  "הוספת ארוחה חכמה (טקסט, הקלטה קולית 🎙️ או צילום 📸)": "Smart Meal Logging (Text, Voice Recording 🎙️ or Photo 📸)",
+  "הערות לתמונה (אופציונלי, למשל: חצי מנה, ללא רוטב)": "Photo notes (optional, e.g. half portion, no dressing)",
+  "Gemini AI מחשב שריפת קלוריות מדעית לפי משקל גופך": "Gemini AI calculates scientific calorie burn based on your body weight",
+  "המאמן היומי שלי (AI Coach)": "My Daily AI Coach",
+  "מין ביולוגי (משפיע על חילוף החומרים הבסיסי BMR)": "Biological Sex (Affects basal metabolic rate BMR)",
+  "עודף קלורי מבוקר (+300 קק״ל) עם דגש חלבון גבוה": "Controlled calorie surplus (+300 kcal) with high protein focus",
+  "בדיקת סכומי רכיבים וערכים תרמודינמיים תקינה ✓": "Verification of component totals and thermodynamic values passed ✓",
+  "צריכה שווה להוצאה האנרגטית היומית (0 גירעון)": "Intake equals daily energy expenditure (0 deficit)",
+  "בפרויקט ה-GCP שלך ולהדביק אותו כאן פעם אחת:": "in your GCP project and paste it here once:",
+  "🔥 חיטוב וירידה במשקל (גירעון של כ-400 קק״ל)": "🔥 Cutting & Weight Loss (Deficit of ~400 kcal)",
+  "אשר למשתמש זה להיכנס לאפליקציה ולהשתמש ב-AI": "Approve this user to access application and AI tools",
+  "📸 סנכרון אוטומטי מצילום מסך (Samsung / Fit)": "📸 Automatic sync from screenshot (Samsung / Fit)",
+  "מנות מועדפות ומהירות (לחץ להוספה בטאפ אחד):": "Quick Favorite Meals (Tap to add in 1-click):",
+  "💪 עלייה במסת שריר נקייה (+300 קק״ל עודף)": "💪 Lean Muscle Building (+300 kcal surplus)",
+  "⚖️ שמירה ואיזון משקל (צריכה מאוזנת ל-TDEE)": "⚖️ Weight Maintenance (Intake balanced to TDEE)",
+  "מתכונים מותאמים אישית ליתרת הקלוריות והחלבון": "Custom recipes tailored to your remaining calories & protein",
+  "מסעדות מומלצות ב-Wolt עם מנות מותאמות ליעד": "Recommended Wolt restaurants with dishes fitting your goal",
+  "התפלגות מקורות אנרגיה (חלבון, פחמימה, שומן)": "Energy source breakdown (Protein, Carbs, Fat)",
+  "הורדת דוח שבועי מפורט להדפסה או שיתוף עם מאמן": "Download detailed weekly report to print or share with coach",
+  "סריקת תווית מזון וחישוב ערכים לפי גודל מנה": "Scan nutrition label and compute values by portion size",
+  "סריקת ברקוד ישראלי ובינלאומי לזיהוי מוצרים": "Scan Israeli and international barcodes for food items",
+  "צילום צלחת לזיהוי רכיבים מרובים ב-Gemini AI": "Capture plate for multi-item recognition via Gemini AI",
+  "רישום חופשי של אימונים וחישוב שריפה מטבולית": "Free-text workout logging & metabolic burn calculation",
+  "סנכרון נתוני צעדים ואימונים מ-Google Fit": "Sync step count and workouts from Google Fit",
+  "הגדרת יעדים קליניים מותאמים לפי BMI ו-BMR": "Configure clinical targets customized by BMI & BMR",
+  "התחבר באמצעות Google לחוויה מותאמת אישית": "Sign in with Google for a personalized experience",
+  "הודעת מערכת: בקשתך לאישור גישה נמצאת בטיפול": "System notice: Your access request is under review",
+  "התראות פוש פעילות במכשיר זה": "Push notifications are active on this device",
+  "התראות פוש כבויות במכשיר זה": "Push notifications are off on this device",
+  "הפעל התראות פוש במכשיר זה": "Enable push notifications on this device",
+  "כבה התראות במכשיר זה": "Disable alerts on this device",
+  "מכשיר זה רשום לקבלת התראות פוש": "This device is registered for push alerts",
+  "לחץ על הכפתור הירוק למטה מתוך הנייד כדי לחבר אותו": "Tap green button below from mobile to connect",
+  "התראת בדיקה לכולם": "Test alert to all",
+  "שולח התראה...": "Sending alert...",
+  "מייבא נתונים...": "Importing data...",
+  "ייבא היסטוריה קיימת לחשבון שלי": "Import existing history to my account",
+  "טוען גישה למצלמה... (לחץ לאישור)": "Loading camera access... (tap to allow)",
+  "צלחת זוהתה בהצלחה": "Plate recognized successfully",
+  "פריט זוהה בברקוד": "Product identified from barcode",
+  "סרוק ברקוד ישראלי": "Scan Israeli Barcode",
+  "סרוק תווית ערכים": "Scan Nutrition Label",
+  "זהה צלחת ב-AI": "Identify Plate with AI",
+  "הוסף מנה ידנית": "Add Meal Manually",
+  "הוסף אימון ידני": "Add Workout Manually",
+  "תיעוד אימון ידני": "Manual Workout Logging",
+  "סנכרון Google Fit": "Google Fit Sync",
+  "סנכרון מהיר (צעדים)": "Quick Steps Sync",
+  "הזן מספר צעדים": "Enter step count",
+  "שמור צעדים יומיים": "Save Daily Steps",
+  "קלוריות שנשרפו באימון": "Calories Burned in Workout",
+  "משך הפעילות בדקות": "Activity Duration in Minutes",
+  "סוג הפעילות הגופנית": "Type of Physical Activity",
+  "תאריך הפעילות": "Activity Date",
+  "בחר תאריך": "Select Date",
+  "הוסף ליומן": "Add to Journal",
+  "ערוך ערכי מנה": "Edit Dish Values",
+  "מחק פריט זה": "Delete This Item",
+  "אישור מחיקה": "Confirm Deletion",
+  "האם אתה בטוח שברצונך למחוק מנה זו?": "Are you sure you want to delete this meal?",
+  "הפעולה אינה ניתנת לביטול": "This action cannot be undone",
+  "מנה נמחקה בהצלחה": "Meal deleted successfully",
+  "מנה נוספה ליומן": "Meal added to journal",
+  "אימון נשמר בהצלחה": "Workout saved successfully",
+  "יעדים עודכנו בהצלחה": "Goals updated successfully",
+  "משקל נשמר בהצלחה": "Weight saved successfully",
+  "שגיאה בשמירת נתונים": "Error saving data",
+  "שגיאה בסריקת תמונה": "Error scanning image",
+  "שגיאה בסריקת ברקוד": "Error scanning barcode",
+  "מוצר לא נמצא במאגר": "Product not found in database",
+  "נסה לצלם שוב באור טוב יותר": "Try capturing again in better lighting",
+  "התקרב למוצר המזון": "Move closer to food item",
+  "החזק את המכשיר ביציבות": "Hold device steady",
+  "או הקלד מספר ברקוד ישירות (לדוגמה: 729...):": "Or type barcode number directly (e.g.: 729...):",
+  "🤖 מכסת קריאות Gemini AI יומית (0 = ללא AI)": "🤖 Daily Gemini AI queries quota (0 = No AI)",
+  "גירעון של 600 קק״ל לירידה מהירה יותר במשקל": "600 kcal deficit for faster weight loss",
+  "📤 העלה צילום מסך מ-Samsung / Google Health": "📤 Upload screenshot from Samsung / Google Health",
+  "הוסף לתיבת הטקסט כדי לשלב עם מוצרים נוספים": "Add to text box to combine with additional items",
+  "סוכן שיפור תמונה אוטומטי (Pre-Processor):": "Automatic Image Enhancement Agent (Pre-Processor):",
+  "סוכן אימות ובקרת סכומים (Verifier Agent):": "Verification & Sums Control Agent (Verifier Agent):",
+  "זיהוי מרובה פריטים, שקילה וערכים תזונתיים": "Multi-item recognition, portion weighing & nutrition facts",
+  "📊 היסטוגרמת תמונה (16 תחומי עוצמה 0–255)": "📊 Image Histogram (16 intensity bins 0–255)",
+  "נתונים, יעדים והיסטוריה אישיים לכל משתמש": "Personal data, goals and history per user",
+  "🔐 הגדרות מערכת ו-Google OAuth Client ID": "🔐 System Settings & Google OAuth Client ID",
+  "🎯 כיול סוכן ה-Vision ותיקון ערכי התמונה": "🎯 Vision Agent Calibration & Image Values Correction",
+  "בא לי: משהו חלבי מהיר / מתוק / בשרי...": "I crave: Quick dairy / sweet / meat meal...",
+  "תיאור הארוחה (הקלד להשלמה אוטומטית...)": "Meal description (Type for autocomplete...)",
+  "📊 היסטוריית כל הצילומים וההיסטוגרמות (": "📊 Full Photo & Histogram History (",
+  "חפש צילום לפי מאכל / משתמש / תאריך...": "Search photo by food / user / date...",
+  "חוקי הכיול הפעילים של סוכן ה-Vision (": "Active Calibration Rules for Vision Agent (",
+  "⚖️ שמירה על המשקל הקיים (מאזן ניטרלי)": "⚖️ Maintain Current Weight (Neutral Balance)",
+  "התאמות חכמות לפי מדדי הגלוקוז והשובע": "Smart adjustments based on glucose & satiety index",
+  "+ קניתי ואכלתי — הוסף מנה ליומן היום": "+ Bought & Ate — Add meal to today's log",
+  "לחץ לצפייה בניתוח התמונה וההיסטוגרמה": "Tap to view image analysis & histogram",
+  "דוח סיכום שבועי חכם (7 ימים אחרונים)": "Smart Weekly Summary Report (Last 7 Days)",
+  "תוספת אדממה כפולה (במקום בצל מטוגן)": "Double edamame extra (instead of fried onion)",
+  "סורק ברקוד — מאגר סופרמרקטים ישראלי": "Barcode Scanner — Israeli Supermarkets Database",
+  "➕ הוספת משתמש חדש והגדרת יעדים מראש": "➕ Add New User & Pre-set Goals",
+  "החלף אורז לבן בקינואה וירקות ירוקים": "Swap white rice for quinoa & green veggies",
+  "מפענח ברקוד וערכים תזונתיים ב-AI...": "Decoding barcode and nutrition values with AI...",
+  "גישת מנהל מערכת ראשית (Owner Only)": "Master Admin Access (Owner Only)",
+  "מעבדת Vision AI וכיול סוכן התמונות": "Vision AI Lab & Image Agent Calibration",
+  "הגעת ליעד החלבון היומי שלך בהצלחה!": "You successfully hit your daily protein goal!",
+  "הורד דוח סיכום שבועי מפורט כ-PDF": "Download detailed weekly summary report as PDF",
+  "גרעון קלורי מתון לשמירה על שריר": "Moderate calorie deficit for muscle retention",
+  "התאמת מנות ממסעדות Wolt באזורך": "Fitting dishes from Wolt restaurants near you",
+  "הוסף מתכון מותאם ליתרת הקלוריות": "Add recipe adapted to remaining calories",
+  "שמירת יעד יומי מותאם אישית": "Save personalized daily target",
+  "ניתוח חכם של חלוקת ארוחות": "Smart analysis of meal distribution",
+  "גרף התקדמות שבועי ומגמות": "Weekly progress and trends chart",
+  "סורק מוצר בסופרמרקט": "Supermarket Product Scanner",
+  "בדיקת התאמה תקציבית": "Budget Fit Check",
+  "סריקה מהירה ב-AI": "Quick AI Scan",
+  "צלם תווית מזון": "Capture Nutrition Label",
+  "שמור מנה מועדפת": "Save Favorite Meal",
+  "הסר ממועדפים": "Remove from Favorites",
+  "בחר מנה מהירה": "Select Quick Meal",
+  "השלמה מהירה": "Quick Autocomplete",
+  "אימון אירובי": "Cardio Workout",
+  "אימון משקולות": "Weightlifting",
+  "אימון HIIT": "HIIT Workout",
+  "פילאטיס": "Pilates",
+  "אימון ביתי": "Home Workout",
+  "מתיחות": "Stretching",
+  "הזנת צעדים ידנית": "Manual Steps Entry",
+  "סנכרון צעדים": "Sync Steps",
+  "צעדים שנרשמו": "Steps Logged",
+  "מרחק משוער": "Estimated Distance",
+  "שריפת קלוריות משוערת": "Estimated Calorie Burn",
+  "אימות Google OAuth": "Google OAuth Verification",
+  "התחבר באמצעות חשבון Google": "Sign In with Google Account",
+  "יציאה מהחשבון": "Sign Out of Account",
+  "הגדרות משתמש": "User Settings",
+  "מצב כהה": "Dark Mode",
+  "מצב בהיר": "Light Mode",
+  "גרסת מערכת": "System Version",
+  "תמיכה טכנית": "Technical Support",
+  "תנאי שימוש": "Terms of Use",
+  "מדיניות פרטיות": "Privacy Policy",
+  "כל הזכויות שמורות": "All Rights Reserved",
+  "הצג רק מנות שנכנסות ביתרה היומית (": "Show only dishes that fit daily balance (",
+  "שמור והפעל התחברות רשמית עם Google": "Save & activate official Google Sign-In",
+  "סורק מוצרים מהסופר — \"האם לקנות?\"": "Supermarket Product Scanner — \"Should I Buy?\"",
+  "מנתח מוצר וערכים תזונתיים ב-AI...": "Analyzing product & nutrition facts with AI...",
+  "פעיל / כושר קבוע (מומלץ למתאמנים)": "Active / Regular Fitness (Recommended for trainees)",
+  "סורק ברקוד פעיל (מאגר רשתות מזון)": "Active Barcode Scanner (Supermarket chains DB)",
+  "התראות פוש פעילות במכשיר הנוכחי ✅": "Push notifications active on this device ✅",
+  "🎯 דייק וכוון את הסוכן על תמונה זו": "🎯 agent photo",
+  "עלייה נקייה במסת שריר (Lean Bulk)": "Lean Muscle Mass Gain (Lean Bulk)",
+  "+ הכנתי ואכלתי — הוסף ליומן היום": "+ Cooked & Ate — Add to today's journal",
+  "מסך ה-Credentials ב-Google Cloud": "Credentials screen in Google Cloud",
+  "אני בצום לסירוגין / אעדכן בהמשך": "Intermittent fasting / will update later",
+  "עדכן גם את הארוחה ביומן הלקוח (": "Also update meal in client journal (",
+  "התראות פוש כבויות במכשיר הנוכחי": "Push notifications off on this device",
+  "חלוקת מאקרו מדעית מותאמת אישית:": "Scientific macro breakdown customized for you:",
+  "בחר את רמת הפעילות השבועית שלך:": "Select your weekly activity level:",
+  "כאפליקציה מלאה באייפון / אייפד:": "As full app on iPhone / iPad:",
+  "הביצועים השבועיים שלך במבט אחד": "Your weekly performance at a glance",
+  "לחץ לסימון מצרכים שיש לך בבית:": "Tap to select ingredients you have at home:",
+  "🔄 סנכרן נתוני Google Fit עכשיו": "🔄 Sync Google Fit data now",
+  "🏃‍♂️ אימונים שבוצעו בתאריך זה:": "🏃‍♂️ workouts :",
+  "בקש רוטב בצד (חצי כמות טריאקי)": "( )",
+  "📸 סרוק צילום מסך מתפריט ב-Wolt": "📸 photo item -Wolt",
+  "פעילות קלה (1-3 אימונים בשבוע)": "active (1-3 workouts )",
+  "🔄 סנכרן נתוני Google Fit להיום": "🔄 Google Fit today",
+  "NutriAgent AI — מעקב תזונה חכם": "NutriAgent AI —",
+  "מגמת קלוריות — 7 ימים אחרונים": "calories — 7",
+  "שם הפעילות (ריצה, משקולות...)": "active (running, ...)",
+  "מאזן מאקרו חי (מקורי ⟵ מותאם)": "( ⟵ custom)",
+  "חוסמת את העלאתם לענן האינטרנט": "blocks uploading to cloud storage",
+  "מסך הבית (Add to Home Screen)": "(Add to Home Screen)",
+  "פתח את האפליקציה בטלפון הנייד": "Open app on your mobile phone",
+  "💪 עלייה במסת שריר (+250 קק״ל)": "💪 (+250 kcal)",
+  "פעיל מאוד (6-7 אימונים בשבוע)": "active (6-7 workouts )",
+  "מאמת חשבון מול שרתי Google...": "Google...",
+  "למשל: ריצה, משקולות, פילאטיס": ": running, ,",
+  "שמירה על הקיים ואיזון מטבולי": "maintenance metabolic",
+  "🫒 קלוריות סמויות (שמן/רוטב):": "🫒 calories (/):",
+  "📍 ראשון לציון, חולון ורחובות": "📍 ,",
+  "הוסף את כתובת האפליקציה שלך:": "add :",
+  "התראות פוש לנייד (PWA Push)": "alerts (PWA Push)",
+  "יושבני (מעט או ללא אימונים)": "( workouts)",
+  "נשמרים מקומית במכשיר בלבד).": ").",
+  "-180 קק״ל • +6g חלבון מורכב": "-180 kcal • +6g protein",
+  "חיטוב מבוקר (ירידה הדרגתית)": "cutting morning ( )",
+  "הברקוד טרם נמצא במאגר הרשמי": "barcode database",
+  "📸 נתח תמונה והוסף לתאריך זה": "📸 photo add",
+  "חשבון משתמש והתחברות Google": "user sign in Google",
+  "מכסת קריאות AI יומית למשתמש": "AI daily user",
+  "אימונים ופעילות שבוצעו היום": "workouts active today",
+  "התקנת האפליקציה למסך הבית 📲": "📲",
+  "💾 שמור תיקון ולמד את הסוכן": "💾 save agent",
+  "שמור והפעל כניסה עם Google": "save Google",
+  "השעה כבר אחרי 10:00 בבוקר!": "10:00 morning!",
+  "שמור במועדפים להוספה מהירה": "save",
+  "סנכרון נתונים מ-Google Fit": "-Google Fit",
+  "תיקון אור/חדות/צבע אוטומטי": "//",
+  "+6g חלבון נקי • שומן בריא": "+6g protein • fat",
+  "🏃‍♂️ שריפה באימונים השבוע": "🏃‍♂️ burn workouts",
+  "🔍 חפש לפי שם או אימייל...": "🔍 ...",
+  "⚠️ חורג מהיתרה היומית שלך": "⚠️ balance daily",
+  "✓ חשבון Google אישי מחובר": "✓ Google personal connected",
+  "-95 קק״ל • -18g סוכר מוסף": "-95 kcal • -18g",
+  "נתח את היום שלי וקבל ציון": "today",
+  "ניהול משתמשים ובקרת מערכת": "management user",
+  "התנתק / החלף חשבון Google": "sign out / Google",
+  "השף האישי שלך (Gemini AI)": "personal (Gemini AI)",
+  "⚡ קטימת קצוות (Clipping)": "⚡ (Clipping)",
+  "פעיל (3-5 אימונים בשבוע)": "active (3-5 workouts )",
+  "👁️ סימנים חזותיים שזוהו:": "👁️ :",
+  "📸 העלה תמונה לבדיקת עומק": "📸 photo",
+  "⏳ מנתח היסטוגרמה ו-AI...": "⏳ -AI...",
+  "• לכן הדרך הכי מהירה היא": "•",
+  "התאמה מלאה ליעד הערב שלך": "goal dinner",
+  "סנכרון ישיר מ-Google Fit": "-Google Fit",
+  "צלם את מה שאכלת / שתית 📸": "snap / 📸",
+  "הוסף מוצר זה ליומן עכשיו": "add product journal",
+  "📸 צלם מוצר / תווית בסופר": "📸 snap product / label supermarket",
+  "בחר את היעד המטבולי שלך:": "goal metabolic :",
+  "🎙️ מקליט דיווח קולי... (": "🎙️ ... (",
+  "רענן חיבור פוש במכשיר זה": "refresh",
+  "טרם נותחו תמונות בארכיון": "photos",
+  "מסנכרן מול Google Fit...": "Google Fit...",
+  "התקן כאפליקציה למסך הבית": "Install as Home Screen App",
+  "ממתין לאישור מנהל המערכת": "confirm dish",
+  "חיטוב מואץ (גירעון עמוק)": "cutting (deficit )",
+  "איך להזמין נכון ב-Wolt:": "gender -Wolt:",
+  "✅ נכנס ביתרה היומית שלך": "✅ balance daily",
+  "✨ שופרו ב-Pre-Processor": "✨ -Pre-Processor",
+  "💾 שמור מוצר במאגר והוסף": "💾 save product database add",
+  "תיעוד אימון, ריצה וכושר": "workout, running fitness",
+  "קערת סלמון & פוקה אישית": "& personal",
+  "והדבק אותו כאן פעם אחת:": ":",
+  "📱 משתמש אייפון? שים לב:": "📱 user ? :",
+  "מפענח צילום מסך ב-AI...": "photo -AI...",
+  "מעקב משקל ומגמת התקדמות": "weight",
+  "🔬 פתח מעבדת Vision מלאה": "🔬 Vision",
+  "👥 משתמשים רשומים במערכת": "👥 user",
+  "🔄 סנכרן מענן Google Fit": "🔄 Google Fit",
+  "📏 שיטת הערכת כמות ונפח:": "📏 :",
+  "☀️ בהירות ממוצעת (Luma)": "☀️ average (Luma)",
+  "ספרות ברקוד (EAN-13)...": "barcode (EAN-13)...",
+  "זיהוי מרובה פריטים פעיל": "item active",
+  "החשבון שלך נוצר בהצלחה!": "success!",
+  "יעד קלוריות יומי (קק\"ל)": "goal calories daily (kcal)",
+  "🌗 ניגודיות וטווח דינמי": "🌗",
+  "📍 הרצליה, רעננה והשרון": "📍 ,",
+  "התחברות מאובטחת למערכת": "sign in",
+  "צילום מנה / תווית מזון": "photo dish / label food",
+  "✨ חשב ושמור אימון ב-AI": "✨ save workout -AI",
+  "קלוריות מדויקות (קק״ל)": "calories (kcal)",
+  "🔄 משוך מענן Google Fit": "🔄 Google Fit",
+  "חסום גישת משתמש למערכת": "user",
+  "רשום טקסט או הקלט בקול": "Type text or record voice",
+  "📸 סה״כ צילומים בארכיון": "📸 total",
+  "📥 ייבוא היסטוריה קיימת": "📥 history",
+  "הפעל התראות פוש בנייד": "alerts",
+  "🌡️ טמפרטורת צבע (R/B)": "🌡️ (R/B)",
+  "✨ נתח והוסף לתאריך זה": "✨ add",
+  "📅 הוספת ארוחה לתאריך:": "📅 meal :",
+  "🍽️ המלצה לארוחה הבאה:": "🍽️ meal :",
+  "מרחק בק״מ (אופציונלי)": "()",
+  "🔄 סנכרן סה״כ מהפריטים": "🔄 total item",
+  "כוון את הברקוד למסגרת": "barcode",
+  "אשף BMI וכיול קלוריות": "BMI calories",
+  "שמור Google Client ID": "save Google Client ID",
+  "מסעדות פתוחות באזורך)": ")",
+  "➕ הוסף מנה ליומן היום": "➕ add dish journal today",
+  "✨ התאם לי מנות מ-Wolt": "✨ dishes -Wolt",
+  "כתובת אימייל (Google)": "(Google)",
+  "משקל בק״ג (למשל 78.5)": "weight kg ( 78.5)",
+  "מה יש לך במקרר עכשיו?": "fridge ?",
+  "🔥 ממוצע קלוריות יומי": "🔥 average calories daily",
+  "🔍 חדות אופטית ממוצעת": "🔍 average",
+  "מה כדאי לאכול עכשיו?": "?",
+  "המלצת המחשבון עבורך:": ":",
+  "לפי פרופורציות הצלחת": "plate",
+  "⏳ ממתין לאישור כניסה": "⏳ confirm",
+  "💡 חלופה עדיפה בסופר:": "💡 supermarket:",
+  "בדוק האם החשבון אושר": "Check if account is approved",
+  "הזמן מותאם ב-Wolt (₪": "custom -Wolt (₪",
+  "למשל: לחם כוסמין מלא": ": gender",
+  "הגדרת יעדים יומיים 🎯": "goal daily 🎯",
+  "בוקר טוב! אכלת משהו?": "morning ! ?",
+  "מחק משתמש וכל נתוניו": "delete user",
+  "יעד חלבון יומי (גרם)": "goal protein daily (g)",
+  "שכפל והוסף שוב להיום": "add today",
+  "מדד מסת הגוף (BMI):": "(BMI):",
+  "איכות אופטית מיטבית": "Optimal optical quality",
+  "התראות חיישן אופטי:": "alerts :",
+  "צפה בתוצאות וכיול ➔": "➔",
+  "חלבון ל-100 גרם (g)": "protein -100 g (g)",
+  "סורק ברקוד תלת-ממדי": "scanner barcode -",
+  "מחובר ל-Wolt Live (": "connected -Wolt Live (",
+  "פעילים יומיים (DAU)": "active daily (DAU)",
+  "תיעוד אימון ופעילות": "workout active",
+  "מעדכן הגדרות פוש...": "settings ...",
+  "מנתח אימון ב-AI...": "workout -AI...",
+  "טונה במים סטארקיסט": "Starkist Tuna in Water",
+  "🥗 פרופיל צבעי מזון": "🥗 food",
+  "הצע מתכונים ב-AI ✨": "recipes -AI ✨",
+  "שריפה במנוחה (BMR)": "burn (BMR)",
+  "מפענח צילום מסך...": "photo ...",
+  "בראש המסך, ולחץ על": ",",
+  "תמונת מקרר נבחרה ✓": "fridge ✓",
+  "כמות שנצרכה (גרם):": "(g):",
+  "התנתק / החלף משתמש": "sign out / user",
+  "שתף דוח ב-WhatsApp": "report -WhatsApp",
+  "128 (גווני ביניים)": "128 ( snack)",
+  "רענן רשימת משתמשים": "refresh user",
+  "💪 ממוצע חלבון יומי": "💪 average protein daily",
+  "📥 ייצוא CSV לניתוח": "📥 CSV",
+  "הוצאה כוללת (TDEE)": "(TDEE)",
+  "מנתח תמונה ב-AI...": "photo -AI...",
+  "הגדרת יעדים יומיים": "goal daily",
+  "הצג מצרכים והכנה ▼": "▼",
+  "מנתח תפריט ב-AI...": "item -AI...",
+  "ספר מה עשית באימון": "workout",
+  "⏹️ סיים ונתח ב-AI": "⏹️ -AI",
+  "🤖 קריאות AI היום:": "🤖 AI today:",
+  "📊 היסטוגרמה וכיול": "📊",
+  "מכשירי פוש פעילים": "active",
+  "📍 ירושלים והסביבה": "📍",
+  "בחר תמונה מהגלריה": "photo",
+  "✨ חשב ושמור אימון": "✨ save workout",
+  "רמת פעילות גופנית": "level active physical",
+  "🧮 מחשבון TDEE חכם": "🧮 TDEE",
+  "העלאת צילום מסך 📸": "photo 📸",
+  "חלבון מדויק (גרם)": "protein (g)",
+  "+ הוסף ליומן היום": "+ add journal today",
+  "🎯 ביטחון AI ממוצע": "🎯 AI average",
+  "ספורטאי אינטנסיבי": "Intense Athlete",
+  "קלוריות ל-100 גרם": "calories -100 g",
+  "מרקם, צבע וצפיפות": ",",
+  "ללא הערות מיוחדות": "No special notes",
+  "נתח תמונה והוסף 📸": "photo add 📸",
+  "תקין (18.5-24.9)": "normal (18.5-24.9)",
+  "מרכיב מתכונים...": "ingredient recipes...",
+  "+ הוסף חוק לסוכן": "+ add agent",
+  "📍 תל אביב והמרכז": "📍",
+  "שיתוף (Share ⬆️)": "(Share ⬆️)",
+  "📅 פעילות אחרונה:": "📅 active :",
+  "✓ כויל ע״י אדמין": "✓ gender",
+  "🎯 יעדים ומכסת AI": "🎯 goal AI",
+  "🛡️ אומתו / כוילו": "🛡️ /",
+  "📍 באר שבע והדרום": "📍",
+  "☀️ בהירות וחשיפה": "☀️",
+  "התראות פוש לנייד": "alerts",
+  "שף AI מהמקרר שלך": "AI fridge",
+  "הוסף שקילה למעקב": "add weigh-in",
+  "💡 מה קורה עכשיו?": "💡 ?",
+  "+ הוסף ואשר מראש": "+ add",
+  "שמור יעדים ומכסה": "save goal",
+  "זיהוי קול ותמונה": "photo",
+  "ציון תזונה יומי": "daily",
+  "✨ הרכב לי ארוחה": "✨ meal",
+  "קק״ל (למשל 350)": "kcal ( 350)",
+  "למשל: דניאל כהן": ":",
+  "תיאור מנה מדויק": "dish",
+  "הוסף את הכתובת:": "add :",
+  "מחק רשומת צילום": "delete photo",
+  "תת-משקל (<18.5)": "-weight (<18.5)",
+  "והדבק כאן את ה-": "-",
+  "אימונים מתועדים": "workouts",
+  "רענן ניתוח מאמן": "refresh coach",
+  "דוגמאות מהסופר:": "supermarket:",
+  "🛒 מצרכים והכנה:": "🛒 :",
+  "חזור לשינוי יעד": "back goal",
+  "🖼️ תמונה מגלריה": "🖼️ photo",
+  "מכין מתכונים...": "recipes...",
+  "קליטה חלקה ב-AI": "-AI",
+  "בטל חסימת משתמש": "user",
+  "ערכים ל-100 גרם": "values -100 g",
+  "שעה (אופציונלי)": "()",
+  "יעד קלורי מכויל": "goal",
+  "קלוריות (קק\"ל)": "calories (kcal)",
+  "פוש סיכום יומי": "summary daily",
+  "קוטג' 3% תנובה": "' 3%",
+  "יושבני / משרדי": "/",
+  "👩‍🍳 אופן הכנה:": "👩‍🍳 :",
+  "📍 חיפה והקריות": "📍",
+  "👁️ יומן משתמש:": "👁️ journal user:",
+  "0 (צללים כהים)": "0 ( )",
+  "משתמשים רשומים": "user",
+  "בפינה העליונה.": ".",
+  "הוסף שוב להיום": "add today",
+  "הוסף למסך הבית": "add",
+  "צלם ברקוד וקרא": "snap barcode",
+  "מדד חדות קצוות": "Edge sharpness index",
+  "לחץ על כפתור ה": "Click the button for",
+  "עריכת ארוחה ✏️": "meal ✏️",
+  "קלוריות (100g)": "calories (100g)",
+  "🖼️ בחר מהגלריה": "🖼️",
+  "ק״מ (למשל 5.2)": "( 5.2)",
+  "קלוריות (קק״ל)": "calories (kcal)",
+  "מחפש ב-Wolt...": "-Wolt...",
+  "טוען נתונים...": "Loading data...",
+  "✨ שופרו אופטית": "✨",
+  "עודף (25-29.9)": "surplus (25-29.9)",
+  "קוטג' 5% תנובה": "' 5%",
+  "בתחתית הדפדפן.": ".",
+  "255 (שיאי אור)": "255 ( )",
+  "יוגורט GO 20g": "GO 20g",
+  "✓ זוהתה ארוחה": "✓ meal",
+  "💡 טיפ מהמאמן:": "💡 coach:",
+  "📸 סריקת תפריט": "📸 item",
+  "מנתח ארוחה...": "meal...",
+  "שמור במועדפים": "save",
+  "ניגודיות Std:": "Std:",
+  "🎯 הגדרה ישירה": "🎯",
+  "צלם ונתח ב-AI": "snap -AI",
+  "כדי להתקין את": "normal",
+  "🔬 ניתוח צילום": "🔬 photo",
+  "המאמן מנתח...": "coach ...",
+  "✓ מאושר ופעיל": "✓ active",
+  "👑 בעלים (אתה)": "👑 ()",
+  "אפליקציית Web": "Web",
+  "הסר מהמועדפים": "Remove from favorites",
+  ") והדבק למטה:": ") :",
+  "חוקים פעילים)": "active)",
+  "🔍 חדות ופרטים": "🔍",
+  "💡 טיפ תזונתי:": "💡 nutritional:",
+  "תצוגה מקדימה": "Preview",
+  "תיאור הארוחה": "meal",
+  "כיתוב משתמש:": "user:",
+  "צלם את המקרר": "snap fridge",
+  "הסתר מתכון ▲": "recipe ▲",
+  "ביטחון מודל:": ":",
+  "מנתח ב-AI...": "-AI...",
+  "🎯 יעדים עבור": "🎯 goal",
+  "מסך הקלוריות": "calories",
+  "התאמה לתקציב": "budget",
+  "+ אימון נוסף": "+ workout",
+  "מחק חוק כיול": "delete",
+  "מטרה תזונתית": "nutritional",
+  ", העתק את ה-": ", -",
+  "מומלץ ע״י AI": "recommended AI",
+  "🔄 סנכרן מחדש": "🔄",
+  "מתכונים לבית": "recipes",
+  "זיהוי ארוחה:": "meal:",
+  "רענן ניתוחים": "refresh",
+  "מה יש במקרר?": "fridge?",
+  "⚖️ מגמת משקל": "⚖️ weight",
+  "מנתח מחדש...": "...",
+  "🧊 מהמקרר שלך": "🧊 fridge",
+  "האם למחוק את": "Delete this item",
+  "חלבון (100g)": "protein (100g)",
+  "מאמן AI יומי": "coach AI daily",
+  "פירוט פריטים": "item",
+  "הבנתי, תודה!": ", !",
+  "להשלמת היעד.": "goal.",
+  "הזמנה מ-Wolt": "dish -Wolt",
+  "לחץ למעלה על": "Click above on",
+  "+12.4% החודש": "+12.4%",
+  "גלול ובחר ב-": "-",
+  "העלאה מגלריה": "Item Details",
+  "מתאים לתקציב": "budget",
+  "נתח והוסף ✨": "add ✨",
+  "פרופיל אישי": "personal",
+  "+ שלב בטקסט": "+",
+  "מחיקת ארוחה": "meal",
+  "מנות שמורות": "dishes save",
+  "📥 ייצוא CSV": "📥 CSV",
+  "חלבון (גרם)": "protein (g)",
+  "מעבדת אדמין": "gender",
+  "בחר מהגלריה": "Item Details",
+  "תקציב פנוי:": "budget :",
+  "• יעד נדרש:": "• goal :",
+  "השמנה (30+)": "dish (30+)",
+  "+ תעד שקילה": "+ weigh-in",
+  "סריקת ברקוד": "barcode",
+  "הקלטה קולית": "Item Details",
+  "מותאם אישית": "custom personal",
+  "מאגר Gemini": "database Gemini",
+  "יתרה להיום:": "balance today:",
+  "נותח מחדש (": "(",
+  "החל יעדים ✨": "goal ✨",
+  "✅ אשר כניסה": "✅",
+  "רענן נתונים": "refresh",
+  "חציון P50:": "P50:",
+  "החלף תמונה": "photo",
+  "כיול אדמין": "gender",
+  "בחר מגלריה": "Item Details",
+  "סרוק ברקוד": "barcode",
+  "הוסף (Add)": "add (Add)",
+  "נדרשים עוד": "Item Details",
+  "פעילות קלה": "active",
+  "תמונת מוצר": "product",
+  "מחיר מותאם": "custom",
+  "צלם במצלמה": "snap camera",
+  "שם הפעילות": "active",
+  "איפוס סורק": "scanner",
+  "משקל (ק״ג)": "weight (kg)",
+  "ממוצע מנה:": "average dish:",
+  "⚡ הוסף מיד": "⚡ add",
+  "דל גליקמי": "Item Details",
+  "🤖 טקסט AI": "🤖 AI",
+  "תעד אימון": "workout",
+  "צילום מנה": "photo dish",
+  "🛒 מצרכים:": "🛒 :",
+  "ניגודיות:": ":",
+  "ללא תיאור": "Item Details",
+  "צלם ארוחה": "snap meal",
+  "מסנכרן...": "...",
+  "מסתיים ב-": "-",
+  "98% התאמה": "98%",
+  "הסר תמונה": "photo",
+  "25-35 דק׳": "25-35 mins",
+  "התאם ב-AI": "-AI",
+  "ביצים...)": "...)",
+  "שם הפריט": "item",
+  "נתח מחדש": "Item Details",
+  "אפס סורק": "scanner",
+  "טרם נשקל": "Item Details",
+  "מעל היעד": "goal",
+  "צלם מחדש": "snap",
+  "ללא עלות": "Item Details",
+  "🔔 התראות": "🔔 alerts",
+  "קק״ל/יום": "kcal/",
+  "היכנס ל-": "-",
+  "⚖️ משקל:": "⚖️ weight:",
+  ", לחץ על": ",",
+  "🛡️ אדמין": "🛡️ gender",
+  "קק״ל | +": "kcal | +",
+  "במבה אסם": "Item Details",
+  "שם המוצר": "product",
+  "מחפש...": "...",
+  "אריזה (": "(",
+  "g חלבון": "g protein",
+  "+ אימון": "+ workout",
+  "🎯 כוילו": "🎯",
+  "שולח...": "...",
+  "בהירות:": ":",
+  "📸 תמונה": "📸 photo",
+  "מעורבות": "Item Details",
+  "מכסת AI": "AI",
+  "לתאריך:": ":",
+  "קק״ל  •": "kcal  •",
+  "👁️ יומן": "👁️ journal",
+  "✨ שף AI": "✨ AI",
+  "שים לב:": ":",
+  "מהיומן?": "journal?",
+  "רשומות": "Item Details",
+  "🔔 פוש:": "🔔 :",
+  "למנה (": "dish (",
+  "רוויה:": ":",
+  "שינוי:": ":",
+  "קק״ל •": "kcal •",
+  "🚫 חסום": "🚫",
+  "שנוצר:": ":",
+  "לחץ על": "Item Details",
+  "פחמימה": "carbs",
+  "קק״ל |": "kcal |",
+  "פתח את": "Item Details",
+  "שם מלא": "Item Details",
+  "✅ ביעד": "✅ goal",
+  "קק״ל (": "kcal (",
+  "חלבון)": "protein)",
+  "⚡ ידני": "⚡",
+  "טלגרם": "g",
+  "יחידה": "Item Details",
+  "סביבי": "Item Details",
+  "חפש 🔍": "🔍",
+  "ליומן": "journal",
+  "התאמה": "Item Details",
+  "ימים)": ")",
+  "תאריך": "Item Details",
+  "ירוק:": ":",
+  "חדות:": ":",
+  "נייד)": ")",
+  "מנה (": "dish (",
+  "סוג:": ":",
+  "שחרר": "Item Details",
+  "דק׳)": "mins)",
+  "אישה": "female",
+  "אור:": ":",
+  "חסום": "Item Details",
+  "ובחר": "Item Details",
+  "שלום": "Item Details",
+  "ביעד": "goal",
+  "לחץ": "Item Details",
+  "שעה": "Item Details",
+  "צל:": ":",
+  "ק״מ": "Item Details",
+  "חם:": ":",
+  "דק׳": "mins",
+  "גבר": "male",
+  "תחת": "Item Details",
+  "הכל": "Item Details",
+  "גיל": "age",
+  "מין": "gender",
+  "ו-": "-",
+  "או": "Item Details",
+  "🎯 דייק וככוון את הסוכן על תמונה זו": "🎯 Fine-tune and calibrate agent on this image",
+  "מעקב משקל לאורך זמן": "Weight tracking over time",
+  "התפלגות קלורית שבועית": "Weekly calorie distribution",
+  "עמידה ביעדי חלבון": "Protein goals adherence",
+  "ימי גירעון קלורי": "Calorie deficit days",
+  "ימי מאזן ניטרלי": "Neutral balance days",
+  "ימי עודף קלורי": "Calorie surplus days",
+  "ממוצע צריכה יומית": "Average daily intake",
+  "גרם חלבון ליום": "g protein per day",
+  "גרם פחמימה ליום": "g carbs per day",
+  "גרם שומן ליום": "g fats per day",
+  "שריפת קלוריות ממוצעת": "Average calories burned",
+  "צעדים בממוצע יומי": "Average daily steps",
+  "קלוריות מומלצות": "Recommended calories",
+  "חלבון מומלץ": "Recommended protein",
+  "פחמימות מומלצות": "Recommended carbs",
+  "שומנים מומלצים": "Recommended fats",
+  "בחר מטרת משקל": "Select weight target",
+  "שמירה על הקיים": "Maintain current weight",
+  "ירידה במשקל": "Weight loss",
+  "עלייה במסת שריר": "Muscle gain",
+  "עדכן פרטים": "Update details",
+  "שמור נתונים": "Save data",
+  "שמור בהצלחה": "Saved successfully",
+  "אירעה שגיאה": "An error occurred",
+  "נסה שנית": "Try again",
+  "התחברות הצליחה": "Login successful",
+  "התנתקת מהמערכת": "Logged out",
+  "נדרשת התחברות": "Login required",
+  "אין נתונים להצגה": "No data to display",
+  "מעבד תמונה...": "Processing image...",
+  "מנתח ברקוד...": "Analyzing barcode...",
+  "מחפש מתכונים...": "Searching recipes...",
+  "שולח הודעה...": "Sending message...",
+  "פעילות נשמרה": "Activity saved",
+  "ארוחה נשמרה": "Meal saved",
+  "ארוחה עודכנה": "Meal updated",
+  "ארוחה נמחקה": "Meal deleted",
+  "יעדים עודכנו": "Goals updated",
+  "הגדרות נשמרו": "Settings saved",
+  "גבינה לבנה 5%": "White Cheese 5%",
+  "קוטג׳ 5% תנובה": "Tnuva Cottage Cheese 5%",
+  "ביצה קשה": "Hard Boiled Egg",
+  "חזה עוף צלוי": "Grilled Chicken Breast",
+  "סלט ירקות קצוץ": "Chopped Vegetable Salad",
+  "אורז בסמטי מבושל": "Cooked Basmati Rice",
+  "לחם כוסמין מלא": "Whole Spelt Bread",
+  "שיבולת שועל": "Oatmeal",
+  "אבוקדו בשל": "Ripe Avocado",
+  "שמן זית כתית מעולה": "Extra Virgin Olive Oil",
+  "טחינה גולמית": "Raw Tahini",
+  "תפוח עץ ירוק": "Green Apple",
+  "בננה בינונית": "Medium Banana",
+  "יוגורט פרוטאין": "Protein Yogurt",
+  "שייק חלבון": "Protein Shake"
+};
+
+    window.EN_TO_HE = {};
+    for (const [k, v] of Object.entries(window.HE_TO_EN)) {
+        window.EN_TO_HE[v] = k;
+    }
+
+    window._SORTED_HE_PHRASES = Object.keys(window.HE_TO_EN)
+        .filter(k => k.length > 2)
+        .sort((a, b) => b.length - a.length);
+
+    window.translateText = function(text, targetLang) {
+        if (!text || typeof text !== 'string') return text;
+        const trimmed = text.trim();
+        if (!trimmed) return text;
+
+        if (targetLang === 'en') {
+            if (window.HE_TO_EN[trimmed]) {
+                return text.replace(trimmed, window.HE_TO_EN[trimmed]);
+            }
+            let res = trimmed;
+            res = res.replace(/(\d+[\.\d]*)\s*קק״ל\s*נשרפו/g, '$1 kcal burned')
+                     .replace(/נותרו\s*(\d+[\.\d]*)\s*קק״ל\s*\(בתקציב\)/g, '$1 kcal left (in budget)')
+                     .replace(/חריגת\s*יעד:\s*(\d+[\.\d]*)\s*קק״ל/g, 'Over budget: $1 kcal')
+                     .replace(/(\d+[\.\d]*)\s*קק״ל\s*סה״כ/g, '$1 kcal total')
+                     .replace(/(\d+[\.\d]*)\s*קק״ל/g, '$1 kcal')
+                     .replace(/(\d+[\.\d]*)\s*גרם\s*חלבון/g, '$1g protein')
+                     .replace(/(\d+[\.\d]*)\s*גרם\s*פחמימות/g, '$1g carbs')
+                     .replace(/(\d+[\.\d]*)\s*גרם\s*שומן/g, '$1g fats')
+                     .replace(/(\d+[\.\d]*)\s*צעדים/g, '$1 steps')
+                     .replace(/(\d+[\.\d]*)\s*שניות/g, '$1 seconds')
+                     .replace(/(\d+[\.\d]*)\s*דקות/g, '$1 minutes')
+                     .replace(/(\d+[\.\d]*)\s*ארוחות\s*שתועדו/g, '$1 meals logged')
+                     .replace(/(\d+[\.\d]*)\s*רכיבים\s*זוהו\s*בצלחת/g, '$1 items detected on plate')
+                     .replace(/(\d+)\s*מחוברים\s*\((\d+)\s*נייד\)/g, '$1 connected ($2 mobile)')
+                     .replace(/ברקוד:\s*(.*)/g, 'Barcode: $1')
+                     .replace(/יצרן\s*\/\s*מותג:\s*(.*)/g, 'Brand: $1')
+                     .replace(/ציון\s*התאמה:\s*(.*)/g, 'Match score: $1')
+                     .replace(/למנה\s*\((.*)\)/g, 'Per serving ($1)')
+                     .replace(/ארוחות\s*ל-(.*)/g, 'Meals for $1')
+                     .replace(/חיסכון:\s*(.*)/g, 'Savings: $1');
+                     
+            if (res !== trimmed) {
+                return text.replace(trimmed, res);
+            }
+
+            for (let i = 0; i < window._SORTED_HE_PHRASES.length; i++) {
+                const heKey = window._SORTED_HE_PHRASES[i];
+                if (res.includes(heKey)) {
+                    res = res.split(heKey).join(window.HE_TO_EN[heKey]);
+                }
+            }
+            return text.replace(trimmed, res);
+        } else {
+            if (window.EN_TO_HE[trimmed]) {
+                return text.replace(trimmed, window.EN_TO_HE[trimmed]);
+            }
+            return text;
+        }
+    };
+
+    window.applyTranslations = function(lang) {
+        if (!document.body) return;
+        const isEn = lang === 'en';
+        document.documentElement.dir = isEn ? 'ltr' : 'rtl';
+        document.documentElement.lang = lang;
+
+        function walk(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const val = node.nodeValue;
+                if (!val || !val.trim()) return;
+                if (isEn) {
+                    if (node.__origHe === undefined) {
+                        node.__origHe = val;
+                    }
+                    const tr = window.translateText(node.__origHe, 'en');
+                    if (tr !== val) {
+                        node.nodeValue = tr;
+                    }
+                } else {
+                    if (node.__origHe !== undefined) {
+                        node.nodeValue = node.__origHe;
+                    }
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const tag = node.tagName.toLowerCase();
+                if (tag === 'script' || tag === 'style') return;
+
+                ['placeholder', 'title', 'alt', 'aria-label'].forEach(attr => {
+                    const attrVal = node.getAttribute(attr);
+                    if (attrVal && attrVal.trim()) {
+                        const key = '__origHe_' + attr;
+                        if (isEn) {
+                            if (node[key] === undefined) {
+                                node[key] = attrVal;
+                            }
+                            const tr = window.translateText(node[key], 'en');
+                            if (tr !== attrVal) {
+                                node.setAttribute(attr, tr);
+                            }
+                        } else {
+                            if (node[key] !== undefined) {
+                                node.setAttribute(attr, node[key]);
+                            }
+                        }
+                    }
+                });
+
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    walk(node.childNodes[i]);
+                }
+            }
+        }
+
+        walk(document.body);
+    };
+
+    (function() {
+        let isTranslating = false;
+        let mutationTimer = null;
+
+        const runSync = () => {
+            if (isTranslating) return;
+            const currentLang = localStorage.getItem('nutri_lang') || 'he';
+            if (currentLang !== 'en') return;
+            isTranslating = true;
+            try {
+                window.applyTranslations('en');
+            } finally {
+                isTranslating = false;
+            }
+        };
+
+        const obs = new MutationObserver(() => {
+            const currentLang = localStorage.getItem('nutri_lang') || 'he';
+            if (currentLang !== 'en') return;
+            if (mutationTimer) clearTimeout(mutationTimer);
+            mutationTimer = setTimeout(runSync, 35);
+        });
+
+        if (document.body) {
+            obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+            });
+        }
+    })();
+
     (function() {
         var savedLang = localStorage.getItem('nutri_lang') || 'he';
         document.documentElement.dir = savedLang === 'en' ? 'ltr' : 'rtl';
         document.documentElement.lang = savedLang;
+        if (savedLang === 'en') {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() { window.applyTranslations('en'); });
+            } else {
+                window.applyTranslations('en');
+            }
+        }
     })();
+
 
         function nutritionApp() {
             const today = getLocalTodayStr();
@@ -4749,12 +5787,18 @@
                     localStorage.setItem('nutri_lang', this.currentLang);
                     document.documentElement.dir = this.currentLang === 'en' ? 'ltr' : 'rtl';
                     document.documentElement.lang = this.currentLang;
+                    if (window.applyTranslations) {
+                        window.applyTranslations(this.currentLang);
+                    }
                 },
                 t(key, fallback) {
                     if (window.APP_I18N && window.APP_I18N[this.currentLang] && window.APP_I18N[this.currentLang][key] !== undefined) {
                         return window.APP_I18N[this.currentLang][key];
                     }
-                    return fallback !== undefined ? fallback : key;
+                    if (fallback !== undefined) {
+                        return this.currentLang === 'en' ? (window.translateText ? window.translateText(fallback, 'en') : fallback) : fallback;
+                    }
+                    return key;
                 },
                 // BMI & Calorie Target Wizard State
                 showBmiWizard: false,
@@ -5885,6 +6929,9 @@
                 },
 
                 async init() {
+                    if (this.currentLang === 'en' && window.applyTranslations) {
+                        this.$nextTick(() => { window.applyTranslations('en'); });
+                    }
                     const urlParams = new URLSearchParams(window.location.search);
                     if (urlParams.get('scan') === '1' || urlParams.get('viewfinder') === '1' || window.location.hash.includes('scanner')) {
                         setTimeout(() => { this.showLiveViewfinder = true; }, 300);
@@ -7106,7 +8153,8 @@
                 },
 
                 showToast(message, type = 'success') {
-                    this.toast = { visible: true, message, type };
+                    const finalMsg = this.currentLang === 'en' && window.translateText ? window.translateText(message, 'en') : message;
+                    this.toast = { visible: true, message: finalMsg, type };
                     setTimeout(() => {
                         this.toast.visible = false;
                     }, 3200);
@@ -8298,6 +9346,9 @@
                     if (!dateStr) return '';
                     const parts = dateStr.split('-').map(Number);
                     const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                    if (this.currentLang === 'en') {
+                        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                    }
                     return d.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
                 }
             };
@@ -8316,7 +9367,7 @@
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 bg-black overflow-y-auto select-none"
-         dir="rtl">
+         :dir="currentLang === 'en' ? 'ltr' : 'rtl'">
         <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button @click="toggleTorch()" aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-95 cursor-pointer"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button type="button" @click="setViewfinderMode('barcode')"
         :class="viewfinderScanMode === 'barcode' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
         class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
@@ -8335,7 +9386,7 @@
     <svg class="w-4 h-4"><use href="#icon-target-goal"></use></svg>
     <span x-text="t('labelOcrMode', 'Label OCR')">Label OCR</span>
 </button></div></div></header>
-<main class="flex flex-col relative w-full pt-28 bg-transparent min-h-screen"><div class="flex flex-col w-full text-on-surface select-none pb-safe" dir="rtl">
+<main class="flex flex-col relative w-full pt-28 bg-transparent min-h-screen"><div class="flex flex-col w-full text-on-surface select-none pb-safe" :dir="currentLang === 'en' ? 'ltr' : 'rtl'">
 <!-- Viewfinder Frame Container -->
 <div class="relative w-full overflow-hidden rounded-b-xl shadow-2xl bg-black min-h-[460px] flex flex-col justify-between">
 <!-- Real Live Camera Feed Layer with Live <video> element -->
@@ -8653,7 +9704,7 @@
     <div x-cloak x-show="showWoltDrawer"
          class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end justify-center"
          @click.self="showWoltDrawer = false"
-         dir="rtl">
+         :dir="currentLang === 'en' ? 'ltr' : 'rtl'">
         <div x-show="showWoltDrawer"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="transform translate-y-full"
@@ -8839,7 +9890,7 @@
          x-transition:leave-end="opacity-0 scale-90"
          class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
          @click.self="dismissMorningReminder()"
-         dir="rtl">
+         :dir="currentLang === 'en' ? 'ltr' : 'rtl'">
         <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 text-center space-y-4 border border-emerald-200 relative overflow-hidden" @click.stop>
             <div class="absolute -right-8 -top-8 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl pointer-events-none"></div>
             
