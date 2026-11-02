@@ -4305,7 +4305,7 @@ def list_leads_admin_db(limit: int = 50) -> List[dict]:
 
 
 def get_telegram_admin_chat_id() -> str:
-    env_id = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "").strip()
+    env_id = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "604190384").strip()
     if env_id:
         return env_id
     sec = _LOCAL_AUTH_CONFIG.get("admin_chat_id", "")

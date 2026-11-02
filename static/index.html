@@ -795,168 +795,7 @@
                     </div>
                     <div class="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
                         <!-- Workout Logger Button -->
-                        <button type="button" @click="openTrialWorkoutModal() {
-                if (this.currentUser) {
-                    if (!this.trialWorkoutForm.full_name) this.trialWorkoutForm.full_name = this.currentUser.name || '';
-                }
-                this.trialWorkoutSuccess = false;
-                this.showTrialWorkoutModal = true;
-            },
-
-            async submitTrialWorkoutLead() {
-                if (!this.trialWorkoutForm.full_name.trim() || !this.trialWorkoutForm.phone.trim()) {
-                    alert('נא למלא שם מלא ומספר טלפון');
-                    return;
-                }
-                this.trialWorkoutSending = true;
-                try {
-                    const res = await fetch('/api/leads/workout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(this.trialWorkoutForm)
-                    });
-                    const data = await res.json();
-                    if (data.ok) {
-                        this.trialWorkoutSuccess = true;
-                    } else {
-                        alert(data.detail || 'שגיאה בשליחת הבקשה');
-                    }
-                } catch (err) {
-                    console.error('Error submitting trial lead:', err);
-                    alert('שגיאת תקשורת, נסה שוב מאוחר יותר');
-                } finally {
-                    this.trialWorkoutSending = false;
-                }
-            },
-
-            openCoachBetaModal() {
-                if (this.currentUser) {
-                    if (!this.coachBetaForm.full_name) this.coachBetaForm.full_name = this.currentUser.name || '';
-                    if (!this.coachBetaForm.email) this.coachBetaForm.email = this.currentUser.email || '';
-                }
-                this.coachBetaSuccess = false;
-                this.showCoachBetaModal = true;
-            },
-
-            async submitCoachBetaLead() {
-                if (!this.coachBetaForm.full_name.trim() || !this.coachBetaForm.phone.trim()) {
-                    alert('נא למלא שם מלא ומספר טלפון');
-                    return;
-                }
-                this.coachBetaSending = true;
-                try {
-                    const res = await fetch('/api/leads/coach', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(this.coachBetaForm)
-                    });
-                    const data = await res.json();
-                    if (data.ok) {
-                        this.coachBetaSuccess = true;
-                    } else {
-                        alert(data.detail || 'שגיאה בשליחת הפנייה');
-                    }
-                } catch (err) {
-                    console.error('Error submitting coach lead:', err);
-                    alert('שגיאת תקשורת, נסה שוב מאוחר יותר');
-                } finally {
-                    this.coachBetaSending = false;
-                }
-            },
-
-            shareDietitianReport() {
-                const uName = this.currentUser?.name || 'מתאמן';
-                const trend = this.dailyTrend || [];
-                let totalCals = 0;
-                let totalProtein = 0;
-                let daysWithData = 0;
-
-                trend.forEach(d => {
-                    if (d.calories > 0) {
-                        totalCals += d.calories;
-                        totalProtein += d.protein_g || 0;
-                        daysWithData++;
-                    }
-                });
-
-                const avgCals = daysWithData ? Math.round(totalCals / daysWithData) : (this.summary.total_calories || 0);
-                const avgProtein = daysWithData ? Math.round(totalProtein / daysWithData) : Math.round(this.summary.total_protein || 0);
-                const targetCals = this.summary.target_calories || 1800;
-                const targetProt = this.summary.target_protein || 120;
-                const latestWeight = this.weightData?.latest_weight ? `${this.weightData.latest_weight} ק"ג` : 'טרם תועד';
-                const streak = this.currentStreak || 0;
-
-                const text = 
-`📋 *דוח מעקב תזונה שבועי — NutriAgent AI*
-👤 *מתאמן:* ${uName}
-📅 *תקופה:* 7 ימים אחרונים
-
-🔥 *ממוצע קלורי יומי:* ${avgCals} / ${targetCals} קק״ל
-💪 *ממוצע חלבון יומי:* ${avgProtein}g / יעד ${targetProt}g
-⚖️ *משקל נוכחי:* ${latestWeight}
-⭐ *רצף תיעוד פעיל:* ${streak} ימים
-
-_הופק ישירות מאפליקציית NutriAgent AI_`;
-
-                const waUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
-                window.open(waUrl, '_blank');
-            },
-
-            async fetchAdminLeads() {
-                try {
-                    const res = await fetch('/api/admin/leads');
-                    if (res.ok) {
-                        const data = await res.json();
-                        this.adminLeads = data.leads || [];
-                        if (data.admin_chat_id) {
-                            this.adminTelegramChatId = data.admin_chat_id;
-                        }
-                    }
-                } catch (err) {
-                    console.error('Error fetching admin leads:', err);
-                }
-            },
-
-            async saveAdminTelegramTarget() {
-                if (!this.adminTelegramChatId.trim()) {
-                    alert('נא להזין Telegram Chat ID');
-                    return;
-                }
-                this.adminTelegramSaving = true;
-                try {
-                    const res = await fetch('/api/admin/telegram-target', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ admin_chat_id: this.adminTelegramChatId.trim() })
-                    });
-                    const data = await res.json();
-                    if (data.ok) {
-                        alert('✅ יעד ההתראות בטלגרם נשמר בהצלחה!');
-                    } else {
-                        alert(data.detail || 'שגיאה בשמירה');
-                    }
-                } catch (err) {
-                    alert('שגיאת תקשורת');
-                } finally {
-                    this.adminTelegramSaving = false;
-                }
-            },
-
-            async testAdminTelegramAlert() {
-                try {
-                    const res = await fetch('/api/admin/test-telegram-alert', { method: 'POST' });
-                    const data = await res.json();
-                    if (data.ok) {
-                        alert('🚀 הודעת בדיקה נשלחה בהצלחה לטלגרם שלך!');
-                    } else {
-                        alert(data.detail || 'שגיאה בשליחת הודעת בדיקה');
-                    }
-                } catch (err) {
-                    alert('שגיאה בשליחת בדיקה');
-                }
-            },
-
-            openWorkoutLogger()"
+                        <button type="button" @click="openWorkoutLogger()"
                                 class="h-9 px-3.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs w-full sm:w-auto">
                             <svg class="w-4 h-4 text-indigo-600 flex-shrink-0"><use href="#icon-workout-dumbbell"></use></svg>
                             <span x-text="t('logWorkoutBtn', 'תעד אימון')">תעד אימון</span>
@@ -6971,7 +6810,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
 
                 // Admin Leads
                 adminLeads: [],
-                adminTelegramChatId: '',
+                adminTelegramChatId: '604190384',
                 adminTelegramSaving: false,
                 showAchievementsModal: false,
                 showGroceryModal: false,
@@ -9523,6 +9362,167 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         this.showToast('שגיאה בשכפול הארוחה', 'error');
                     }
                 },
+
+                openTrialWorkoutModal() {
+                if (this.currentUser) {
+                    if (!this.trialWorkoutForm.full_name) this.trialWorkoutForm.full_name = this.currentUser.name || '';
+                }
+                this.trialWorkoutSuccess = false;
+                this.showTrialWorkoutModal = true;
+            },
+
+            async submitTrialWorkoutLead() {
+                if (!this.trialWorkoutForm.full_name.trim() || !this.trialWorkoutForm.phone.trim()) {
+                    alert('נא למלא שם מלא ומספר טלפון');
+                    return;
+                }
+                this.trialWorkoutSending = true;
+                try {
+                    const res = await fetch('/api/leads/workout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.trialWorkoutForm)
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        this.trialWorkoutSuccess = true;
+                    } else {
+                        alert(data.detail || 'שגיאה בשליחת הבקשה');
+                    }
+                } catch (err) {
+                    console.error('Error submitting trial lead:', err);
+                    alert('שגיאת תקשורת, נסה שוב מאוחר יותר');
+                } finally {
+                    this.trialWorkoutSending = false;
+                }
+            },
+
+            openCoachBetaModal() {
+                if (this.currentUser) {
+                    if (!this.coachBetaForm.full_name) this.coachBetaForm.full_name = this.currentUser.name || '';
+                    if (!this.coachBetaForm.email) this.coachBetaForm.email = this.currentUser.email || '';
+                }
+                this.coachBetaSuccess = false;
+                this.showCoachBetaModal = true;
+            },
+
+            async submitCoachBetaLead() {
+                if (!this.coachBetaForm.full_name.trim() || !this.coachBetaForm.phone.trim()) {
+                    alert('נא למלא שם מלא ומספר טלפון');
+                    return;
+                }
+                this.coachBetaSending = true;
+                try {
+                    const res = await fetch('/api/leads/coach', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.coachBetaForm)
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        this.coachBetaSuccess = true;
+                    } else {
+                        alert(data.detail || 'שגיאה בשליחת הפנייה');
+                    }
+                } catch (err) {
+                    console.error('Error submitting coach lead:', err);
+                    alert('שגיאת תקשורת, נסה שוב מאוחר יותר');
+                } finally {
+                    this.coachBetaSending = false;
+                }
+            },
+
+            shareDietitianReport() {
+                const uName = this.currentUser?.name || 'מתאמן';
+                const trend = this.dailyTrend || [];
+                let totalCals = 0;
+                let totalProtein = 0;
+                let daysWithData = 0;
+
+                trend.forEach(d => {
+                    if (d.calories > 0) {
+                        totalCals += d.calories;
+                        totalProtein += d.protein_g || 0;
+                        daysWithData++;
+                    }
+                });
+
+                const avgCals = daysWithData ? Math.round(totalCals / daysWithData) : (this.summary.total_calories || 0);
+                const avgProtein = daysWithData ? Math.round(totalProtein / daysWithData) : Math.round(this.summary.total_protein || 0);
+                const targetCals = this.summary.target_calories || 1800;
+                const targetProt = this.summary.target_protein || 120;
+                const latestWeight = this.weightData?.latest_weight ? `${this.weightData.latest_weight} ק"ג` : 'טרם תועד';
+                const streak = this.currentStreak || 0;
+
+                const text = 
+`📋 *דוח מעקב תזונה שבועי — NutriAgent AI*
+👤 *מתאמן:* ${uName}
+📅 *תקופה:* 7 ימים אחרונים
+
+🔥 *ממוצע קלורי יומי:* ${avgCals} / ${targetCals} קק״ל
+💪 *ממוצע חלבון יומי:* ${avgProtein}g / יעד ${targetProt}g
+⚖️ *משקל נוכחי:* ${latestWeight}
+⭐ *רצף תיעוד פעיל:* ${streak} ימים
+
+_הופק ישירות מאפליקציית NutriAgent AI_`;
+
+                const waUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
+                window.open(waUrl, '_blank');
+            },
+
+            async fetchAdminLeads() {
+                try {
+                    const res = await fetch('/api/admin/leads');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.adminLeads = data.leads || [];
+                        if (data.admin_chat_id) {
+                            this.adminTelegramChatId = data.admin_chat_id;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching admin leads:', err);
+                }
+            },
+
+            async saveAdminTelegramTarget() {
+                if (!this.adminTelegramChatId.trim()) {
+                    alert('נא להזין Telegram Chat ID');
+                    return;
+                }
+                this.adminTelegramSaving = true;
+                try {
+                    const res = await fetch('/api/admin/telegram-target', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ admin_chat_id: this.adminTelegramChatId.trim() })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        alert('✅ יעד ההתראות בטלגרם נשמר בהצלחה!');
+                    } else {
+                        alert(data.detail || 'שגיאה בשמירה');
+                    }
+                } catch (err) {
+                    alert('שגיאת תקשורת');
+                } finally {
+                    this.adminTelegramSaving = false;
+                }
+            },
+
+            async testAdminTelegramAlert() {
+                try {
+                    const res = await fetch('/api/admin/test-telegram-alert', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.ok) {
+                        alert('🚀 הודעת בדיקה נשלחה בהצלחה לטלגרם שלך!');
+                    } else {
+                        alert('שגיאה בשליחת הודעת בדיקה: ' + (data.detail || ''));
+                    }
+                } catch (err) {
+                    alert('שגיאה בשליחת בדיקה');
+                }
+            },
 
                 openWorkoutLogger(targetDate = null) {
                     this.workoutTargetDate = targetDate || this.todayStr;
