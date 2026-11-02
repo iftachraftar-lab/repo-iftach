@@ -354,7 +354,7 @@
     <!-- Top Navigation / Header (Only shown when logged in & approved) -->
     <header x-cloak x-show="currentUser && (currentUser.is_approved !== false || currentUser.is_admin)"
             class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
-        <div class="max-w-5xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3">
 
             <!-- Brand Logo & Date -->
             <div class="flex items-center gap-2.5 flex-shrink-0">
@@ -407,32 +407,15 @@
                 </button>
             </nav>
 
-            <!-- Uniform Action Toolbar (Strict Single-Row, Perfectly Aligned) -->
-            <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 flex-nowrap">
+            <!-- Uniform Action Toolbar (Clean, Spaced & Uncluttered) -->
+            <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-nowrap">
 
-                <!-- 1. Daily Streak Pill -->
-                <button type="button" @click="showAchievementsModal = true"
-                    class="h-8 px-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 text-xs font-black flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
-                    :title="t('streakTitle', 'רצף יומי והישגים')">
-                    <span class="text-sm">🔥</span>
-                    <span x-text="currentStreak"></span>
-                    <span class="hidden sm:inline text-[11px] font-bold" x-text="currentLang === 'en' ? 'd' : ' ימים'"></span>
-                </button>
-
-                <!-- 2. Language Switcher (Hebrew <-> English) -->
+                <!-- 1. Language Switcher (Hebrew <-> English) -->
                 <button type="button" @click="toggleLanguage()"
-                    class="h-8 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-black flex items-center gap-1 transition cursor-pointer shadow-2xs flex-shrink-0"
+                    class="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-2xs flex-shrink-0"
                     :title="currentLang === 'he' ? 'Switch to English' : 'עבור לעברית'">
                     <svg class="w-4 h-4 text-emerald-600 flex-shrink-0"><use href="#icon-lang-globe"></use></svg>
                     <span class="font-extrabold uppercase text-[11px]" x-text="currentLang === 'he' ? 'EN' : 'עב'"></span>
-                </button>
-
-                <!-- 3. Multi-Modal Live Viewfinder Scanner -->
-                <button type="button" @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                    class="h-8 px-2.5 sm:px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 shadow-2xs transition cursor-pointer flex-shrink-0"
-                    title="פתח סורק צלחת וברקוד חי (Live AI Viewfinder)">
-                    <span class="material-symbols-outlined text-[16px]">photo_camera</span>
-                    <span class="hidden sm:inline">סורק חי</span>
                 </button>
 
                 <!-- 4. Install PWA (when available) -->
@@ -506,7 +489,7 @@
     </header>
 
     <!-- Main Container (Only shown when logged in & approved) -->
-    <main x-cloak x-show="currentUser && (currentUser.is_approved !== false || currentUser.is_admin)" class="flex-1 max-w-5xl w-full mx-auto px-4 pt-5 space-y-6">
+    <main x-cloak x-show="currentUser && (currentUser.is_approved !== false || currentUser.is_admin)" class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-12 space-y-6 sm:space-y-8">
 
         <!-- =============================================================== -->
         <!-- TAB 1: DAILY SUMMARY & AI MEAL LOGGER                           -->
@@ -514,38 +497,41 @@
         <div x-show="activeTab === 'summary'" x-transition.opacity class="space-y-6">
 
             <!-- Hero Macro Cards Grid: Stitch Dual Nested Progress Rings & 3 Macro Cards -->
-            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/90 relative overflow-hidden">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-                    <div>
+            <div class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-slate-200/90 relative overflow-hidden">
+                <div class="space-y-3 mb-6">
+                    <!-- Top Sub-Header: Tag + Remaining Calories Budget Badge -->
+                    <div class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
                             <span class="text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">מבט על יומי</span>
-                            <span class="text-xs text-slate-400" x-text="`${todayMeals.length} ארוחות שתועדו`"></span>
+                            <span class="text-xs text-slate-400 font-medium" x-text="`${todayMeals.length} ארוחות שתועדו`"></span>
                         </div>
-                        <h2 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">יומן מטבולי וערכים מותאמים</h2>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs flex-shrink-0"
+                              :class="summary.remaining_calories >= 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'">
+                            <span class="w-2 h-2 rounded-full" :class="summary.remaining_calories >= 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500 animate-ping'"></span>
+                            <span x-show="summary.remaining_calories >= 0" x-text="`נותרו ${summary.remaining_calories} קק״ל`"></span>
+                            <span x-show="summary.remaining_calories < 0" x-text="`חריגת יעד: ${Math.abs(summary.remaining_calories)} קק״ל`"></span>
+                        </span>
                     </div>
 
-                    <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Main Section Title -->
+                    <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">יומן מטבולי וערכים מותאמים</h2>
+
+                    <!-- Actions / Badges Row (Streak + BMI Calibrate + Burned calories) -->
+                    <div class="flex items-center gap-2 flex-wrap pt-0.5">
                         <button type="button" @click="showAchievementsModal = true"
-                                class="px-3 py-1 rounded-full text-xs font-black bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                                 :title="t('streakCardTitle', 'פתח הישגים ומסלול התמדה')">
                             <span class="text-sm">🔥</span>
                             <span x-text="currentStreak + ' ' + t('streakDays', 'ימים ברצף')"></span>
                             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                         </button>
                         <button type="button" @click="openBmiWizard()"
-                                class="px-3 py-1 rounded-full text-xs font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                                 :title="t('reopenWizard', 'אשף BMI וכיול קלוריות')">
                             <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0"><use href="#icon-scale-weight"></use></svg>
                             <span x-text="t('calibrateBmi', 'כייל לפי BMI')">כייל לפי BMI</span>
                         </button>
-                        <span class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs"
-                              :class="summary.remaining_calories >= 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'">
-                            <span class="w-2 h-2 rounded-full" :class="summary.remaining_calories >= 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500 animate-ping'"></span>
-                            <span x-show="summary.remaining_calories >= 0" x-text="`נותרו ${summary.remaining_calories} קק״ל (בתקציב)`"></span>
-                            <span x-show="summary.remaining_calories < 0" x-text="`חריגת יעד: ${Math.abs(summary.remaining_calories)} קק״ל`"></span>
-                        </span>
-
-                        <div x-show="summary.burned_calories > 0" class="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                        <div x-show="summary.burned_calories > 0" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-[15px]">directions_run</span>
                             <span x-text="`${summary.burned_calories} קק״ל נשרפו`"></span>
                         </div>
@@ -873,33 +859,23 @@
                         </button>
                     </div>
 
-                    <form @submit.prevent="selectedPhotoDataUrl ? submitPhotoMeal() : submitAIMeal()" class="flex flex-col sm:flex-row gap-2.5">
-                        <div class="relative flex-1 flex gap-1.5 sm:gap-2">
-                            <input type="text"
-                                   x-model="aiInputText"
-                                   @focus="showAutocomplete = true"
-                                   @input="showAutocomplete = true"
-                                   @keydown.escape="showAutocomplete = false"
-                                   :disabled="aiAnalyzing || isRecordingVoice"
-                                   :placeholder="selectedPhotoDataUrl ? 'הערה לתמונה (אופציונלי: למשל חצי מנה, 2 פרוסות...)' : 'הקלד מוצר להשלמה אוטומטית או ארוחה חופשית (למשל: קוטג\' 3%, 2 ביצים...)'"
-                                   class="w-full h-12 pl-3 pr-3.5 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none text-sm transition">
+                    <!-- Floor 1: 4 Equal Fast-Action Buttons (Voice, Camera, Barcode, Gallery) -->
+                    <div class="grid grid-cols-4 gap-2 sm:gap-2.5">
+                        <!-- 1. Voice Recording Button -->
+                        <button type="button"
+                                @click="isRecordingVoice ? stopAndSubmitVoiceRecording() : startVoiceRecording()"
+                                :disabled="aiAnalyzing"
+                                :class="isRecordingVoice ? 'bg-rose-600 text-white border-rose-600 animate-pulse' : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200/90 text-indigo-900'"
+                                class="h-16 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
+                            <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-voice-mic"></use></svg>
+                            <span class="text-[11px] leading-none" x-text="isRecordingVoice ? (currentLang === 'en' ? 'Stop' : 'עצור') : (currentLang === 'en' ? 'Voice' : 'קולי')">קולי</span>
+                        </button>
 
-                            <!-- Voice Recording Button (works on Mobile & Desktop) -->
-                            <button type="button"
-                                    @click="isRecordingVoice ? stopAndSubmitVoiceRecording() : startVoiceRecording()"
-                                    :disabled="aiAnalyzing"
-                                    :class="isRecordingVoice ? 'bg-rose-600 text-white border-rose-600 animate-pulse' : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200 text-indigo-800'"
-                                    class="h-12 w-12 sm:w-auto sm:px-3 rounded-2xl border font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 flex-shrink-0 transition cursor-pointer"
-                                    :title="t('recordVoice', 'הקלטה קולית')">
-                                <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-voice-mic"></use></svg>
-                                <span class="hidden sm:inline" x-text="isRecordingVoice ? (currentLang === 'en' ? 'Stop' : 'עצור') : (currentLang === 'en' ? 'Voice' : 'קולי')"></span>
-                            </button>
-
-                            <!-- Mobile Native Camera Button (opens phone rear camera directly) -->
+                        <!-- 2. Camera Button (Mobile opens native camera, Desktop opens Live Viewfinder / Webcam) -->
+                        <div class="h-16">
                             <label x-show="isMobileDevice"
-                                   :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : ' cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'"
-                                   class="h-12 w-12 sm:w-auto sm:px-3 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-emerald-800 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 flex-shrink-0 transition"
-                                   :title="t('takePhoto', 'צלם ארוחה')">
+                                   :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-emerald-100/80 active:scale-95'"
+                                   class="h-full w-full rounded-2xl bg-emerald-50/80 border border-emerald-200/90 text-emerald-900 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
                                 <input type="file"
                                        accept="image/*"
                                        capture="environment"
@@ -907,49 +883,59 @@
                                        @change="handlePhotoSelect($event, true)"
                                        :disabled="aiAnalyzing"
                                        class="sr-only">
-                                <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
-                                <span class="hidden sm:inline" x-text="currentLang === 'en' ? 'Photo' : 'צלם'"></span>
+                                <svg class="w-5 h-5 flex-shrink-0 text-emerald-700" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
+                                <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Camera' : 'צלם צלחת'">צלם צלחת</span>
                             </label>
-
-                            <!-- Desktop Live Camera Button (opens webcam modal or fallback file picker) -->
                             <button type="button"
                                     x-show="!isMobileDevice"
                                     @click="openLiveCamera()"
                                     :disabled="aiAnalyzing"
-                                    class="h-12 w-12 sm:w-auto sm:px-3 rounded-2xl bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 flex-shrink-0 transition cursor-pointer"
-                                    :title="t('takePhoto', 'צלם במצלמה')">
-                                <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
-                                <span class="hidden sm:inline" x-text="currentLang === 'en' ? 'Camera' : 'מצלמה'">מצלמה</span>
+                                    class="h-full w-full rounded-2xl bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/90 text-emerald-900 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
+                                <svg class="w-5 h-5 flex-shrink-0 text-emerald-700" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
+                                <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Camera' : 'צלם צלחת'">צלם צלחת</span>
                             </button>
-
-                            <!-- Barcode Scanner Button (opens live barcode scanner + Israeli database lookup) -->
-                            <button type="button"
-                                    @click="openBarcodeScannerModal()"
-                                    :disabled="aiAnalyzing"
-                                    class="h-12 w-12 sm:w-auto sm:px-3 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 flex-shrink-0 transition cursor-pointer"
-                                    :title="t('barcodeMode', 'סריקת ברקוד')">
-                                <svg class="w-5 h-5 text-amber-800 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-barcode-scanner"></use></svg>
-                                <span class="hidden sm:inline" x-text="currentLang === 'en' ? 'Barcode' : 'ברקוד'">ברקוד</span>
-                            </button>
-
-                            <!-- Gallery / File Picker Button (works on both Mobile & Desktop) -->
-                            <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-200/70'"
-                                   class="h-12 w-12 sm:w-auto sm:px-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 flex-shrink-0 transition"
-                                   :title="t('uploadGallery', 'העלאה מגלריה')">
-                                <input type="file"
-                                       accept="image/*"
-                                       x-ref="photoInput"
-                                       @change="handlePhotoSelect($event, true)"
-                                       :disabled="aiAnalyzing"
-                                       class="sr-only">
-                                <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-gallery-image"></use></svg>
-                                <span class="hidden sm:inline" x-text="currentLang === 'en' ? 'Gallery' : 'גלריה'">גלריה</span>
-                            </label>
                         </div>
+
+                        <!-- 3. Barcode Scanner Button -->
+                        <button type="button"
+                                @click="openBarcodeScannerModal()"
+                                :disabled="aiAnalyzing"
+                                class="h-16 rounded-2xl bg-amber-50/80 hover:bg-amber-100/80 border border-amber-200/90 text-amber-900 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
+                            <svg class="w-5 h-5 text-amber-800 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-barcode-scanner"></use></svg>
+                            <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Barcode' : 'ברקוד'">ברקוד</span>
+                        </button>
+
+                        <!-- 4. Gallery / File Upload Button -->
+                        <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-200/80 active:scale-95'"
+                               class="h-16 rounded-2xl bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
+                            <input type="file"
+                                   accept="image/*"
+                                   x-ref="photoInput"
+                                   @change="handlePhotoSelect($event, true)"
+                                   :disabled="aiAnalyzing"
+                                   class="sr-only">
+                            <svg class="w-5 h-5 flex-shrink-0 text-slate-600" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-gallery-image"></use></svg>
+                            <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Gallery' : 'גלריה'">גלריה</span>
+                        </label>
+                    </div>
+
+                    <!-- Floor 2: Full-Width Free-Text Box + Submit Button -->
+                    <form @submit.prevent="selectedPhotoDataUrl ? submitPhotoMeal() : submitAIMeal()" class="space-y-2.5">
+                        <div class="relative w-full">
+                            <input type="text"
+                                   x-model="aiInputText"
+                                   @focus="showAutocomplete = true"
+                                   @input="showAutocomplete = true"
+                                   @keydown.escape="showAutocomplete = false"
+                                   :disabled="aiAnalyzing || isRecordingVoice"
+                                   :placeholder="selectedPhotoDataUrl ? 'הערה לתמונה (אופציונלי: למשל חצי מנה, 2 פרוסות...)' : 'הקלד מוצר להשלמה אוטומטית או ארוחה חופשית (למשל: קוטג\' 3%, 2 ביצים, סלט)...'"
+                                   class="w-full h-13 px-4 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none text-sm font-medium transition shadow-inner">
+                        </div>
+
                         <button type="submit"
                                 :disabled="aiAnalyzing || (!aiInputText.trim() && !selectedPhotoDataUrl)"
-                                class="px-6 py-3.5 rounded-2xl bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-semibold text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition cursor-pointer">
-                            <span x-show="!aiAnalyzing" x-text="selectedPhotoDataUrl ? 'נתח תמונה והוסף 📸' : 'נתח והוסף ✨'"></span>
+                                class="w-full h-12 rounded-2xl bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer">
+                            <span x-show="!aiAnalyzing" x-text="selectedPhotoDataUrl ? 'נתח תמונה והוסף 📸' : 'נתח והוסף ב-AI ✨'"></span>
                             <span x-show="aiAnalyzing" class="flex items-center gap-2">
                                 <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1217,18 +1203,30 @@
                     <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
                         טרם נרשמו ארוחות להיום. צלם את הצלחת או ספר מה אכלת וה-AI יחשב קלוריות וחלבון אוטומטית.
                     </p>
-                    <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full max-w-sm">
+                    <!-- Comfortable Tactile Action Cards (Thumb-friendly & High-Affordance) -->
+                    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md">
                         <button type="button"
                                 @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                                class="w-full sm:w-auto flex-1 h-11 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition cursor-pointer">
-                            <svg class="w-4 h-4 flex-shrink-0"><use href="#icon-meal-camera"></use></svg>
-                            <span>צלם ארוחה ראשונה</span>
+                                class="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md shadow-emerald-600/20 flex items-center gap-3.5 transition active:scale-[0.98] cursor-pointer text-right">
+                            <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6"><use href="#icon-meal-camera"></use></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <span class="block font-black text-sm">צלם ארוחה ראשונה</span>
+                                <span class="block text-[11px] text-emerald-100 font-medium">זיהוי מנה וחישוב מאקרו אוטומטי</span>
+                            </div>
                         </button>
+
                         <button type="button"
                                 @click="document.querySelector('input[x-model=aiInputText]')?.focus()"
-                                class="w-full sm:w-auto flex-1 h-11 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
-                            <svg class="w-4 h-4 flex-shrink-0"><use href="#icon-edit-pencil"></use></svg>
-                            <span>רשום בטקסט חופשי</span>
+                                class="w-full p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200/90 shadow-2xs flex items-center gap-3.5 transition active:scale-[0.98] cursor-pointer text-right">
+                            <div class="w-11 h-11 rounded-xl bg-slate-200/80 text-slate-700 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5"><use href="#icon-edit-pencil"></use></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <span class="block font-bold text-sm">רשום בטקסט חופשי</span>
+                                <span class="block text-[11px] text-slate-500 font-medium">למשל: סלט יווני עם כף שמן זית</span>
+                            </div>
                         </button>
                     </div>
                 </div>

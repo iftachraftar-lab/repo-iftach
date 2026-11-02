@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriAgent AI — מפרט ארכיטקטורת מערכת</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Heebo', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Mermaid.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'dark',
+                securityLevel: 'loose',
+                fontFamily: 'Heebo, sans-serif',
+                themeVariables: {
+                    darkMode: true,
+                    background: '#0f172a',
+                    primaryColor: '#1e293b',
+                    primaryTextColor: '#f8fafc',
+                    primaryBorderColor: '#334155',
+                    lineColor: '#10b981',
+                    secondaryColor: '#1e1b4b',
+                    tertiaryColor: '#0f172a',
+                    clusterBkg: '#0f172a',
+                    clusterBorder: '#334155',
+                    fontSize: '14px'
+                }
+            });
+        });
+    </script>
+
+    <style>
+        body {
+            font-family: 'Heebo', sans-serif;
+            background-color: #0b0f17;
+            color: #e2e8f0;
+        }
+        .mermaid {
+            background: #0f172a;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border: 1px solid #1e293b;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .mermaid {
+                background: white !important;
+                border: 1px solid #ccc !important;
+            }
+            .card {
+                background: white !important;
+                border: 1px solid #e2e8f0 !important;
+                color: black !important;
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen py-10 px-4 sm:px-6 lg:px-8 antialiased selection:bg-emerald-500 selection:text-white">
+
+    <!-- Top Action Bar -->
+    <header class="max-w-5xl mx-auto mb-8 flex flex-wrap items-center justify-between gap-4 bg-slate-900/80 backdrop-blur border border-slate-800 p-4 rounded-2xl no-print">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-black text-xl">
+                ⚡
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-tight">NutriAgent AI — מסמך ארכיטקטורה</h1>
+                <p class="text-xs text-slate-400">גרסת ייצור פעילה: <span class="text-emerald-400 font-semibold">v63 (Cloud Run)</span></p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl border border-slate-700 flex items-center gap-2 transition-all">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                הדפס / שמור כ-PDF
+            </button>
+            <button id="copyBtn" onclick="copyMarkdown()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-600/25 flex items-center gap-2 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                העתק Markdown
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto space-y-10">
+
+        <!-- Hero Header -->
+        <div class="card bg-gradient-to-b from-slate-900 to-slate-900/60 border border-slate-800 p-8 rounded-3xl relative overflow-hidden shadow-2xl">
+            <div class="absolute top-0 right-0 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute bottom-0 left-0 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="relative z-10 space-y-4">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    מערכת פעילה בסביבת ייצור (Production)
+                </div>
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                    NutriAgent AI — מפרט ארכיטקטורת מערכת
+                </h1>
+                <p class="text-slate-300 text-base sm:text-lg leading-relaxed max-w-3xl">
+                    פלטפורמת תזונה וכושר מונחית בינה מלאכותית רב-מודאלית (Multimodal Vision & NLP), המשלבת צד לקוח PWA רספונסיבי, שכבת שרת מאובטחת בענן, ואינטגרציות לזיהוי מנות, סריקת תוויות ומאגר מזון ישראלי.
+                </p>
+
+                <!-- Metadata Badges -->
+                <div class="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-800 text-xs">
+                    <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+                        <span class="text-slate-400 block mb-1">גרסה</span>
+                        <span class="font-bold text-white text-sm">v63</span>
+                    </div>
+                    <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+                        <span class="text-slate-400 block mb-1">תשתית ענן</span>
+                        <span class="font-bold text-white text-sm">GCP Cloud Run</span>
+                    </div>
+                    <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+                        <span class="text-slate-400 block mb-1">אזור שרתים</span>
+                        <span class="font-bold text-white text-sm">me-west1 (תל אביב)</span>
+                    </div>
+                    <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+                        <span class="text-slate-400 block mb-1">טכנולוגיות ליבה</span>
+                        <span class="font-bold text-emerald-400 text-sm">FastAPI + Gemini + Alpine</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 1: High Level Architecture -->
+        <section class="card bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">1</div>
+                <h2 class="text-2xl font-bold text-white">מבט-על ארכיטקטוני (System High-Level Architecture)</h2>
+            </div>
+            <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                המערכת בנויה כארכיטקטורת Event-Driven Micro-Services מודרנית: הלקוח רץ ישירות בדפדפן (PWA), מתקשר בפרוטוקול HTTPS מאובטח מול שרת ה-API של FastAPI בענן, אשר מפעיל במקביל מודלי ראייה ממוחשבת (Gemini Vision), סוכני שיחה קליניים, ומאגרי נתונים ב-Firestore.
+            </p>
+
+            <div class="mermaid">
+flowchart TD
+    subgraph Client ["Client Layer (Mobile / Desktop PWA)"]
+        UI["Alpine.js Reactive State"]
+        SW["Service Worker (PWA & Offline Cache)"]
+        Sensors["WebRTC Camera / Mic / Barcode Scanner"]
+    end
+
+    subgraph Edge ["Edge & Ingress (Google Cloud)"]
+        CDN["Cloud Run HTTPS Load Balancer"]
+        SSL["Automated SSL & Security Headers"]
+    end
+
+    subgraph Backend ["Application Layer (FastAPI on Cloud Run)"]
+        API["FastAPI Async Engine (bot_server.py)"]
+        Auth["Google OAuth 2.0 & RBAC Gatekeeper"]
+        RateLimit["Sliding-Window Rate Limiter"]
+        BusinessLogic["Nutrition & Fitness Calculation Engine"]
+    end
+
+    subgraph AI_Engine ["Multimodal AI & External APIs"]
+        GeminiVision["Gemini Vision (Dish & Label OCR)"]
+        GeminiNLP["Gemini 2.5 (Clinical Coach & Grocery AI)"]
+        BarcodeDB["Open Food Facts & Israeli Barcode DB"]
+        WoltEngine["Wolt Balance Scraper & Recommender"]
+    end
+
+    subgraph Data ["Persistence Layer"]
+        Firestore["Google Cloud Firestore (Multi-Tenant NoSQL)"]
+        MemCache["Local In-Memory / Dev Cache"]
+    end
+
+    UI <--> SW
+    SW <--> CDN
+    CDN <--> API
+    API <--> Auth
+    API <--> RateLimit
+    API <--> BusinessLogic
+    BusinessLogic <--> GeminiVision
+    BusinessLogic <--> GeminiNLP
+    BusinessLogic <--> BarcodeDB
+    BusinessLogic <--> WoltEngine
+    BusinessLogic <--> Firestore
+            </div>
+        </section>
+
+        <!-- Section 2: Detailed Layer Breakdown -->
+        <section class="card bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">2</div>
+                <h2 class="text-2xl font-bold text-white">שכבות המערכת (Detailed Layer Breakdown)</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Frontend Card -->
+                <div class="p-6 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-bold text-white">2.1 שכבת הממשק (Frontend / PWA)</h3>
+                        <span class="px-2 py-0.5 text-xs rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">Alpine.js + Tailwind</span>
+                    </div>
+                    <ul class="text-sm text-slate-300 space-y-2 list-disc list-inside">
+                        <li><strong class="text-white">ריאקטיביות מיידית:</strong> מנוהלת ע״י Alpine.js ללא תלות ב-Node.js Build כבד, מה שמבטיח טעינה ראשונית בפחות מחצי שנייה.</li>
+                        <li><strong class="text-white">ספריית אייקונים ייעודית:</strong> סט של 24 סמלים דואוטוניים וקטוריים בפורמט SVG Sprite ללא עיוותים.</li>
+                        <li><strong class="text-white">PWA & Offline:</strong> Service Worker עם אסטרטגיית Network-First לסנכרון מיידי ועבודה מלאה גם ללא קליטה.</li>
+                        <li><strong class="text-white">i18n & RTL:</strong> תמיכה מלאה דו-כיוונית בעברית ואנגלית עם היפוך ממשק מלא.</li>
+                    </ul>
+                </div>
+
+                <!-- Backend Card -->
+                <div class="p-6 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-bold text-white">2.2 שכבת השרת וה-API</h3>
+                        <span class="px-2 py-0.5 text-xs rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">FastAPI / Python 3.12</span>
+                    </div>
+                    <ul class="text-sm text-slate-300 space-y-2 list-disc list-inside">
+                        <li><strong class="text-white">אימות Google OAuth 2.0:</strong> אימות טוקן JWT חתום מול שרתי גוגל בכל קריאה.</li>
+                        <li><strong class="text-white">שער אישור מנהל (RBAC):</strong> משתמש חדש חייב אישור אדמין בדשבורד ייעודי לפני גישה למשאבי ה-AI.</li>
+                        <li><strong class="text-white">אבטחה והגבלת קצב:</strong> Rate-Limiting מבוסס חלון זמן למניעת ספאם והתקפות DoS.</li>
+                        <li><strong class="text-white">אלגוריתמיקה מטאבולית:</strong> יישום נוסחאות Mifflin-St Jeor לחישוב BMR/TDEE והתאמת מאקרו דינמית.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- AI Table -->
+            <div class="space-y-3 pt-4">
+                <h3 class="text-lg font-bold text-white">2.3 מנוע הבינה המלאכותית (Multimodal AI Engine)</h3>
+                <div class="overflow-x-auto rounded-2xl border border-slate-800">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-slate-950 text-slate-400 font-medium border-b border-slate-800">
+                            <tr>
+                                <th class="p-3 sm:p-4">מודול מערכת</th>
+                                <th class="p-3 sm:p-4">מודל / מנוע</th>
+                                <th class="p-3 sm:p-4">תפקיד במערכת ופונקציונליות</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800 bg-slate-900/60 text-slate-300">
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="p-3 sm:p-4 font-semibold text-white">זיהוי מנות וצילום צלחת</td>
+                                <td class="p-3 sm:p-4 font-mono text-xs text-emerald-400">Gemini Vision</td>
+                                <td class="p-3 sm:p-4">פירוק הצלחת למרכיבים, הערכת משקלים קלינית, חישוב קלוריות, חלבון, פחמימות ושומן.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="p-3 sm:p-4 font-semibold text-white">סינון אובייקטים שאינם מזון</td>
+                                <td class="p-3 sm:p-4 font-mono text-xs text-rose-400">Guardrail Engine</td>
+                                <td class="p-3 sm:p-4"><strong class="text-rose-300">דחייה על הסף</strong> של פריטים שאינם מזון (רהיטים, חפצים, מסכים) עם אופציית עקיפה ידנית בלבד.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="p-3 sm:p-4 font-semibold text-white">סורק סופר ("האם לקנות?")</td>
+                                <td class="p-3 sm:p-4 font-mono text-xs text-indigo-400">Vision + Barcode DB</td>
+                                <td class="p-3 sm:p-4">ניתוח תמונת מוצר או תווית ערכים בסופר ומתן ציון התאמה (0-100) ליעדי היום.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="p-3 sm:p-4 font-semibold text-white">מאמן תזונה ואימונים אישי</td>
+                                <td class="p-3 sm:p-4 font-mono text-xs text-emerald-400">Gemini 2.5 Flash</td>
+                                <td class="p-3 sm:p-4">ניתוח חלון הצום בזמן אמת, יתרת חלבון חסרה והמלצות מדויקות להשלמת היום.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="p-3 sm:p-4 font-semibold text-white">רשימת קניות חכמה</td>
+                                <td class="p-3 sm:p-4 font-mono text-xs text-amber-400">Gemini Structured JSON</td>
+                                <td class="p-3 sm:p-4">סריקת החוסרים השבועיים והפקת רשימת קניות ממוינת לפי מחלקות סופר עם שיתוף לוואטסאפ.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Photo Logging Sequence Diagram -->
+        <section class="card bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">3</div>
+                <h2 class="text-2xl font-bold text-white">תרשים זרימת נתונים: ניתוח ארוחה בצילום (Photo Logging Workflow)</h2>
+            </div>
+            <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                תהליך מקצה-לקצה החל מהרגע שהמשתמש לוחץ על כפתור המצלמה, דרך דחיסה מקומית במכשיר, אימות הרשאות, ועד ניתוח המרכיבים ב-Gemini Vision ושמירתם ב-Firestore:
+            </p>
+
+            <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor User as משתמש בנייד
+    participant UI as ממשק PWA (Alpine.js)
+    participant Server as שרת FastAPI
+    participant Gemini as Gemini Multimodal Vision
+    participant DB as מסד נתונים Firestore
+
+    User->>UI: לוחץ "צלם ארוחה" ומצלם את הצלחת
+    UI->>UI: כיווץ תמונה מקומי ב-Canvas (Max 1280px)
+    UI->>Server: POST /api/meal/photo (Base64 JPEG)
+    Server->>Server: אימות הרשאות משתמש ומכסת שימוש
+    Server->>Gemini: הנחיית ניתוח קלינית מובנית (JSON Schema)
+    Gemini-->>Server: פלט מובנה (מרכיבים, קלוריות, חלבון, רמת ביטחון)
+    
+    alt האובייקט אינו מזון (is_food == false)
+        Server-->>UI: דחייה עם סיבה + כפתור הזנה ידנית
+    else זיהוי מזון תקין
+        Server->>DB: שמירת הארוחה, שעת התיעוד ונתוני המאקרו
+        Server-->>UI: אישור + עדכון מיידי של טבעות הקלוריות והחלבון
+        UI->>User: הצגת הארוחה ביומן והמלצת מאמן מעודכנת
+    end
+            </div>
+        </section>
+
+        <!-- Section 4: Data Model ERD -->
+        <section class="card bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">4</div>
+                <h2 class="text-2xl font-bold text-white">מודל הנתונים (Core Data Entities)</h2>
+            </div>
+            <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                ארכיטקטורת Multi-Tenant מבודדת לחלוטין ברמת המשתמש (Data Isolation):
+            </p>
+
+            <div class="mermaid">
+erDiagram
+    USER ||--o{ MEAL : logs
+    USER ||--o{ WORKOUT : performs
+    USER ||--o{ VISION_LOG : captures
+    USER ||--o{ ACHIEVEMENT : unlocks
+    USER ||--o{ GROCERY_ITEM : buys
+
+    USER {
+        string id PK
+        string email
+        string name
+        boolean is_approved
+        boolean is_admin
+        int target_calories
+        float target_protein
+        float target_carbs
+        float target_fats
+        int current_streak
+    }
+
+    MEAL {
+        string id PK
+        string user_id FK
+        string description
+        int calories
+        float protein_g
+        float carbs_g
+        float fats_g
+        string log_time
+        string source
+        string thumbnail_data_url
+    }
+
+    WORKOUT {
+        string id PK
+        string user_id FK
+        string activity_name
+        int burned_calories
+        int duration_min
+        string log_time
+    }
+
+    ACHIEVEMENT {
+        string id PK
+        string user_id FK
+        string badge_name
+        string unlocked_date
+    }
+            </div>
+        </section>
+
+        <!-- Section 5: Cloud Infrastructure -->
+        <section class="card bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">5</div>
+                <h2 class="text-2xl font-bold text-white">תשתית ענן ו-DevOps (GCP me-west1)</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-5 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-2">
+                    <span class="text-emerald-400 font-bold text-sm">Cloud Run (Serverless Container)</span>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        קונטיינר Docker אופטימלי עם Scale-to-Zero מוחלט כשהמערכת אינה בשימוש, ויכולת טיפול בעשרות בקשות במקביל לכל מופע (Concurrency 80).
+                    </p>
+                </div>
+
+                <div class="p-5 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-2">
+                    <span class="text-emerald-400 font-bold text-sm">פריסה רציפה (CI/CD Deployment)</span>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        בנייה ופריסה אוטומטיות ישירות ממאגר ה-Git באמצעות Google Cloud Build ללא השבתה (Zero-Downtime Rolling Update).
+                    </p>
+                </div>
+
+                <div class="p-5 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-2">
+                    <span class="text-emerald-400 font-bold text-sm">ניהול סודות ואבטחה (Secret Manager)</span>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        אפס מפתחות רגישים בקוד המקור. כל מפתחות ה-API ומזהי ה-OAuth נטענים דינמית בזמן ריצה דרך שירותי IAM של גוגל.
+                    </p>
+                </div>
+
+                <div class="p-5 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-2">
+                    <span class="text-emerald-400 font-bold text-sm">ניטור שגיאות ומדדי ביצועים</span>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        Cloud Logging ו-Cloud Monitoring בזמן אמת לאיתור חריגות, קריאות שגויות וזמני תגובת AI.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 6: Architecture Highlights -->
+        <section class="card bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">6</div>
+                <h2 class="text-2xl font-bold text-white">סיכום יתרונות הארכיטקטורה (Highlights)</h2>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div class="flex items-start gap-3 p-4 bg-slate-950/60 rounded-2xl border border-slate-800">
+                    <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold shrink-0 text-xs">✓</div>
+                    <div>
+                        <strong class="text-white block mb-0.5">אפס תלויות שבירות:</strong>
+                        <span class="text-slate-400 text-xs sm:text-sm leading-relaxed">ה-Frontend אינו דורש Webpack/Vite מורכב — הקוד רץ ישירות מכל דפדפן במהירות שיא.</span>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 p-4 bg-slate-950/60 rounded-2xl border border-slate-800">
+                    <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold shrink-0 text-xs">✓</div>
+                    <div>
+                        <strong class="text-white block mb-0.5">הגנה מהזיות AI:</strong>
+                        <span class="text-slate-400 text-xs sm:text-sm leading-relaxed">מנגנון Rejection Guardrail ייעודי מונע מצב שבו חפצים ביתיים מוזנים בטעות כמזון.</span>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 p-4 bg-slate-950/60 rounded-2xl border border-slate-800">
+                    <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold shrink-0 text-xs">✓</div>
+                    <div>
+                        <strong class="text-white block mb-0.5">שמירה על פרטיות מלאה:</strong>
+                        <span class="text-slate-400 text-xs sm:text-sm leading-relaxed">הפרדה קפדנית בין משתמשים (User ID Isolation) ללא חשיפת נתוני תזונה בין חשבונות.</span>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 p-4 bg-slate-950/60 rounded-2xl border border-slate-800">
+                    <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold shrink-0 text-xs">✓</div>
+                    <div>
+                        <strong class="text-white block mb-0.5">עומס קוגניטיבי מינימלי (Zen UX):</strong>
+                        <span class="text-slate-400 text-xs sm:text-sm leading-relaxed">העברת כלי אקסטרה לטאב ייעודי, השארת יומן נקי, וכפתורי שטח מגע אחידים.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="max-w-5xl mx-auto mt-12 text-center text-xs text-slate-500 no-print py-4 border-t border-slate-800/80">
+        NutriAgent AI Platform • Production Architecture Document • נבנה עבור שירותי הענן של Google Cloud
+    </footer>
+
+    <!-- Copy to Clipboard Logic -->
+    <script id="rawMarkdown" type="text/markdown">
+# NutriAgent AI — מפרט ארכיטקטורת מערכת (System Architecture)
+
+> **גרסה פעילה:** v63 (Cloud Run Production)  
+> **תאריך עדכון:** נובמבר 2026  
+> **סביבת ענן:** Google Cloud Platform (`me-west1` Tel Aviv)
+
+---
+
+## 1. מבט-על ארכיטקטוני (System High-Level Architecture)
+
+המערכת בנויה כ-Modern Micro-Services Architecture מונחית אירועים, המשלבת ממשק משתמש קצה מתקדם (PWA), שכבת API מאובטחת בענן ב-FastAPI, ומנוע בינה מלאכותית רב-מודאלי (Gemini AI Vision & NLP).
+
+```mermaid
+flowchart TD
+    subgraph Client ["Client Layer (Mobile / Desktop PWA)"]
+        UI["Alpine.js Reactive State"]
+        SW["Service Worker (PWA & Offline Cache)"]
+        Sensors["WebRTC Camera / Mic / Barcode Scanner"]
+    end
+
+    subgraph Edge ["Edge & Ingress (Google Cloud)"]
+        CDN["Cloud Run HTTPS Load Balancer"]
+        SSL["Automated SSL & Security Headers"]
+    end
+
+    subgraph Backend ["Application Layer (FastAPI on Cloud Run)"]
+        API["FastAPI Async Engine (bot_server.py)"]
+        Auth["Google OAuth 2.0 & RBAC Gatekeeper"]
+        RateLimit["Sliding-Window Rate Limiter"]
+        BusinessLogic["Nutrition & Fitness Calculation Engine"]
+    end
+
+    subgraph AI_Engine ["Multimodal AI & External APIs"]
+        GeminiVision["Gemini Vision (Dish & Label OCR)"]
+        GeminiNLP["Gemini 2.5 (Clinical Coach & Grocery AI)"]
+        BarcodeDB["Open Food Facts & Israeli Barcode DB"]
+        WoltEngine["Wolt Balance Scraper & Recommender"]
+    end
+
+    subgraph Data ["Persistence Layer"]
+        Firestore["Google Cloud Firestore (Multi-Tenant NoSQL)"]
+        MemCache["Local In-Memory / Dev Cache"]
+    end
+
+    UI <--> SW
+    SW <--> CDN
+    CDN <--> API
+    API <--> Auth
+    API <--> RateLimit
+    API <--> BusinessLogic
+    BusinessLogic <--> GeminiVision
+    BusinessLogic <--> GeminiNLP
+    BusinessLogic <--> BarcodeDB
+    BusinessLogic <--> WoltEngine
+    BusinessLogic <--> Firestore
+```
+
+---
+
+## 2. שכבות המערכת (Detailed Layer Breakdown)
+
+### 2.1 שכבת הממשק (Frontend / Client Layer)
+- **ארכיטקטורה:** Single-Page Progressive Web App (PWA) רספונסיבי, מותאם Mobile-First (iOS Safari & Android Chrome).
+- **ניהול מצב (State Management):** ריאקטיביות קלת-משקל ומבוזרת באמצעות Alpine.js, ללא צורך ב-Node.js Build צד-לקוח, המאפשר טעינה מיידית (<0.5 שניות).
+- **סגנון ומערכת עיצוב:** Tailwind CSS עם פלטת צבעים מותאמת (Clinical Duotone: Emerald, Indigo, Slate-900), וספריית סמלים וקטוריים ייעודית (SVG Sprite של 24 אייקונים דואוטוניים).
+- **PWA & Offline:** sw.js מיישם אסטרטגיית Network-First לקבלת עדכונים חיים מיידיים, עם Offline Fallback מלא וסנכרון ברקע.
+- **מנוע ריבוי שפות (i18n):** תמיכה מלאה ואינטגרלית בעברית (RTL) ובאנגלית (LTR) ברמת הממשק, כפתורים, תאריכים והודעות מאמן.
+
+```mermaid
+flowchart LR
+    A["משתמש (טקסט / קול / תמונה / ברקוד)"] --> B["Camera / Mic / File API"]
+    B --> C["Client-side Pre-Processing"]
+    C --> D["FastAPI REST Endpoint"]
+```
+
+---
+
+### 2.2 שכבת ה-API והשרת (Backend / Application Layer)
+- **טכנולוגיה:** Python 3.12 עם FastAPI ו-Uvicorn (Asynchronous ASGI).
+- **אבטחה והרשאות:**
+  - Google Identity Services (OAuth 2.0): אימות טוקן JWT ישירות מול שרתי Google OAuth.
+  - שער אישור מנהל (RBAC Admin Gate): משתמש חדש נוצר במצב is_approved: false. מנהל מערכת (is_admin: true) מאשר או חוסם משתמשים דרך דשבורד הניהול המאובטח.
+  - Rate Limiting: הגבלת קצב דינמית למניעת ניצול יתר או מתקפות על מנועי ה-AI.
+  - CORS & Security Headers: Content-Security-Policy קפדני, מניעת XSS, ומדיניות עוגיות מאובטחת.
+- **חישובים מטאבוליים מבוססי מדע:**
+  - אלגוריתם Mifflin-St Jeor לקביעת BMR ו-TDEE.
+  - חלוקת מאקרו מותאמת אישית: יחס חלבון (1.6g–2.2g לק"ג משקל גוף), פחמימות ושומנים לפי יעד (חיטוב, מסה, שמירה).
+
+---
+
+### 2.3 מנוע הבינה המלאכותית (Multimodal AI Engine)
+
+המערכת משתמשת במודלי ה-AI המתקדמים בעולם מבית Google DeepMind:
+
+| מודול | מודל / מנוע | תפקיד במערכת |
+| :--- | :--- | :--- |
+| **זיהוי מנות וצילום צלחת** | Gemini Vision | פירוק הצלחת למרכיבים, הערכת משקלים קלינית, חישוב קלוריות, חלבון, פחמימות ושומן. |
+| **סינון אובייקטים שאינם מזון** | Guardrail Detection | **דחייה על הסף** של פריטים שאינם מזון (רהיטים, חפצים, מסכים) עם אופציית עקיפה ידנית בלבד. |
+| **סורק סופר ("האם לקנות?")** | Vision + OpenFoodFacts | ניתוח תמונת מוצר או תווית ערכים בסופר ומתן ציון התאמה (0-100) ליתרה הקלורית היומית. |
+| **מאמן תזונה ואימונים AI** | Gemini 2.5 Flash | ניתוח בזמן אמת של חלון הצום, עמידה ביעד החלבון, והמלצה על ארוחה עתידית לסגירת היום. |
+| **רשימת קניות חכמה לסופר** | Gemini Structured Output | סריקת החוסרים התזונתיים של השבוע והפקת רשימת קניות ממוינת לפי מחלקות סופר עם שיתוף לוואטסאפ. |
+| **התאמת מנות מ-Wolt** | Wolt Semantic Fitting | סינון מנות ממסעדות באזור שמתאימות במדויק לחלון הקלורי שנותר בתקציב. |
+
+---
+
+## 3. תרשים זרימת נתונים: ניתוח ארוחה בצילום (Photo Logging Workflow)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as משתמש בנייד
+    participant UI as ממשק PWA (Alpine.js)
+    participant Server as שרת FastAPI
+    participant Gemini as Gemini Multimodal Vision
+    participant DB as מסד נתונים Firestore
+
+    User->>UI: לוחץ "צלם ארוחה" ומצלם את הצלחת
+    UI->>UI: כיווץ תמונה מקומי ב-Canvas (Max 1280px)
+    UI->>Server: POST /api/meal/photo (Base64 JPEG)
+    Server->>Server: אימות הרשאות משתמש ומכסת שימוש
+    Server->>Gemini: הנחיית ניתוח קלינית מובנית (JSON Schema)
+    Gemini-->>Server: פלט מובנה (מרכיבים, קלוריות, חלבון, רמת ביטחון)
+    
+    alt האובייקט אינו מזון (is_food == false)
+        Server-->>UI: דחייה עם סיבה + כפתור הזנה ידנית
+    else זיהוי מזון תקין
+        Server->>DB: שמירת הארוחה, שעת התיעוד ונתוני המאקרו
+        Server-->>UI: אישור + עדכון מיידי של טבעות הקלוריות והחלבון
+        UI->>User: הצגת הארוחה ביומן והמלצת מאמן מעודכנת
+    end
+```
+
+---
+
+## 4. מודל הנתונים (Core Data Entities)
+
+```mermaid
+erDiagram
+    USER ||--o{ MEAL : logs
+    USER ||--o{ WORKOUT : performs
+    USER ||--o{ VISION_LOG : captures
+    USER ||--o{ ACHIEVEMENT : unlocks
+    USER ||--o{ GROCERY_ITEM : buys
+
+    USER {
+        string id PK
+        string email
+        string name
+        boolean is_approved
+        boolean is_admin
+        int target_calories
+        float target_protein
+        float target_carbs
+        float target_fats
+        int current_streak
+    }
+
+    MEAL {
+        string id PK
+        string user_id FK
+        string description
+        int calories
+        float protein_g
+        float carbs_g
+        float fats_g
+        string log_time
+        string source
+        string thumbnail_data_url
+    }
+
+    WORKOUT {
+        string id PK
+        string user_id FK
+        string activity_name
+        int burned_calories
+        int duration_min
+        string log_time
+    }
+
+    ACHIEVEMENT {
+        string id PK
+        string user_id FK
+        string badge_name
+        string unlocked_date
+    }
+```
+
+---
+
+## 5. תשתית הענן ו-DevOps (GCP me-west1)
+
+- Cloud Run (Serverless Container): קונטיינר Docker אופטימלי, Concurrency 80, Scale-to-Zero.
+- פריסה רציפה (CI/CD): פריסה ישירה מ-Git עם gcloud run deploy ו-Zero Downtime.
+- שירותי ניהול סודות: Google Cloud Secret Manager & IAM.
+- ניטור: Cloud Logging ו-Cloud Monitoring בזמן אמת.
+
+---
+
+## 6. סיכום יתרונות הארכיטקטורה (Architectural Highlights)
+1. אפס תלויות שבירות (No Build Step צד-לקוח).
+2. הגנה מלאה מהזיות AI (Rejection Guardrail).
+3. פרטיות והפרדת משתמשים קפדנית (Multi-Tenant Isolation).
+4. עומס קוגניטיבי מינימלי (Zen Mobile UX).
+    </script>
+
+    <script>
+        function copyMarkdown() {
+            const rawEl = document.getElementById('rawMarkdown');
+            const text = rawEl ? rawEl.textContent.trim() : '';
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyBtn');
+                btn.innerHTML = '✓ הועתק בהצלחה ללוח!';
+                btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+                btn.classList.add('bg-teal-600');
+                setTimeout(() => {
+                    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg> העתק Markdown';
+                    btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+                    btn.classList.remove('bg-teal-600');
+                }, 2500);
+            }).catch(err => {
+                alert('שגיאה בהעתקה: ' + err);
+            });
+        }
+    </script>
+</body>
+</html>
