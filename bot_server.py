@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request, Response, HTTPException, Query
 import time
 import secrets
 import hmac
+import uuid
 try:
     from google.oauth2 import id_token as google_id_token
     from google.auth.transport import requests as google_requests
@@ -23,7 +24,7 @@ except ImportError:
     google_requests = None
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -113,6 +114,28 @@ class WorkoutExtraction(BaseModel):
     total_burned_calories: int = Field(default=0, description="סך הקלוריות שנשרפו בכל האימונים שזוהו")
     summary: str = Field(description="סיכום תמציתי וברור של הפעילות הגופנית בעברית")
     is_workout: bool = Field(default=True, description="האם זוהתה פעילות גופנית")
+
+
+class WorkoutLeadRequest(BaseModel):
+    full_name: str
+    phone: str
+    city: str
+    activity_type: str
+    preferred_time: Optional[str] = "גמיש"
+    notes: Optional[str] = ""
+
+
+class CoachLeadRequest(BaseModel):
+    full_name: str
+    role: str
+    phone: str
+    email: Optional[str] = ""
+    clients_count: Optional[str] = "1-10"
+    notes: Optional[str] = ""
+
+
+class AdminSetTelegramConfigRequest(BaseModel):
+    admin_chat_id: str
 
 
 class AIWorkoutRequest(BaseModel):
@@ -462,6 +485,7 @@ _LOCAL_WEIGHTS: List[dict] = []
 _LOCAL_VAPID: Optional[dict] = None
 _LOCAL_PUSH_SUBS: List[dict] = []
 _LOCAL_USERS: dict = {}
+_LOCAL_LEADS: List[dict] = []
 _LOCAL_TG_LINKS: dict = {}
 _LOCAL_AUTH_CONFIG: dict = {"google_client_id": ENV_GOOGLE_CLIENT_ID, "primary_user_id": "default"}
 _LOCAL_VISION_RULES: List[dict] = [dict(r) for r in DEFAULT_VISION_CALIBRATION_RULES]
@@ -3218,6 +3242,15 @@ if tg_app:
                 "היכנס לאפליקציה בנייד ולחץ על סמל הפעמון 🔔 בראש המסך כדי להפעיל התראות."
             )
 
+    async def myid_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        chat_id = update.effective_chat.id if update.effective_chat else 0
+        msg = (
+            "🆔 <b>מזהה הצ'אט שלך בטלגרם (Telegram Chat ID):</b>\n"
+            f"<code>{chat_id}</code>\n\n"
+            "העתק מזהה זה והדבק אותו בדשבורד האדמין ב-NutriAgent לקבלת התראות ולידים ישירות לכאן!"
+        )
+        await update.message.reply_text(msg, parse_mode="HTML")
+
     async def weight_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         uid = resolve_telegram_user_id(update)
         if not context.args:
@@ -3362,6 +3395,8 @@ if tg_app:
             await status_reply.edit_text("שגיאה בפענוח ההקלטה הקולית, נסה שוב.")
 
     tg_app.add_handler(CommandHandler("start", start_cmd))
+    tg_app.add_handler(CommandHandler("myid", myid_cmd))
+    tg_app.add_handler(CommandHandler("id", myid_cmd))
     tg_app.add_handler(CommandHandler("link", link_cmd))
     tg_app.add_handler(CommandHandler("status", status_cmd))
     tg_app.add_handler(CommandHandler("push", push_cmd))
@@ -4207,6 +4242,129 @@ def update_user_status_admin_db(
     return snap.to_dict() if snap.exists else {"id": uid, **updates}
 
 
+# ---------------------------------------------------------------------------
+# Leads & Studio Referral Engine (Telegram + WhatsApp)
+# ---------------------------------------------------------------------------
+
+def save_workout_lead_db(lead_dict: dict) -> dict:
+    lead_id = f"lead_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    record = {
+        "id": lead_id,
+        "type": "workout_trial",
+        "full_name": lead_dict.get("full_name", "").strip(),
+        "phone": lead_dict.get("phone", "").strip(),
+        "city": lead_dict.get("city", "").strip(),
+        "activity_type": lead_dict.get("activity_type", "").strip(),
+        "preferred_time": lead_dict.get("preferred_time", "גמיש"),
+        "notes": lead_dict.get("notes", ""),
+        "created_at": datetime.now().isoformat(),
+        "status": "new"
+    }
+    if db:
+        try:
+            db.collection("leads").document(lead_id).set(record)
+        except Exception as e:
+            print(f"ERROR saving lead to firestore: {e}")
+    else:
+        _LOCAL_LEADS.insert(0, record)
+    return record
+
+
+def save_coach_lead_db(coach_dict: dict) -> dict:
+    lead_id = f"coach_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    record = {
+        "id": lead_id,
+        "type": "coach_partner",
+        "full_name": coach_dict.get("full_name", "").strip(),
+        "role": coach_dict.get("role", "").strip(),
+        "phone": coach_dict.get("phone", "").strip(),
+        "email": coach_dict.get("email", "").strip(),
+        "clients_count": coach_dict.get("clients_count", "1-10"),
+        "notes": coach_dict.get("notes", ""),
+        "created_at": datetime.now().isoformat(),
+        "status": "new"
+    }
+    if db:
+        try:
+            db.collection("leads").document(lead_id).set(record)
+        except Exception as e:
+            print(f"ERROR saving coach lead to firestore: {e}")
+    else:
+        _LOCAL_LEADS.insert(0, record)
+    return record
+
+
+def list_leads_admin_db(limit: int = 50) -> List[dict]:
+    if db:
+        try:
+            docs = db.collection("leads").order_by("created_at", direction=firestore.Query.DESCENDING).limit(limit).stream()
+            return [d.to_dict() for d in docs]
+        except Exception as e:
+            print(f"ERROR listing leads from firestore: {e}")
+    return _LOCAL_LEADS[:limit]
+
+
+def get_telegram_admin_chat_id() -> str:
+    env_id = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "").strip()
+    if env_id:
+        return env_id
+    sec = _LOCAL_AUTH_CONFIG.get("admin_chat_id", "")
+    if sec:
+        return str(sec)
+    if db:
+        try:
+            doc = db.collection("app_config").document("telegram").get()
+            if doc.exists:
+                return str(doc.to_dict().get("admin_chat_id", "")).strip()
+        except Exception:
+            pass
+    return ""
+
+
+def set_telegram_admin_chat_id_db(chat_id: str):
+    cid = str(chat_id).strip()
+    _LOCAL_AUTH_CONFIG["admin_chat_id"] = cid
+    if db:
+        try:
+            db.collection("app_config").document("telegram").set({"admin_chat_id": cid}, merge=True)
+        except Exception as e:
+            print(f"ERROR setting admin_chat_id in firestore: {e}")
+    return {"admin_chat_id": cid, "ok": True}
+
+
+async def send_lead_telegram_alert(title: str, details_html: str, phone: str, wa_text: str):
+    admin_chat_id = get_telegram_admin_chat_id()
+    if not admin_chat_id:
+        print("INFO: No admin_chat_id configured. Lead alert saved to database.")
+        return False
+    if not tg_app or not tg_app.bot:
+        print("INFO: tg_app not initialized, cannot dispatch telegram alert.")
+        return False
+
+    clean_p = re.sub(r'[^0-9]', '', phone)
+    if clean_p.startswith('0'):
+        clean_p = '972' + clean_p[1:]
+    elif not clean_p.startswith('972'):
+        clean_p = '972' + clean_p
+
+    wa_url = f"https://wa.me/{clean_p}?text={urllib.parse.quote(wa_text)}"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💬 פתח שיחת וואטסאפ עם הלקוח", url=wa_url)]
+    ])
+    msg = f"<b>{title}</b>\n\n{details_html}\n\n⏱️ <i>התקבל זה עתה דרך NutriAgent AI</i>"
+    try:
+        await tg_app.bot.send_message(
+            chat_id=admin_chat_id,
+            text=msg,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+        return True
+    except Exception as e:
+        print(f"ERROR sending lead alert to telegram ({admin_chat_id}): {e}")
+        return False
+
+
 def delete_user_admin_db(target_uid: str, caller_uid: str = "") -> dict:
     uid = _normalize_user_id(target_uid)
     if caller_uid and uid == _normalize_user_id(caller_uid):
@@ -4310,6 +4468,82 @@ def api_admin_delete_user(target_uid: str, request: Request):
         return delete_user_admin_db(target_uid, caller_uid=admin_uid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/leads/workout")
+async def api_submit_workout_lead(req: WorkoutLeadRequest):
+    if not req.full_name.strip() or not req.phone.strip():
+        raise HTTPException(status_code=400, detail="שם ומספר טלפון הם שדות חובה")
+    record = save_workout_lead_db(req.model_dump())
+    
+    # Send Telegram alert
+    details = (
+        f"👤 <b>שם:</b> {req.full_name}\n"
+        f"📱 <b>טלפון:</b> <code>{req.phone}</code>\n"
+        f"📍 <b>אזור/עיר:</b> {req.city}\n"
+        f"🏋️ <b>פעילות מבוקשת:</b> {req.activity_type}\n"
+        f"⏰ <b>שעות נוחות:</b> {req.preferred_time or 'גמיש'}"
+    )
+    wa_msg = f"היי {req.full_name}, ראיתי שביקשת אימון ניסיון ב{req.activity_type} באזור {req.city} דרך NutriAgent. איזה ימים בשבוע הכי נוחים לך לתיאום?"
+    await send_lead_telegram_alert(
+        title="🎁 ליד חדש לאימון ניסיון / סטודיו!",
+        details_html=details,
+        phone=req.phone,
+        wa_text=wa_msg
+    )
+    return {"ok": True, "lead_id": record["id"], "message": "הפרטים התקבלו בהצלחה!"}
+
+
+@app.post("/api/leads/coach")
+async def api_submit_coach_lead(req: CoachLeadRequest):
+    if not req.full_name.strip() or not req.phone.strip():
+        raise HTTPException(status_code=400, detail="שם ומספר טלפון הם שדות חובה")
+    record = save_coach_lead_db(req.model_dump())
+    
+    details = (
+        f"🤝 <b>שם המאמן/ת:</b> {req.full_name}\n"
+        f"💼 <b>תחום:</b> {req.role}\n"
+        f"📱 <b>טלפון:</b> <code>{req.phone}</code>\n"
+        f"📧 <b>אימייל:</b> {req.email or 'לא צוין'}\n"
+        f"👥 <b>כמות מתאמנים מלווים:</b> {req.clients_count}"
+    )
+    wa_msg = f"היי {req.full_name}, ראיתי שהגשת מועמדות לתוכנית המאמנים והתזונאים של NutriAgent ({req.role}). נשמח לספר לך על גרסת הבטא!"
+    await send_lead_telegram_alert(
+        title="🤝 פנייה חדשה ממאמן / תזונאית!",
+        details_html=details,
+        phone=req.phone,
+        wa_text=wa_msg
+    )
+    return {"ok": True, "lead_id": record["id"], "message": "הפרטים התקבלו בהצלחה!"}
+
+
+@app.get("/api/admin/leads")
+def api_admin_list_leads(request: Request, limit: int = Query(default=50, ge=1, le=200)):
+    require_admin_user(request)
+    admin_cid = get_telegram_admin_chat_id()
+    leads = list_leads_admin_db(limit=limit)
+    return {"leads": leads, "admin_chat_id": admin_cid}
+
+
+@app.post("/api/admin/telegram-target")
+def api_admin_set_telegram_target(req: AdminSetTelegramConfigRequest, request: Request):
+    require_admin_user(request)
+    return set_telegram_admin_chat_id_db(req.admin_chat_id)
+
+
+@app.post("/api/admin/test-telegram-alert")
+async def api_admin_test_telegram_alert(request: Request):
+    require_admin_user(request)
+    cid = get_telegram_admin_chat_id()
+    if not cid:
+        raise HTTPException(status_code=400, detail="לא מוגדר Telegram Chat ID בדשבורד")
+    ok = await send_lead_telegram_alert(
+        title="⚡ בדיקת תקינות התראות לידים — NutriAgent",
+        details_html="ההתראות מוגדרות ופועלות בהצלחה!\nכל ליד חדש שישאיר פרטים יגיע לכאן מיד עם כפתור לוואטסאפ.",
+        phone="0501234567",
+        wa_text="בדיקת חיבור וואטסאפ"
+    )
+    return {"ok": ok, "admin_chat_id": cid}
 
 
 @app.get("/api/admin/vision-logs")

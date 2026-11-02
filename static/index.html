@@ -795,7 +795,168 @@
                     </div>
                     <div class="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
                         <!-- Workout Logger Button -->
-                        <button type="button" @click="openWorkoutLogger()"
+                        <button type="button" @click="openTrialWorkoutModal() {
+                if (this.currentUser) {
+                    if (!this.trialWorkoutForm.full_name) this.trialWorkoutForm.full_name = this.currentUser.name || '';
+                }
+                this.trialWorkoutSuccess = false;
+                this.showTrialWorkoutModal = true;
+            },
+
+            async submitTrialWorkoutLead() {
+                if (!this.trialWorkoutForm.full_name.trim() || !this.trialWorkoutForm.phone.trim()) {
+                    alert('נא למלא שם מלא ומספר טלפון');
+                    return;
+                }
+                this.trialWorkoutSending = true;
+                try {
+                    const res = await fetch('/api/leads/workout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.trialWorkoutForm)
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        this.trialWorkoutSuccess = true;
+                    } else {
+                        alert(data.detail || 'שגיאה בשליחת הבקשה');
+                    }
+                } catch (err) {
+                    console.error('Error submitting trial lead:', err);
+                    alert('שגיאת תקשורת, נסה שוב מאוחר יותר');
+                } finally {
+                    this.trialWorkoutSending = false;
+                }
+            },
+
+            openCoachBetaModal() {
+                if (this.currentUser) {
+                    if (!this.coachBetaForm.full_name) this.coachBetaForm.full_name = this.currentUser.name || '';
+                    if (!this.coachBetaForm.email) this.coachBetaForm.email = this.currentUser.email || '';
+                }
+                this.coachBetaSuccess = false;
+                this.showCoachBetaModal = true;
+            },
+
+            async submitCoachBetaLead() {
+                if (!this.coachBetaForm.full_name.trim() || !this.coachBetaForm.phone.trim()) {
+                    alert('נא למלא שם מלא ומספר טלפון');
+                    return;
+                }
+                this.coachBetaSending = true;
+                try {
+                    const res = await fetch('/api/leads/coach', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.coachBetaForm)
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        this.coachBetaSuccess = true;
+                    } else {
+                        alert(data.detail || 'שגיאה בשליחת הפנייה');
+                    }
+                } catch (err) {
+                    console.error('Error submitting coach lead:', err);
+                    alert('שגיאת תקשורת, נסה שוב מאוחר יותר');
+                } finally {
+                    this.coachBetaSending = false;
+                }
+            },
+
+            shareDietitianReport() {
+                const uName = this.currentUser?.name || 'מתאמן';
+                const trend = this.dailyTrend || [];
+                let totalCals = 0;
+                let totalProtein = 0;
+                let daysWithData = 0;
+
+                trend.forEach(d => {
+                    if (d.calories > 0) {
+                        totalCals += d.calories;
+                        totalProtein += d.protein_g || 0;
+                        daysWithData++;
+                    }
+                });
+
+                const avgCals = daysWithData ? Math.round(totalCals / daysWithData) : (this.summary.total_calories || 0);
+                const avgProtein = daysWithData ? Math.round(totalProtein / daysWithData) : Math.round(this.summary.total_protein || 0);
+                const targetCals = this.summary.target_calories || 1800;
+                const targetProt = this.summary.target_protein || 120;
+                const latestWeight = this.weightData?.latest_weight ? `${this.weightData.latest_weight} ק"ג` : 'טרם תועד';
+                const streak = this.currentStreak || 0;
+
+                const text = 
+`📋 *דוח מעקב תזונה שבועי — NutriAgent AI*
+👤 *מתאמן:* ${uName}
+📅 *תקופה:* 7 ימים אחרונים
+
+🔥 *ממוצע קלורי יומי:* ${avgCals} / ${targetCals} קק״ל
+💪 *ממוצע חלבון יומי:* ${avgProtein}g / יעד ${targetProt}g
+⚖️ *משקל נוכחי:* ${latestWeight}
+⭐ *רצף תיעוד פעיל:* ${streak} ימים
+
+_הופק ישירות מאפליקציית NutriAgent AI_`;
+
+                const waUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
+                window.open(waUrl, '_blank');
+            },
+
+            async fetchAdminLeads() {
+                try {
+                    const res = await fetch('/api/admin/leads');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.adminLeads = data.leads || [];
+                        if (data.admin_chat_id) {
+                            this.adminTelegramChatId = data.admin_chat_id;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching admin leads:', err);
+                }
+            },
+
+            async saveAdminTelegramTarget() {
+                if (!this.adminTelegramChatId.trim()) {
+                    alert('נא להזין Telegram Chat ID');
+                    return;
+                }
+                this.adminTelegramSaving = true;
+                try {
+                    const res = await fetch('/api/admin/telegram-target', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ admin_chat_id: this.adminTelegramChatId.trim() })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        alert('✅ יעד ההתראות בטלגרם נשמר בהצלחה!');
+                    } else {
+                        alert(data.detail || 'שגיאה בשמירה');
+                    }
+                } catch (err) {
+                    alert('שגיאת תקשורת');
+                } finally {
+                    this.adminTelegramSaving = false;
+                }
+            },
+
+            async testAdminTelegramAlert() {
+                try {
+                    const res = await fetch('/api/admin/test-telegram-alert', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.ok) {
+                        alert('🚀 הודעת בדיקה נשלחה בהצלחה לטלגרם שלך!');
+                    } else {
+                        alert(data.detail || 'שגיאה בשליחת הודעת בדיקה');
+                    }
+                } catch (err) {
+                    alert('שגיאה בשליחת בדיקה');
+                }
+            },
+
+            openWorkoutLogger()"
                                 class="h-9 px-3.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs w-full sm:w-auto">
                             <svg class="w-4 h-4 text-indigo-600 flex-shrink-0"><use href="#icon-workout-dumbbell"></use></svg>
                             <span x-text="t('logWorkoutBtn', 'תעד אימון')">תעד אימון</span>
@@ -1204,6 +1365,27 @@
                 </div>
             </div>
 
+            <!-- Studio Referral & Free Trial Workout Gift Card -->
+            <div @click="openTrialWorkoutModal()"
+                 class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-emerald-500/10 border-2 border-amber-300/80 hover:border-amber-400 shadow-sm transition active:scale-[0.99] cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative overflow-hidden">
+                <div class="flex items-center gap-3.5 min-w-0">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-2xl shadow-md shadow-orange-500/25 flex-shrink-0">
+                        🎁
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm sm:text-base font-extrabold text-slate-900">מחפש סטודיו או חדר כושר באזורך?</span>
+                            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black border border-amber-300">הטבה בלעדית</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mt-0.5">בדוק זכאות לאימון ניסיון במתנה / בהנחה לפילאטיס מכשירים, קרוספיט או חדר כושר קרוב</p>
+                    </div>
+                </div>
+                <button type="button" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition shadow-xs flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer">
+                    <span>בדוק זכאות לאימון</span>
+                    <span>←</span>
+                </button>
+            </div>
+
             <!-- Today's Logged Meals List -->
             <div class="space-y-3">
                 <div class="flex items-center justify-between px-1">
@@ -1545,6 +1727,47 @@
                             <span class="text-[10px] text-slate-400" x-text="`${day.protein_g.toFixed(0)}g חלבון`"></span>
                         </button>
                     </template>
+                </div>
+            </div>
+
+            <!-- Dietitian & Coach Mode Integration Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                <!-- 1. Share Weekly Report to Dietitian -->
+                <div class="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/90 shadow-2xs flex flex-col justify-between space-y-3">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm flex-shrink-0">
+                            📋
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">מצב דיאטנית</span>
+                            <h4 class="text-sm sm:text-base font-extrabold text-slate-900 mt-1">שתף סיכום שבועי עם התזונאית</h4>
+                            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">הפק בלחיצה אחת דוח מעקב מעוצב (ממוצע קלורי, חלבון, ואימונים) לשליחה ישירה בוואטסאפ לדיאטנית שלך</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="shareDietitianReport()"
+                            class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer">
+                        <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
+                        <span>שלח סיכום שבועי בוואטסאפ</span>
+                    </button>
+                </div>
+
+                <!-- 2. Coach / Dietitian Early Beta Partner Program -->
+                <div class="p-5 rounded-3xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200/90 shadow-2xs flex flex-col justify-between space-y-3">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-sm flex-shrink-0">
+                            🤝
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-md">למאמנים ותזונאים</span>
+                            <h4 class="text-sm sm:text-base font-extrabold text-slate-900 mt-1">תוכנית מאמנים ותזונאים</h4>
+                            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">אתה מאמן כושר או תזונאית? רוצה ללוות את המתאמנים שלך ישירות בממשק NutriAgent? הצטרף לגרסת הבטא</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="openCoachBetaModal()"
+                            class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer">
+                        <span>הצטרף לתוכנית המאמנים (Beta)</span>
+                        <span>←</span>
+                    </button>
                 </div>
             </div>
 
@@ -2555,6 +2778,91 @@
                     <span :class="{'animate-spin': adminLoading}">🔄</span>
                     <span x-text="adminLoading ? 'טוען נתונים...' : 'רענן רשימת משתמשים'"></span>
                 </button>
+            </div>
+
+            <!-- Leads Management & Telegram Alerts Settings (Admin Only) -->
+            <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center text-xl shadow-xs flex-shrink-0">
+                            🎁
+                        </div>
+                        <div>
+                            <h3 class="text-base sm:text-lg font-black text-slate-900">לידים והפניות (חדרי כושר, סטודיואים ומאמנים)</h3>
+                            <p class="text-xs text-slate-500">כל בקשה לאימון ניסיון או פניית מאמן מועברת מיד לכאן ולטלגרם המחובר</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="fetchAdminLeads()"
+                            class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer">
+                        <span>🔄 רענן לידים</span>
+                    </button>
+                </div>
+
+                <!-- Telegram Alert Configuration Bar -->
+                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 w-full md:w-auto">
+                        <span class="text-2xl">✈️</span>
+                        <div>
+                            <span class="text-xs font-extrabold text-slate-900 block">יעד התראות מיידיות בטלגרם (Telegram Chat ID)</span>
+                            <span class="text-[11px] text-slate-500">שלח לבוט בטלגרם את הפקודה <code>/myid</code> כדי לקבל את המזהה שלך</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <input type="text" x-model="adminTelegramChatId" placeholder="הדבק Chat ID (למשל: 123456789)"
+                               class="px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-mono font-bold outline-none focus:border-indigo-500 flex-1 md:w-48">
+                        <button type="button" @click="saveAdminTelegramTarget()" :disabled="adminTelegramSaving"
+                                class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer flex-shrink-0">
+                            <span x-text="adminTelegramSaving ? 'שומר...' : 'שמור יעד'">שמור יעד</span>
+                        </button>
+                        <button type="button" @click="testAdminTelegramAlert()"
+                                class="px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold transition cursor-pointer flex-shrink-0"
+                                title="שלח הודעת בדיקה לטלגרם">
+                            ⚡ בדיקה
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Leads Table / List -->
+                <div class="space-y-2">
+                    <div x-show="!adminLeads.length" class="text-center py-6 text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        טרם התקבלו לידים חדשים. כפתורי "אימון במתנה" ו"תוכנית מאמנים" זמינים למשתמשים באפליקציה!
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-2.5 max-h-96 overflow-y-auto">
+                        <template x-for="lead in adminLeads" :key="lead.id">
+                            <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 transition">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                                         :class="lead.type === 'workout_trial' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'">
+                                        <span x-text="lead.type === 'workout_trial' ? '🎁' : '🤝'"></span>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-extrabold text-sm text-slate-900" x-text="lead.full_name"></span>
+                                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold"
+                                                  :class="lead.type === 'workout_trial' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-indigo-50 text-indigo-800 border border-indigo-200'"
+                                                  x-text="lead.type === 'workout_trial' ? lead.activity_type : lead.role"></span>
+                                            <span class="text-[11px] text-slate-400" x-text="lead.city || lead.email"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                            <span>📱 <strong class="text-slate-700" x-text="lead.phone"></strong></span>
+                                            <span class="text-slate-300">•</span>
+                                            <span x-text="new Date(lead.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'})"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- WhatsApp 1-Tap Action Button -->
+                                <a :href="`https://wa.me/${(lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(lead.type === 'workout_trial' ? `היי ${lead.full_name}, קיבלתי את בקשתך לאימון ניסיון ב-${lead.activity_type} באזור ${lead.city} דרך NutriAgent. מתי נוח לתאם שיחה קצרה?` : `היי ${lead.full_name}, ראיתי שהגשת מועמדות לתוכנית המאמנים של NutriAgent (${lead.role}). נשמח לדבר!`)}`"
+                                   target="_blank"
+                                   class="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs flex-shrink-0 cursor-pointer">
+                                    <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
+                                    <span>פתח שיחת וואטסאפ</span>
+                                </a>
+                            </div>
+                        </template>
+                    </div>
+                </div>
             </div>
 
             <!-- System Overview Stats Grid (Stitch 4 Top KPI Stat Cards) -->
@@ -6635,6 +6943,36 @@
                 recipePreference: '',
                 generatingRecipes: false,
                 recipesSubTab: 'wolt',
+                // Leads & Studio Gift State
+                showTrialWorkoutModal: false,
+                trialWorkoutForm: {
+                    full_name: '',
+                    phone: '',
+                    city: 'תל אביב והמרכז',
+                    activity_type: 'פילאטיס מכשירים',
+                    preferred_time: 'ערב (17:00-21:00)',
+                    notes: ''
+                },
+                trialWorkoutSending: false,
+                trialWorkoutSuccess: false,
+
+                // Dietitian & Coach Beta State
+                showCoachBetaModal: false,
+                coachBetaForm: {
+                    full_name: '',
+                    role: 'תזונאי/ת קליני/ת (B.Sc)',
+                    phone: '',
+                    email: '',
+                    clients_count: '5-15',
+                    notes: ''
+                },
+                coachBetaSending: false,
+                coachBetaSuccess: false,
+
+                // Admin Leads
+                adminLeads: [],
+                adminTelegramChatId: '',
+                adminTelegramSaving: false,
                 showAchievementsModal: false,
                 showGroceryModal: false,
                 groceryList: null,
@@ -8641,6 +8979,7 @@
                     } else if (tab === 'admin') {
                         this.fetchAdminUsers();
                         this.fetchVisionLogs();
+                        this.fetchAdminLeads();
                     } else if (tab === 'recipes' && (!this.woltDishes || !this.woltDishes.length)) {
                         this.fetchWoltDishes();
                     }
