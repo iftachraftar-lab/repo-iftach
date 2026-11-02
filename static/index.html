@@ -1797,34 +1797,6 @@
         <!-- =============================================================== -->
         <div x-show="activeTab === 'recipes'" x-cloak x-transition.opacity class="space-y-6">
 
-            <!-- Viewfinder Live Scanner inside Tab 3 Tools -->
-            <!-- Prominent Multi-Modal Live Viewfinder Launcher Card (Stitch Frame) -->
-            <div @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                 class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border-2 border-emerald-400/50 hover:border-emerald-300 transition cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-4 group relative overflow-hidden">
-                <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none"></div>
-                <div class="flex items-center gap-4">
-                    <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition flex-shrink-0 shadow-lg">
-                        <span class="material-symbols-outlined text-[32px]">photo_camera</span>
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-black uppercase tracking-wider flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                AI Vision 4.2 Pro
-                            </span>
-                            <span class="text-xs text-slate-400">זיהוי מרובה פריטים פעיל</span>
-                        </div>
-                        <h3 class="text-lg sm:text-xl font-black text-white mt-1">Multi-Modal AI Food & Barcode Live Viewfinder</h3>
-                        <p class="text-xs text-slate-300 mt-0.5">סורק צלחת רב-מוקדי, סורק ברקוד לייזר ומדד דנונה PRO (לחץ כאן לפתיחה במסך מלא)</p>
-                    </div>
-                </div>
-                <button type="button" @click.stop="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                        class="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-500/30 flex items-center gap-2 flex-shrink-0 cursor-pointer">
-                    <span class="material-symbols-outlined text-[20px]">fullscreen</span>
-                    <span>פתח סורק חי עכשיו 📸</span>
-                </button>
-            </div>
-
             <!-- Sub-Mode Switcher: 5 Smart Cooking & Shopping Tools -->
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs">
                 <button type="button" @click="recipesSubTab = 'wolt'; if (!woltDishes.length) fetchWoltDishes()"
