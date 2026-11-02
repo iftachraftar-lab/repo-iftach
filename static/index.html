@@ -919,8 +919,8 @@
                         </label>
                     </div>
 
-                    <!-- Floor 2: Full-Width Free-Text Box + Submit Button -->
-                    <form @submit.prevent="selectedPhotoDataUrl ? submitPhotoMeal() : submitAIMeal()" class="space-y-2.5">
+                    <!-- Floor 2: Spacious Free-Text Box + Submit Button -->
+                    <form @submit.prevent="selectedPhotoDataUrl ? submitPhotoMeal() : submitAIMeal()" class="space-y-3">
                         <div class="relative w-full">
                             <input type="text"
                                    x-model="aiInputText"
@@ -928,13 +928,13 @@
                                    @input="showAutocomplete = true"
                                    @keydown.escape="showAutocomplete = false"
                                    :disabled="aiAnalyzing || isRecordingVoice"
-                                   :placeholder="selectedPhotoDataUrl ? 'הערה לתמונה (אופציונלי: למשל חצי מנה, 2 פרוסות...)' : 'הקלד מוצר להשלמה אוטומטית או ארוחה חופשית (למשל: קוטג\' 3%, 2 ביצים, סלט)...'"
-                                   class="w-full h-13 px-4 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none text-sm font-medium transition shadow-inner">
+                                   :placeholder="selectedPhotoDataUrl ? 'הערה לתמונה (אופציונלי: למשל חצי מנה, 2 פרוסות...)' : 'הקלד מה אכלת או שתית (למשל: 2 ביצים, סלט ירקות וכף טחינה)...'"
+                                   class="w-full min-h-[58px] sm:min-h-[64px] px-5 py-3.5 rounded-2xl bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none text-base font-medium text-slate-900 transition shadow-xs">
                         </div>
 
                         <button type="submit"
                                 :disabled="aiAnalyzing || (!aiInputText.trim() && !selectedPhotoDataUrl)"
-                                class="w-full h-12 rounded-2xl bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer">
+                                class="w-full h-13 rounded-2xl bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-bold text-sm sm:text-base shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer">
                             <span x-show="!aiAnalyzing" x-text="selectedPhotoDataUrl ? 'נתח תמונה והוסף 📸' : 'נתח והוסף ב-AI ✨'"></span>
                             <span x-show="aiAnalyzing" class="flex items-center gap-2">
                                 <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -945,6 +945,27 @@
                             </span>
                         </button>
                     </form>
+
+                    <!-- Dedicated Automatic Macro & AI Live Viewfinder Card (Always Available even after meals logged) -->
+                    <div @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
+                         class="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/70 to-slate-50 border-2 border-emerald-200/90 hover:border-emerald-400 hover:shadow-md transition active:scale-[0.99] cursor-pointer flex items-center justify-between gap-3 shadow-2xs">
+                        <div class="flex items-center gap-3.5 min-w-0">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/25 flex-shrink-0">
+                                <svg class="w-6 h-6"><use href="#icon-meal-camera"></use></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-sm sm:text-base font-extrabold text-slate-900">סורק צלחת וברקוד חי (Live AI)</span>
+                                    <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">צילום מאקרו אוטומטי</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5 leading-snug">כוון את המצלמה לצלחת או לברקוד לזיהוי רכיבים, שקילה וקלוריות בזמן אמת</p>
+                            </div>
+                        </div>
+                        <button type="button" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs flex items-center gap-1 flex-shrink-0 cursor-pointer">
+                            <span>פתח סורק</span>
+                            <span>←</span>
+                        </button>
+                    </div>
 
                     <!-- Instant Smart Catalog Autocomplete Dropdown (with Calories & Protein Breakdown) -->
                     <div x-cloak x-show="showAutocomplete && autocompleteSuggestions.length > 0"
@@ -10361,7 +10382,7 @@
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 bg-black overflow-y-auto select-none"
          :dir="currentLang === 'en' ? 'ltr' : 'rtl'">
-        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-on-primary transition-transform active:scale-95" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-[20px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button @click="toggleTorch()" aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-95 cursor-pointer"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button type="button" @click="setViewfinderMode('barcode')"
+        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-transform active:scale-95 cursor-pointer shadow-lg border border-white/20" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-white text-[24px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button @click="toggleTorch()" aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-95 cursor-pointer"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button type="button" @click="setViewfinderMode('barcode')"
         :class="viewfinderScanMode === 'barcode' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
         class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
     <svg class="w-4 h-4"><use href="#icon-barcode-scanner"></use></svg>
@@ -10389,9 +10410,12 @@
            class="w-full h-full object-cover"
            :class="liveCameraActive ? 'opacity-100' : 'opacity-0'"></video>
 
-    <!-- 2. Fallback Photo when camera permission is not yet granted or desktop without webcam -->
-    <div x-show="!liveCameraActive" class="absolute inset-0 w-full h-full bg-cover bg-center opacity-85 scale-105 transition-transform duration-700"
-         style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCPbcVd5J9HpY392lgHtZQ11jVTVduOw515yp4HU6JfPb6OH67QpE9ewSwKep8QTuqOmVp1CweLrUmc_3CYlSpOieUl1xKb-Y8A5qW_C0Lq_Z5KwzW0YkpxtwE1Vx_FhcooS6AXcRCFZkj6Igy31WG9QvDkLanEd2vhVkw09PuEpbmUutoQaTRMN_7CNGQxIxyFhKemGK8dCG43PcMvxowdynroJ1Yyr0mLZUwe-AE')">
+    <!-- 2. Clean Dark Camera Viewport while camera initializes -->
+    <div x-show="!liveCameraActive" class="absolute inset-0 w-full h-full bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <div class="w-16 h-16 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400 text-3xl shadow-inner">
+            <span class="material-symbols-outlined text-[32px]">photo_camera</span>
+        </div>
+        <p class="text-xs font-bold text-slate-300">פותח עדשת מצלמה חיה...</p>
     </div>
 
     <!-- Camera Activation Status Badge -->
@@ -10687,13 +10711,13 @@
             <span class="material-symbols-outlined text-[20px]">photo_library</span>
         </button>
 
-        <!-- Big Capture Button: "זהה פריט ב-AI" (NOT saving yet, strictly identifying!) -->
+        <!-- Big Capture Button: "זהה פריט ב-AI" (High Contrast Emerald Button) -->
         <button type="button" @click="captureRealMealFromViewfinder()" :disabled="liveViewfinderScanning"
-                class="flex-1 py-3 px-4 rounded-full bg-primary text-on-primary font-headline-sm text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,105,72,0.35)] hover:bg-primary-container active:scale-95 transition-all cursor-pointer">
-            <span class="material-symbols-outlined text-[20px]" :class="{'animate-spin': liveViewfinderScanning}">
+                class="flex-1 py-3.5 px-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/40 active:scale-95 transition-all cursor-pointer border border-emerald-400/40">
+            <span class="material-symbols-outlined text-white text-[22px]" :class="{'animate-spin': liveViewfinderScanning}">
                 <span x-text="liveViewfinderScanning ? 'progress_activity' : 'camera'"></span>
             </span>
-            <span class="font-bold" x-text="liveViewfinderScanning ? 'מזהה ב-AI...' : (viewfinderScanMode === 'barcode' ? 'סרוק ברקוד' : (viewfinderScanMode === 'label' ? 'סרוק תווית' : 'זהה צלחת ב-AI'))"></span>
+            <span class="font-black text-white" x-text="liveViewfinderScanning ? 'מזהה ב-AI...' : (viewfinderScanMode === 'barcode' ? 'סרוק ברקוד' : (viewfinderScanMode === 'label' ? 'סרוק תווית' : 'זהה צלחת ב-AI 📸'))"></span>
         </button>
     </div>
 </div>
