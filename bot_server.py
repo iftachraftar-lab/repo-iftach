@@ -123,6 +123,9 @@ class WorkoutLeadRequest(BaseModel):
     activity_type: str
     preferred_time: Optional[str] = "גמיש"
     goal: Optional[str] = "חיטוב ועיצוב"
+    studio_name: Optional[str] = ""
+    studio_perk: Optional[str] = ""
+    voucher_code: Optional[str] = ""
     notes: Optional[str] = ""
 
 
@@ -4267,6 +4270,10 @@ def save_workout_lead_db(lead_dict: dict) -> dict:
         "city": lead_dict.get("city", "").strip(),
         "activity_type": lead_dict.get("activity_type", "").strip(),
         "preferred_time": lead_dict.get("preferred_time", "גמיש"),
+        "goal": lead_dict.get("goal", "חיטוב ועיצוב"),
+        "studio_name": lead_dict.get("studio_name", ""),
+        "studio_perk": lead_dict.get("studio_perk", ""),
+        "voucher_code": lead_dict.get("voucher_code", ""),
         "notes": lead_dict.get("notes", ""),
         "created_at": datetime.now().isoformat(),
         "status": "new"
@@ -4514,13 +4521,17 @@ async def api_submit_workout_lead(req: WorkoutLeadRequest):
     
     # Send Telegram alert
     details = (
-        f"👤 <b>שם:</b> {req.full_name}\n"
+        f"👤 <b>שם הלקוח:</b> {req.full_name}\n"
         f"📱 <b>טלפון:</b> <code>{req.phone}</code>\n"
+        f"🎟️ <b>קוד שובר:</b> <code>{req.voucher_code or 'לא הונפק'}</code>\n"
+        f"🏢 <b>סטודיו שנבחר:</b> {req.studio_name or 'כללי'}\n"
+        f"🎁 <b>הטבה:</b> {req.studio_perk or 'אימון ניסיון מתנה'}\n"
+        f"🎯 <b>מטרה:</b> {getattr(req, 'goal', 'חיטוב')}\n"
         f"📍 <b>אזור/עיר:</b> {req.city}\n"
-        f"🏋️ <b>פעילות מבוקשת:</b> {req.activity_type}\n"
-        f"⏰ <b>שעות נוחות:</b> {req.preferred_time or 'גמיש'}"
+        f"🏋️ <b>ענף:</b> {req.activity_type}\n"
+        f"⏰ <b>שעות:</b> {req.preferred_time or 'גמיש'}"
     )
-    wa_msg = f"היי {req.full_name}, ראיתי שביקשת אימון ניסיון ב{req.activity_type} באזור {req.city} דרך NutriAgent. איזה ימים בשבוע הכי נוחים לך לתיאום?"
+    wa_msg = f"היי {req.full_name}, ראיתי שהנפקת שובר הטבה לאימון ניסיון ב-{req.studio_name or req.activity_type} (קוד {req.voucher_code}). מתי נוח שנדבר קצרות לוודא שקיבלת את הפרטים לתיאום?" 
     await send_lead_telegram_alert(
         title="🎁 ליד חדש לאימון ניסיון / סטודיו!",
         details_html=details,

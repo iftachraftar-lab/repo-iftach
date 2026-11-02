@@ -4082,7 +4082,7 @@
 
     
 <!-- =============================================================== -->
-    <!-- 1. INTERACTIVE ELIGIBILITY WORKOUT QUIZ & STUDIO MATCH MODAL   -->
+<!-- 1. INTERACTIVE ELIGIBILITY WORKOUT QUIZ & STUDIO MATCH MODAL -->
     <!-- =============================================================== -->
     <div x-cloak x-show="showTrialWorkoutModal"
          x-transition:enter="transition ease-out duration-300"
@@ -4093,7 +4093,7 @@
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
          @click.self="showTrialWorkoutModal = false">
-        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-7 space-y-5 border border-slate-100 relative max-h-[92vh] overflow-y-auto" @click.stop>
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-7 space-y-4 border border-slate-100 relative max-h-[92vh] overflow-y-auto" @click.stop>
             <!-- Header -->
             <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
                 <div class="flex items-center gap-3">
@@ -4105,7 +4105,7 @@
                             <span class="text-base sm:text-lg font-black text-slate-900">בדיקת זכאות לאימון ניסיון והטבת סטודיו</span>
                             <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black border border-amber-300">VIP</span>
                         </div>
-                        <p class="text-xs text-slate-500 mt-0.5">מענה קצר על 2 שאלות ובדיקת מקומות פנויים להטבת קהילה באזורך</p>
+                        <p class="text-xs text-slate-500 mt-0.5">סריקה והתאמה של מועדונים וסטודיואים בהסדר בלעדי באזורך</p>
                     </div>
                 </div>
                 <button type="button" @click="showTrialWorkoutModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
@@ -4184,7 +4184,7 @@
                     </button>
                     <button type="button" @click="runTrialScanning()"
                             class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-orange-500/20 transition">
-                        <span>🔍 בדוק זכאות ומקומות פנויים</span>
+                        <span>🔍 סרוק מועדונים והטבות</span>
                         <span>←</span>
                     </button>
                 </div>
@@ -4192,71 +4192,144 @@
 
             <!-- Quiz Step 3: Interactive Scanning Animation -->
             <div x-show="trialQuizStep === 3" class="py-12 text-center space-y-4">
-                <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-2xl animate-spin">
+                <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-3xl animate-spin">
                     ⚙️
                 </div>
                 <div class="space-y-1">
-                    <h4 class="text-base font-extrabold text-slate-900">סורק מועדונים והטבות באזורך...</h4>
-                    <p class="text-xs text-slate-500">בודק זכאות להטבת אימון ניסיון מתנה מול סטודיואים באזור <span class="font-bold text-slate-800" x-text="trialWorkoutForm.city"></span></p>
+                    <h4 class="text-base font-extrabold text-slate-900">סורק מועדונים והטבות פנויות...</h4>
+                    <p class="text-xs text-slate-500">
+                        מאתר סטודיואים מובילים ל<span class="font-bold text-slate-800" x-text="trialWorkoutForm.activity_type"></span> באזור <span class="font-bold text-slate-800" x-text="trialWorkoutForm.city"></span>
+                    </p>
                 </div>
                 <div class="w-48 mx-auto h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 animate-pulse rounded-full w-full"></div>
                 </div>
             </div>
 
-            <!-- Quiz Step 4: Eligibility Found & Claim Voucher -->
-            <div x-show="trialQuizStep === 4 && !trialWorkoutSuccess" class="space-y-4">
-                <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-amber-500/10 to-orange-500/10 border-2 border-emerald-400/80 text-right space-y-1.5 relative overflow-hidden">
-                    <div class="flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black">✓</span>
-                        <span class="text-xs font-black text-emerald-800 uppercase tracking-wide">זכאות מאומתת</span>
+            <!-- Quiz Step 4: RESULTS FOUND! Choose Studio & Claim Voucher -->
+            <div x-show="trialQuizStep === 4" class="space-y-4">
+                <div class="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-amber-50 to-orange-50 border border-emerald-300 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm font-black flex-shrink-0">✓</span>
+                        <div>
+                            <span class="text-xs font-black text-slate-900 block">נמצאה זכאות! מועדונים בהסדר בלעדי</span>
+                            <span class="text-[11px] text-slate-600">בחר את הסטודיו המועדף עליך לקבלת שובר ההטבה:</span>
+                        </div>
                     </div>
-                    <h4 class="text-base font-black text-slate-900">נמצאה זכאות לשובר הטבה בשווי ₪120!</h4>
-                    <p class="text-xs text-slate-600 leading-relaxed">
-                        אימון ניסיון במתנה / בהנחה בלעדית ל<strong class="text-slate-800" x-text="trialWorkoutForm.activity_type"></strong> באזור <strong class="text-slate-800" x-text="trialWorkoutForm.city"></strong> + שיחת מיקוד מטרות.
-                    </p>
+                    <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-200">חיסכון עד ₪180</span>
                 </div>
 
-                <form @submit.prevent="submitTrialWorkoutLead()" class="space-y-3">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Matched Studios Cards -->
+                <div class="space-y-2.5">
+                    <template x-for="st in matchedStudios" :key="st.id">
+                        <div @click="selectedStudio = st"
+                             :class="selectedStudio?.id === st.id ? 'border-amber-500 bg-amber-50/40 shadow-xs ring-2 ring-amber-400/50' : 'border-slate-200 bg-white hover:border-slate-300'"
+                             class="p-3.5 rounded-2xl border transition cursor-pointer flex flex-col gap-2">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-extrabold text-xs sm:text-sm text-slate-900" x-text="st.name"></span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300" x-text="st.badge"></span>
+                                        <span class="text-[11px] text-amber-600 font-bold flex items-center gap-0.5">
+                                            <span>⭐</span>
+                                            <span x-text="st.rating"></span>
+                                            <span class="text-slate-400 font-normal" x-text="`(${st.reviews})`"></span>
+                                        </span>
+                                    </div>
+                                    <span class="text-[11px] text-slate-500 mt-0.5 block" x-text="st.branch"></span>
+                                </div>
+                                <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                                     :class="selectedStudio?.id === st.id ? 'border-amber-600 bg-amber-500 text-slate-950 font-black text-xs' : 'border-slate-300'">
+                                    <span x-show="selectedStudio?.id === st.id">✓</span>
+                                </div>
+                            </div>
+
+                            <div class="p-2 rounded-xl bg-white border border-slate-100 flex items-center justify-between text-xs">
+                                <span class="font-bold text-emerald-700" x-text="st.perk"></span>
+                                <span class="line-through text-slate-400 text-[11px]" x-text="st.original_price"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Claim Form (Name & Phone) -->
+                <form @submit.prevent="submitTrialWorkoutLead()" class="space-y-3 pt-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div class="space-y-1">
                             <label class="block text-xs font-bold text-slate-700">שם מלא *</label>
                             <input type="text" x-model="trialWorkoutForm.full_name" required placeholder="השם שלך"
-                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500">
+                                   class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500">
                         </div>
                         <div class="space-y-1">
-                            <label class="block text-xs font-bold text-slate-700">מספר טלפון לשליחת השובר *</label>
+                            <label class="block text-xs font-bold text-slate-700">מספר טלפון לקבלת השובר *</label>
                             <input type="tel" x-model="trialWorkoutForm.phone" required placeholder="050-1234567"
-                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500">
+                                   class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500">
                         </div>
                     </div>
 
-                    <div class="pt-1">
-                        <button type="submit" :disabled="trialWorkoutSending"
-                                class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-sm shadow-md shadow-orange-500/30 flex items-center justify-center gap-2 transition cursor-pointer">
-                            <span x-show="!trialWorkoutSending">🎁 שלח לי את שובר ההטבה לוואטסאפ</span>
-                            <span x-show="trialWorkoutSending" class="flex items-center gap-2">
-                                <svg class="w-4 h-4 animate-spin text-slate-950" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                                שולח שובר...
-                            </span>
-                        </button>
-                        <p class="text-[10px] text-slate-400 text-center mt-2">השובר תקף למימוש ב-14 ימים הקרובים מול הסטודיו המותאם</p>
-                    </div>
+                    <button type="submit" :disabled="trialWorkoutSending"
+                            class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-sm shadow-md shadow-orange-500/30 flex items-center justify-center gap-2 transition cursor-pointer">
+                        <span x-show="!trialWorkoutSending" x-text="`🎟️ הנפק שובר הטבה ל-${selectedStudio?.name || 'הסטודיו'}`"></span>
+                        <span x-show="trialWorkoutSending" class="flex items-center gap-2">
+                            <svg class="w-4 h-4 animate-spin text-slate-950" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                            מנפיק שובר VIP...
+                        </span>
+                    </button>
                 </form>
             </div>
 
-            <!-- Success State -->
-            <div x-show="trialWorkoutSuccess" class="py-8 text-center space-y-3">
-                <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-3xl animate-bounce">
-                    ✓
+            <!-- Quiz Step 5: THE OFFICIAL VIP VOUCHER CARD & 1-TAP REDEEM -->
+            <div x-show="trialQuizStep === 5" class="space-y-4">
+                <!-- Gorgeous Voucher Card -->
+                <div class="p-5 rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white border-2 border-amber-400 shadow-xl relative overflow-hidden space-y-3">
+                    <div class="absolute -right-8 -bottom-8 w-28 h-28 bg-amber-400/20 rounded-full blur-xl pointer-events-none"></div>
+                    
+                    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🎟️</span>
+                            <span class="text-xs font-black uppercase tracking-wider text-amber-300">כרטיס חבר הטבה — NutriAgent VIP</span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-black">זכאות פעילה</span>
+                    </div>
+
+                    <div class="space-y-1">
+                        <span class="text-xs text-indigo-200">מועדון / סטודיו מאושר:</span>
+                        <h3 class="text-lg font-black text-white" x-text="selectedStudio?.name"></h3>
+                        <p class="text-xs text-slate-300" x-text="selectedStudio?.branch"></p>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-white/10 border border-white/15 space-y-1">
+                        <span class="text-[10px] font-bold text-amber-300 block">פרטי ההטבה המאושרת:</span>
+                        <p class="text-xs font-extrabold text-white" x-text="selectedStudio?.perk"></p>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs pt-1 border-t border-white/10 text-indigo-200">
+                        <div>
+                            <span class="block text-[10px] text-slate-400">קוד שובר אישי:</span>
+                            <span class="font-mono font-black text-sm text-amber-300" x-text="generatedVoucherCode"></span>
+                        </div>
+                        <div class="text-left">
+                            <span class="block text-[10px] text-slate-400">תוקף למימוש:</span>
+                            <span class="font-bold text-slate-200" x-text="voucherExpiryDate"></span>
+                        </div>
+                    </div>
                 </div>
-                <h4 class="text-lg font-black text-slate-900">השובר נשלח בהצלחה!</h4>
-                <p class="text-xs sm:text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
-                    פרטי השובר נקלטו במערכת, ונציג הסטודיו באזורך ייצור איתך קשר בוואטסאפ בהקדם לתיאום האימון. שיהיה אימון מצוין!
-                </p>
-                <div class="pt-2">
-                    <button type="button" @click="showTrialWorkoutModal = false; trialWorkoutSuccess = false; trialQuizStep = 1;"
-                            class="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer">
+
+                <!-- 1-Tap WhatsApp Button to Studio -->
+                <div class="space-y-2">
+                    <button type="button" @click="openStudioWhatsApp()"
+                            class="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-black text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition cursor-pointer">
+                        <svg class="w-5 h-5"><use href="#icon-whatsapp-share"></use></svg>
+                        <span>💬 פתח וואטסאפ לתיאום האימון בסטודיו עכשיו</span>
+                    </button>
+                    
+                    <button type="button" @click="copyVoucherCode()"
+                            class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span>📋 העתק קוד שובר</span>
+                    </button>
+
+                    <button type="button" @click="showTrialWorkoutModal = false; trialQuizStep = 1;"
+                            class="w-full py-2 text-center text-xs text-slate-400 hover:text-slate-600 cursor-pointer">
                         סגור
                     </button>
                 </div>
@@ -7243,6 +7316,10 @@
                 // Interactive Trial Quiz State
                 trialQuizStep: 1,
                 trialWorkoutScanning: false,
+// Matched Studio & Voucher State
+                selectedStudio: null,
+                generatedVoucherCode: '',
+                voucherExpiryDate: '',
 
                 // Experts Marketplace State (Admin Preview)
                 showExpertsDirectoryModal: false,
@@ -9950,15 +10027,29 @@
                     return;
                 }
                 this.trialWorkoutSending = true;
+                
+                // Generate Voucher Code
+                this.generatedVoucherCode = 'NUTRI-' + Math.floor(1000 + Math.random() * 9000);
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + 14);
+                this.voucherExpiryDate = expiry.toLocaleDateString('he-IL');
+
                 try {
+                    const payload = {
+                        ...this.trialWorkoutForm,
+                        studio_name: this.selectedStudio?.name || '',
+                        studio_perk: this.selectedStudio?.perk || '',
+                        voucher_code: this.generatedVoucherCode
+                    };
                     const res = await fetch('/api/leads/workout', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(this.trialWorkoutForm)
+                        body: JSON.stringify(payload)
                     });
                     const data = await res.json();
                     if (data.ok) {
-                        this.trialWorkoutSuccess = true;
+                        this.trialQuizStep = 5;
+                        this.showToast('🎉 שובר ה-VIP הונפק בהצלחה!');
                     } else {
                         alert(data.detail || 'שגיאה בשליחת הבקשה');
                     }
