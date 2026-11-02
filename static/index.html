@@ -4017,7 +4017,399 @@
 
 
     
+<!-- =============================================================== -->
+    <!-- 1. INTERACTIVE ELIGIBILITY WORKOUT QUIZ & STUDIO MATCH MODAL   -->
     <!-- =============================================================== -->
+    <div x-cloak x-show="showTrialWorkoutModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+         @click.self="showTrialWorkoutModal = false">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-7 space-y-5 border border-slate-100 relative max-h-[92vh] overflow-y-auto" @click.stop>
+            <!-- Header -->
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-2xl shadow-md shadow-orange-500/20 flex-shrink-0">
+                        🎁
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base sm:text-lg font-black text-slate-900">בדיקת זכאות לאימון ניסיון והטבת סטודיו</span>
+                            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black border border-amber-300">VIP</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">מענה קצר על 2 שאלות ובדיקת מקומות פנויים להטבת קהילה באזורך</p>
+                    </div>
+                </div>
+                <button type="button" @click="showTrialWorkoutModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
+            </div>
+
+            <!-- Quiz Step 1: Goal & Activity -->
+            <div x-show="trialQuizStep === 1" class="space-y-4">
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-700">1. מה המטרה העיקרית שלך החודש?</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <template x-for="g in ['חיטוב והורדת שומן', 'עליית מסת שריר', 'שיפור אנרגיה ובריאות', 'חזרה לשגרת אימונים']" :key="g">
+                            <button type="button" @click="trialWorkoutForm.goal = g"
+                                    :class="trialWorkoutForm.goal === g ? 'bg-amber-500 text-slate-950 font-black border-amber-600 shadow-xs' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200 font-semibold'"
+                                    class="py-2.5 px-3 rounded-xl text-xs transition border cursor-pointer text-right flex items-center justify-between">
+                                <span x-text="g"></span>
+                                <span x-show="trialWorkoutForm.goal === g" class="text-slate-950 font-black">✓</span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-700">2. באיזה אימון תרצה להתנסות?</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <template x-for="act in ['פילאטיס מכשירים', 'חדר כושר', 'סטודיו פונקציונלי', 'אימון כושר אישי', 'יוגה ועיצוב', 'קרוספיט / אגרוף']" :key="act">
+                            <button type="button" @click="trialWorkoutForm.activity_type = act"
+                                    :class="trialWorkoutForm.activity_type === act ? 'bg-amber-500 text-slate-950 font-black border-amber-600 shadow-xs' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200 font-semibold'"
+                                    class="py-2.5 px-2 rounded-xl text-xs transition border cursor-pointer text-center">
+                                <span x-text="act"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="button" @click="trialQuizStep = 2"
+                            class="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition">
+                        <span>המשך לבחירת אזור ושעות</span>
+                        <span>←</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quiz Step 2: City & Preferred Time -->
+            <div x-show="trialQuizStep === 2" class="space-y-4">
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700">3. באיזה אזור או עיר לחפש עבורך סטודיו?</label>
+                    <select x-model="trialWorkoutForm.city"
+                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500">
+                        <option value="תל אביב והמרכז">תל אביב, רמת גן, גבעתיים והסביבה</option>
+                        <option value="השרון">הרצליה, כפר סבא, רעננה, נתניה</option>
+                        <option value="חולון וראשל״צ">חולון, בת ים, ראשון לציון</option>
+                        <option value="ירושלים והסביבה">ירושלים והסביבה</option>
+                        <option value="חיפה והקריות">חיפה, הקריות והצפון</option>
+                        <option value="השפלה והדרום">רחובות, אשדוד, באר שבע והדרום</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700">4. מתי הכי נוח לך להתאמן?</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <template x-for="tme in ['בוקר (07:00-11:00)', 'צהריים (11:00-16:00)', 'ערב (17:00-21:00)', 'שעות גמישות']" :key="tme">
+                            <button type="button" @click="trialWorkoutForm.preferred_time = tme"
+                                    :class="trialWorkoutForm.preferred_time === tme ? 'bg-slate-900 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium'"
+                                    class="py-2.5 px-3 rounded-xl text-xs transition cursor-pointer text-center">
+                                <span x-text="tme"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" @click="trialQuizStep = 1"
+                            class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition">
+                        חזרה
+                    </button>
+                    <button type="button" @click="runTrialScanning()"
+                            class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-orange-500/20 transition">
+                        <span>🔍 בדוק זכאות ומקומות פנויים</span>
+                        <span>←</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quiz Step 3: Interactive Scanning Animation -->
+            <div x-show="trialQuizStep === 3" class="py-12 text-center space-y-4">
+                <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-2xl animate-spin">
+                    ⚙️
+                </div>
+                <div class="space-y-1">
+                    <h4 class="text-base font-extrabold text-slate-900">סורק מועדונים והטבות באזורך...</h4>
+                    <p class="text-xs text-slate-500">בודק זכאות להטבת אימון ניסיון מתנה מול סטודיואים באזור <span class="font-bold text-slate-800" x-text="trialWorkoutForm.city"></span></p>
+                </div>
+                <div class="w-48 mx-auto h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 animate-pulse rounded-full w-full"></div>
+                </div>
+            </div>
+
+            <!-- Quiz Step 4: Eligibility Found & Claim Voucher -->
+            <div x-show="trialQuizStep === 4 && !trialWorkoutSuccess" class="space-y-4">
+                <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-amber-500/10 to-orange-500/10 border-2 border-emerald-400/80 text-right space-y-1.5 relative overflow-hidden">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black">✓</span>
+                        <span class="text-xs font-black text-emerald-800 uppercase tracking-wide">זכאות מאומתת</span>
+                    </div>
+                    <h4 class="text-base font-black text-slate-900">נמצאה זכאות לשובר הטבה בשווי ₪120!</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        אימון ניסיון במתנה / בהנחה בלעדית ל<strong class="text-slate-800" x-text="trialWorkoutForm.activity_type"></strong> באזור <strong class="text-slate-800" x-text="trialWorkoutForm.city"></strong> + שיחת מיקוד מטרות.
+                    </p>
+                </div>
+
+                <form @submit.prevent="submitTrialWorkoutLead()" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-slate-700">שם מלא *</label>
+                            <input type="text" x-model="trialWorkoutForm.full_name" required placeholder="השם שלך"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-slate-700">מספר טלפון לשליחת השובר *</label>
+                            <input type="tel" x-model="trialWorkoutForm.phone" required placeholder="050-1234567"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <div class="pt-1">
+                        <button type="submit" :disabled="trialWorkoutSending"
+                                class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-sm shadow-md shadow-orange-500/30 flex items-center justify-center gap-2 transition cursor-pointer">
+                            <span x-show="!trialWorkoutSending">🎁 שלח לי את שובר ההטבה לוואטסאפ</span>
+                            <span x-show="trialWorkoutSending" class="flex items-center gap-2">
+                                <svg class="w-4 h-4 animate-spin text-slate-950" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                שולח שובר...
+                            </span>
+                        </button>
+                        <p class="text-[10px] text-slate-400 text-center mt-2">השובר תקף למימוש ב-14 ימים הקרובים מול הסטודיו המותאם</p>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Success State -->
+            <div x-show="trialWorkoutSuccess" class="py-8 text-center space-y-3">
+                <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-3xl animate-bounce">
+                    ✓
+                </div>
+                <h4 class="text-lg font-black text-slate-900">השובר נשלח בהצלחה!</h4>
+                <p class="text-xs sm:text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
+                    פרטי השובר נקלטו במערכת, ונציג הסטודיו באזורך ייצור איתך קשר בוואטסאפ בהקדם לתיאום האימון. שיהיה אימון מצוין!
+                </p>
+                <div class="pt-2">
+                    <button type="button" @click="showTrialWorkoutModal = false; trialWorkoutSuccess = false; trialQuizStep = 1;"
+                            class="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer">
+                        סגור
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =============================================================== -->
+    <!-- 2. COACH & DIETITIAN PARTNER BETA WAITLIST MODAL                -->
+    <!-- =============================================================== -->
+    <div x-cloak x-show="showCoachBetaModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+         @click.self="showCoachBetaModal = false">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-7 space-y-5 border border-slate-100 relative max-h-[92vh] overflow-y-auto" @click.stop>
+            <!-- Header -->
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-2xl shadow-md shadow-indigo-500/20 flex-shrink-0">
+                        🤝
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base sm:text-lg font-black text-slate-900">תוכנית מאמנים ותזונאים (NutriCoach)</span>
+                            <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 text-[10px] font-black border border-indigo-300">Beta</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">עקוב אחרי המתאמנים שלך בזמן אמת, קבל דוחות מאקרו מבוססי AI, וייעל את הליווי</p>
+                    </div>
+                </div>
+                <button type="button" @click="showCoachBetaModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
+            </div>
+
+            <!-- Success State -->
+            <div x-show="coachBetaSuccess" class="py-8 text-center space-y-3">
+                <div class="w-16 h-16 mx-auto rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-3xl animate-bounce">
+                    ✓
+                </div>
+                <h4 class="text-lg font-black text-slate-900">תודה רבה! פנייתך נרשמה</h4>
+                <p class="text-xs sm:text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
+                    נציג צוות הפיתוח של NutriAgent יצור איתך קשר בהקדם להדגמה קצרה וחיבור מוקדם לגרסת הבטא למאמנים.
+                </p>
+                <div class="pt-2">
+                    <button type="button" @click="showCoachBetaModal = false; coachBetaSuccess = false;"
+                            class="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer">
+                        סגור
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form x-show="!coachBetaSuccess" @submit.prevent="submitCoachBetaLead()" class="space-y-4">
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700">תחום עיסוק מקצועי</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <template x-for="r in ['תזונאי/ת קליני/ת (B.Sc)', 'מאמן/ת כושר אישי', 'בעל/ת סטודיו לכושר', 'יועץ/ת תזונת ספורט']" :key="r">
+                            <button type="button" @click="coachBetaForm.role = r"
+                                    :class="coachBetaForm.role === r ? 'bg-indigo-600 text-white font-bold border-indigo-700' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200 font-semibold'"
+                                    class="py-2.5 px-2 rounded-xl text-xs transition border cursor-pointer text-center">
+                                <span x-text="r"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="block text-xs font-bold text-slate-700">שם מלא *</label>
+                        <input type="text" x-model="coachBetaForm.full_name" required placeholder="שם ומקצוע"
+                               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-xs font-bold text-slate-700">מספר טלפון *</label>
+                        <input type="tel" x-model="coachBetaForm.phone" required placeholder="050-1234567"
+                               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="block text-xs font-bold text-slate-700">אימייל (אופציונלי)</label>
+                        <input type="email" x-model="coachBetaForm.email" placeholder="coach@example.com"
+                               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-xs font-bold text-slate-700">כמה מתאמנים אתה מלווה?</label>
+                        <select x-model="coachBetaForm.clients_count"
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500">
+                            <option value="1-5">1-5 מתאמנים</option>
+                            <option value="5-15">5-15 מתאמנים</option>
+                            <option value="15-30">15-30 מתאמנים</option>
+                            <option value="30+">מעל 30 מתאמנים</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" :disabled="coachBetaSending"
+                            class="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-indigo-600/30 flex items-center justify-center gap-2 transition cursor-pointer">
+                        <span x-show="!coachBetaSending">🤝 הצטרף לגרסת הבטא למאמנים ותזונאים</span>
+                        <span x-show="coachBetaSending" class="flex items-center gap-2">
+                            <svg class="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                            שולח פנייה...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =============================================================== -->
+    <!-- 3. EXPERTS DIRECTORY MODAL (DIETITIANS & TRAINERS - ADMIN PREVIEW) -->
+    <!-- =============================================================== -->
+    <div x-cloak x-show="showExpertsDirectoryModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+         @click.self="showExpertsDirectoryModal = false">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-5 sm:p-7 space-y-4 border border-slate-100 relative max-h-[92vh] overflow-y-auto" @click.stop>
+            <!-- Header -->
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md flex-shrink-0"
+                         :class="selectedExpertTab === 'dietitian' ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 'bg-indigo-600 text-white shadow-indigo-500/20'">
+                        <span x-text="selectedExpertTab === 'dietitian' ? '🥗' : '🏋️‍♂️'"></span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-base sm:text-lg font-black text-slate-900"
+                                  x-text="selectedExpertTab === 'dietitian' ? 'נבחרת התזונאיות והדיאטנים הקליניים' : 'נבחרת מאמני הכושר והסטודיו'"></span>
+                            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black border border-amber-300">הטבת קהילה</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">בחר מומחה מוסמך לקבלת שיחת אבחון והתאמה של 15 דקות ללא עלות</p>
+                    </div>
+                </div>
+                <button type="button" @click="showExpertsDirectoryModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
+            </div>
+
+            <!-- Tab Switcher (Dietitians vs Trainers) -->
+            <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
+                <button type="button" @click="selectedExpertTab = 'dietitian'"
+                        :class="selectedExpertTab === 'dietitian' ? 'bg-white text-emerald-800 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                        class="flex-1 py-2 px-3 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+                    <span>🥗</span>
+                    <span>תזונאיות ודיאטנים קליניים (B.Sc)</span>
+                </button>
+                <button type="button" @click="selectedExpertTab = 'trainer'"
+                        :class="selectedExpertTab === 'trainer' ? 'bg-white text-indigo-800 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                        class="flex-1 py-2 px-3 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+                    <span>🏋️‍♂️</span>
+                    <span>מאמני כושר וסטודיו</span>
+                </button>
+            </div>
+
+            <!-- Geographic / Clinic Filter Bar -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <template x-for="reg in ['הכל (כולל אונליין)', 'תל אביב והמרכז', 'השרון', 'ירושלים והשפלה', 'חיפה והצפון']" :key="reg">
+                    <button type="button" @click="selectedExpertRegion = reg"
+                            :class="selectedExpertRegion === reg ? 'bg-slate-900 text-white font-bold' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 font-medium'"
+                            class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer">
+                        <span x-text="reg"></span>
+                    </button>
+                </template>
+            </div>
+
+            <!-- Experts List -->
+            <div class="space-y-3">
+                <template x-for="exp in filteredExperts" :key="exp.id">
+                    <div class="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-slate-300 shadow-2xs hover:shadow-sm transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
+                        <div class="flex items-start gap-3.5 min-w-0">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+                                 :class="exp.type === 'dietitian' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'">
+                                <span x-text="exp.avatar"></span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-extrabold text-sm text-slate-900" x-text="exp.name"></span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                          :class="exp.type === 'dietitian' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'"
+                                          x-text="exp.title"></span>
+                                    <span class="text-[11px] text-amber-600 font-bold flex items-center gap-0.5">
+                                        <span>⭐</span>
+                                        <span x-text="exp.rating"></span>
+                                        <span class="text-slate-400 font-normal" x-text="`(${exp.reviews})`"></span>
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-600 mt-0.5" x-text="exp.specialty"></p>
+                                <div class="flex items-center gap-2 text-[11px] text-slate-500 mt-1 flex-wrap">
+                                    <span>📍 <strong class="text-slate-700" x-text="exp.location"></strong></span>
+                                    <span class="text-slate-300">•</span>
+                                    <span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 font-bold" x-text="exp.perk"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button type="button" @click="requestExpertContact(exp)"
+                                :class="exp.type === 'dietitian' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'"
+                                class="w-full sm:w-auto px-4 py-2.5 rounded-xl active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs flex-shrink-0 cursor-pointer">
+                            <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
+                            <span>שיחת היכרות חינם</span>
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+        <!-- =============================================================== -->
     <!-- STREAKS & SCIENTIFIC MILESTONES GAMIFICATION MODAL               -->
     <!-- =============================================================== -->
     <div x-cloak x-show="showAchievementsModal"
@@ -6784,6 +7176,122 @@
                 recipesSubTab: 'wolt',
                 // Leads & Studio Gift State
                 showTrialWorkoutModal: false,
+                // Interactive Trial Quiz State
+                trialQuizStep: 1,
+                trialWorkoutScanning: false,
+
+                // Experts Marketplace State (Admin Preview)
+                showExpertsDirectoryModal: false,
+                selectedExpertTab: 'dietitian',
+                selectedExpertRegion: 'הכל (כולל אונליין)',
+                expertsList: [
+                    // Dietitians
+                    {
+                        id: 'd1',
+                        type: 'dietitian',
+                        name: 'עדי מזרחי',
+                        title: 'דיאטנית קלינית B.Sc',
+                        avatar: '👩‍⚕️',
+                        specialty: 'תזונת ספורטאים, חיטוב והורדת אחוזי שומן',
+                        location: 'תל אביב והמרכז + אונליין בזום',
+                        region: 'תל אביב והמרכז',
+                        rating: '4.95',
+                        reviews: 42,
+                        perk: "שיחת אבחון 15 דקות ללא עלות"
+                    },
+                    {
+                        id: 'd2',
+                        type: 'dietitian',
+                        name: "מיכל ברקוביץ'",
+                        title: 'תזונאית קלינית B.Sc',
+                        avatar: '🥗',
+                        specialty: 'איזון מעיים, ירידה מתונה במשקל והרגלי אכילה',
+                        location: 'הרצליה והשרון + קליניקה פרטית',
+                        region: 'השרון',
+                        rating: '4.98',
+                        reviews: 58,
+                        perk: '₪70 הנחה לפגישת ייעוץ ראשונה'
+                    },
+                    {
+                        id: 'd3',
+                        type: 'dietitian',
+                        name: 'תומר גולן',
+                        title: 'תזונאי ספורט מוסמך',
+                        avatar: '🥑',
+                        specialty: 'עליית מסת שריר, פיתוח גוף ותזונה קטוגנית',
+                        location: 'ראשון לציון והשפלה + ליווי וואטסאפ',
+                        region: 'ירושלים והשפלה',
+                        rating: '4.92',
+                        reviews: 31,
+                        perk: 'שיחת התאמת מטרות חינם'
+                    },
+                    {
+                        id: 'd4',
+                        type: 'dietitian',
+                        name: 'שירלי אהרוני',
+                        title: 'דיאטנית קלינית B.Sc',
+                        avatar: '🌿',
+                        specialty: 'תזונה צמחונית/טבעונית, איזון סוכר ובדיקות דם',
+                        location: 'חיפה והצפון + פגישות זום',
+                        region: 'חיפה והצפון',
+                        rating: '4.94',
+                        reviews: 27,
+                        perk: 'שיחת אבחון טלפונית חינם'
+                    },
+                    // Trainers
+                    {
+                        id: 't1',
+                        type: 'trainer',
+                        name: 'רועי אלבז',
+                        title: 'מאמן כושר ו-CrossFit L2',
+                        avatar: '🏋️‍♂️',
+                        specialty: 'אימונים פונקציונליים, כוח מרבי והורדת שומן',
+                        location: 'תל אביב / סטודיו רמת גן',
+                        region: 'תל אביב והמרכז',
+                        rating: '4.97',
+                        reviews: 64,
+                        perk: 'אימון אישי ראשון ב-50% הנחה'
+                    },
+                    {
+                        id: 't2',
+                        type: 'trainer',
+                        name: 'נועה קורן',
+                        title: 'מדריכת פילאטיס מכשירים',
+                        avatar: '🧘‍♀️',
+                        specialty: 'פילאטיס מכשירים שיקומי וחיזוק שרירי ליבה',
+                        location: 'כפר סבא ורעננה (השרון)',
+                        region: 'השרון',
+                        rating: '4.99',
+                        reviews: 52,
+                        perk: 'שיעור היכרות 1-על-1 חינם'
+                    },
+                    {
+                        id: 't3',
+                        type: 'trainer',
+                        name: 'יונתן שטרן',
+                        title: 'מאמן כושר והיפרטרופיה',
+                        avatar: '💪',
+                        specialty: 'בניית מסת שריר בחדר כושר וטכניקת תרגילים',
+                        location: 'חיפה והקריות',
+                        region: 'חיפה והצפון',
+                        rating: '4.91',
+                        reviews: 29,
+                        perk: 'בניית תוכנית אימונים אישית חינם'
+                    },
+                    {
+                        id: 't4',
+                        type: 'trainer',
+                        name: 'דניאל כץ',
+                        title: 'מאמן ריצה וסיבולת',
+                        avatar: '🏃‍♂️',
+                        specialty: 'אימוני ריצה, שיפור סיבולת לב-ריאה ומרתון',
+                        location: 'ירושלים והסביבה + אונליין',
+                        region: 'ירושלים והשפלה',
+                        rating: '4.96',
+                        reviews: 35,
+                        perk: 'שיחת תכנון שבוע אימונים חינם'
+                    }
+                ],
                 trialWorkoutForm: {
                     full_name: '',
                     phone: '',
@@ -9368,6 +9876,7 @@
                     if (!this.trialWorkoutForm.full_name) this.trialWorkoutForm.full_name = this.currentUser.name || '';
                 }
                 this.trialWorkoutSuccess = false;
+                this.trialQuizStep = 1;
                 this.showTrialWorkoutModal = true;
             },
 

@@ -122,6 +122,7 @@ class WorkoutLeadRequest(BaseModel):
     city: str
     activity_type: str
     preferred_time: Optional[str] = "גמיש"
+    goal: Optional[str] = "חיטוב ועיצוב"
     notes: Optional[str] = ""
 
 
@@ -131,6 +132,16 @@ class CoachLeadRequest(BaseModel):
     phone: str
     email: Optional[str] = ""
     clients_count: Optional[str] = "1-10"
+    notes: Optional[str] = ""
+
+
+class ExpertLeadRequest(BaseModel):
+    full_name: str
+    phone: str
+    expert_type: str  # 'dietitian' or 'trainer'
+    expert_name: str
+    expert_specialty: Optional[str] = ""
+    expert_location: Optional[str] = ""
     notes: Optional[str] = ""
 
 
@@ -4270,6 +4281,31 @@ def save_workout_lead_db(lead_dict: dict) -> dict:
     return record
 
 
+def save_expert_lead_db(lead_dict: dict) -> dict:
+    lead_id = f"expert_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    record = {
+        "id": lead_id,
+        "type": "expert_referral",
+        "full_name": lead_dict.get("full_name", "").strip(),
+        "phone": lead_dict.get("phone", "").strip(),
+        "expert_type": lead_dict.get("expert_type", "").strip(),
+        "expert_name": lead_dict.get("expert_name", "").strip(),
+        "expert_specialty": lead_dict.get("expert_specialty", "").strip(),
+        "expert_location": lead_dict.get("expert_location", "").strip(),
+        "notes": lead_dict.get("notes", "").strip(),
+        "created_at": datetime.now().isoformat(),
+        "status": "new"
+    }
+    if db:
+        try:
+            db.collection("leads").document(lead_id).set(record)
+        except Exception as e:
+            print(f"ERROR saving expert lead to firestore: {e}")
+    else:
+        _LOCAL_LEADS.insert(0, record)
+    return record
+
+
 def save_coach_lead_db(coach_dict: dict) -> dict:
     lead_id = f"coach_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     record = {
@@ -4492,6 +4528,30 @@ async def api_submit_workout_lead(req: WorkoutLeadRequest):
         wa_text=wa_msg
     )
     return {"ok": True, "lead_id": record["id"], "message": "הפרטים התקבלו בהצלחה!"}
+
+
+@app.post("/api/leads/expert")
+async def api_submit_expert_lead(req: ExpertLeadRequest):
+    if not req.full_name.strip() or not req.phone.strip():
+        raise HTTPException(status_code=400, detail="שם ומספר טלפון הם שדות חובה")
+    record = save_expert_lead_db(req.model_dump())
+    
+    exp_title = "דיאטנית קלינית" if req.expert_type == "dietitian" else "מאמן/ת כושר"
+    details = (
+        f"🌟 <b>מומחה מבוקש:</b> {req.expert_name} ({exp_title})\n"
+        f"🎯 <b>התמחות:</b> {req.expert_specialty or 'כללי'}\n"
+        f"📍 <b>מיקום/קליניקה:</b> {req.expert_location or 'אונליין / זום'}\n"
+        f"👤 <b>שם הפונה:</b> {req.full_name}\n"
+        f"📱 <b>טלפון:</b> <code>{req.phone}</code>"
+    )
+    wa_msg = f"היי {req.full_name}, ראיתי שביקשת שיחת היכרות והתאמה ללא עלות עם {req.expert_name} ({exp_title}) דרך NutriAgent. מתי נוח שנדבר קצרות לתיאום?"
+    await send_lead_telegram_alert(
+        title=f"🌟 ליד חדש ל{exp_title} — {req.expert_name}!",
+        details_html=details,
+        phone=req.phone,
+        wa_text=wa_msg
+    )
+    return {"ok": True, "lead_id": record["id"], "message": "הפנייה למומחה התקבלה בהצלחה!"}
 
 
 @app.post("/api/leads/coach")
