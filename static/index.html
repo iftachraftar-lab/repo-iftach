@@ -1426,6 +1426,70 @@
                 </div>
             </div>
 
+            <!-- Empowering Community Perks & Expert Referral Banner (Visible for Admin) -->
+            <div x-show="!currentUser || currentUser.is_admin" class="bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-900 rounded-3xl p-5 sm:p-6 border border-indigo-500/30 shadow-lg text-white space-y-4 relative overflow-hidden">
+                <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-black border border-amber-400/30">
+                                🌟 הטבת VIP בלעדית לחברי קהילה
+                            </span>
+                            <span class="text-[10px] text-indigo-300 font-bold bg-white/10 px-2 py-0.5 rounded-md">Admin Preview</span>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-black text-white">רוצה להאיץ את התוצאות בליווי מומחה אישי?</h3>
+                        <p class="text-xs text-indigo-100/80 leading-relaxed max-w-2xl">
+                            כל הכבוד על ההתמדה במעקב! כחבר קהילת NutriAgent, אתה זכאי לשיחת אבחון והתאמה של 15 דקות ללא עלות + הנחת קהילה לליווי 1-על-1 שיבטיח הגעה בטוחה ליעד שלך.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 2 Distinct Action Cards: Dietitians vs Trainers -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <!-- Dietitian Card -->
+                    <div @click="openExpertsDirectory('dietitian')"
+                         class="p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-emerald-400/40 hover:border-emerald-400 transition cursor-pointer flex items-center justify-between gap-3 group">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition">
+                                🥗
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="font-extrabold text-sm text-white">תזונאי/ת קליני/ת (B.Sc)</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">שיחת חינם</span>
+                                </div>
+                                <p class="text-xs text-slate-300 mt-0.5">התאמת תפריט קליני, בדיקות דם וירידה מבוקרת</p>
+                            </div>
+                        </div>
+                        <button type="button" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 flex-shrink-0 cursor-pointer shadow-xs">
+                            <span>חפש</span>
+                            <span>←</span>
+                        </button>
+                    </div>
+
+                    <!-- Trainer Card -->
+                    <div @click="openExpertsDirectory('trainer')"
+                         class="p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-indigo-400/40 hover:border-indigo-400 transition cursor-pointer flex items-center justify-between gap-3 group">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition">
+                                🏋️‍♂️
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="font-extrabold text-sm text-white">מאמן/ת כושר אישי/ת צמוד</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-400/20 text-indigo-300 border border-indigo-400/30">פילאטיס / כושר</span>
+                                </div>
+                                <p class="text-xs text-slate-300 mt-0.5">תוכנית אימונים אישית, דגש על טכניקה וחיטוב</p>
+                            </div>
+                        </div>
+                        <button type="button" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 flex-shrink-0 cursor-pointer shadow-xs">
+                            <span>חפש</span>
+                            <span>←</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
 
 </div>
 
@@ -10030,6 +10094,59 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     }
                 } catch (err) {
                     alert('שגיאה בשליחת בדיקה');
+                }
+            },
+
+                openExpertsDirectory(tab = 'dietitian') {
+                this.selectedExpertTab = tab;
+                this.selectedExpertRegion = 'הכל (כולל אונליין)';
+                this.showExpertsDirectoryModal = true;
+            },
+
+            get filteredExperts() {
+                let list = (this.expertsList || []).filter(e => e.type === this.selectedExpertTab);
+                if (this.selectedExpertRegion && this.selectedExpertRegion !== 'הכל (כולל אונליין)') {
+                    list = list.filter(e => e.region === this.selectedExpertRegion || (e.location && e.location.includes(this.selectedExpertRegion)));
+                }
+                return list;
+            },
+
+            async requestExpertContact(exp) {
+                const uName = this.currentUser?.name || prompt('נא להזין את שמך המלא:') || '';
+                if (!uName.trim()) return;
+                
+                const uPhone = this.trialWorkoutForm?.phone || prompt('נא להזין מספר טלפון לחזרה בוואטסאפ:') || '';
+                if (!uPhone.trim()) return;
+
+                try {
+                    const res = await fetch('/api/leads/expert', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            full_name: uName.trim(),
+                            phone: uPhone.trim(),
+                            expert_type: exp.type,
+                            expert_name: exp.name,
+                            expert_specialty: exp.specialty,
+                            expert_location: exp.location
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        this.showToast(`🎉 פנייתך ל-${exp.name} נשלחה בהצלחה! מועבר לוואטסאפ...`);
+                        this.showExpertsDirectoryModal = false;
+                        
+                        // Open direct WhatsApp for user
+                        const expTitle = exp.type === 'dietitian' ? 'דיאטנית קלינית' : 'מאמן כושר';
+                        const text = `היי ${exp.name}, ראיתי את הפרופיל שלך באפליקציית NutriAgent (${expTitle} - ${exp.specialty}). אשמח לשיחת אבחון והתאמה קצרה ללא עלות!`;
+                        const waUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
+                        window.open(waUrl, '_blank');
+                    } else {
+                        alert(data.detail || 'שגיאה בשליחת הפנייה');
+                    }
+                } catch (err) {
+                    console.error('Error submitting expert lead:', err);
+                    alert('שגיאת תקשורת');
                 }
             },
 
