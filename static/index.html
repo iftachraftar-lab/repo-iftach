@@ -662,221 +662,6 @@
                 </div>
             </div>
 
-            <!-- Prominent Multi-Modal Live Viewfinder Launcher Card (Stitch Frame) -->
-            <div @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                 class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border-2 border-emerald-400/50 hover:border-emerald-300 transition cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-4 group relative overflow-hidden">
-                <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none"></div>
-                <div class="flex items-center gap-4">
-                    <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition flex-shrink-0 shadow-lg">
-                        <span class="material-symbols-outlined text-[32px]">photo_camera</span>
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-black uppercase tracking-wider flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                AI Vision 4.2 Pro
-                            </span>
-                            <span class="text-xs text-slate-400">זיהוי מרובה פריטים פעיל</span>
-                        </div>
-                        <h3 class="text-lg sm:text-xl font-black text-white mt-1">Multi-Modal AI Food & Barcode Live Viewfinder</h3>
-                        <p class="text-xs text-slate-300 mt-0.5">סורק צלחת רב-מוקדי, סורק ברקוד לייזר ומדד דנונה PRO (לחץ כאן לפתיחה במסך מלא)</p>
-                    </div>
-                </div>
-                <button type="button" @click.stop="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                        class="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-500/30 flex items-center gap-2 flex-shrink-0 cursor-pointer">
-                    <span class="material-symbols-outlined text-[20px]">fullscreen</span>
-                    <span>פתח סורק חי עכשיו 📸</span>
-                </button>
-            </div>
-
-            <!-- Prominent Main Action Switcher: Meal vs Workout (100% Equal Size Grid) -->
-            <div class="bg-white rounded-3xl p-1.5 sm:p-2 shadow-sm border border-slate-200/80 grid grid-cols-2 gap-2">
-                <button type="button" @click="activeEntryMode = 'meal'"
-                        :class="activeEntryMode === 'meal' ? 'bg-emerald-600 text-white font-black shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-bold bg-slate-50 hover:bg-slate-100'"
-                        class="h-11 sm:h-12 px-3 sm:px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
-                    <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-meal-camera"></use></svg>
-                    <span x-text="t('addMeal', 'הוספת ארוחה (AI / צילום)')">הוספת ארוחה (AI / צילום)</span>
-                </button>
-                <button type="button" @click="activeEntryMode = 'workout'"
-                        :class="activeEntryMode === 'workout' ? 'bg-indigo-600 text-white font-black shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-bold bg-slate-50 hover:bg-slate-100'"
-                        class="h-11 sm:h-12 px-3 sm:px-4 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
-                    <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-workout-dumbbell"></use></svg>
-                    <span x-text="t('logWorkout', 'תיעוד אימון (AI / כושר)')">תיעוד אימון (AI / כושר)</span>
-                </button>
-            </div>
-
-            <!-- Smart Quick Tools Bar: Supermarket Scanner, Fridge AI, Wolt & Grocery List -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button type="button" @click="activeEntryMode = (activeEntryMode === 'supermarket' ? 'meal' : 'supermarket')"
-                        :class="activeEntryMode === 'supermarket' ? 'bg-amber-500 text-slate-950 font-black border-amber-500 shadow-sm' : 'bg-white hover:bg-amber-50/60 text-slate-700 border-slate-200/80 font-bold'"
-                        class="h-11 px-2.5 rounded-2xl border text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs">
-                    <svg class="w-4 h-4 text-amber-800 flex-shrink-0"><use href="#icon-supermarket-cart"></use></svg>
-                    <span class="truncate" x-text="t('supermarketScanner', 'סורק סופר')">סורק סופר</span>
-                </button>
-                <button type="button" @click="switchTab('recipes'); recipesSubTab = 'fridge'"
-                        class="h-11 px-2.5 rounded-2xl bg-white hover:bg-indigo-50/60 text-slate-700 border border-slate-200/80 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs">
-                    <svg class="w-4 h-4 text-indigo-700 flex-shrink-0"><use href="#icon-fridge-chef"></use></svg>
-                    <span class="truncate" x-text="t('whatsInFridge', 'מה יש במקרר?')">מה יש במקרר?</span>
-                </button>
-                <button type="button" @click="switchTab('recipes'); recipesSubTab = 'wolt'; fetchWoltDishes()"
-                        class="h-11 px-2.5 rounded-2xl bg-white hover:bg-[#00c2e8]/10 text-slate-700 border border-slate-200/80 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs">
-                    <svg class="w-4 h-4 text-[#008ba8] flex-shrink-0"><use href="#icon-wolt-delivery"></use></svg>
-                    <span class="truncate" x-text="t('woltDishes', 'מנות Wolt ליתרה')">מנות Wolt ליתרה</span>
-                </button>
-                <button type="button" @click="openGroceryListModal()"
-                        class="h-11 px-2.5 rounded-2xl bg-white hover:bg-emerald-50/60 text-slate-700 border border-slate-200/80 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs">
-                    <svg class="w-4 h-4 text-emerald-700 flex-shrink-0"><use href="#icon-grocery-checklist"></use></svg>
-                    <span class="truncate" x-text="t('groceryTitle', 'רשימת קניות')">רשימת קניות</span>
-                </button>
-            </div>
-
-            <!-- Dedicated Supermarket Scanner Card ("Should I Buy This?") -->
-            <div x-show="activeEntryMode === 'supermarket'" x-cloak class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border-2 border-amber-300/80 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div class="flex items-center gap-2.5">
-                        <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center"><span class="material-symbols-outlined text-[24px]">shopping_cart</span></span>
-                        <div>
-                            <h2 class="text-base sm:text-lg font-extrabold text-slate-900">סורק מוצרים מהסופר — "האם לקנות?"</h2>
-                            <p class="text-xs text-slate-500">צלם מוצר או תווית ערכים תזונתיים בסופר ובדוק מיד אם הוא מתאים ליתרה שלך היום (<span x-text="`${Math.max(0, summary.remaining_calories)} קק״ל`"></span>)</p>
-                        </div>
-                    </div>
-                    <button type="button" @click="activeEntryMode = 'meal'" class="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">✕</button>
-                </div>
-
-                <div class="flex flex-col sm:flex-row items-center gap-3">
-                    <input type="file" x-ref="supermarketPhotoInput" accept="image/*" capture="environment" class="hidden" @change="onSupermarketPhotoSelected($event)">
-                    <input type="file" x-ref="supermarketGalleryInput" accept="image/*" class="hidden" @change="onSupermarketPhotoSelected($event)">
-                    <button type="button" @click="$refs.supermarketPhotoInput.click()" :disabled="supermarketScanning"
-                            class="w-full sm:flex-1 py-3.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm">
-                        <span x-show="!supermarketScanning">📸 צלם מוצר / תווית בסופר</span>
-                        <span x-show="supermarketScanning">מנתח מוצר וערכים תזונתיים ב-AI...</span>
-                    </button>
-                    <button type="button" @click="$refs.supermarketGalleryInput.click()" :disabled="supermarketScanning"
-                            class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
-                        <span>🖼️ בחר מהגלריה</span>
-                    </button>
-                    <button type="button" @click="openBarcodeScannerModal()" :disabled="supermarketScanning"
-                            class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-                            title="סרוק ברקוד ישראלי עם מאגר מחירים וסופרמרקטים">
-                        <svg class="w-4 h-4 text-amber-800 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                            <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m10 0h2a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" fill-opacity="0.16"/>
-                            <path d="M8 8.5v7M11 8.5v7M13 8.5v7M16 8.5v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                            <line x1="4" y1="12" x2="20" y2="12" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                        <span>סרוק ברקוד</span>
-                    </button>
-                </div>
-
-                <!-- Supermarket Scan Result -->
-                <div x-show="supermarketResult" x-transition class="space-y-3">
-                    
-                    <!-- REJECTION STATE: Non-food object rejected on the spot -->
-                    <div x-show="supermarketResult && supermarketResult.is_food === false"
-                         class="p-4 sm:p-5 rounded-2xl bg-rose-50 border-2 border-rose-300 space-y-3.5">
-                        <div class="flex items-start gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-xl flex-shrink-0">
-                                🚫
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-black px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 border border-rose-300">
-                                        נדחה על הסף: אינו מוצר מזון ❌
-                                    </span>
-                                </div>
-                                <h3 class="text-base font-black text-rose-950 mt-1" x-text="supermarketResult?.product_name || 'אובייקט שאינו מזון'"></h3>
-                                <p class="text-xs text-rose-800 mt-1 leading-relaxed" x-text="supermarketResult?.explanation"></p>
-                            </div>
-                        </div>
-
-                        <!-- Manual Override Option -->
-                        <div class="pt-2 border-t border-rose-200/60">
-                            <div x-show="!showSupermarketManualOverride" class="flex items-center justify-between gap-2 flex-wrap">
-                                <span class="text-xs text-rose-900 font-medium">ה-AI טעה ומדובר במאכל אמיתי?</span>
-                                <button type="button" @click="openSupermarketManualOverride()"
-                                        class="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-bold transition cursor-pointer shadow-2xs">
-                                    ✏️ הגדר ידנית מה יש בתמונה
-                                </button>
-                            </div>
-
-                            <!-- Manual Override Form -->
-                            <div x-show="showSupermarketManualOverride" x-transition class="bg-white p-3.5 rounded-xl border border-rose-200 shadow-2xs space-y-3 mt-2">
-                                <div class="text-xs font-black text-slate-800">הגדרה ידנית של המנה/מוצר מהתמונה:</div>
-                                <div class="space-y-2">
-                                    <input type="text" x-model="supermarketManualForm.description" placeholder="מה המאכל/המוצר? (למשל: עוגת שוקולד, חטיף...)"
-                                           class="w-full bg-slate-50 text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 outline-none">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <input type="number" x-model.number="supermarketManualForm.calories" placeholder="קלוריות משוערות"
-                                               class="bg-slate-50 text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 outline-none">
-                                        <input type="number" step="0.5" x-model.number="supermarketManualForm.protein_g" placeholder="חלבון (גרם)"
-                                               class="bg-slate-50 text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 outline-none">
-                                    </div>
-                                </div>
-                                <div class="flex items-center justify-end gap-2 pt-1">
-                                    <button type="button" @click="showSupermarketManualOverride = false"
-                                            class="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 text-xs font-semibold cursor-pointer">
-                                        ביטול
-                                    </button>
-                                    <button type="button" @click="submitSupermarketManualOverride()"
-                                            class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer shadow-2xs">
-                                        💾 שמור ביומן
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- VALID FOOD STATE: Normal Supermarket Recommendation -->
-                    <div x-show="supermarketResult && supermarketResult.is_food !== false"
-                         class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3.5">
-                        <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div>
-                                <div class="flex flex-wrap items-center gap-1.5 mb-1">
-                                    <span class="text-xs font-extrabold px-3 py-1 rounded-full"
-                                          :class="(supermarketResult?.score || 0) >= 75 ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : ((supermarketResult?.score || 0) >= 50 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-rose-100 text-rose-900 border border-rose-300')"
-                                          x-text="supermarketResult?.verdict"></span>
-                                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200"
-                                          x-text="`ציון התאמה: ${supermarketResult?.score}/100`"></span>
-                                    <span x-show="supermarketResult?.fits_today_budget" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                                        ✅ נכנס ביתרה היומית שלך
-                                    </span>
-                                    <span x-show="supermarketResult && !supermarketResult.fits_today_budget" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700">
-                                        ⚠️ חורג מהיתרה היומית שלך
-                                    </span>
-                                </div>
-                                <h3 class="text-base sm:text-lg font-extrabold text-slate-900" x-text="supermarketResult?.product_name"></h3>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="p-3 rounded-xl bg-white border border-slate-200/80">
-                                <div class="text-[11px] text-slate-400 font-semibold" x-text="`למנה (${supermarketResult?.serving_description || 'יחידה'})`"></div>
-                                <div class="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5" x-text="`${supermarketResult?.serving_calories || 0} קק״ל`"></div>
-                                <div class="text-xs font-bold text-emerald-700" x-text="`💪 ${supermarketResult?.serving_protein_g || 0}g חלבון`"></div>
-                            </div>
-                            <div class="p-3 rounded-xl bg-white border border-slate-200/80">
-                                <div class="text-[11px] text-slate-400 font-semibold">ערכים ל-100 גרם</div>
-                                <div class="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5" x-text="`${supermarketResult?.calories_per_100g || 0} קק״ל`"></div>
-                                <div class="text-xs font-bold text-indigo-600" x-text="`💪 ${supermarketResult?.protein_per_100g || 0}g חלבון`"></div>
-                            </div>
-                        </div>
-
-                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed" x-text="supermarketResult?.explanation"></p>
-
-                        <div x-show="supermarketResult?.better_alternative" class="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950">
-                            <strong>💡 חלופה עדיפה בסופר:</strong> <span x-text="supermarketResult?.better_alternative"></span>
-                        </div>
-
-                        <div class="pt-2 flex justify-end">
-                            <button type="button" @click="logSupermarketProduct()"
-                                    class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer shadow-xs">
-                                + קניתי ואכלתי — הוסף מנה ליומן היום
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Dedicated Workout & Fitness Logger Card -->
             <div x-show="activeEntryMode === 'workout'" x-cloak class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-indigo-200 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -1419,14 +1204,33 @@
                     <span class="text-xs text-slate-500" x-text="`${todayMeals.length} רשומות`"></span>
                 </div>
 
-                <!-- Empty State -->
+                <!-- Crafted Human-Grade Empty State -->
                 <div x-show="!loading && todayMeals.length === 0"
-                     class="bg-white rounded-3xl border border-dashed border-slate-300 p-10 text-center space-y-2">
-                    <div class="text-4xl">🥗</div>
-                    <h3 class="text-base font-bold text-slate-800">עדיין לא תועדו ארוחות היום</h3>
-                    <p class="text-xs text-slate-500 max-w-sm mx-auto">
-                        הקלד למעלה מה אכלת, הקלט בקול 🎙️ או צלם את הצלחת 📸 כדי להתחיל לעקוב אחרי היעד היומי שלך.
+                     class="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/90 shadow-sm text-center flex flex-col items-center relative overflow-hidden">
+                    <div class="absolute -top-12 -right-12 w-36 h-36 bg-emerald-50/70 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-50/90 border border-emerald-200/80 flex items-center justify-center text-emerald-700 shadow-2xs mb-4">
+                        <svg class="w-8 h-8 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">היומן שלך עדיין ריק היום</h3>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                        טרם נרשמו ארוחות להיום. צלם את הצלחת או ספר מה אכלת וה-AI יחשב קלוריות וחלבון אוטומטית.
                     </p>
+                    <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full max-w-sm">
+                        <button type="button"
+                                @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
+                                class="w-full sm:w-auto flex-1 h-11 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition cursor-pointer">
+                            <svg class="w-4 h-4 flex-shrink-0"><use href="#icon-meal-camera"></use></svg>
+                            <span>צלם ארוחה ראשונה</span>
+                        </button>
+                        <button type="button"
+                                @click="document.querySelector('input[x-model=aiInputText]')?.focus()"
+                                class="w-full sm:w-auto flex-1 h-11 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+                            <svg class="w-4 h-4 flex-shrink-0"><use href="#icon-edit-pencil"></use></svg>
+                            <span>רשום בטקסט חופשי</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Meal Cards -->
@@ -1974,8 +1778,36 @@
         <!-- =============================================================== -->
         <div x-show="activeTab === 'recipes'" x-cloak x-transition.opacity class="space-y-6">
 
-            <!-- Sub-Mode Switcher: Wolt Delivery vs Home Recipes vs Grocery Checklist -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs">
+            <!-- Viewfinder Live Scanner inside Tab 3 Tools -->
+            <!-- Prominent Multi-Modal Live Viewfinder Launcher Card (Stitch Frame) -->
+            <div @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
+                 class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border-2 border-emerald-400/50 hover:border-emerald-300 transition cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-4 group relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition flex-shrink-0 shadow-lg">
+                        <span class="material-symbols-outlined text-[32px]">photo_camera</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-black uppercase tracking-wider flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                AI Vision 4.2 Pro
+                            </span>
+                            <span class="text-xs text-slate-400">זיהוי מרובה פריטים פעיל</span>
+                        </div>
+                        <h3 class="text-lg sm:text-xl font-black text-white mt-1">Multi-Modal AI Food & Barcode Live Viewfinder</h3>
+                        <p class="text-xs text-slate-300 mt-0.5">סורק צלחת רב-מוקדי, סורק ברקוד לייזר ומדד דנונה PRO (לחץ כאן לפתיחה במסך מלא)</p>
+                    </div>
+                </div>
+                <button type="button" @click.stop="showLiveViewfinder = true; startLiveViewfinderCamera();"
+                        class="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-500/30 flex items-center gap-2 flex-shrink-0 cursor-pointer">
+                    <span class="material-symbols-outlined text-[20px]">fullscreen</span>
+                    <span>פתח סורק חי עכשיו 📸</span>
+                </button>
+            </div>
+
+            <!-- Sub-Mode Switcher: 5 Smart Cooking & Shopping Tools -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs">
                 <button type="button" @click="recipesSubTab = 'wolt'; if (!woltDishes.length) fetchWoltDishes()"
                         :class="recipesSubTab === 'wolt' ? 'bg-sky-500 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
                         class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
@@ -1988,18 +1820,172 @@
                     <span>🧊</span>
                     <span>מה יש במקרר?</span>
                 </button>
+                <button type="button" @click="recipesSubTab = 'supermarket'"
+                        :class="recipesSubTab === 'supermarket' ? 'bg-amber-500 text-slate-950 font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
+                        class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                    <span>🛒</span>
+                    <span>סורק סופר</span>
+                </button>
+                <button type="button" @click="recipesSubTab = 'grocery'; if (!groceryList) initGroceryList()"
+                        :class="recipesSubTab === 'grocery' ? 'bg-emerald-600 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
+                        class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                    <span>📋</span>
+                    <span x-text="t('groceryTitle', 'רשימת קניות')">רשימת קניות</span>
+                </button>
                 <button type="button" @click="recipesSubTab = 'home'"
                         :class="recipesSubTab === 'home' ? 'bg-slate-900 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
                         class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
                     <span>👨‍🍳</span>
                     <span>מתכונים לבית</span>
                 </button>
-                <button type="button" @click="recipesSubTab = 'grocery'; if (!groceryList) initGroceryList()"
-                        :class="recipesSubTab === 'grocery' ? 'bg-emerald-600 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
-                        class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
-                    <span>🛒</span>
-                    <span x-text="t('groceryTitle', 'רשימת קניות לסופר')">רשימת קניות לסופר</span>
-                </button>
+            </div>
+
+            <!-- SUB-TAB SUPERMARKET SCANNER -->
+            <!-- Dedicated Supermarket Scanner Card ("Should I Buy This?") -->
+            <div x-show="recipesSubTab === 'supermarket'" x-cloak class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border-2 border-amber-300/80 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center"><span class="material-symbols-outlined text-[24px]">shopping_cart</span></span>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-extrabold text-slate-900">סורק מוצרים מהסופר — "האם לקנות?"</h2>
+                            <p class="text-xs text-slate-500">צלם מוצר או תווית ערכים תזונתיים בסופר ובדוק מיד אם הוא מתאים ליתרה שלך היום (<span x-text="`${Math.max(0, summary.remaining_calories)} קק״ל`"></span>)</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="recipesSubTab = 'wolt'" class="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">✕</button>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-center gap-3">
+                    <input type="file" x-ref="supermarketPhotoInput" accept="image/*" capture="environment" class="hidden" @change="onSupermarketPhotoSelected($event)">
+                    <input type="file" x-ref="supermarketGalleryInput" accept="image/*" class="hidden" @change="onSupermarketPhotoSelected($event)">
+                    <button type="button" @click="$refs.supermarketPhotoInput.click()" :disabled="supermarketScanning"
+                            class="w-full sm:flex-1 py-3.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm">
+                        <span x-show="!supermarketScanning">📸 צלם מוצר / תווית בסופר</span>
+                        <span x-show="supermarketScanning">מנתח מוצר וערכים תזונתיים ב-AI...</span>
+                    </button>
+                    <button type="button" @click="$refs.supermarketGalleryInput.click()" :disabled="supermarketScanning"
+                            class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                        <span>🖼️ בחר מהגלריה</span>
+                    </button>
+                    <button type="button" @click="openBarcodeScannerModal()" :disabled="supermarketScanning"
+                            class="w-full sm:w-auto py-3.5 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                            title="סרוק ברקוד ישראלי עם מאגר מחירים וסופרמרקטים">
+                        <svg class="w-4 h-4 text-amber-800 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m10 0h2a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" fill-opacity="0.16"/>
+                            <path d="M8 8.5v7M11 8.5v7M13 8.5v7M16 8.5v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <line x1="4" y1="12" x2="20" y2="12" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        <span>סרוק ברקוד</span>
+                    </button>
+                </div>
+
+                <!-- Supermarket Scan Result -->
+                <div x-show="supermarketResult" x-transition class="space-y-3">
+                    
+                    <!-- REJECTION STATE: Non-food object rejected on the spot -->
+                    <div x-show="supermarketResult && supermarketResult.is_food === false"
+                         class="p-4 sm:p-5 rounded-2xl bg-rose-50 border-2 border-rose-300 space-y-3.5">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-xl flex-shrink-0">
+                                🚫
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-black px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 border border-rose-300">
+                                        נדחה על הסף: אינו מוצר מזון ❌
+                                    </span>
+                                </div>
+                                <h3 class="text-base font-black text-rose-950 mt-1" x-text="supermarketResult?.product_name || 'אובייקט שאינו מזון'"></h3>
+                                <p class="text-xs text-rose-800 mt-1 leading-relaxed" x-text="supermarketResult?.explanation"></p>
+                            </div>
+                        </div>
+
+                        <!-- Manual Override Option -->
+                        <div class="pt-2 border-t border-rose-200/60">
+                            <div x-show="!showSupermarketManualOverride" class="flex items-center justify-between gap-2 flex-wrap">
+                                <span class="text-xs text-rose-900 font-medium">ה-AI טעה ומדובר במאכל אמיתי?</span>
+                                <button type="button" @click="openSupermarketManualOverride()"
+                                        class="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-bold transition cursor-pointer shadow-2xs">
+                                    ✏️ הגדר ידנית מה יש בתמונה
+                                </button>
+                            </div>
+
+                            <!-- Manual Override Form -->
+                            <div x-show="showSupermarketManualOverride" x-transition class="bg-white p-3.5 rounded-xl border border-rose-200 shadow-2xs space-y-3 mt-2">
+                                <div class="text-xs font-black text-slate-800">הגדרה ידנית של המנה/מוצר מהתמונה:</div>
+                                <div class="space-y-2">
+                                    <input type="text" x-model="supermarketManualForm.description" placeholder="מה המאכל/המוצר? (למשל: עוגת שוקולד, חטיף...)"
+                                           class="w-full bg-slate-50 text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 outline-none">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <input type="number" x-model.number="supermarketManualForm.calories" placeholder="קלוריות משוערות"
+                                               class="bg-slate-50 text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 outline-none">
+                                        <input type="number" step="0.5" x-model.number="supermarketManualForm.protein_g" placeholder="חלבון (גרם)"
+                                               class="bg-slate-50 text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 outline-none">
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-end gap-2 pt-1">
+                                    <button type="button" @click="showSupermarketManualOverride = false"
+                                            class="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 text-xs font-semibold cursor-pointer">
+                                        ביטול
+                                    </button>
+                                    <button type="button" @click="submitSupermarketManualOverride()"
+                                            class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer shadow-2xs">
+                                        💾 שמור ביומן
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VALID FOOD STATE: Normal Supermarket Recommendation -->
+                    <div x-show="supermarketResult && supermarketResult.is_food !== false"
+                         class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3.5">
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                                <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                                    <span class="text-xs font-extrabold px-3 py-1 rounded-full"
+                                          :class="(supermarketResult?.score || 0) >= 75 ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : ((supermarketResult?.score || 0) >= 50 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-rose-100 text-rose-900 border border-rose-300')"
+                                          x-text="supermarketResult?.verdict"></span>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200"
+                                          x-text="`ציון התאמה: ${supermarketResult?.score}/100`"></span>
+                                    <span x-show="supermarketResult?.fits_today_budget" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                                        ✅ נכנס ביתרה היומית שלך
+                                    </span>
+                                    <span x-show="supermarketResult && !supermarketResult.fits_today_budget" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700">
+                                        ⚠️ חורג מהיתרה היומית שלך
+                                    </span>
+                                </div>
+                                <h3 class="text-base sm:text-lg font-extrabold text-slate-900" x-text="supermarketResult?.product_name"></h3>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="p-3 rounded-xl bg-white border border-slate-200/80">
+                                <div class="text-[11px] text-slate-400 font-semibold" x-text="`למנה (${supermarketResult?.serving_description || 'יחידה'})`"></div>
+                                <div class="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5" x-text="`${supermarketResult?.serving_calories || 0} קק״ל`"></div>
+                                <div class="text-xs font-bold text-emerald-700" x-text="`💪 ${supermarketResult?.serving_protein_g || 0}g חלבון`"></div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-white border border-slate-200/80">
+                                <div class="text-[11px] text-slate-400 font-semibold">ערכים ל-100 גרם</div>
+                                <div class="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5" x-text="`${supermarketResult?.calories_per_100g || 0} קק״ל`"></div>
+                                <div class="text-xs font-bold text-indigo-600" x-text="`💪 ${supermarketResult?.protein_per_100g || 0}g חלבון`"></div>
+                            </div>
+                        </div>
+
+                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed" x-text="supermarketResult?.explanation"></p>
+
+                        <div x-show="supermarketResult?.better_alternative" class="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950">
+                            <strong>💡 חלופה עדיפה בסופר:</strong> <span x-text="supermarketResult?.better_alternative"></span>
+                        </div>
+
+                        <div class="pt-2 flex justify-end">
+                            <button type="button" @click="logSupermarketProduct()"
+                                    class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer shadow-xs">
+                                + קניתי ואכלתי — הוסף מנה ליומן היום
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- =========================================================== -->
@@ -4933,7 +4919,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=62').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=63').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
