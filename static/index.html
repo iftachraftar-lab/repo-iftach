@@ -1219,7 +1219,7 @@
                         <p class="text-xs text-slate-600 mt-0.5">בדוק זכאות לאימון ניסיון במתנה / בהנחה לפילאטיס מכשירים, קרוספיט או חדר כושר קרוב</p>
                     </div>
                 </div>
-                <button type="button" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition shadow-xs flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer">
+                <button type="button" @click.stop="openTrialWorkoutModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition shadow-xs flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer">
                     <span>בדוק זכאות לאימון</span>
                     <span>←</span>
                 </button>
@@ -1427,7 +1427,7 @@
             </div>
 
             <!-- Empowering Community Perks & Expert Referral Banner (Visible for Admin) -->
-            <div x-show="!currentUser || currentUser.is_admin" class="bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-900 rounded-3xl p-5 sm:p-6 border border-indigo-500/30 shadow-lg text-white space-y-4 relative overflow-hidden">
+            <div x-show="true" class="bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-900 rounded-3xl p-5 sm:p-6 border border-indigo-500/30 shadow-lg text-white space-y-4 relative overflow-hidden">
                 <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div class="space-y-1">
@@ -10012,7 +10012,133 @@
                     }
                 },
 
-                openTrialWorkoutModal() {
+                runTrialScanning() {
+                this.trialQuizStep = 3;
+                setTimeout(() => {
+                    const studios = this.matchedStudios;
+                    if (studios && studios.length) {
+                        this.selectedStudio = studios[0];
+                    }
+                    this.trialQuizStep = 4;
+                }, 1200);
+            },
+
+            get matchedStudios() {
+                const act = this.trialWorkoutForm?.activity_type || 'פילאטיס מכשירים';
+                const city = this.trialWorkoutForm?.city || 'תל אביב והמרכז';
+                
+                if (act.includes('פילאטיס')) {
+                    return [
+                        {
+                            id: 's1',
+                            name: 'סטודיו Core Reformer פילאטיס',
+                            branch: city + ' — סניף מרכזי',
+                            rating: '4.96',
+                            reviews: 84,
+                            perk: 'אימון ניסיון במתנה (חינם ללא עלות)',
+                            original_price: '₪120',
+                            badge: 'הכי מבוקש 🔥'
+                        },
+                        {
+                            id: 's2',
+                            name: 'סטודיו Boost Reformer VIP',
+                            branch: city + ' — סניף בוטיק',
+                            rating: '4.92',
+                            reviews: 62,
+                            perk: 'אימון ניסיון ב-₪35 בלבד + 15% הנחה לכרטיסייה',
+                            original_price: '₪90',
+                            badge: 'בוטיק פרימיום'
+                        },
+                        {
+                            id: 's3',
+                            name: 'סטודיו Flow & Balance',
+                            branch: city + ' — מתחם הכושר',
+                            rating: '4.89',
+                            reviews: 41,
+                            perk: 'אימון היכרות זוגי מתנה (1+1)',
+                            original_price: '₪180',
+                            badge: 'מבצע חברים'
+                        }
+                    ];
+                } else if (act.includes('חדר כושר')) {
+                    return [
+                        {
+                            id: 's1',
+                            name: 'מועדון כושר Urban Fitness',
+                            branch: city + ' — קומפלקס ראשי',
+                            rating: '4.94',
+                            reviews: 120,
+                            perk: 'כניסה חד-יומית מתנה + פגישת מאמן אישי',
+                            original_price: '₪100',
+                            badge: 'מועדון השנה 🏆'
+                        },
+                        {
+                            id: 's2',
+                            name: 'קאנטרי קלאב פרימיום Resort',
+                            branch: city + ' — מרחב ספורט ובריכה',
+                            rating: '4.91',
+                            reviews: 95,
+                            perk: 'שבוע היכרות מלא ב-₪49 (כולל בריכה וספא)',
+                            original_price: '₪250',
+                            badge: 'הכל כלול'
+                        }
+                    ];
+                } else if (act.includes('קרוספיט') || act.includes('פונקציונלי') || act.includes('אגרוף')) {
+                    return [
+                        {
+                            id: 's1',
+                            name: 'CrossFit & Functional Box Arena',
+                            branch: city + ' — מתחם האימונים',
+                            rating: '4.98',
+                            reviews: 73,
+                            perk: 'אימון יסודות On-Ramp ראשון מתנה',
+                            original_price: '₪110',
+                            badge: 'דירוג עליון ⭐'
+                        },
+                        {
+                            id: 's2',
+                            name: 'סטודיו כושר פונקציונלי F-Burn',
+                            branch: city + ' — מרכז העיר',
+                            rating: '4.90',
+                            reviews: 54,
+                            perk: 'אימון HIIT ודופק ראשון חינם',
+                            original_price: '₪85',
+                            badge: 'שריפת שומן'
+                        }
+                    ];
+                } else {
+                    return [
+                        {
+                            id: 's1',
+                            name: 'סטודיו בוטיק אישי 1-על-1',
+                            branch: city + ' — קליניקת ספורט',
+                            rating: '4.97',
+                            reviews: 48,
+                            perk: 'מפגש אבחון תנועה + אימון אישי ראשון ב-50% הנחה',
+                            original_price: '₪220',
+                            badge: 'ליווי אישי'
+                        }
+                    ];
+                }
+            },
+
+            openStudioWhatsApp() {
+                const stName = this.selectedStudio?.name || 'הסטודיו';
+                const perk = this.selectedStudio?.perk || 'אימון ניסיון';
+                const code = this.generatedVoucherCode || 'NUTRI-VIP';
+                const text = `היי ${stName}, קיבלתי שובר הטבה VIP מאפליקציית NutriAgent (קוד: ${code}) עבור ${perk}. אשמח לתאם שיעור ניסיון השבוע באזור ${this.trialWorkoutForm.city}!`;
+                const waUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
+                window.open(waUrl, '_blank');
+            },
+
+            copyVoucherCode() {
+                if (navigator.clipboard && this.generatedVoucherCode) {
+                    navigator.clipboard.writeText(this.generatedVoucherCode);
+                    this.showToast('📋 קוד השובר הועתק ללוח!');
+                }
+            },
+
+            openTrialWorkoutModal() {
                 if (this.currentUser) {
                     if (!this.trialWorkoutForm.full_name) this.trialWorkoutForm.full_name = this.currentUser.name || '';
                 }
