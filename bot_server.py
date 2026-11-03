@@ -91,6 +91,8 @@ class NutritionExtraction(BaseModel):
     calories: int = Field(description="הערכת קלוריות כוללת")
     protein_g: float = Field(description="הערכת חלבון כוללת בגרמים")
     summary: str = Field(description="תיאור תמציתי וברור של המנה בעברית")
+    meal_type: str = Field(default="lunch", description="סוג הארוחה: breakfast (בוקר), lunch (צהריים), dinner (ערב), snack (ביניים/נשנוש)")
+    meal_time: str = Field(default="", description="שעת האכילה המוערכת בפורמט HH:MM")
     items: List[MealItemDetail] = Field(default_factory=list, description="פירוט של כל פריט בארוחה עם הקלוריות והחלבון הנפרדים שלו")
     confidence_score: int = Field(default=88, description="ציון ביטחון של המודל בזיהוי המנה והכמויות בין 0 ל-100")
     portion_estimation_method: str = Field(default="", description="כיצד הוערך נפח/משקל המנה (למשל יחס לגודל צלחת סטנדרטית, כלי הגשה, סכו״ם, עומק קערה או משקל יחידה)")
@@ -235,11 +237,15 @@ class ManualMealRequest(BaseModel):
     protein_g: float
     log_date: Optional[str] = None
     log_time: Optional[str] = None
+    meal_type: Optional[str] = None
 
 
 class AIMealRequest(BaseModel):
     text: str
     log_date: Optional[str] = None
+    log_time: Optional[str] = None
+    meal_type: Optional[str] = None
+    preview_only: Optional[bool] = False
 
 
 class PhotoMealRequest(BaseModel):
@@ -247,6 +253,8 @@ class PhotoMealRequest(BaseModel):
     mime_type: str = "image/jpeg"
     caption: Optional[str] = ""
     log_date: Optional[str] = None
+    log_time: Optional[str] = None
+    meal_type: Optional[str] = None
     preview_only: Optional[bool] = False
 
 
@@ -255,6 +263,9 @@ class VoiceMealRequest(BaseModel):
     mime_type: str = "audio/webm"
     caption: Optional[str] = ""
     log_date: Optional[str] = None
+    log_time: Optional[str] = None
+    meal_type: Optional[str] = None
+    preview_only: Optional[bool] = False
 
 
 class CoachAnalyzeRequest(BaseModel):
@@ -353,6 +364,7 @@ class MealUpdateRequest(BaseModel):
     items: Optional[List[MealItemDetail]] = None
     log_date: Optional[str] = None
     log_time: Optional[str] = None
+    meal_type: Optional[str] = None
 
 
 class FavoriteMealRequest(BaseModel):
@@ -1157,6 +1169,97 @@ def set_targets(target_calories: int, target_protein: int, target_date: Optional
     return {"target_calories": target_calories, "target_protein": target_protein}
 
 
+def resolve_eating_time_and_type(
+    explicit_time: Optional[str] = None,
+    explicit_type: Optional[str] = None,
+    text_context: str = "",
+    ref_dt: Optional[datetime] = None,
+) -> tuple[str, str]:
+    """
+    Intelligently extracts and resolves the actual eating time (HH:MM) and meal type
+    (breakfast, lunch, dinner, snack) according to time expressions, relative intervals,
+    explicit user choice, or smart time windows.
+    """
+    now = ref_dt or datetime.now()
+    txt = (text_context or "").strip().lower()
+
+    # 1. Resolve explicit or extracted meal_time
+    m_time = (explicit_time or "").strip()
+    if m_time and re.match(r"^\d{1,2}:\d{2}$", m_time):
+        parts = m_time.split(":")
+        m_time = f"{int(parts[0]):02d}:{int(parts[1]):02d}"
+    else:
+        m_time = ""
+        rel_match_hours = re.search(r"לפני\s+(\d+)\s+שעות?", txt)
+        rel_match_one_hour = "לפני שעה" in txt
+        rel_match_half_hour = "לפני חצי שעה" in txt or "לפני 30 דק" in txt
+        rel_match_min = re.search(r"לפני\s+(\d+)\s+דק", txt)
+
+        if rel_match_hours:
+            calc_dt = now - timedelta(hours=int(rel_match_hours.group(1)))
+            m_time = calc_dt.strftime("%H:%M")
+        elif rel_match_one_hour:
+            calc_dt = now - timedelta(hours=1)
+            m_time = calc_dt.strftime("%H:%M")
+        elif rel_match_half_hour:
+            calc_dt = now - timedelta(minutes=30)
+            m_time = calc_dt.strftime("%H:%M")
+        elif rel_match_min:
+            calc_dt = now - timedelta(minutes=int(rel_match_min.group(1)))
+            m_time = calc_dt.strftime("%H:%M")
+        else:
+            hour_match = re.search(r"(?:בשעה|ב-?)\s*(\d{1,2})(?::(\d{2}))?", txt)
+            if hour_match:
+                h = int(hour_match.group(1))
+                m = int(hour_match.group(2) or 0)
+                if 0 <= h <= 23 and 0 <= m <= 59:
+                    m_time = f"{h:02d}:{m:02d}"
+
+    # 2. Resolve meal_type
+    m_type = (explicit_type or "").strip().lower()
+    if not m_type or m_type not in ("breakfast", "lunch", "dinner", "snack"):
+        if any(w in txt for w in ["בוקר", "ארוחת בוקר", "קמתי", "על הבוקר", "שחרית"]):
+            m_type = "breakfast"
+            if not m_time and now.hour >= 12:
+                m_time = "08:30"
+        elif any(w in txt for w in ["צהריים", "ארוחת צהריים", "בצהריים"]):
+            m_type = "lunch"
+            if not m_time and (now.hour >= 17 or now.hour < 11):
+                m_time = "13:30"
+        elif any(w in txt for w in ["ערב", "ארוחת ערב", "בערב", "לילה"]):
+            m_type = "dinner"
+            if not m_time and now.hour < 18:
+                m_time = "19:30"
+        elif any(w in txt for w in ["ביניים", "נשנוש", "חטיף", "שייק", "פרי", "נשנשתי", "אחה\"צ", "ארבע"]):
+            m_type = "snack"
+        else:
+            # Check effective hour of eating
+            if m_time:
+                try:
+                    parts = m_time.split(":")
+                    eff_h = int(parts[0]) + int(parts[1]) / 60.0
+                except Exception:
+                    eff_h = now.hour + now.minute / 60.0
+            else:
+                eff_h = now.hour + now.minute / 60.0
+
+            if 5.5 <= eff_h < 11.25:
+                m_type = "breakfast"
+            elif 11.25 <= eff_h < 16.25:
+                m_type = "lunch"
+            elif 16.25 <= eff_h < 18.75:
+                m_type = "snack"
+            elif 18.75 <= eff_h < 22.5:
+                m_type = "dinner"
+            else:
+                m_type = "snack"
+
+    if not m_time:
+        m_time = now.strftime("%H:%M")
+
+    return m_time, m_type
+
+
 def log_meal_db(
     description: str,
     calories: int,
@@ -1164,6 +1267,7 @@ def log_meal_db(
     items: Optional[List[dict]] = None,
     log_date: Optional[str] = None,
     log_time: Optional[str] = None,
+    meal_type: Optional[str] = "lunch",
     source: str = "web",
     user_id: str = "default",
 ) -> Optional[dict]:
@@ -1177,6 +1281,7 @@ def log_meal_db(
             "user_id": uid,
             "log_date": d_str,
             "log_time": t_str,
+            "meal_type": meal_type or "lunch",
             "description": description,
             "calories": int(calories),
             "protein_g": round(float(protein), 1),
@@ -1190,6 +1295,7 @@ def log_meal_db(
             "user_id": uid,
             "log_date": d_str,
             "log_time": t_str,
+            "meal_type": meal_type or "lunch",
             "description": description,
             "calories": int(calories),
             "protein_g": round(float(protein), 1),
@@ -1203,6 +1309,7 @@ def log_meal_db(
             "user_id": uid,
             "log_date": d_str,
             "log_time": t_str,
+            "meal_type": meal_type or "lunch",
             "description": description,
             "calories": int(calories),
             "protein_g": round(float(protein), 1),
@@ -3384,7 +3491,14 @@ if tg_app:
                 return
 
             items_data = [item.model_dump() for item in res.items] if res.items else []
-            log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, source="telegram-voice", user_id=uid)
+            cal_time, cal_type = resolve_eating_time_and_type(
+                explicit_time=getattr(res, "meal_time", ""),
+                explicit_type=getattr(res, "meal_type", ""),
+                text_context=f"{caption} {res.summary}",
+            )
+            type_label_map = {"breakfast": "בוקר", "lunch": "צהריים", "dinner": "ערב", "snack": "ביניים / נשנוש"}
+            t_hebrew = type_label_map.get(cal_type, "צהריים")
+            log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, log_time=cal_time, meal_type=cal_type, source="telegram-voice", user_id=uid)
             s = get_day_summary(user_id=uid)
 
             breakdown_text = ""
@@ -3393,7 +3507,7 @@ if tg_app:
                 breakdown_text = f"\n📋 פירוט רכיבים:\n{breakdown_lines}\n"
 
             await status_reply.edit_text(
-                f"🎙️ נרשם מהקלטה קולית: {res.summary}\n"
+                f"🎙️ נרשם לארוחת {t_hebrew} (שעה {cal_time}): {res.summary}\n"
                 f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
                 f"{breakdown_text}"
                 f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
@@ -4813,12 +4927,18 @@ def api_meals_legacy(request: Request):
 @app.post("/api/meals/")
 def api_add_manual_meal(req: ManualMealRequest, request: Request):
     uid = require_approved_user(request)
+    cal_time, cal_type = resolve_eating_time_and_type(
+        explicit_time=req.log_time,
+        explicit_type=req.meal_type,
+        text_context=req.description,
+    )
     entry = log_meal_db(
         description=req.description,
         calories=req.calories,
         protein=req.protein_g,
         log_date=req.log_date,
-        log_time=req.log_time,
+        log_time=cal_time,
+        meal_type=cal_type,
         source="web",
         user_id=uid,
     )
@@ -4844,12 +4964,32 @@ def api_add_ai_meal(req: AIMealRequest, request: Request):
         raise HTTPException(status_code=422, detail="לא זוהתה ארוחה או שתייה בטקסט שהוזן")
 
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
+    cal_time, cal_type = resolve_eating_time_and_type(
+        explicit_time=req.log_time or getattr(extraction, "meal_time", ""),
+        explicit_type=req.meal_type or getattr(extraction, "meal_type", ""),
+        text_context=f"{req.text} {extraction.summary or ''}",
+    )
+    if req.preview_only:
+        return {
+            "status": "preview",
+            "is_meal": True,
+            "description": extraction.summary,
+            "calories": extraction.calories,
+            "protein_g": extraction.protein_g,
+            "items": items_data,
+            "log_date": req.log_date or str(date.today()),
+            "log_time": cal_time,
+            "meal_type": cal_type,
+            "source": "web-ai"
+        }
     entry = log_meal_db(
         description=extraction.summary,
         calories=extraction.calories,
         protein=extraction.protein_g,
         items=items_data,
         log_date=req.log_date,
+        log_time=cal_time,
+        meal_type=cal_type,
         source="web-ai",
         user_id=uid,
     )
@@ -4916,6 +5056,11 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
         raise HTTPException(status_code=422, detail=f"נדחה על הסף: זוהה '{object_name}' שאינו מוצר מזון או שתייה.")
 
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
+    cal_time, cal_type = resolve_eating_time_and_type(
+        explicit_time=req.log_time or getattr(extraction, "meal_time", ""),
+        explicit_type=req.meal_type or getattr(extraction, "meal_type", ""),
+        text_context=f"{req.caption or ''} {extraction.summary or ''}",
+    )
     if req.preview_only:
         # Return detected meal analysis without saving to Firestore yet!
         return {
@@ -4926,6 +5071,9 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
             "carbs_g": getattr(extraction, 'carbs_g', 0) or 0,
             "fat_g": getattr(extraction, 'fat_g', 0) or 0,
             "items": items_data,
+            "log_date": req.log_date or str(date.today()),
+            "log_time": cal_time,
+            "meal_type": cal_type,
             "is_meal": True
         }
 
@@ -4935,6 +5083,8 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
         protein=extraction.protein_g,
         items=items_data,
         log_date=req.log_date,
+        log_time=cal_time,
+        meal_type=cal_type,
         source="web-photo",
         user_id=uid,
     )
@@ -4988,12 +5138,32 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
         raise HTTPException(status_code=422, detail="לא זוהה דיווח על אוכל או שתייה בהקלטה")
 
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
+    cal_time, cal_type = resolve_eating_time_and_type(
+        explicit_time=req.log_time or getattr(extraction, "meal_time", ""),
+        explicit_type=req.meal_type or getattr(extraction, "meal_type", ""),
+        text_context=f"{req.caption or ''} {extraction.summary or ''}",
+    )
+    if req.preview_only:
+        return {
+            "status": "preview",
+            "is_meal": True,
+            "description": extraction.summary,
+            "calories": extraction.calories,
+            "protein_g": extraction.protein_g,
+            "items": items_data,
+            "log_date": req.log_date or str(date.today()),
+            "log_time": cal_time,
+            "meal_type": cal_type,
+            "source": "web-voice"
+        }
     entry = log_meal_db(
         description=extraction.summary,
         calories=extraction.calories,
         protein=extraction.protein_g,
         items=items_data,
         log_date=req.log_date,
+        log_time=cal_time,
+        meal_type=cal_type,
         source="web-voice",
         user_id=uid,
     )
@@ -5034,6 +5204,8 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest, request: Request):
                     m["log_date"] = req.log_date
                 if req.log_time:
                     m["log_time"] = req.log_time
+                if req.meal_type:
+                    m["meal_type"] = req.meal_type
                 if req.items is not None:
                     m["items"] = [it.model_dump() for it in req.items]
                 elif len(m.get("items") or []) <= 1:

@@ -518,6 +518,12 @@
 
                     <!-- Actions / Badges Row (Streak + BMI Calibrate + Burned calories) -->
                     <div class="flex items-center gap-2 flex-wrap pt-0.5">
+                        <button type="button" @click="toggleAppMode()"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black border transition flex items-center gap-1.5 cursor-pointer"
+                                :class="appMode === 'coaching' ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-700'"
+                                title="החלף בין מצב ליווי מתאמנים ממוקד (איתמר) למצב פלטפורמה מלא">
+                            <span x-text="appMode === 'coaching' ? '🎯 מצב ליווי מתאמנים (איתמר)' : '🌐 מצב פלטפורמה מלא'"></span>
+                        </button>
                         <button type="button" @click="showAchievementsModal = true"
                                 class="px-3 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                                 :title="t('streakCardTitle', 'פתח הישגים ומסלול התמדה')">
@@ -1205,7 +1211,7 @@
             </div>
 
             <!-- Studio Referral & Free Trial Workout Gift Card -->
-            <div @click="openTrialWorkoutModal()"
+            <div x-show="appMode !== 'coaching'" @click="openTrialWorkoutModal()"
                  class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-emerald-500/10 border-2 border-amber-300/80 hover:border-amber-400 shadow-sm transition active:scale-[0.99] cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative overflow-hidden">
                 <div class="flex items-center gap-3.5 min-w-0">
                     <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-2xl shadow-md shadow-orange-500/25 flex-shrink-0">
@@ -1292,8 +1298,18 @@
                                             <span class="inline-flex items-center gap-1 font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
                                                 💪 <span x-text="`${Number(meal.protein_g).toFixed(1)}g חלבון`"></span>
                                             </span>
-                                            <span x-show="meal.log_time" class="text-slate-400">
-                                                🕒 <span x-text="meal.log_time"></span>
+                                            <span x-show="meal.log_time" class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-mono font-bold border border-amber-200 text-xs flex items-center gap-1">
+                                                <span>🕒</span>
+                                                <span x-text="meal.log_time"></span>
+                                            </span>
+                                            <span x-show="meal.meal_type" class="px-2 py-0.5 rounded-md text-[11px] font-black"
+                                                  :class="{
+                                                      'bg-amber-100 text-amber-900 border border-amber-300': meal.meal_type === 'breakfast',
+                                                      'bg-sky-100 text-sky-900 border border-sky-300': meal.meal_type === 'lunch',
+                                                      'bg-emerald-100 text-emerald-900 border border-emerald-300': meal.meal_type === 'snack',
+                                                      'bg-indigo-100 text-indigo-900 border border-indigo-300': meal.meal_type === 'dinner'
+                                                  }"
+                                                  x-text="meal.meal_type === 'breakfast' ? '🌅 בוקר' : (meal.meal_type === 'lunch' ? '☀️ צהריים' : (meal.meal_type === 'dinner' ? '🌙 ערב' : (meal.meal_type === 'snack' ? '🍎 ביניים' : '🍽️ ארוחה')))">
                                             </span>
                                             <span class="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-500"
                                                   x-text="mealSourceLabel(meal.source)"></span>
@@ -1427,7 +1443,7 @@
             </div>
 
             <!-- Empowering Community Perks & Expert Referral Banner (Visible for Admin) -->
-            <div x-show="true" class="bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-900 rounded-3xl p-5 sm:p-6 border border-indigo-500/30 shadow-lg text-white space-y-4 relative overflow-hidden">
+            <div x-show="appMode !== 'coaching'" class="bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-900 rounded-3xl p-5 sm:p-6 border border-indigo-500/30 shadow-lg text-white space-y-4 relative overflow-hidden">
                 <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div class="space-y-1">
@@ -5796,7 +5812,146 @@
         </div>
     </div>
 
-    <!-- Toast Notification -->
+    
+        <!-- Modal: Meal Confirmation & Exact Eating Time Picker (Stage 1) -->
+        <div x-show="showMealConfirmModal" style="display: none;"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+            <div @click.away="showMealConfirmModal = false"
+                 class="w-full max-w-lg bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+                <!-- Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center text-xl shadow-xs">
+                            🍽️
+                        </div>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">אישור תיעוד ארוחה</h3>
+                            <p class="text-xs text-slate-500">וודא את שעת האכילה והערכים שנמדדו ב-AI</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showMealConfirmModal = false" class="text-slate-400 hover:text-slate-700 text-lg cursor-pointer">✕</button>
+                </div>
+
+                <!-- Meal Summary & Value Stats -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+                    <div class="flex items-start justify-between gap-3">
+                        <input type="text" x-model="mealConfirmForm.description"
+                               class="text-sm sm:text-base font-black text-slate-900 bg-transparent outline-none w-full border-b border-dashed border-slate-300 focus:border-emerald-500 pb-0.5"
+                               placeholder="תיאור הארוחה">
+                    </div>
+
+                    <!-- Calories and Protein Pills -->
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 p-2 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-500">קלוריות:</span>
+                            <div class="flex items-center gap-1 font-black text-sm text-slate-900">
+                                <input type="number" x-model.number="mealConfirmForm.calories" class="w-16 text-left outline-none font-mono font-bold">
+                                <span class="text-[10px] text-slate-400">קק"ל</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 p-2 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-500">חלבון:</span>
+                            <div class="flex items-center gap-1 font-black text-sm text-indigo-700">
+                                <input type="number" step="0.5" x-model.number="mealConfirmForm.protein_g" class="w-14 text-left outline-none font-mono font-bold">
+                                <span class="text-[10px] text-indigo-400">גרם</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items Breakdown preview if present -->
+                    <template x-if="mealConfirmForm.items && mealConfirmForm.items.length > 1">
+                        <div class="pt-2 border-t border-slate-200/70 space-y-1">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">פירוט רכיבים שזוהו:</span>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-slate-600">
+                                <template x-for="item in mealConfirmForm.items">
+                                    <div class="px-2 py-1 rounded-lg bg-white/80 border border-slate-200/60 flex items-center justify-between text-[11px]">
+                                        <span class="font-bold truncate" x-text="item.name"></span>
+                                        <span class="font-mono text-slate-500" x-text="`${item.calories} קק"ל`"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- 1-Tap Meal Type Classification -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700">סיווג ארוחה בטאפ אחד:</label>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button type="button" @click="mealConfirmForm.meal_type = 'breakfast'"
+                                :class="mealConfirmForm.meal_type === 'breakfast' ? 'bg-amber-500 text-white shadow-xs font-black' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold'"
+                                class="py-2 px-1 rounded-xl text-xs transition cursor-pointer text-center">
+                            🌅 בוקר
+                        </button>
+                        <button type="button" @click="mealConfirmForm.meal_type = 'lunch'"
+                                :class="mealConfirmForm.meal_type === 'lunch' ? 'bg-sky-500 text-white shadow-xs font-black' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold'"
+                                class="py-2 px-1 rounded-xl text-xs transition cursor-pointer text-center">
+                            ☀️ צהריים
+                        </button>
+                        <button type="button" @click="mealConfirmForm.meal_type = 'snack'"
+                                :class="mealConfirmForm.meal_type === 'snack' ? 'bg-emerald-600 text-white shadow-xs font-black' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold'"
+                                class="py-2 px-1 rounded-xl text-xs transition cursor-pointer text-center">
+                            🍎 ביניים
+                        </button>
+                        <button type="button" @click="mealConfirmForm.meal_type = 'dinner'"
+                                :class="mealConfirmForm.meal_type === 'dinner' ? 'bg-indigo-600 text-white shadow-xs font-black' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold'"
+                                class="py-2 px-1 rounded-xl text-xs transition cursor-pointer text-center">
+                            🌙 ערב
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Eating Time Picker (שעת האכילה בפועל) -->
+                <div class="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/70 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                            <span>🕒</span>
+                            <span>שעת האכילה בפועל:</span>
+                        </span>
+                        <span class="text-[10px] text-amber-700 font-bold">חילוץ AI מתוך ההקלטה / עריכה מהירה</span>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2">
+                        <!-- Quick Stepper Buttons -->
+                        <button type="button" @click="adjustMealConfirmTime(-15)"
+                                class="px-3 py-2 rounded-xl bg-white hover:bg-amber-100 text-amber-950 border border-amber-200 text-xs font-extrabold transition cursor-pointer shadow-2xs">
+                            -15 דק'
+                        </button>
+
+                        <!-- Direct Time Input -->
+                        <div class="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl border border-amber-300 shadow-2xs flex-1 justify-center">
+                            <input type="time" x-model="mealConfirmForm.log_time"
+                                   class="text-base sm:text-lg font-black font-mono text-slate-900 bg-transparent outline-none text-center cursor-pointer">
+                        </div>
+
+                        <button type="button" @click="adjustMealConfirmTime(15)"
+                                class="px-3 py-2 rounded-xl bg-white hover:bg-amber-100 text-amber-950 border border-amber-200 text-xs font-extrabold transition cursor-pointer shadow-2xs">
+                            +15 דק'
+                        </button>
+
+                        <button type="button" @click="setMealConfirmTimeToNow()"
+                                class="px-3 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-extrabold transition cursor-pointer">
+                            עכשיו
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" @click="showMealConfirmModal = false"
+                            class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition">
+                        ביטול
+                    </button>
+                    <button type="button" @click="saveConfirmedMeal()" :disabled="mealConfirmSaving"
+                            class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 transition cursor-pointer">
+                        <span x-show="!mealConfirmSaving">💾 אשר והזן ליומן הארוחות</span>
+                        <span x-show="mealConfirmSaving">שומר ארוחה...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
     <div x-cloak x-show="toast.visible"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 translate-y-3"
@@ -7793,6 +7948,19 @@
                 adminLeads: [],
                 adminTelegramChatId: '604190384',
                 adminTelegramSaving: false,
+                appMode: 'coaching', // 'coaching' (Itamar trainee focus) or 'full' (marketplace & B2B)
+                showMealConfirmModal: false,
+                mealConfirmSaving: false,
+                mealConfirmForm: {
+                    description: '',
+                    calories: 0,
+                    protein_g: 0,
+                    items: [],
+                    log_date: '',
+                    log_time: '12:00',
+                    meal_type: 'lunch',
+                    source: 'web-voice'
+                },
                 adminPartnerSubTab: 'demo_partners', // 'leads' or 'demo_partners'
                 adminPartnerCategoryFilter: 'all',
                 adminPartnerRegionFilter: 'all',
@@ -9514,7 +9682,8 @@
                 },
 
                 get todayMeals() {
-                    return this.summary.meals || [];
+                    const list = [...(this.summary.meals || [])];
+                    return list.sort((a, b) => (a.log_time || '').localeCompare(b.log_time || ''));
                 },
 
                 get todayWorkouts() {
@@ -10243,17 +10412,26 @@
                             body: JSON.stringify({
                                 audio_base64: dataUrl,
                                 mime_type: mimeType || 'audio/webm',
-                                caption: this.aiInputText.trim()
+                                caption: this.aiInputText.trim(),
+                                preview_only: true
                             })
                         });
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
                             throw new Error(err.detail || 'לא זוהתה ארוחה בהקלטה הקולית');
                         }
-                        const added = await res.json();
+                        const preview = await res.json();
+                        const captionTxt = this.aiInputText.trim();
                         this.aiInputText = '';
-                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
-                        this.showToast(`🎙️ נוסף מהקלטה: ${added.description} (${added.calories} קק"ל, ${added.protein_g}g חלבון)`);
+                        this.openMealConfirmModal({
+                            description: preview.description,
+                            calories: preview.calories,
+                            protein_g: preview.protein_g,
+                            items: preview.items || [],
+                            log_time: preview.log_time,
+                            meal_type: preview.meal_type,
+                            source: 'web-voice'
+                        });
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בפענוח ההקלטה הקולית', 'error');
                     } finally {
@@ -11574,7 +11752,82 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 this.sendDemoLead(newPartner);
             },
 
-                openExpertsDirectory(tab = 'dietitian') {
+                toggleAppMode() {
+                this.appMode = this.appMode === 'coaching' ? 'full' : 'coaching';
+                const msg = this.appMode === 'coaching' ? '🎯 עברת למצב ליווי מתאמנים ממוקד (איתמר)' : '🌐 עברת למצב פלטפורמה מלאה (כולל שותפים ו-B2B)';
+                this.showToast(msg);
+            },
+
+            openMealConfirmModal(data) {
+                this.mealConfirmForm = {
+                    description: data.description || '',
+                    calories: Number(data.calories) || 0,
+                    protein_g: Number(data.protein_g) || 0,
+                    items: data.items || [],
+                    log_date: data.log_date || this.todayDateStr,
+                    log_time: data.log_time || new Date().toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}),
+                    meal_type: data.meal_type || 'lunch',
+                    source: data.source || 'web-voice'
+                };
+                this.showMealConfirmModal = true;
+            },
+
+            adjustMealConfirmTime(deltaMinutes) {
+                let [h, m] = (this.mealConfirmForm.log_time || '12:00').split(':').map(Number);
+                if (isNaN(h)) h = 12;
+                if (isNaN(m)) m = 0;
+                let total = h * 60 + m + deltaMinutes;
+                if (total < 0) total += 24 * 60;
+                total = total % (24 * 60);
+                const newH = Math.floor(total / 60);
+                const newM = total % 60;
+                this.mealConfirmForm.log_time = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+            },
+
+            setMealConfirmTimeToNow() {
+                const now = new Date();
+                this.mealConfirmForm.log_time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            },
+
+            async saveConfirmedMeal() {
+                if (!this.mealConfirmForm.description.trim()) {
+                    alert('נא להזין תיאור ארוחה');
+                    return;
+                }
+                this.mealConfirmSaving = true;
+                try {
+                    const payload = {
+                        description: this.mealConfirmForm.description.trim(),
+                        calories: this.mealConfirmForm.calories,
+                        protein_g: this.mealConfirmForm.protein_g,
+                        log_date: this.mealConfirmForm.log_date || this.todayDateStr,
+                        log_time: this.mealConfirmForm.log_time,
+                        meal_type: this.mealConfirmForm.meal_type
+                    };
+                    const res = await fetch('/api/meals/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.detail || 'שגיאה בשמירת הארוחה');
+                    }
+                    const saved = await res.json();
+                    this.showMealConfirmModal = false;
+                    await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                    
+                    const typeLabels = { breakfast: '🌅 ארוחת בוקר', lunch: '☀️ ארוחת צהריים', dinner: '🌙 ארוחת ערב', snack: '🍎 ארוחת ביניים' };
+                    const label = typeLabels[this.mealConfirmForm.meal_type] || 'ארוחה';
+                    this.showToast(`✅ ${label} נרשמה בהצלחה לשעה ${this.mealConfirmForm.log_time}!`);
+                } catch (e) {
+                    alert(e.message || 'שגיאה בשמירת הארוחה');
+                } finally {
+                    this.mealConfirmSaving = false;
+                }
+            },
+
+            openExpertsDirectory(tab = 'dietitian') {
                 this.selectedExpertTab = tab;
                 this.selectedExpertRegion = 'הכל (כולל אונליין)';
                 this.showExpertsDirectoryModal = true;
