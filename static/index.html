@@ -2685,86 +2685,342 @@
 
             <!-- Leads Management & Telegram Alerts Settings (Admin Only) -->
             <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-5">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <!-- Header with Subtabs Navigation -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center text-xl shadow-xs flex-shrink-0">
                             🎁
                         </div>
                         <div>
-                            <h3 class="text-base sm:text-lg font-black text-slate-900">לידים והפניות (חדרי כושר, סטודיואים ומאמנים)</h3>
-                            <p class="text-xs text-slate-500">כל בקשה לאימון ניסיון או פניית מאמן מועברת מיד לכאן ולטלגרם המחובר</p>
+                            <h3 class="text-base sm:text-lg font-black text-slate-900">לידים, שותפויות ומחולל דמו B2B</h3>
+                            <p class="text-xs text-slate-500">ניהול לידים נכנסים, הפעלת הדגמות בלייב לשותפים (SMBs ומכונים) ושיגור התראות לטלגרם</p>
                         </div>
                     </div>
-                    <button type="button" @click="fetchAdminLeads()"
-                            class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer">
-                        <span>🔄 רענן לידים</span>
+                    <div class="flex items-center gap-2 self-start md:self-auto">
+                        <button type="button" @click="fetchAdminLeads()"
+                                class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                            <span>🔄 רענן נתונים</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Subtabs Toggle Bar -->
+                <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl max-w-fit">
+                    <button type="button" @click="adminPartnerSubTab = 'demo_partners'"
+                            :class="adminPartnerSubTab === 'demo_partners' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                            class="px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer">
+                        <span>💼 מאגר שותפים ומחולל דמו B2B</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800">52 שותפים לדמו 🔥</span>
+                    </button>
+                    <button type="button" @click="adminPartnerSubTab = 'leads'"
+                            :class="adminPartnerSubTab === 'leads' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                            class="px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer">
+                        <span>📋 לידים שנאספו במערכת</span>
+                        <span x-text="adminLeads.length" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800"></span>
                     </button>
                 </div>
 
-                <!-- Telegram Alert Configuration Bar -->
-                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3">
-                    <div class="flex items-center gap-2.5 w-full md:w-auto">
-                        <span class="text-2xl">✈️</span>
-                        <div>
-                            <span class="text-xs font-extrabold text-slate-900 block">יעד התראות מיידיות בטלגרם (Telegram Chat ID)</span>
-                            <span class="text-[11px] text-slate-500">שלח לבוט בטלגרם את הפקודה <code>/myid</code> כדי לקבל את המזהה שלך</span>
+                <!-- ================= TAB 1: B2B PARTNER DEMO & RECRUITMENT ================= -->
+                <div x-show="adminPartnerSubTab === 'demo_partners'" class="space-y-4">
+                    <!-- Demo Workflow Explanatory Banner -->
+                    <div class="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl flex-shrink-0">🚀</span>
+                            <div class="text-xs text-amber-950 space-y-0.5">
+                                <span class="font-extrabold block text-sm text-amber-900">איך עובד הדמו מול בעל סטודיו או מאמן?</span>
+                                <p class="text-slate-700 leading-relaxed">
+                                    בפגישה או בשיחה, מצא את הסטודיו שלו ולחץ <strong>⚡ שגר ליד דמו</strong> — הנייד שלך יקפוץ מיד עם התראת טלגרם חיה וכפתור וואטסאפ! בנוסף, לחץ <strong>🎟️ שובר VIP</strong> כדי להראות לו את השובר הממותג שלו באפליקציה, או <strong>📋 העתק פנייה</strong> לשליחת הודעה מוכנה.
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" @click="customDemoModalOpen = true"
+                                class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-xs">
+                            <span>➕ הוסף סטודיו לדמו מהיר</span>
+                        </button>
+                    </div>
+
+                    <!-- Filter & Search Controls Bar -->
+                    <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <div class="flex items-center gap-2 flex-1">
+                            <span class="text-slate-400 text-sm">🔍</span>
+                            <input type="text" x-model="adminPartnerSearchQuery" placeholder="חפש לפי שם סטודיו, כתובת או עיר..."
+                                   class="bg-transparent text-xs text-slate-800 placeholder-slate-400 font-bold outline-none w-full">
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <!-- Region Filter -->
+                            <select x-model="adminPartnerRegionFilter" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500">
+                                <option value="all">כל האזורים בארץ</option>
+                                <option value="גבעתיים ורמת גן">גבעתיים ורמת גן</option>
+                                <option value="תל אביב והמרכז">תל אביב והמרכז</option>
+                                <option value="הרצליה והשרון">הרצליה והשרון</option>
+                                <option value="ראשון לציון והשפלה">ראשון לציון והשפלה</option>
+                                <option value="ירושלים והשפלה">ירושלים ומודיעין</option>
+                                <option value="חיפה והצפון">חיפה והצפון</option>
+                                <option value="באר שבע והדרום">באר שבע והדרום</option>
+                            </select>
+
+                            <!-- Category Filter Pills -->
+                            <div class="flex items-center gap-1 overflow-x-auto">
+                                <button type="button" @click="adminPartnerCategoryFilter = 'all'"
+                                        :class="adminPartnerCategoryFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 transition cursor-pointer">
+                                    הכל
+                                </button>
+                                <button type="button" @click="adminPartnerCategoryFilter = 'pilates'"
+                                        :class="adminPartnerCategoryFilter === 'pilates' ? 'bg-amber-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 transition cursor-pointer">
+                                    פילאטיס
+                                </button>
+                                <button type="button" @click="adminPartnerCategoryFilter = 'crossfit_functional'"
+                                        :class="adminPartnerCategoryFilter === 'crossfit_functional' ? 'bg-orange-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 transition cursor-pointer">
+                                    קרוספיט
+                                </button>
+                                <button type="button" @click="adminPartnerCategoryFilter = 'gym_boutique'"
+                                        :class="adminPartnerCategoryFilter === 'gym_boutique' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 transition cursor-pointer">
+                                    מכוני כושר
+                                </button>
+                                <button type="button" @click="adminPartnerCategoryFilter = 'dietitian'"
+                                        :class="adminPartnerCategoryFilter === 'dietitian' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 transition cursor-pointer">
+                                    דיאטניות
+                                </button>
+                                <button type="button" @click="adminPartnerCategoryFilter = 'trainer'"
+                                        :class="adminPartnerCategoryFilter === 'trainer' ? 'bg-purple-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'"
+                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-slate-200 transition cursor-pointer">
+                                    מאמנים
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 w-full md:w-auto">
-                        <input type="text" x-model="adminTelegramChatId" placeholder="הדבק Chat ID (למשל: 123456789)"
-                               class="px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-mono font-bold outline-none focus:border-indigo-500 flex-1 md:w-48">
-                        <button type="button" @click="saveAdminTelegramTarget()" :disabled="adminTelegramSaving"
-                                class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer flex-shrink-0">
-                            <span x-text="adminTelegramSaving ? 'שומר...' : 'שמור יעד'">שמור יעד</span>
-                        </button>
-                        <button type="button" @click="testAdminTelegramAlert()"
-                                class="px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold transition cursor-pointer flex-shrink-0"
-                                title="שלח הודעת בדיקה לטלגרם">
-                            ⚡ בדיקה
-                        </button>
-                    </div>
-                </div>
 
-                <!-- Leads Table / List -->
-                <div class="space-y-2">
-                    <div x-show="!adminLeads.length" class="text-center py-6 text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        טרם התקבלו לידים חדשים. כפתורי "אימון במתנה" ו"תוכנית מאמנים" זמינים למשתמשים באפליקציה!
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-2.5 max-h-96 overflow-y-auto">
-                        <template x-for="lead in adminLeads" :key="lead.id">
-                            <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 transition">
-                                <div class="flex items-center gap-3 min-w-0">
-                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                                         :class="lead.type === 'workout_trial' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'">
-                                        <span x-text="lead.type === 'workout_trial' ? '🎁' : '🤝'"></span>
+                    <!-- Partner Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[580px] overflow-y-auto pr-1">
+                        <template x-for="partner in filteredPartners" :key="partner.id">
+                            <div class="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-amber-400 hover:shadow-xs transition flex flex-col justify-between gap-3">
+                                <div class="space-y-2">
+                                    <!-- Badge & Rating -->
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-100 text-slate-700" x-text="partner.scale"></span>
+                                        <div class="flex items-center gap-1 text-[11px] font-extrabold text-amber-600">
+                                            <span>⭐</span>
+                                            <span x-text="partner.rating"></span>
+                                            <span class="text-slate-400 text-[10px]" x-text="`(${partner.reviews})`"></span>
+                                        </div>
                                     </div>
-                                    <div class="min-w-0">
-                                        <div class="flex items-center gap-2 flex-wrap">
-                                            <span class="font-extrabold text-sm text-slate-900" x-text="lead.full_name"></span>
-                                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold"
-                                                  :class="lead.type === 'workout_trial' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-indigo-50 text-indigo-800 border border-indigo-200'"
-                                                  x-text="lead.type === 'workout_trial' ? lead.activity_type : lead.role"></span>
-                                            <span class="text-[11px] text-slate-400" x-text="lead.city || lead.email"></span>
-                                        </div>
-                                        <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                            <span>📱 <strong class="text-slate-700" x-text="lead.phone"></strong></span>
+
+                                    <!-- Partner Name & Category -->
+                                    <div>
+                                        <h4 class="font-black text-sm text-slate-900" x-text="partner.name"></h4>
+                                        <div class="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                                            <span x-text="partner.category_label"></span>
                                             <span class="text-slate-300">•</span>
-                                            <span x-text="new Date(lead.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'})"></span>
+                                            <span class="text-[11px] text-slate-600 font-semibold" x-text="partner.city"></span>
                                         </div>
+                                    </div>
+
+                                    <!-- Address -->
+                                    <div class="text-[11px] text-slate-500 flex items-center gap-1">
+                                        <span>📍</span>
+                                        <span class="truncate" x-text="partner.address"></span>
+                                    </div>
+
+                                    <!-- Perk Highlight -->
+                                    <div class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 text-xs text-amber-950 font-bold flex items-center justify-between">
+                                        <span class="truncate" x-text="partner.perk"></span>
+                                        <span class="text-[10px] line-through text-slate-400 ml-1 flex-shrink-0" x-text="partner.original_price"></span>
+                                    </div>
+
+                                    <!-- Integration & Lead Potential Stats -->
+                                    <div class="flex items-center justify-between text-[10px] text-slate-500 font-bold pt-1 border-t border-slate-100">
+                                        <span class="text-emerald-700" x-text="partner.crm_status"></span>
+                                        <span class="text-indigo-700" x-text="`📈 ${partner.potential_leads}`"></span>
                                     </div>
                                 </div>
 
-                                <!-- WhatsApp 1-Tap Action Button -->
-                                <a :href="`https://wa.me/${(lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(lead.type === 'workout_trial' ? `היי ${lead.full_name}, קיבלתי את בקשתך לאימון ניסיון ב-${lead.activity_type} באזור ${lead.city} דרך NutriAgent. מתי נוח לתאם שיחה קצרה?` : `היי ${lead.full_name}, ראיתי שהגשת מועמדות לתוכנית המאמנים של NutriAgent (${lead.role}). נשמח לדבר!`)}`"
-                                   target="_blank"
-                                   class="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs flex-shrink-0 cursor-pointer">
-                                    <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
-                                    <span>פתח שיחת וואטסאפ</span>
-                                </a>
+                                <!-- Action Buttons -->
+                                <div class="space-y-1.5 pt-1">
+                                    <button type="button" @click="sendDemoLead(partner)" :disabled="demoDispatchingId === partner.id"
+                                            class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-2xs transition cursor-pointer">
+                                        <span x-show="demoDispatchingId !== partner.id">⚡ שגר ליד דמו לטלגרם</span>
+                                        <span x-show="demoDispatchingId === partner.id">משגר ליד לטלגרם...</span>
+                                    </button>
+                                    <div class="grid grid-cols-2 gap-1.5">
+                                        <button type="button" @click="openDemoVoucherModal(partner)"
+                                                class="py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-extrabold transition cursor-pointer text-center">
+                                            🎟️ שובר VIP
+                                        </button>
+                                        <button type="button" @click="copyPartnerPitch(partner)"
+                                                class="py-1.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-extrabold transition cursor-pointer text-center">
+                                            📋 העתק פנייה
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </template>
                     </div>
+                </div>
+
+                <!-- ================= TAB 2: INCOMING LEADS & TELEGRAM TARGET ================= -->
+                <div x-show="adminPartnerSubTab === 'leads'" class="space-y-4">
+                    <!-- Telegram Alert Configuration Bar -->
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5 w-full md:w-auto">
+                            <span class="text-2xl">✈️</span>
+                            <div>
+                                <span class="text-xs font-extrabold text-slate-900 block">יעד התראות מיידיות בטלגרם (Telegram Chat ID)</span>
+                                <span class="text-[11px] text-slate-500">שלח לבוט בטלגרם את הפקודה <code>/myid</code> כדי לקבל את המזהה שלך</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto">
+                            <input type="text" x-model="adminTelegramChatId" placeholder="הדבק Chat ID (למשל: 123456789)"
+                                   class="px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-mono font-bold outline-none focus:border-indigo-500 flex-1 md:w-48">
+                            <button type="button" @click="saveAdminTelegramTarget()" :disabled="adminTelegramSaving"
+                                    class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer flex-shrink-0">
+                                <span x-text="adminTelegramSaving ? 'שומר...' : 'שמור יעד'">שמור יעד</span>
+                            </button>
+                            <button type="button" @click="testAdminTelegramAlert()"
+                                    class="px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold transition cursor-pointer flex-shrink-0"
+                                    title="שלח הודעת בדיקה לטלגרם">
+                                ⚡ בדיקה
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Leads Table / List -->
+                    <div class="space-y-2">
+                        <div x-show="!adminLeads.length" class="text-center py-6 text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            טרם התקבלו לידים חדשים. כפתורי "אימון במתנה" ו"תוכנית מאמנים" זמינים למשתמשים באפליקציה!
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-2.5 max-h-96 overflow-y-auto">
+                            <template x-for="lead in adminLeads" :key="lead.id">
+                                <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 transition">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                                             :class="lead.type === 'workout_trial' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'">
+                                            <span x-text="lead.type === 'workout_trial' ? '🎁' : '🤝'"></span>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="font-extrabold text-sm text-slate-900" x-text="lead.full_name"></span>
+                                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold"
+                                                      :class="lead.type === 'workout_trial' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-indigo-50 text-indigo-800 border border-indigo-200'"
+                                                      x-text="lead.type === 'workout_trial' ? (lead.studio_name || lead.activity_type) : lead.role"></span>
+                                                <span class="text-[11px] text-slate-400" x-text="lead.city || lead.email"></span>
+                                                <span x-show="lead.voucher_code" class="text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-bold" x-text="lead.voucher_code"></span>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                                <span>📱 <strong class="text-slate-700" x-text="lead.phone"></strong></span>
+                                                <span class="text-slate-300">•</span>
+                                                <span x-text="new Date(lead.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'})"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- WhatsApp 1-Tap Action Button -->
+                                    <a :href="`https://wa.me/${(lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(lead.type === 'workout_trial' ? `היי ${lead.full_name}, קיבלתי את בקשתך לאימון ניסיון ב-${lead.studio_name || lead.activity_type} באזור ${lead.city} דרך NutriAgent. מתי נוח לתאם שיחה קצרה?` : `היי ${lead.full_name}, ראיתי שהגשת מועמדות לתוכנית המאמנים של NutriAgent (${lead.role}). נשמח לדבר!`)}`"
+                                       target="_blank"
+                                       class="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs flex-shrink-0 cursor-pointer">
+                                        <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
+                                        <span>פתח שיחת וואטסאפ</span>
+                                    </a>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Branded VIP Voucher Demo Preview -->
+            <div x-show="demoVoucherModalOpen" style="display: none;"
+                 class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+                <div @click.away="closeDemoVoucherModal()" class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 text-center">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <span class="text-xs font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">תצוגת שובר VIP מותג ללקוח</span>
+                        <button type="button" @click="closeDemoVoucherModal()" class="text-slate-400 hover:text-slate-700 text-lg cursor-pointer">✕</button>
+                    </div>
+
+                    <!-- Branded VIP Card Display -->
+                    <div class="p-5 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-slate-950 shadow-lg space-y-3 border-2 border-amber-300">
+                        <div class="flex items-center justify-between text-xs font-black tracking-wider text-slate-900/80">
+                            <span>VIP PARTNER PASS</span>
+                            <span>NUTRIAGENT AI</span>
+                        </div>
+                        <div class="space-y-1">
+                            <h3 class="text-xl font-black text-slate-950" x-text="activeDemoPartner?.name || 'שם הסטודיו'"></h3>
+                            <p class="text-xs font-bold text-slate-900" x-text="activeDemoPartner?.address"></p>
+                        </div>
+                        <div class="py-2.5 px-3 bg-white/90 backdrop-blur-xs rounded-xl shadow-xs">
+                            <span class="text-[11px] font-bold text-slate-500 block">הטבה בלעדית:</span>
+                            <span class="text-sm font-black text-emerald-800" x-text="activeDemoPartner?.perk"></span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs font-mono font-black pt-1 border-t border-slate-950/15">
+                            <span>קוד שובר: <strong>NUTRI-DEMO88</strong></span>
+                            <span>בתוקף ל-14 יום</span>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        כך נראה השובר שהמשתמש מקבל באפליקציה לאחר מענה על שאלון ההתאמה ונשלח ישירות לוואטסאפ של המכון שלכם.
+                    </p>
+
+                    <button type="button" @click="closeDemoVoucherModal()"
+                            class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer">
+                        סגור תצוגה
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal: Quick Custom Partner Creator -->
+            <div x-show="customDemoModalOpen" style="display: none;"
+                 class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+                <div @click.away="customDemoModalOpen = false" class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <h4 class="text-sm font-black text-slate-900">➕ הוסף סטודיו לדמו בלייב</h4>
+                        <button type="button" @click="customDemoModalOpen = false" class="text-slate-400 hover:text-slate-700 text-lg cursor-pointer">✕</button>
+                    </div>
+
+                    <div class="space-y-3 text-right">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">שם הסטודיו / המכון / המאמן:</label>
+                            <input type="text" x-model="customDemoForm.name" placeholder="למשל: סטודיו פילאטיס בוטיק כצנלסון"
+                                   class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">עיר / אזור בארץ:</label>
+                            <select x-model="customDemoForm.city" class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold outline-none">
+                                <option value="גבעתיים ורמת גן">גבעתיים ורמת גן</option>
+                                <option value="תל אביב והמרכז">תל אביב והמרכז</option>
+                                <option value="הרצליה והשרון">הרצליה והשרון</option>
+                                <option value="ראשון לציון והשפלה">ראשון לציון והשפלה</option>
+                                <option value="ירושלים והשפלה">ירושלים ומודיעין</option>
+                                <option value="חיפה והצפון">חיפה והצפון</option>
+                                <option value="באר שבע והדרום">באר שבע והדרום</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">תחום פעילות:</label>
+                            <select x-model="customDemoForm.category" class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold outline-none">
+                                <option value="pilates">פילאטיס מכשירים בוטיק</option>
+                                <option value="crossfit_functional">קרוספיט ואימון פונקציונלי</option>
+                                <option value="gym_boutique">מכון כושר בוטיק</option>
+                                <option value="dietitian">דיאטנית קלינית (B.Sc)</option>
+                                <option value="trainer">מאמן/ת כושר אישי/ת</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">הטבת אימון ניסיון (Voucher Perk):</label>
+                            <input type="text" x-model="customDemoForm.perk" placeholder="למשל: אימון ניסיון במתנה (חינם ללא עלות)"
+                                   class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <button type="button" @click="submitCustomDemoLead()"
+                            class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 text-slate-950 font-black text-xs transition cursor-pointer shadow-xs">
+                        🚀 הוסף ושגר מיד ליד דמו לטלגרם
+                    </button>
                 </div>
             </div>
 
@@ -7326,113 +7582,189 @@
                 selectedExpertTab: 'dietitian',
                 selectedExpertRegion: 'הכל (כולל אונליין)',
                 expertsList: [
-                    // Dietitians
                     {
-                        id: 'd1',
-                        type: 'dietitian',
-                        name: 'עדי מזרחי',
-                        title: 'דיאטנית קלינית B.Sc',
-                        avatar: '👩‍⚕️',
-                        specialty: 'תזונת ספורטאים, חיטוב והורדת אחוזי שומן',
-                        location: 'תל אביב והמרכז + אונליין בזום',
-                        region: 'תל אביב והמרכז',
-                        rating: '4.95',
-                        reviews: 42,
-                        perk: "שיחת אבחון 15 דקות ללא עלות"
+                                        "id": "pt_diet_adi_mizrahi",
+                                        "type": "dietitian",
+                                        "name": "עדי מזרחי (B.Sc)",
+                                        "title": "דיאטנית קלינית B.Sc",
+                                        "avatar": "👩‍⚕️",
+                                        "specialty": "מומחית לתזונת ספורטאים, חיטוב והורדת אחוזי שומן בצורה מדעית",
+                                        "location": "ויצמן 14, תל אביב + אונליין זום (תל אביב והמרכז)",
+                                        "region": "תל אביב והמרכז",
+                                        "rating": "4.98",
+                                        "reviews": 62,
+                                        "perk": "שיחת אבחון 15 דקות ללא עלות"
                     },
                     {
-                        id: 'd2',
-                        type: 'dietitian',
-                        name: "מיכל ברקוביץ'",
-                        title: 'תזונאית קלינית B.Sc',
-                        avatar: '🥗',
-                        specialty: 'איזון מעיים, ירידה מתונה במשקל והרגלי אכילה',
-                        location: 'הרצליה והשרון + קליניקה פרטית',
-                        region: 'השרון',
-                        rating: '4.98',
-                        reviews: 58,
-                        perk: '₪70 הנחה לפגישת ייעוץ ראשונה'
+                                        "id": "pt_diet_yair_lahav",
+                                        "type": "dietitian",
+                                        "name": "ד\"ר יאיר להב (PhD)",
+                                        "title": "פיזיולוג מאמץ ותזונאי קליני",
+                                        "avatar": "🥗",
+                                        "specialty": "מבכירי התזונאים ופיזיולוגי המאמץ בישראל עם מעבדת מטבוליזם מתקדמת",
+                                        "location": "מרכז רפואי רמת אביב, תל אביב (תל אביב והמרכז)",
+                                        "region": "תל אביב והמרכז",
+                                        "rating": "4.99",
+                                        "reviews": 135,
+                                        "perk": "₪100 הנחה לבדיקת חילוף חומרים וייעוץ"
                     },
                     {
-                        id: 'd3',
-                        type: 'dietitian',
-                        name: 'תומר גולן',
-                        title: 'תזונאי ספורט מוסמך',
-                        avatar: '🥑',
-                        specialty: 'עליית מסת שריר, פיתוח גוף ותזונה קטוגנית',
-                        location: 'ראשון לציון והשפלה + ליווי וואטסאפ',
-                        region: 'ירושלים והשפלה',
-                        rating: '4.92',
-                        reviews: 31,
-                        perk: 'שיחת התאמת מטרות חינם'
+                                        "id": "pt_diet_shiran_bendler",
+                                        "type": "dietitian",
+                                        "name": "שירן בנדלר (B.Sc)",
+                                        "title": "דיאטנית קלינית B.Sc",
+                                        "avatar": "👩‍⚕️",
+                                        "specialty": "שינוי הרגלי אכילה, ירידה בריאה במשקל ומניעת אכילה רגשית",
+                                        "location": "שדרות רוטשילד, תל אביב + אונליין (תל אביב והמרכז)",
+                                        "region": "תל אביב והמרכז",
+                                        "rating": "4.96",
+                                        "reviews": 54,
+                                        "perk": "שאלון אבחון תזונתי + שיחת התאמה חינם"
                     },
                     {
-                        id: 'd4',
-                        type: 'dietitian',
-                        name: 'שירלי אהרוני',
-                        title: 'דיאטנית קלינית B.Sc',
-                        avatar: '🌿',
-                        specialty: 'תזונה צמחונית/טבעונית, איזון סוכר ובדיקות דם',
-                        location: 'חיפה והצפון + פגישות זום',
-                        region: 'חיפה והצפון',
-                        rating: '4.94',
-                        reviews: 27,
-                        perk: 'שיחת אבחון טלפונית חינם'
-                    },
-                    // Trainers
-                    {
-                        id: 't1',
-                        type: 'trainer',
-                        name: 'רועי אלבז',
-                        title: 'מאמן כושר ו-CrossFit L2',
-                        avatar: '🏋️‍♂️',
-                        specialty: 'אימונים פונקציונליים, כוח מרבי והורדת שומן',
-                        location: 'תל אביב / סטודיו רמת גן',
-                        region: 'תל אביב והמרכז',
-                        rating: '4.97',
-                        reviews: 64,
-                        perk: 'אימון אישי ראשון ב-50% הנחה'
+                                        "id": "pt_diet_michal_berkovich",
+                                        "type": "dietitian",
+                                        "name": "מיכל ברקוביץ' (B.Sc)",
+                                        "title": "תזונאית קלינית B.Sc",
+                                        "avatar": "👩‍⚕️",
+                                        "specialty": "איזון מעיים (FODMAP), ירידה מתונה במשקל ובריאות מערכת העיכול",
+                                        "location": "סוקולוב, הרצליה + קליניקה פרטית (הרצליה והשרון)",
+                                        "region": "הרצליה והשרון",
+                                        "rating": "4.98",
+                                        "reviews": 58,
+                                        "perk": "₪70 הנחה לפגישת ייעוץ ראשונה"
                     },
                     {
-                        id: 't2',
-                        type: 'trainer',
-                        name: 'נועה קורן',
-                        title: 'מדריכת פילאטיס מכשירים',
-                        avatar: '🧘‍♀️',
-                        specialty: 'פילאטיס מכשירים שיקומי וחיזוק שרירי ליבה',
-                        location: 'כפר סבא ורעננה (השרון)',
-                        region: 'השרון',
-                        rating: '4.99',
-                        reviews: 52,
-                        perk: 'שיעור היכרות 1-על-1 חינם'
+                                        "id": "pt_diet_tzachi_knaan",
+                                        "type": "dietitian",
+                                        "name": "ד\"ר צחי כנען (B.Sc)",
+                                        "title": "דיאטן קליני מומחה",
+                                        "avatar": "🥗",
+                                        "specialty": "דיאטן ספורט בכיר ומנהל פורומים רפואיים מובילים",
+                                        "location": "אחוזה, רעננה + ייעוץ מקוון (הרצליה והשרון)",
+                                        "region": "הרצליה והשרון",
+                                        "rating": "4.97",
+                                        "reviews": 78,
+                                        "perk": "שיחת ייעוץ והתאמת תוכנית ראשונה"
                     },
                     {
-                        id: 't3',
-                        type: 'trainer',
-                        name: 'יונתן שטרן',
-                        title: 'מאמן כושר והיפרטרופיה',
-                        avatar: '💪',
-                        specialty: 'בניית מסת שריר בחדר כושר וטכניקת תרגילים',
-                        location: 'חיפה והקריות',
-                        region: 'חיפה והצפון',
-                        rating: '4.91',
-                        reviews: 29,
-                        perk: 'בניית תוכנית אימונים אישית חינם'
+                                        "id": "pt_diet_chen_yaar",
+                                        "type": "dietitian",
+                                        "name": "חן יער (B.Sc)",
+                                        "title": "דיאטנית קלינית ספורט",
+                                        "avatar": "👩‍⚕️",
+                                        "specialty": "ליווי צמוד למתאמנים בספורט פונקציונלי, פילאטיס וריצה",
+                                        "location": "כצנלסון, גבעתיים + זום (גבעתיים ורמת גן)",
+                                        "region": "גבעתיים ורמת גן",
+                                        "rating": "4.94",
+                                        "reviews": 43,
+                                        "perk": "בדיקת יומן תזונה שבועי חינם"
                     },
                     {
-                        id: 't4',
-                        type: 'trainer',
-                        name: 'דניאל כץ',
-                        title: 'מאמן ריצה וסיבולת',
-                        avatar: '🏃‍♂️',
-                        specialty: 'אימוני ריצה, שיפור סיבולת לב-ריאה ומרתון',
-                        location: 'ירושלים והסביבה + אונליין',
-                        region: 'ירושלים והשפלה',
-                        rating: '4.96',
-                        reviews: 35,
-                        perk: 'שיחת תכנון שבוע אימונים חינם'
+                                        "id": "pt_diet_tomer_golan",
+                                        "type": "dietitian",
+                                        "name": "תומר גולן",
+                                        "title": "תזונאי ספורט מוסמך",
+                                        "avatar": "🥗",
+                                        "specialty": "עליית מסת שריר נקייה, פיתוח גוף ותזונה עתירת חלבון",
+                                        "location": "רוטשילד, ראשון לציון + וואטסאפ (ראשון לציון והשפלה)",
+                                        "region": "ראשון לציון והשפלה",
+                                        "rating": "4.92",
+                                        "reviews": 38,
+                                        "perk": "שיחת התאמת מטרות ותפריט ראשוני חינם"
+                    },
+                    {
+                                        "id": "pt_diet_shirley_aharoni",
+                                        "type": "dietitian",
+                                        "name": "שירלי אהרוני (B.Sc)",
+                                        "title": "דיאטנית קלינית B.Sc",
+                                        "avatar": "👩‍⚕️",
+                                        "specialty": "תזונה צמחונית/טבעונית, איזון בדיקות דם וכולסטרול",
+                                        "location": "שדרות הנשיא, חיפה + פגישות זום (חיפה והצפון)",
+                                        "region": "חיפה והצפון",
+                                        "rating": "4.95",
+                                        "reviews": 34,
+                                        "perk": "שיחת אבחון 15 דקות חינם"
+                    },
+                    {
+                                        "id": "pt_coach_ira_dolphin",
+                                        "type": "trainer",
+                                        "name": "אירה דולפין (Pink Room)",
+                                        "title": "מאמנת כושר ובוטיק נשי",
+                                        "avatar": "🧘‍♀️",
+                                        "specialty": "אימוני כושר וחיטוב נשיים מהמובילים בתל אביב באווירה ייחודית",
+                                        "location": "הירקון 140, תל אביב (תל אביב והמרכז)",
+                                        "region": "תל אביב והמרכז",
+                                        "rating": "4.98",
+                                        "reviews": 110,
+                                        "perk": "אימון אישי ראשון ב-50% הנחה"
+                    },
+                    {
+                                        "id": "pt_coach_roei_elbaz",
+                                        "type": "trainer",
+                                        "name": "רועי אלבז",
+                                        "title": "מאמן כושר ו-CrossFit L2",
+                                        "avatar": "🏋️‍♂️",
+                                        "specialty": "אימונים פונקציונליים, כוח מרבי והורדת אחוזי שומן",
+                                        "location": "תל אביב ורמת גן (אימוני שטח וסטודיו) (תל אביב והמרכז)",
+                                        "region": "תל אביב והמרכז",
+                                        "rating": "4.97",
+                                        "reviews": 64,
+                                        "perk": "אימון אישי ראשון ב-50% הנחה"
+                    },
+                    {
+                                        "id": "pt_coach_noa_koren",
+                                        "type": "trainer",
+                                        "name": "נועה קורן",
+                                        "title": "מדריכת פילאטיס ומאמנת כושר",
+                                        "avatar": "🧘‍♀️",
+                                        "specialty": "פילאטיס מכשירים שיקומי, חיזוק שרירי ליבה ויציבה נכונה",
+                                        "location": "כפר סבא ורעננה (קליניקה ובית הלקוח) (הרצליה והשרון)",
+                                        "region": "הרצליה והשרון",
+                                        "rating": "4.99",
+                                        "reviews": 52,
+                                        "perk": "שיעור היכרות 1-על-1 חינם"
+                    },
+                    {
+                                        "id": "pt_coach_yonatan_stern",
+                                        "type": "trainer",
+                                        "name": "יונתן שטרן",
+                                        "title": "מאמן כושר וקליסטניקס",
+                                        "avatar": "🏋️‍♂️",
+                                        "specialty": "שליטה במשקל גוף, קליסטניקס ופיתוח גוף טבעי",
+                                        "location": "הרצליה וגליל ים (הרצליה והשרון)",
+                                        "region": "הרצליה והשרון",
+                                        "rating": "4.93",
+                                        "reviews": 41,
+                                        "perk": "בניית תוכנית אימונים אישית חינם"
+                    },
+                    {
+                                        "id": "pt_coach_daniel_katz",
+                                        "type": "trainer",
+                                        "name": "דניאל כץ",
+                                        "title": "מאמן כוח והיפרטרופיה",
+                                        "avatar": "🏋️‍♂️",
+                                        "specialty": "בניית מסת שריר, טכניקת תרגילים מורכבים וסרגל עומסים חכם",
+                                        "location": "רמת גן וגבעתיים (קולוסאום ואימונים אישיים) (גבעתיים ורמת גן)",
+                                        "region": "גבעתיים ורמת גן",
+                                        "rating": "4.94",
+                                        "reviews": 37,
+                                        "perk": "שיחת תכנון סרגל מאמצים חינם"
+                    },
+                    {
+                                        "id": "pt_coach_itai_aharonson",
+                                        "type": "trainer",
+                                        "name": "איתי אהרונסון",
+                                        "title": "מאמן שיקום ספורט ופונקציונלי",
+                                        "avatar": "🏋️‍♂️",
+                                        "specialty": "חזרה מפציעות ספורט, שיקום ברכיים וגב וחיזוק פונקציונלי",
+                                        "location": "ראשון לציון, חולון ובת ים (ראשון לציון והשפלה)",
+                                        "region": "ראשון לציון והשפלה",
+                                        "rating": "4.95",
+                                        "reviews": 46,
+                                        "perk": "אבחון טווחי תנועה ויציבה חינם"
                     }
-                ],
+],
                 trialWorkoutForm: {
                     full_name: '',
                     phone: '',
@@ -7461,6 +7793,855 @@
                 adminLeads: [],
                 adminTelegramChatId: '604190384',
                 adminTelegramSaving: false,
+                adminPartnerSubTab: 'demo_partners', // 'leads' or 'demo_partners'
+                adminPartnerCategoryFilter: 'all',
+                adminPartnerRegionFilter: 'all',
+                adminPartnerSearchQuery: '',
+                demoDispatchingId: null,
+                demoVoucherModalOpen: false,
+                activeDemoPartner: null,
+                customDemoModalOpen: false,
+                customDemoForm: {
+                    name: '',
+                    city: 'גבעתיים ורמת גן',
+                    category: 'pilates',
+                    perk: 'אימון ניסיון במתנה (חינם ללא עלות)',
+                    scale: 'סטודיו בוטיק (SMB)'
+                },
+                partnerDirectory: [
+                    {
+                                        "id": "pt_iam_pilates",
+                                        "name": "I AM PILATES",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "גבעתיים ורמת גן",
+                                        "address": "כצנלסון 112, גבעתיים",
+                                        "perk": "אימון ניסיון במתנה (חינם ללא עלות)",
+                                        "original_price": "₪120",
+                                        "rating": "4.97",
+                                        "reviews": 68,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-40 מתעניינים/חודש",
+                                        "pitch_hook": "אימוני מכשירים אינטימיים בקבוצות קטנות, חיטוב ושיקום ליבה בגבעתיים"
+                    },
+                    {
+                                        "id": "pt_studio_259",
+                                        "name": "סטודיו 259 פילאטיס",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "גבעתיים ורמת גן",
+                                        "address": "שדרות בן גוריון 259, רמת גן",
+                                        "perk": "אימון ניסיון ב-₪35 בלבד + 15% לכרטיסייה",
+                                        "original_price": "₪110",
+                                        "rating": "4.93",
+                                        "reviews": 54,
+                                        "crm_status": "WhatsApp / Arbox ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו מכשירים אינטימי ומדויק על ציר בן גוריון רמת גן"
+                    },
+                    {
+                                        "id": "pt_pilates_boutique_rg",
+                                        "name": "Pilates Boutique רמת גן",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "גבעתיים ורמת גן",
+                                        "address": "ביאליק 45, רמת גן",
+                                        "perk": "1+1 אימון היכרות זוגי מתנה",
+                                        "original_price": "₪180",
+                                        "rating": "4.90",
+                                        "reviews": 42,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "15-30 מתעניינים/חודש",
+                                        "pitch_hook": "מתחם בוטיק מרווח לשיקום, יציבה וחיטוב בלב ביאליק רמת גן"
+                    },
+                    {
+                                        "id": "pt_studio_balance",
+                                        "name": "Studio Balance פילאטיס",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "שדרות מסריק 14, כיכר מסריק תל אביב",
+                                        "perk": "אימון ניסיון במתנה (חינם ללא עלות)",
+                                        "original_price": "₪130",
+                                        "rating": "4.96",
+                                        "reviews": 89,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "35-50 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו בוטיק מעוצב ואינטימי מול כיכר מסריק תל אביב"
+                    },
+                    {
+                                        "id": "pt_boost_reformer_tlv",
+                                        "name": "Boost Reformer VIP",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "רשת בוטיק פרימיום",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "דיזנגוף 180 / רוטשילד, תל אביב",
+                                        "perk": "שיעור היכרות ב-₪39 בלבד (במקום ₪120)",
+                                        "original_price": "₪120",
+                                        "rating": "4.94",
+                                        "reviews": 112,
+                                        "crm_status": "Arbox / CRM Ready ⚡",
+                                        "potential_leads": "40-60 מתעניינים/חודש",
+                                        "pitch_hook": "אימוני רפורמר דינמיים בקצב גבוה במיקומים הכי שווים בתל אביב"
+                    },
+                    {
+                                        "id": "pt_feel_studio",
+                                        "name": "Feel Studio פילאטיס ויוגה",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "בן יהודה 76, תל אביב",
+                                        "perk": "כניסת התנסות מתנה לשיעור רפורמר",
+                                        "original_price": "₪115",
+                                        "rating": "4.91",
+                                        "reviews": 47,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "אווירה שקטה ומדריכות מוסמכות להארכת שרירים וגמישות"
+                    },
+                    {
+                                        "id": "pt_flybox_pilates",
+                                        "name": "Flybox Pilates פלורנטין",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "פלורנטין 22, דרום תל אביב",
+                                        "perk": "אימון ניסיון ב-₪30 בלבד",
+                                        "original_price": "₪95",
+                                        "rating": "4.92",
+                                        "reviews": 63,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-45 מתעניינים/חודש",
+                                        "pitch_hook": "אנרגיה צעירה, מוזיקה מעולה ואימוני כוח ליבה בפלורנטין"
+                    },
+                    {
+                                        "id": "pt_the_pilates_lab",
+                                        "name": "The Pilates Lab שרונה",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "אחד העם 36 / שרונה, תל אביב",
+                                        "perk": "אימון היכרות 1-על-1 ב-₪49",
+                                        "original_price": "₪140",
+                                        "rating": "4.95",
+                                        "reviews": 51,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "בוטיק מדויק לאימוני רפורמר מותאמים אישית ושיקום יציבה"
+                    },
+                    {
+                                        "id": "pt_anastasiya_pilates",
+                                        "name": "Anastasiya Pilates רעננה",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "אחוזה 198, רעננה",
+                                        "perk": "אימון ניסיון במתנה (חינם ללא עלות)",
+                                        "original_price": "₪120",
+                                        "rating": "4.98",
+                                        "reviews": 76,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-40 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו פילאטיס מכשירים מוביל ברעננה עם יחס אישי לכל מתאמן"
+                    },
+                    {
+                                        "id": "pt_boost_herzliya",
+                                        "name": "בוסט פילאטיס הרצליה פיתוח",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "בוטיק פרימיום",
+                                        "city": "הרצליה והשרון",
+                                        "address": "משכית 27, הרצליה פיתוח",
+                                        "perk": "אימון ניסיון ב-₪45 בלבד",
+                                        "original_price": "₪130",
+                                        "rating": "4.95",
+                                        "reviews": 82,
+                                        "crm_status": "Arbox / Webhook ⚡",
+                                        "potential_leads": "30-45 מתעניינים/חודש",
+                                        "pitch_hook": "מתחם אימונים אקסקלוסיבי לקהל ההייטק והתושבים בהרצליה פיתוח"
+                    },
+                    {
+                                        "id": "pt_pure_pilates_kfs",
+                                        "name": "Pure Pilates כפר סבא",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "ויצמן 74, כפר סבא",
+                                        "perk": "כרטיסיית ניסיון 2 שיעורים ב-₪99",
+                                        "original_price": "₪220",
+                                        "rating": "4.91",
+                                        "reviews": 59,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו מרווח ומואר בלב כפר סבא עם דגש על שיקום גב וברכיים"
+                    },
+                    {
+                                        "id": "pt_studio_core_hod",
+                                        "name": "Studio Core הוד השרון",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "סוקולוב 12, הוד השרון",
+                                        "perk": "אימון ראשון מתנה בהצגת שובר",
+                                        "original_price": "₪110",
+                                        "rating": "4.90",
+                                        "reviews": 44,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-30 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו בוטיק קהילתי חם ומקצועי בלב הוד השרון"
+                    },
+                    {
+                                        "id": "pt_maitiez_rishon",
+                                        "name": "Maitiez Pilates Room",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "ראשון לציון והשפלה",
+                                        "address": "קניון שער ראשון, ראשון לציון",
+                                        "perk": "אימון ניסיון במתנה (חינם ללא עלות)",
+                                        "original_price": "₪120",
+                                        "rating": "4.96",
+                                        "reviews": 71,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "30-50 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו מכשירים יוקרתי בשער ראשון עם מכשירי רפורמר מתקדמים"
+                    },
+                    {
+                                        "id": "pt_lotus_holon",
+                                        "name": "לוטוס פילאטיס חולון",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "ראשון לציון והשפלה",
+                                        "address": "סוקולוב 88, חולון",
+                                        "perk": "אימון היכרות ב-₪35 בלבד",
+                                        "original_price": "₪100",
+                                        "rating": "4.89",
+                                        "reviews": 48,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו שכונתי חם ואהוב במרכז חולון"
+                    },
+                    {
+                                        "id": "pt_pure_reformer_nz",
+                                        "name": "Pure Reformer נס ציונה",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "ראשון לציון והשפלה",
+                                        "address": "הפטיש 6, נס ציונה",
+                                        "perk": "אימון ראשון מתנה בהצגת שובר",
+                                        "original_price": "₪115",
+                                        "rating": "4.93",
+                                        "reviews": 52,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "מתחם פילאטיס חדשני ומאובזר בנס ציונה ורחובות"
+                    },
+                    {
+                                        "id": "pt_pilates_rehavia",
+                                        "name": "פילאטיס רחביה ירושלים",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "ירושלים והשפלה",
+                                        "address": "עזה 22, רחביה, ירושלים",
+                                        "perk": "אימון היכרות 1-על-1 ב-50% הנחה",
+                                        "original_price": "₪200",
+                                        "rating": "4.97",
+                                        "reviews": 61,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו בוטיק אינטימי ברחביה לחיטוב, יציבה והתאמה אישית"
+                    },
+                    {
+                                        "id": "pt_studio_in_modiin",
+                                        "name": "Studio In מודיעין",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "ירושלים והשפלה",
+                                        "address": "עמק בית שאן, מודיעין",
+                                        "perk": "אימון ניסיון במתנה (חינם ללא עלות)",
+                                        "original_price": "₪110",
+                                        "rating": "4.92",
+                                        "reviews": 46,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו מכשירים קהילתי ומזמין במודיעין"
+                    },
+                    {
+                                        "id": "pt_naim_carmel",
+                                        "name": "סטודיו נעים כרמל חיפה",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים ויוגה",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "חיפה והצפון",
+                                        "address": "שדרות מוריה 55, מרכז הכרמל חיפה",
+                                        "perk": "כניסה ראשונה חינם לשיעור רפורמר",
+                                        "original_price": "₪110",
+                                        "rating": "4.94",
+                                        "reviews": 69,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-40 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו מואר ונעים על רכס הכרמל עם נוף ושיעורים ברמה גבוהה"
+                    },
+                    {
+                                        "id": "pt_lola_krayot",
+                                        "name": "Lola Pilates קריות",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "חיפה והצפון",
+                                        "address": "גוש גושן 30, קריית מוצקין",
+                                        "perk": "אימון ניסיון במתנה (חינם ללא עלות)",
+                                        "original_price": "₪105",
+                                        "rating": "4.93",
+                                        "reviews": 56,
+                                        "crm_status": "WhatsApp / Arbox ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו בוטיק אהוב ומבוקש בקריות"
+                    },
+                    {
+                                        "id": "pt_reform_bgu",
+                                        "name": "Studio Reform באר שבע",
+                                        "category": "pilates",
+                                        "category_label": "פילאטיס מכשירים בוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "באר שבע והדרום",
+                                        "address": "רינגלבלום 8, באר שבע",
+                                        "perk": "אימון היכרות מתנה לסטודנטים ותושבי הדרום",
+                                        "original_price": "₪100",
+                                        "rating": "4.95",
+                                        "reviews": 58,
+                                        "crm_status": "WhatsApp / Arbox ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "סטודיו מכשירים צעיר ותוסס סמוך לאוניברסיטת בן גוריון"
+                    },
+                    {
+                                        "id": "pt_crossfit_tlv",
+                                        "name": "CrossFit TLV",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "מועדון פרימיום מוביל",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "קרליבך 14, תל אביב",
+                                        "perk": "אימון יסודות On-Ramp ראשון מתנה",
+                                        "original_price": "₪120",
+                                        "rating": "4.98",
+                                        "reviews": 142,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "40-70 מתעניינים/חודש",
+                                        "pitch_hook": "מועדון הקרוספיט הוותיק והמקצועי ביותר בישראל"
+                    },
+                    {
+                                        "id": "pt_crossfit_white_city",
+                                        "name": "CrossFit White City",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "יגאל אלון 126, תל אביב",
+                                        "perk": "שבוע היכרות מלא ב-₪59 בלבד",
+                                        "original_price": "₪180",
+                                        "rating": "4.92",
+                                        "reviews": 84,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "30-50 מתעניינים/חודש",
+                                        "pitch_hook": "קהילת קרוספיט מגובשת בנחלת יצחק ומזרח תל אביב"
+                    },
+                    {
+                                        "id": "pt_f45_namal_tlv",
+                                        "name": "F45 Training נמל תל אביב",
+                                        "category": "crossfit_functional",
+                                        "category_label": "אימון פונקציונלי קבוצתי",
+                                        "scale": "רשת בינלאומית",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "יורדי הסירה 1, נמל תל אביב",
+                                        "perk": "שבוע התנסות VIP ב-₪79 (במקום ₪250)",
+                                        "original_price": "₪250",
+                                        "rating": "4.90",
+                                        "reviews": 96,
+                                        "crm_status": "CRM / Webhook ⚡",
+                                        "potential_leads": "35-60 מתעניינים/חודש",
+                                        "pitch_hook": "אימוני HIIT פונקציונליים מדודים בטכנולוגיית דופק מול הים"
+                    },
+                    {
+                                        "id": "pt_the_box_rg",
+                                        "name": "The Box רמת גן",
+                                        "category": "crossfit_functional",
+                                        "category_label": "אימון פונקציונלי וקרוספיט",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "גבעתיים ורמת גן",
+                                        "address": "ז'בוטינסקי 138, רמת גן",
+                                        "perk": "אימון ניסיון מתנה (חינם ללא עלות)",
+                                        "original_price": "₪100",
+                                        "rating": "4.95",
+                                        "reviews": 63,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-45 מתעניינים/חודש",
+                                        "pitch_hook": "בוקס פונקציונלי שכונתי איכותי ומזמין לכל רמות הכושר"
+                    },
+                    {
+                                        "id": "pt_crossfit_givatayim",
+                                        "name": "CrossFit Givatayim",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "גבעתיים ורמת גן",
+                                        "address": "דרך השלום, גבעתיים",
+                                        "perk": "אימון ראשון מתנה + פגישת יעדים",
+                                        "original_price": "₪110",
+                                        "rating": "4.91",
+                                        "reviews": 55,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "קהילת כושר ביתית וחמה בגבעתיים עם מאמנים מוסמכים"
+                    },
+                    {
+                                        "id": "pt_crossfit_kfs",
+                                        "name": "CrossFit כפר סבא",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "עתיר ידע 15, כפר סבא",
+                                        "perk": "אימון יסודות On-Ramp ראשון מתנה",
+                                        "original_price": "₪110",
+                                        "rating": "4.97",
+                                        "reviews": 88,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "30-50 מתעניינים/חודש",
+                                        "pitch_hook": "בוקס קרוספיט ותיק ועטור שבחים בשרון עם ציוד מקצועי מלא"
+                    },
+                    {
+                                        "id": "pt_crossfit_09_raanana",
+                                        "name": "CrossFit 09 רעננה",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "מועדון בינוני (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "התעשייה 8, רעננה",
+                                        "perk": "שבוע כניסה חופשית ב-₪69 בלבד",
+                                        "original_price": "₪190",
+                                        "rating": "4.93",
+                                        "reviews": 74,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-45 מתעניינים/חודש",
+                                        "pitch_hook": "מועדון פונקציונלי מוביל ברעננה לאימוני כוח, סיבולת והרמת משקולות"
+                    },
+                    {
+                                        "id": "pt_ar_training_herzliya",
+                                        "name": "AR Functional Training",
+                                        "category": "crossfit_functional",
+                                        "category_label": "אימון פונקציונלי ובוטיק",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "קיבוץ גליל ים / הרצליה",
+                                        "perk": "אימון היכרות ראשון חינם",
+                                        "original_price": "₪100",
+                                        "rating": "4.96",
+                                        "reviews": 57,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "אימונים פונקציונליים באוויר הפתוח ובסטודיו בגליל ים"
+                    },
+                    {
+                                        "id": "pt_crossfit_rishon",
+                                        "name": "CrossFit Rishon-City",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "מועדון בינוני (SMB)",
+                                        "city": "ראשון לציון והשפלה",
+                                        "address": "יוסף לישנסקי 18, ראשון לציון",
+                                        "perk": "אימון פונקציונלי מתנה בהצגת שובר",
+                                        "original_price": "₪100",
+                                        "rating": "4.94",
+                                        "reviews": 92,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "30-55 מתעניינים/חודש",
+                                        "pitch_hook": "בוקס ענק ומקצועי באזור התעשייה החדש בראשל\"צ"
+                    },
+                    {
+                                        "id": "pt_fburn_holon",
+                                        "name": "סטודיו F-Burn חולון",
+                                        "category": "crossfit_functional",
+                                        "category_label": "אימון פונקציונלי ו-HIIT",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "ראשון לציון והשפלה",
+                                        "address": "המשביר 12, א.ת. חולון",
+                                        "perk": "אימון HIIT ודופק ראשון חינם",
+                                        "original_price": "₪90",
+                                        "rating": "4.90",
+                                        "reviews": 61,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "25-40 מתעניינים/חודש",
+                                        "pitch_hook": "אימוני שריפת שומן בקבוצות קטנות ואנרגיה מטורפת"
+                    },
+                    {
+                                        "id": "pt_crossfit_jerusalem",
+                                        "name": "CrossFit Jerusalem",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "מועדון בוטיק (SMB)",
+                                        "city": "ירושלים והשפלה",
+                                        "address": "דרך בית לחם 34, בקעה, ירושלים",
+                                        "perk": "אימון יסודות ראשון מתנה",
+                                        "original_price": "₪110",
+                                        "rating": "4.96",
+                                        "reviews": 79,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-45 מתעניינים/חודש",
+                                        "pitch_hook": "קהילת קרוספיט בינלאומית ומקומית מגובשת בירושלים"
+                    },
+                    {
+                                        "id": "pt_crossfit_haifa",
+                                        "name": "CrossFit Haifa",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "מועדון בינוני (SMB)",
+                                        "city": "חיפה והצפון",
+                                        "address": "רחוב הנמל 40, עיר תחתית חיפה",
+                                        "perk": "אימון ניסיון ראשון במתנה",
+                                        "original_price": "₪100",
+                                        "rating": "4.95",
+                                        "reviews": 83,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-45 מתעניינים/חודש",
+                                        "pitch_hook": "בוקס קרוספיט ייחודי ודינמי בלב מתחם הנמל בעיר התחתית חיפה"
+                    },
+                    {
+                                        "id": "pt_crossfit_south_bgu",
+                                        "name": "CrossFit South באר שבע",
+                                        "category": "crossfit_functional",
+                                        "category_label": "קרוספיט ואימון פונקציונלי",
+                                        "scale": "מועדון בינוני (SMB)",
+                                        "city": "באר שבע והדרום",
+                                        "address": "הפועלים 9, עמק שרה, באר שבע",
+                                        "perk": "אימון התנסות חינם ללא עלות",
+                                        "original_price": "₪95",
+                                        "rating": "4.94",
+                                        "reviews": 68,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-40 מתעניינים/חודש",
+                                        "pitch_hook": "מועדון הקרוספיט המרכזי והגדול בדרום עם מאמנים מוסמכים"
+                    },
+                    {
+                                        "id": "pt_urban_fitness",
+                                        "name": "Urban Fitness Club",
+                                        "category": "gym_boutique",
+                                        "category_label": "מכון כושר בוטיק אורבני",
+                                        "scale": "מכון בוטיק (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "ארלוזורוב 115, תל אביב",
+                                        "perk": "כניסה חד-יומית מתנה + פגישת מאמן אישי",
+                                        "original_price": "₪100",
+                                        "rating": "4.94",
+                                        "reviews": 120,
+                                        "crm_status": "Arbox / Webhook ⚡",
+                                        "potential_leads": "35-60 מתעניינים/חודש",
+                                        "pitch_hook": "מועדון כושר אורבני שכונתי עם ציוד פרימיום ואווירה אישית"
+                    },
+                    {
+                                        "id": "pt_colosseum_rg",
+                                        "name": "קולוסאום מועדון כושר רמת גן",
+                                        "category": "gym_boutique",
+                                        "category_label": "מכון כושר שכונתי",
+                                        "scale": "מועדון עצמאי (SMB)",
+                                        "city": "גבעתיים ורמת גן",
+                                        "address": "קריניצי 22, רמת גן",
+                                        "perk": "שבוע היכרות מלא ב-₪49 בלבד",
+                                        "original_price": "₪150",
+                                        "rating": "4.88",
+                                        "reviews": 65,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-35 מתעניינים/חודש",
+                                        "pitch_hook": "מועדון כושר ותיק ואהוב בלב רמת גן עם מדריכים מנוסים"
+                    },
+                    {
+                                        "id": "pt_boutique_gym_herzliya",
+                                        "name": "Boutique Gym הרצליה",
+                                        "category": "gym_boutique",
+                                        "category_label": "מכון כושר בוטיק פרטי",
+                                        "scale": "מכון בוטיק (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "סוקולוב 40, הרצליה",
+                                        "perk": "כניסה חד-יומית מתנה + ייעוץ תוכנית אימונים",
+                                        "original_price": "₪110",
+                                        "rating": "4.92",
+                                        "reviews": 57,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "20-40 מתעניינים/חודש",
+                                        "pitch_hook": "מכון כושר פרטי ומאובזר בהרצליה ללא עומסים"
+                    },
+                    {
+                                        "id": "pt_move_rehovot",
+                                        "name": "Move Fitness רחובות",
+                                        "category": "gym_boutique",
+                                        "category_label": "מועדון כושר קהילתי",
+                                        "scale": "מועדון עצמאי (SMB)",
+                                        "city": "ראשון לציון והשפלה",
+                                        "address": "הרצל 160, רחובות",
+                                        "perk": "אימון היכרות מתנה + ליווי מדריך אישי",
+                                        "original_price": "₪90",
+                                        "rating": "4.91",
+                                        "reviews": 73,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-45 מתעניינים/חודש",
+                                        "pitch_hook": "מועדון כושר עצמאי קהילתי עם מתחם משקולות חופשיות רחב"
+                    },
+                    {
+                                        "id": "pt_sporter_krayot",
+                                        "name": "ספורטר חיפה והקריות",
+                                        "category": "gym_boutique",
+                                        "category_label": "מועדון כושר ובריאות",
+                                        "scale": "מועדון עצמאי בינוני",
+                                        "city": "חיפה והצפון",
+                                        "address": "דרך עכו 140, קריית ביאליק",
+                                        "perk": "כניסה ראשונה ללא עלות בהצגת שובר",
+                                        "original_price": "₪95",
+                                        "rating": "4.90",
+                                        "reviews": 88,
+                                        "crm_status": "Arbox Ready ⚡",
+                                        "potential_leads": "25-40 מתעניינים/חודש",
+                                        "pitch_hook": "מועדון כושר צפוני מוביל עם מגוון חוגים ומתחם כוח מתקדם"
+                    },
+                    {
+                                        "id": "pt_diet_adi_mizrahi",
+                                        "name": "עדי מזרחי (B.Sc)",
+                                        "category": "dietitian",
+                                        "category_label": "דיאטנית קלינית B.Sc",
+                                        "scale": "קליניקה פרטית (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "ויצמן 14, תל אביב + אונליין זום",
+                                        "perk": "שיחת אבחון 15 דקות ללא עלות",
+                                        "original_price": "₪180",
+                                        "rating": "4.98",
+                                        "reviews": 62,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "20-35 פניות/חודש",
+                                        "pitch_hook": "מומחית לתזונת ספורטאים, חיטוב והורדת אחוזי שומן בצורה מדעית"
+                    },
+                    {
+                                        "id": "pt_diet_yair_lahav",
+                                        "name": "ד\"ר יאיר להב (PhD)",
+                                        "category": "dietitian",
+                                        "category_label": "פיזיולוג מאמץ ותזונאי קליני",
+                                        "scale": "קליניקה מומחה מובילה",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "מרכז רפואי רמת אביב, תל אביב",
+                                        "perk": "₪100 הנחה לבדיקת חילוף חומרים וייעוץ",
+                                        "original_price": "₪450",
+                                        "rating": "4.99",
+                                        "reviews": 135,
+                                        "crm_status": "CRM / WhatsApp ⚡",
+                                        "potential_leads": "25-45 פניות/חודש",
+                                        "pitch_hook": "מבכירי התזונאים ופיזיולוגי המאמץ בישראל עם מעבדת מטבוליזם מתקדמת"
+                    },
+                    {
+                                        "id": "pt_diet_shiran_bendler",
+                                        "name": "שירן בנדלר (B.Sc)",
+                                        "category": "dietitian",
+                                        "category_label": "דיאטנית קלינית B.Sc",
+                                        "scale": "קליניקה פרטית (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "שדרות רוטשילד, תל אביב + אונליין",
+                                        "perk": "שאלון אבחון תזונתי + שיחת התאמה חינם",
+                                        "original_price": "₪150",
+                                        "rating": "4.96",
+                                        "reviews": 54,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-30 פניות/חודש",
+                                        "pitch_hook": "שינוי הרגלי אכילה, ירידה בריאה במשקל ומניעת אכילה רגשית"
+                    },
+                    {
+                                        "id": "pt_diet_michal_berkovich",
+                                        "name": "מיכל ברקוביץ' (B.Sc)",
+                                        "category": "dietitian",
+                                        "category_label": "תזונאית קלינית B.Sc",
+                                        "scale": "קליניקה פרטית (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "סוקולוב, הרצליה + קליניקה פרטית",
+                                        "perk": "₪70 הנחה לפגישת ייעוץ ראשונה",
+                                        "original_price": "₪350",
+                                        "rating": "4.98",
+                                        "reviews": 58,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-25 פניות/חודש",
+                                        "pitch_hook": "איזון מעיים (FODMAP), ירידה מתונה במשקל ובריאות מערכת העיכול"
+                    },
+                    {
+                                        "id": "pt_diet_tzachi_knaan",
+                                        "name": "ד\"ר צחי כנען (B.Sc)",
+                                        "category": "dietitian",
+                                        "category_label": "דיאטן קליני מומחה",
+                                        "scale": "קליניקה פרטית (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "אחוזה, רעננה + ייעוץ מקוון",
+                                        "perk": "שיחת ייעוץ והתאמת תוכנית ראשונה",
+                                        "original_price": "₪200",
+                                        "rating": "4.97",
+                                        "reviews": 78,
+                                        "crm_status": "WhatsApp / CRM ⚡",
+                                        "potential_leads": "20-35 פניות/חודש",
+                                        "pitch_hook": "דיאטן ספורט בכיר ומנהל פורומים רפואיים מובילים"
+                    },
+                    {
+                                        "id": "pt_diet_chen_yaar",
+                                        "name": "חן יער (B.Sc)",
+                                        "category": "dietitian",
+                                        "category_label": "דיאטנית קלינית ספורט",
+                                        "scale": "קליניקה פרטית (SMB)",
+                                        "city": "גבעתיים ורמת גן",
+                                        "address": "כצנלסון, גבעתיים + זום",
+                                        "perk": "בדיקת יומן תזונה שבועי חינם",
+                                        "original_price": "₪160",
+                                        "rating": "4.94",
+                                        "reviews": 43,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-25 פניות/חודש",
+                                        "pitch_hook": "ליווי צמוד למתאמנים בספורט פונקציונלי, פילאטיס וריצה"
+                    },
+                    {
+                                        "id": "pt_diet_tomer_golan",
+                                        "name": "תומר גולן",
+                                        "category": "dietitian",
+                                        "category_label": "תזונאי ספורט מוסמך",
+                                        "scale": "קליניקה פרטית (SMB)",
+                                        "city": "ראשון לציון והשפלה",
+                                        "address": "רוטשילד, ראשון לציון + וואטסאפ",
+                                        "perk": "שיחת התאמת מטרות ותפריט ראשוני חינם",
+                                        "original_price": "₪150",
+                                        "rating": "4.92",
+                                        "reviews": 38,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-30 פניות/חודש",
+                                        "pitch_hook": "עליית מסת שריר נקייה, פיתוח גוף ותזונה עתירת חלבון"
+                    },
+                    {
+                                        "id": "pt_diet_shirley_aharoni",
+                                        "name": "שירלי אהרוני (B.Sc)",
+                                        "category": "dietitian",
+                                        "category_label": "דיאטנית קלינית B.Sc",
+                                        "scale": "קליניקה פרטית (SMB)",
+                                        "city": "חיפה והצפון",
+                                        "address": "שדרות הנשיא, חיפה + פגישות זום",
+                                        "perk": "שיחת אבחון 15 דקות חינם",
+                                        "original_price": "₪150",
+                                        "rating": "4.95",
+                                        "reviews": 34,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-25 פניות/חודש",
+                                        "pitch_hook": "תזונה צמחונית/טבעונית, איזון בדיקות דם וכולסטרול"
+                    },
+                    {
+                                        "id": "pt_coach_ira_dolphin",
+                                        "name": "אירה דולפין (Pink Room)",
+                                        "category": "trainer",
+                                        "category_label": "מאמנת כושר ובוטיק נשי",
+                                        "scale": "סטודיו בוטיק (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "הירקון 140, תל אביב",
+                                        "perk": "אימון אישי ראשון ב-50% הנחה",
+                                        "original_price": "₪250",
+                                        "rating": "4.98",
+                                        "reviews": 110,
+                                        "crm_status": "WhatsApp / CRM ⚡",
+                                        "potential_leads": "25-45 פניות/חודש",
+                                        "pitch_hook": "אימוני כושר וחיטוב נשיים מהמובילים בתל אביב באווירה ייחודית"
+                    },
+                    {
+                                        "id": "pt_coach_roei_elbaz",
+                                        "name": "רועי אלבז",
+                                        "category": "trainer",
+                                        "category_label": "מאמן כושר ו-CrossFit L2",
+                                        "scale": "מאמן עצמאי (SMB)",
+                                        "city": "תל אביב והמרכז",
+                                        "address": "תל אביב ורמת גן (אימוני שטח וסטודיו)",
+                                        "perk": "אימון אישי ראשון ב-50% הנחה",
+                                        "original_price": "₪220",
+                                        "rating": "4.97",
+                                        "reviews": 64,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-30 פניות/חודש",
+                                        "pitch_hook": "אימונים פונקציונליים, כוח מרבי והורדת אחוזי שומן"
+                    },
+                    {
+                                        "id": "pt_coach_noa_koren",
+                                        "name": "נועה קורן",
+                                        "category": "trainer",
+                                        "category_label": "מדריכת פילאטיס ומאמנת כושר",
+                                        "scale": "מאמנת עצמאית (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "כפר סבא ורעננה (קליניקה ובית הלקוח)",
+                                        "perk": "שיעור היכרות 1-על-1 חינם",
+                                        "original_price": "₪200",
+                                        "rating": "4.99",
+                                        "reviews": 52,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-25 פניות/חודש",
+                                        "pitch_hook": "פילאטיס מכשירים שיקומי, חיזוק שרירי ליבה ויציבה נכונה"
+                    },
+                    {
+                                        "id": "pt_coach_yonatan_stern",
+                                        "name": "יונתן שטרן",
+                                        "category": "trainer",
+                                        "category_label": "מאמן כושר וקליסטניקס",
+                                        "scale": "מאמן עצמאי (SMB)",
+                                        "city": "הרצליה והשרון",
+                                        "address": "הרצליה וגליל ים",
+                                        "perk": "בניית תוכנית אימונים אישית חינם",
+                                        "original_price": "₪180",
+                                        "rating": "4.93",
+                                        "reviews": 41,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-25 פניות/חודש",
+                                        "pitch_hook": "שליטה במשקל גוף, קליסטניקס ופיתוח גוף טבעי"
+                    },
+                    {
+                                        "id": "pt_coach_daniel_katz",
+                                        "name": "דניאל כץ",
+                                        "category": "trainer",
+                                        "category_label": "מאמן כוח והיפרטרופיה",
+                                        "scale": "מאמן עצמאי (SMB)",
+                                        "city": "גבעתיים ורמת גן",
+                                        "address": "רמת גן וגבעתיים (קולוסאום ואימונים אישיים)",
+                                        "perk": "שיחת תכנון סרגל מאמצים חינם",
+                                        "original_price": "₪150",
+                                        "rating": "4.94",
+                                        "reviews": 37,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-25 פניות/חודש",
+                                        "pitch_hook": "בניית מסת שריר, טכניקת תרגילים מורכבים וסרגל עומסים חכם"
+                    },
+                    {
+                                        "id": "pt_coach_itai_aharonson",
+                                        "name": "איתי אהרונסון",
+                                        "category": "trainer",
+                                        "category_label": "מאמן שיקום ספורט ופונקציונלי",
+                                        "scale": "מאמן עצמאי (SMB)",
+                                        "city": "ראשון לציון והשפלה",
+                                        "address": "ראשון לציון, חולון ובת ים",
+                                        "perk": "אבחון טווחי תנועה ויציבה חינם",
+                                        "original_price": "₪200",
+                                        "rating": "4.95",
+                                        "reviews": 46,
+                                        "crm_status": "WhatsApp Direct ⚡",
+                                        "potential_leads": "15-30 פניות/חודש",
+                                        "pitch_hook": "חזרה מפציעות ספורט, שיקום ברכיים וגב וחיזוק פונקציונלי"
+                    }
+],
                 showAchievementsModal: false,
                 showGroceryModal: false,
                 groceryList: null,
@@ -10024,102 +11205,47 @@
             },
 
             get matchedStudios() {
-                const act = this.trialWorkoutForm?.activity_type || 'פילאטיס מכשירים';
+                const act = (this.trialWorkoutForm?.activity_type || '').toLowerCase();
                 const city = this.trialWorkoutForm?.city || 'תל אביב והמרכז';
                 
+                let targetCat = 'pilates';
                 if (act.includes('פילאטיס')) {
-                    return [
-                        {
-                            id: 's1',
-                            name: 'סטודיו Core Reformer פילאטיס',
-                            branch: city + ' — סניף מרכזי',
-                            rating: '4.96',
-                            reviews: 84,
-                            perk: 'אימון ניסיון במתנה (חינם ללא עלות)',
-                            original_price: '₪120',
-                            badge: 'הכי מבוקש 🔥'
-                        },
-                        {
-                            id: 's2',
-                            name: 'סטודיו Boost Reformer VIP',
-                            branch: city + ' — סניף בוטיק',
-                            rating: '4.92',
-                            reviews: 62,
-                            perk: 'אימון ניסיון ב-₪35 בלבד + 15% הנחה לכרטיסייה',
-                            original_price: '₪90',
-                            badge: 'בוטיק פרימיום'
-                        },
-                        {
-                            id: 's3',
-                            name: 'סטודיו Flow & Balance',
-                            branch: city + ' — מתחם הכושר',
-                            rating: '4.89',
-                            reviews: 41,
-                            perk: 'אימון היכרות זוגי מתנה (1+1)',
-                            original_price: '₪180',
-                            badge: 'מבצע חברים'
-                        }
-                    ];
-                } else if (act.includes('חדר כושר')) {
-                    return [
-                        {
-                            id: 's1',
-                            name: 'מועדון כושר Urban Fitness',
-                            branch: city + ' — קומפלקס ראשי',
-                            rating: '4.94',
-                            reviews: 120,
-                            perk: 'כניסה חד-יומית מתנה + פגישת מאמן אישי',
-                            original_price: '₪100',
-                            badge: 'מועדון השנה 🏆'
-                        },
-                        {
-                            id: 's2',
-                            name: 'קאנטרי קלאב פרימיום Resort',
-                            branch: city + ' — מרחב ספורט ובריכה',
-                            rating: '4.91',
-                            reviews: 95,
-                            perk: 'שבוע היכרות מלא ב-₪49 (כולל בריכה וספא)',
-                            original_price: '₪250',
-                            badge: 'הכל כלול'
-                        }
-                    ];
+                    targetCat = 'pilates';
                 } else if (act.includes('קרוספיט') || act.includes('פונקציונלי') || act.includes('אגרוף')) {
-                    return [
-                        {
-                            id: 's1',
-                            name: 'CrossFit & Functional Box Arena',
-                            branch: city + ' — מתחם האימונים',
-                            rating: '4.98',
-                            reviews: 73,
-                            perk: 'אימון יסודות On-Ramp ראשון מתנה',
-                            original_price: '₪110',
-                            badge: 'דירוג עליון ⭐'
-                        },
-                        {
-                            id: 's2',
-                            name: 'סטודיו כושר פונקציונלי F-Burn',
-                            branch: city + ' — מרכז העיר',
-                            rating: '4.90',
-                            reviews: 54,
-                            perk: 'אימון HIIT ודופק ראשון חינם',
-                            original_price: '₪85',
-                            badge: 'שריפת שומן'
-                        }
-                    ];
+                    targetCat = 'crossfit_functional';
+                } else if (act.includes('חדר כושר') || act.includes('כושר כללי')) {
+                    targetCat = 'gym_boutique';
                 } else {
-                    return [
-                        {
-                            id: 's1',
-                            name: 'סטודיו בוטיק אישי 1-על-1',
-                            branch: city + ' — קליניקת ספורט',
-                            rating: '4.97',
-                            reviews: 48,
-                            perk: 'מפגש אבחון תנועה + אימון אישי ראשון ב-50% הנחה',
-                            original_price: '₪220',
-                            badge: 'ליווי אישי'
-                        }
-                    ];
+                    targetCat = 'pilates';
                 }
+
+                const pool = (this.partnerDirectory || []).filter(p => p.category === targetCat);
+                let matches = pool.filter(p => {
+                    const pc = p.city || '';
+                    return pc === city || city.includes(pc) || pc.includes(city) ||
+                           (city.includes('גבעתיים') && pc.includes('גבעתיים')) ||
+                           (city.includes('רמת גן') && pc.includes('רמת גן')) ||
+                           (city.includes('השרון') && (pc.includes('השרון') || pc.includes('רעננה') || pc.includes('הרצליה') || pc.includes('כפר סבא'))) ||
+                           (city.includes('שפלה') && (pc.includes('שפלה') || pc.includes('ראשון') || pc.includes('חולון'))) ||
+                           (city.includes('ירושלים') && pc.includes('ירושלים')) ||
+                           (city.includes('חיפה') && (pc.includes('חיפה') || pc.includes('צפון'))) ||
+                           (city.includes('דרום') && (pc.includes('דרום') || pc.includes('שבע')));
+                });
+
+                if (!matches.length) {
+                    matches = pool;
+                }
+
+                return matches.slice(0, 3).map((p, idx) => ({
+                    id: p.id,
+                    name: p.name,
+                    branch: p.address + ' (' + p.city + ')',
+                    rating: p.rating,
+                    reviews: p.reviews,
+                    perk: p.perk,
+                    original_price: p.original_price,
+                    badge: p.scale + (idx === 0 ? ' 🔥' : '')
+                }));
             },
 
             openStudioWhatsApp() {
@@ -10312,6 +11438,140 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 } catch (err) {
                     alert('שגיאה בשליחת בדיקה');
                 }
+            },
+
+            get filteredPartners() {
+                let list = this.partnerDirectory || [];
+                const cat = this.adminPartnerCategoryFilter;
+                const reg = this.adminPartnerRegionFilter;
+                const q = (this.adminPartnerSearchQuery || '').trim().toLowerCase();
+
+                if (cat !== 'all') {
+                    list = list.filter(p => p.category === cat);
+                }
+                if (reg !== 'all') {
+                    list = list.filter(p => p.city === reg || (p.city && p.city.includes(reg)));
+                }
+                if (q) {
+                    list = list.filter(p => 
+                        (p.name && p.name.toLowerCase().includes(q)) ||
+                        (p.address && p.address.toLowerCase().includes(q)) ||
+                        (p.city && p.city.toLowerCase().includes(q)) ||
+                        (p.perk && p.perk.toLowerCase().includes(q)) ||
+                        (p.scale && p.scale.toLowerCase().includes(q))
+                    );
+                }
+                return list;
+            },
+
+            async sendDemoLead(partner) {
+                if (!partner) return;
+                this.demoDispatchingId = partner.id;
+                try {
+                    const isExpert = partner.category === 'dietitian' || partner.category === 'trainer';
+                    const endpoint = isExpert ? '/api/leads/expert' : '/api/leads/workout';
+                    const code = 'NUTRI-DEMO' + Math.floor(1000 + Math.random() * 9000);
+                    
+                    const payload = isExpert ? {
+                        full_name: 'יונתן רובין (ליד הדגמה בלייב 🔥)',
+                        phone: '054-9876543',
+                        expert_type: partner.category,
+                        expert_name: partner.name,
+                        expert_specialty: partner.pitch_hook || partner.category_label,
+                        expert_location: partner.address + ' (' + partner.city + ')',
+                        notes: 'ליד הדגמה בלייב עבור פגישת שותפות B2B עם: ' + partner.name
+                    } : {
+                        full_name: 'יונתן רובין (ליד הדגמה בלייב 🔥)',
+                        phone: '054-9876543',
+                        city: partner.city,
+                        activity_type: partner.category_label,
+                        preferred_time: 'שעות ערב (17:00-21:00)',
+                        goal: 'חיטוב וחיזוק שרירי ליבה',
+                        studio_name: partner.name,
+                        studio_perk: partner.perk,
+                        voucher_code: code,
+                        notes: 'ליד הדגמה בלייב עבור פגישת שותפות B2B עם: ' + partner.name + ' (' + partner.scale + ')'
+                    };
+
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        // Insert at top of adminLeads so it displays immediately
+                        this.adminLeads.unshift({
+                            id: data.lead_id || ('demo_' + Date.now()),
+                            type: isExpert ? 'expert_referral' : 'workout_trial',
+                            full_name: payload.full_name,
+                            phone: payload.phone,
+                            city: partner.city,
+                            activity_type: partner.category_label,
+                            role: partner.category_label,
+                            studio_name: partner.name,
+                            voucher_code: code,
+                            created_at: new Date().toISOString()
+                        });
+                        alert('🚀 ליד הדגמה בלייב שוגר בהצלחה לטלגרם שלך עבור ' + partner.name + '! בדוק את הנייד.');
+                    } else {
+                        alert('שגיאה בשיגור ליד דמו: ' + (data.detail || ''));
+                    }
+                } catch (err) {
+                    console.error('Error sending demo lead:', err);
+                    alert('שגיאת תקשורת בשיגור ליד דמו');
+                } finally {
+                    this.demoDispatchingId = null;
+                }
+            },
+
+            openDemoVoucherModal(partner) {
+                this.activeDemoPartner = partner;
+                this.demoVoucherModalOpen = true;
+            },
+
+            closeDemoVoucherModal() {
+                this.demoVoucherModalOpen = false;
+                this.activeDemoPartner = null;
+            },
+
+            copyPartnerPitch(partner) {
+                if (!partner) return;
+                const text = `היי ${partner.name}, נעים מאוד! שמי ראף, מפתח אפליקציית NutriAgent AI (אימונים ותזונה מבוססת בינה מלאכותית).
+הטמענו אתכם במערכת ההתאמה האוטומטית שלנו למתאמנים באזור ${partner.city} שמחפשים ${partner.category_label}.
+הכנו עבורכם שובר VIP מותג עם ההטבה (${partner.perk}) וממשק שמזרים לידים מאומתים ישירות לוואטסאפ או ל-Arbox ללא עלות התקנה.
+אשמח להראות לכם בלייב דמו של ליד ולתאם שיתוף פעולה!`;
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text);
+                    alert('📋 טקסט הפנייה האישית הועתק ללוח! מוכן להדבקה בוואטסאפ.');
+                }
+            },
+
+            submitCustomDemoLead() {
+                if (!this.customDemoForm.name.trim()) {
+                    alert('נא להזין שם סטודיו / מאמן');
+                    return;
+                }
+                const newPartner = {
+                    id: 'custom_' + Date.now(),
+                    name: this.customDemoForm.name.trim(),
+                    category: this.customDemoForm.category,
+                    category_label: this.customDemoForm.category === 'pilates' ? 'פילאטיס מכשירים בוטיק' : (this.customDemoForm.category === 'crossfit_functional' ? 'קרוספיט ואימון פונקציונלי' : (this.customDemoForm.category === 'gym_boutique' ? 'מכון כושר בוטיק' : 'דיאטנית / מאמן כושר')),
+                    scale: this.customDemoForm.scale,
+                    city: this.customDemoForm.city,
+                    address: this.customDemoForm.city + ' (כתובת נבחרת)',
+                    perk: this.customDemoForm.perk.trim() || 'אימון ניסיון במתנה (חינם ללא עלות)',
+                    original_price: '₪120',
+                    rating: '4.95',
+                    reviews: 45,
+                    crm_status: 'Arbox / WhatsApp ⚡',
+                    potential_leads: '25-40 מתעניינים/חודש',
+                    pitch_hook: 'מותאם אישית לדמו בלייב'
+                };
+                this.partnerDirectory.unshift(newPartner);
+                this.customDemoModalOpen = false;
+                this.adminPartnerSubTab = 'demo_partners';
+                this.sendDemoLead(newPartner);
             },
 
                 openExpertsDirectory(tab = 'dietitian') {
