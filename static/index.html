@@ -1231,8 +1231,189 @@
                 </button>
             </div>
 
-            <!-- Today's Logged Meals List -->
-            <div class="space-y-3">
+            <!-- ================= COACHING MODE: 5-SLOT STRUCTURED DAILY MEAL FLOW (Itamar Coaching Platform) ================= -->
+            <div x-show="appMode === 'coaching'" class="space-y-4">
+                <!-- Section Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-black text-slate-900">📋 סדר יום תזונתי מונחה</h2>
+                            <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 text-[10px] font-black border border-indigo-200">5 ארוחות יומיות</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">חלוקה מובנית לפי מדרג קלוריות, יעדי חלבון והצעות AI מותאמות אישית</p>
+                    </div>
+                    <div class="flex items-center gap-2 self-start sm:self-auto">
+                        <span class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-xl" x-text="`${getLoggedSlotsCount()}/5 ארוחות הושלמו`"></span>
+                    </div>
+                </div>
+
+                <!-- 5 Slot Cards Grid / Stack -->
+                <div class="space-y-3">
+                    <template x-for="slot in dailySlots" :key="slot.key">
+                        <div class="rounded-3xl p-4 sm:p-5 transition space-y-3 relative overflow-hidden"
+                             :class="[
+                                 slot.borderClass,
+                                 getSlotLoggedMeal(slot.key) ? 'border-emerald-400/80 bg-emerald-50/25 ring-2 ring-emerald-400/20 shadow-xs' : '',
+                                 isSlotSkipped(slot.key) ? 'opacity-65 border-dashed border-slate-300 bg-slate-50/80' : ''
+                             ]">
+                            <!-- Slot Card Header -->
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <span class="text-2xl flex-shrink-0" x-text="slot.icon"></span>
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <h3 class="font-black text-sm sm:text-base text-slate-900" x-text="slot.title"></h3>
+                                            <!-- Yellow Highlight Badge for Main Meal (Lunch) -->
+                                            <span x-show="slot.isMainMeal" class="px-2 py-0.5 rounded-full bg-yellow-400 text-slate-950 font-black text-[10px] border border-yellow-500 shadow-2xs">
+                                                ⭐️ ארוחה עיקרית
+                                            </span>
+                                            <!-- Calorie Range Target Pill -->
+                                            <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold"
+                                                  :class="slot.badgeClass" x-text="slot.calRange"></span>
+                                        </div>
+                                        <span class="text-[11px] text-slate-500 font-semibold" x-text="slot.styleLabel"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Slot State Badge -->
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    <template x-if="getSlotLoggedMeal(slot.key)">
+                                        <span class="px-2.5 py-1 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center gap-1 shadow-2xs">
+                                            <span>✓</span>
+                                            <span>נאכל</span>
+                                        </span>
+                                    </template>
+                                    <template x-if="!getSlotLoggedMeal(slot.key) && isSlotSkipped(slot.key)">
+                                        <span class="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-xs font-bold">
+                                            ⏭️ דולג
+                                        </span>
+                                    </template>
+                                    <template x-if="!getSlotLoggedMeal(slot.key) && !isSlotSkipped(slot.key)">
+                                        <span class="text-xs text-slate-400 font-bold font-mono" x-text="slot.defaultTime"></span>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- ================= STATE 1: LOGGED MEAL (נאכל בהצלחה) ================= -->
+                            <template x-if="getSlotLoggedMeal(slot.key)">
+                                <div class="p-3.5 rounded-2xl bg-white/95 border border-emerald-200/90 shadow-2xs space-y-2">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <p class="font-extrabold text-sm text-slate-900" x-text="getSlotLoggedMeal(slot.key).description"></p>
+                                            <div class="flex items-center gap-2 mt-1 text-xs text-slate-500 flex-wrap">
+                                                <span class="inline-flex items-center gap-1 font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
+                                                    💪 <span x-text="`${Number(getSlotLoggedMeal(slot.key).protein_g).toFixed(1)}g חלבון`"></span>
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                                                    🔥 <span x-text="`${getSlotLoggedMeal(slot.key).calories} קק"ל`"></span>
+                                                </span>
+                                                <span class="text-slate-400 font-mono text-[11px]">
+                                                    🕒 <span x-text="getSlotLoggedMeal(slot.key).log_time || slot.defaultTime"></span>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Edit and Delete Actions -->
+                                        <div class="flex items-center gap-1 flex-shrink-0">
+                                            <button type="button" @click="openEditMeal(getSlotLoggedMeal(slot.key))"
+                                                    class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition cursor-pointer" title="ערוך ארוחה זו">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                            </button>
+                                            <button type="button" @click="confirmDelete(getSlotLoggedMeal(slot.key))"
+                                                    class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer" title="מחק ארוחה זו">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- ================= STATE 2: SKIPPED (דולג) ================= -->
+                            <template x-if="!getSlotLoggedMeal(slot.key) && isSlotSkipped(slot.key)">
+                                <div class="p-3 rounded-2xl bg-slate-100/80 border border-slate-200 flex items-center justify-between text-xs">
+                                    <span class="text-slate-500 font-bold">ארוחה זו דולגה (צום לסירוגין / ללא נשנוש)</span>
+                                    <button type="button" @click="toggleSkipSlot(slot.key)"
+                                            class="text-indigo-600 hover:text-indigo-800 font-extrabold cursor-pointer">
+                                        בטל דילוג
+                                    </button>
+                                </div>
+                            </template>
+
+                            <!-- ================= STATE 3: PENDING / AI SUGGESTION (ממתין / הצעה) ================= -->
+                            <template x-if="!getSlotLoggedMeal(slot.key) && !isSlotSkipped(slot.key)">
+                                <div class="space-y-2.5">
+                                    <!-- AI Suggestion Box -->
+                                    <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+                                        <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+                                            <span class="text-[11px] font-black text-slate-500 flex items-center gap-1">
+                                                <span>💡</span>
+                                                <span>הצעת רוטינה מותאמת אישית:</span>
+                                            </span>
+                                            <!-- Refresh / Shuffle Suggestion Button -->
+                                            <button type="button" @click="refreshSlotSuggestion(slot)" :disabled="slotShuffling[slot.key]"
+                                                    class="text-[11px] font-extrabold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1 cursor-pointer">
+                                                <span :class="{'animate-spin': slotShuffling[slot.key]}">🔄</span>
+                                                <span>הצעה אחרת ב-AI</span>
+                                            </button>
+                                        </div>
+
+                                        <p class="font-bold text-xs sm:text-sm text-slate-900 leading-snug" x-text="getSlotSuggestion(slot).description"></p>
+
+                                        <div class="flex items-center justify-between text-[11px] text-slate-500 font-bold pt-0.5">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-amber-800" x-text="`🔥 ${getSlotSuggestion(slot).calories} קק"ל`"></span>
+                                                <span class="text-slate-300">•</span>
+                                                <span class="text-indigo-700" x-text="`💪 ${getSlotSuggestion(slot).protein_g}g חלבון`"></span>
+                                            </div>
+                                            <span class="text-slate-400 text-[10px]" x-text="`שעה מומלצת: ${slot.defaultTime}`"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Primary 1-Tap Log Action Button -->
+                                    <button type="button" @click="logSlotSuggestion(slot)"
+                                            class="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer">
+                                        <span>⚡ אכלתי בדיוק את זה (רישום בטאפ)</span>
+                                    </button>
+
+                                    <!-- Alternative Actions Row: אכלתי משהו אחר -->
+                                    <div class="flex items-center justify-between gap-1.5 pt-0.5 text-xs">
+                                        <div class="flex items-center gap-1.5 flex-1">
+                                            <span class="text-[10px] text-slate-400 font-bold flex-shrink-0">אכלת משהו אחר?</span>
+                                            <button type="button" @click="openSlotVoiceLogger(slot)"
+                                                    class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="הקלט מה אכלת במקום">
+                                                <span>🎙️</span>
+                                                <span class="hidden sm:inline">הקלטה</span>
+                                            </button>
+                                            <button type="button" @click="openSlotPhotoLogger(slot)"
+                                                    class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="צלם מנה לארוחה זו">
+                                                <span>📸</span>
+                                                <span class="hidden sm:inline">צילום</span>
+                                            </button>
+                                            <button type="button" @click="openSlotManualLogger(slot)"
+                                                    class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="רשום ידנית">
+                                                <span>✍️</span>
+                                                <span class="hidden sm:inline">ידני</span>
+                                            </button>
+                                        </div>
+
+                                        <!-- Skip button for optional morning snack -->
+                                        <template x-if="slot.isOptional">
+                                            <button type="button" @click="toggleSkipSlot(slot.key)"
+                                                    class="text-[11px] font-extrabold text-slate-500 hover:text-slate-800 bg-white border border-slate-200 px-2.5 py-1 rounded-xl transition cursor-pointer flex-shrink-0">
+                                                ⏭️ אני מדלג
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- FULL MODE: Legacy Logged Meals List (Kept 100% Intact) -->
+            <div x-show="appMode !== 'coaching'" class="space-y-3">
+                
                 <div class="flex items-center justify-between px-1">
                     <h2 class="text-lg font-bold text-slate-900" x-text="t('todayMealsTitle', 'הארוחות שלי היום')">הארוחות שלי היום</h2>
                     <span class="text-xs text-slate-500" x-text="`${todayMeals.length} רשומות`"></span>
@@ -1362,10 +1543,7 @@
                         </div>
                     </template>
                 </div>
-            </div>
-        
-
-            <!-- AI Daily Coach & Nutrition Score Card -->
+            </div><!-- AI Daily Coach & Nutrition Score Card -->
             <div class="bg-gradient-to-l from-indigo-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-lg border border-indigo-500/20 relative overflow-hidden">
                 <div class="absolute -right-12 -top-12 w-40 h-40 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -7948,7 +8126,135 @@
                 adminLeads: [],
                 adminTelegramChatId: '604190384',
                 adminTelegramSaving: false,
-                appMode: 'coaching', // 'coaching' (Itamar trainee focus) or 'full' (marketplace & B2B)
+                appMode: 'coaching', // 'coaching' (Itamar trainee 5-slot flow) or 'full' (legacy B2B)
+                skippedSlots: {},
+                slotSuggestions: {},
+                slotShuffling: {},
+                activeTargetSlot: null,
+                dailySlots: [
+                    {
+                        key: 'breakfast',
+                        title: 'ארוחת בוקר',
+                        icon: '🌅',
+                        styleLabel: 'ארוחה קלה',
+                        calRange: '150–450 קק"ל',
+                        targetCal: 340,
+                        targetProt: 28,
+                        accentColor: 'amber',
+                        isMainMeal: false,
+                        borderClass: 'border-amber-200/90 bg-amber-50/40 hover:border-amber-300',
+                        badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+                        defaultTime: '08:30',
+                        defaultSuggestion: {
+                            description: "2 ביצים (עין / מקושקשת), פרוסת לחם מלא, חצי קוטג' 5%, עגבניה ומלפפון",
+                            calories: 340,
+                            protein_g: 28,
+                            items: [
+                                { name: "2 ביצים L", calories: 145, protein_g: 13 },
+                                { name: "פרוסת לחם מלא", calories: 75, protein_g: 3.5 },
+                                { name: "קוטג' 5% (125 גרם)", calories: 100, protein_g: 11 },
+                                { name: "סלט עגבניה ומלפפון", calories: 20, protein_g: 0.5 }
+                            ]
+                        }
+                    },
+                    {
+                        key: 'morning_snack',
+                        title: 'ביניים בוקר',
+                        icon: '☕',
+                        styleLabel: 'נשנוש קל (אופציונלי)',
+                        calRange: 'עד 150 קק"ל',
+                        targetCal: 135,
+                        targetProt: 8,
+                        accentColor: 'teal',
+                        isMainMeal: false,
+                        isOptional: true,
+                        borderClass: 'border-teal-200/80 bg-teal-50/30 hover:border-teal-300',
+                        badgeClass: 'bg-teal-100 text-teal-900 border-teal-300',
+                        defaultTime: '10:45',
+                        defaultSuggestion: {
+                            description: "תפוח עץ ירוק גרני סמית' ו-12 שקדים טבעיים",
+                            calories: 135,
+                            protein_g: 3.5,
+                            items: [
+                                { name: "תפוח עץ ירוק", calories: 75, protein_g: 0.5 },
+                                { name: "12 שקדים טבעיים", calories: 60, protein_g: 3.0 }
+                            ]
+                        }
+                    },
+                    {
+                        key: 'lunch',
+                        title: 'ארוחה עיקרית (צהריים)',
+                        icon: '☀️',
+                        styleLabel: 'ארוחה עיקרית מרכזית',
+                        calRange: '450–650 קק"ל',
+                        targetCal: 540,
+                        targetProt: 48,
+                        accentColor: 'yellow',
+                        isMainMeal: true, // Itamar's prominent yellow highlighted main meal!
+                        borderClass: 'border-2 border-yellow-400 bg-yellow-50/80 shadow-xs hover:border-yellow-500 ring-2 ring-yellow-400/25',
+                        badgeClass: 'bg-yellow-400 text-slate-950 font-black border-yellow-500 shadow-2xs',
+                        defaultTime: '13:30',
+                        defaultSuggestion: {
+                            description: "180 גרם חזה עוף מתובל, כוס אורז בסמטי מאודה, סלט ירקות וכפית טחינה",
+                            calories: 540,
+                            protein_g: 48,
+                            items: [
+                                { name: "חזה עוף בגריל (180 גרם)", calories: 280, protein_g: 42 },
+                                { name: "אורז בסמטי מבושל (כוס)", calories: 190, protein_g: 4 },
+                                { name: "סלט ירקות קצוץ + כפית טחינה", calories: 70, protein_g: 2 }
+                            ]
+                        }
+                    },
+                    {
+                        key: 'afternoon_snack',
+                        title: 'ביניים אחה"צ',
+                        icon: '🍎',
+                        styleLabel: 'נשנוש / שייק חלבון',
+                        calRange: 'עד 150–200 קק"ל',
+                        targetCal: 180,
+                        targetProt: 25,
+                        accentColor: 'emerald',
+                        isMainMeal: false,
+                        borderClass: 'border-emerald-200/90 bg-emerald-50/40 hover:border-emerald-300',
+                        badgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+                        defaultTime: '16:45',
+                        defaultSuggestion: {
+                            description: "שייק חלבון על בסיס מים / חלב שקדים ללא סוכר ובננה קטנה",
+                            calories: 180,
+                            protein_g: 25,
+                            items: [
+                                { name: "סקופ אבקת חלבון", calories: 110, protein_g: 24 },
+                                { name: "בננה קטנה", calories: 70, protein_g: 1 }
+                            ]
+                        }
+                    },
+                    {
+                        key: 'dinner',
+                        title: 'ארוחת ערב',
+                        icon: '🌙',
+                        styleLabel: 'ארוחה קלה / משביעה',
+                        calRange: '150–450 קק"ל',
+                        targetCal: 390,
+                        targetProt: 38,
+                        accentColor: 'indigo',
+                        isMainMeal: false,
+                        borderClass: 'border-indigo-200/90 bg-indigo-50/40 hover:border-indigo-300',
+                        badgeClass: 'bg-indigo-100 text-indigo-900 border-indigo-300',
+                        defaultTime: '19:45',
+                        defaultSuggestion: {
+                            description: "קופסת טונה במים, ביצה קשה, סלט ירקות עשיר עם כף טחינה ופרוסת שיפון",
+                            calories: 390,
+                            protein_g: 38,
+                            items: [
+                                { name: "קופסת טונה במים", calories: 130, protein_g: 29 },
+                                { name: "ביצה קשה L", calories: 75, protein_g: 6.5 },
+                                { name: "כף טחינה גולמית", calories: 85, protein_g: 3 },
+                                { name: "סלט ישראלי עשיר", calories: 30, protein_g: 1 },
+                                { name: "פרוסת לחם שיפון", calories: 70, protein_g: 2.5 }
+                            ]
+                        }
+                    }
+                ],
                 showMealConfirmModal: false,
                 mealConfirmSaving: false,
                 mealConfirmForm: {
@@ -11752,7 +12058,132 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 this.sendDemoLead(newPartner);
             },
 
-                toggleAppMode() {
+                getSlotLoggedMeal(slotKey) {
+                const meals = this.todayMeals || [];
+                // 1. Direct match by meal_type
+                let found = meals.find(m => m.meal_type === slotKey);
+                if (found) return found;
+
+                // Legacy fallback for generic 'snack'
+                if (slotKey === 'afternoon_snack') {
+                    found = meals.find(m => m.meal_type === 'snack');
+                    if (found) return found;
+                }
+
+                // 2. Time-window fallback if meal_type was not set
+                return meals.find(m => {
+                    if (m.meal_type) return false;
+                    const t = m.log_time || '';
+                    if (!t) return false;
+                    if (slotKey === 'breakfast') return t >= '05:00' && t < '10:15';
+                    if (slotKey === 'morning_snack') return t >= '10:15' && t < '12:00';
+                    if (slotKey === 'lunch') return t >= '12:00' && t < '15:45';
+                    if (slotKey === 'afternoon_snack') return t >= '15:45' && t < '18:30';
+                    if (slotKey === 'dinner') return t >= '18:30' || t < '05:00';
+                    return false;
+                });
+            },
+
+            getSlotSuggestion(slot) {
+                if (this.slotSuggestions[slot.key]) {
+                    return this.slotSuggestions[slot.key];
+                }
+                try {
+                    const saved = localStorage.getItem('nutri_slot_sug_' + slot.key);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        this.slotSuggestions[slot.key] = parsed;
+                        return parsed;
+                    }
+                } catch (e) {}
+                return slot.defaultSuggestion;
+            },
+
+            async refreshSlotSuggestion(slot) {
+                this.slotShuffling[slot.key] = true;
+                try {
+                    const res = await fetch('/api/meals/suggest-slot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            slot_key: slot.key,
+                            target_calories: slot.targetCal,
+                            target_protein: slot.targetProt
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.slotSuggestions[slot.key] = data;
+                        try {
+                            localStorage.setItem('nutri_slot_sug_' + slot.key, JSON.stringify(data));
+                        } catch (e) {}
+                        this.showToast(`🔄 עודכנה הצעה חדשה ל${slot.title}!`);
+                    } else {
+                        this.showToast('שגיאה ברענון ההצעה');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאת תקשורת');
+                } finally {
+                    this.slotShuffling[slot.key] = false;
+                }
+            },
+
+            async logSlotSuggestion(slot) {
+                const sug = this.getSlotSuggestion(slot);
+                this.openMealConfirmModal({
+                    description: sug.description,
+                    calories: sug.calories,
+                    protein_g: sug.protein_g,
+                    items: sug.items || [],
+                    log_date: this.selectedDate || this.todayDateStr,
+                    log_time: slot.defaultTime,
+                    meal_type: slot.key,
+                    source: 'web-slot-preset'
+                });
+            },
+
+            toggleSkipSlot(slotKey) {
+                this.skippedSlots[slotKey] = !this.skippedSlots[slotKey];
+                const isSkipped = this.skippedSlots[slotKey];
+                this.showToast(isSkipped ? '⏭️ הארוחה סומנה כדולגה' : 'הדילוג בוטל');
+            },
+
+            isSlotSkipped(slotKey) {
+                return !!this.skippedSlots[slotKey];
+            },
+
+            getLoggedSlotsCount() {
+                let cnt = 0;
+                for (const sl of this.dailySlots) {
+                    if (this.getSlotLoggedMeal(sl.key) || this.isSlotSkipped(sl.key)) {
+                        cnt++;
+                    }
+                }
+                return cnt;
+            },
+
+            openSlotVoiceLogger(slot) {
+                this.activeTargetSlot = slot;
+                this.mealConfirmForm.meal_type = slot.key;
+                this.mealConfirmForm.log_time = slot.defaultTime;
+                this.startVoiceRecording();
+            },
+
+            openSlotPhotoLogger(slot) {
+                this.activeTargetSlot = slot;
+                this.mealConfirmForm.meal_type = slot.key;
+                this.mealConfirmForm.log_time = slot.defaultTime;
+                document.getElementById('photoMealFileInput')?.click();
+            },
+
+            openSlotManualLogger(slot) {
+                this.activeTargetSlot = slot;
+                this.manualMealForm.meal_type = slot.key;
+                this.manualMealForm.log_time = slot.defaultTime;
+                this.openManualMealModal();
+            },
+
+            toggleAppMode() {
                 this.appMode = this.appMode === 'coaching' ? 'full' : 'coaching';
                 const msg = this.appMode === 'coaching' ? '🎯 עברת למצב ליווי מתאמנים ממוקד (איתמר)' : '🌐 עברת למצב פלטפורמה מלאה (כולל שותפים ו-B2B)';
                 this.showToast(msg);

@@ -357,6 +357,13 @@ class RecipePromptRequest(BaseModel):
     preference: Optional[str] = ""
 
 
+class SlotSuggestRequest(BaseModel):
+    slot_key: str # breakfast, morning_snack, lunch, afternoon_snack, dinner
+    target_calories: Optional[int] = None
+    target_protein: Optional[float] = None
+    preference: Optional[str] = ""
+
+
 class MealUpdateRequest(BaseModel):
     description: str
     calories: int = Field(ge=0, le=10000)
@@ -1216,22 +1223,39 @@ def resolve_eating_time_and_type(
                     m_time = f"{h:02d}:{m:02d}"
 
     # 2. Resolve meal_type
+    norm_txt = re.sub(r'["״\'׳`]', '', txt)
+    valid_types = ("breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "snack")
     m_type = (explicit_type or "").strip().lower()
-    if not m_type or m_type not in ("breakfast", "lunch", "dinner", "snack"):
-        if any(w in txt for w in ["בוקר", "ארוחת בוקר", "קמתי", "על הבוקר", "שחרית"]):
+    if not m_type or m_type not in valid_types:
+        if any(w in norm_txt for w in ["ביניים בוקר", "ביניים של בוקר", "נשנוש בוקר", "פרי בוקר"]):
+            m_type = "morning_snack"
+            if not m_time and (now.hour >= 13 or now.hour < 10):
+                m_time = "10:30"
+        elif any(w in norm_txt for w in ["ביניים אחהצ", "אחהצ", "אחר הצהריים", "נשנוש אחהצ", "ארוחת ארבע", "נשנוש ארבע", "שייק אחהצ", "ארבע"]):
+            m_type = "afternoon_snack"
+            if not m_time and (now.hour >= 19 or now.hour < 16):
+                m_time = "16:45"
+        elif any(w in norm_txt for w in ["בוקר", "ארוחת בוקר", "קמתי", "על הבוקר", "שחרית"]):
             m_type = "breakfast"
             if not m_time and now.hour >= 12:
                 m_time = "08:30"
-        elif any(w in txt for w in ["צהריים", "ארוחת צהריים", "בצהריים"]):
+        elif any(w in norm_txt for w in ["צהריים", "ארוחת צהריים", "בצהריים"]):
             m_type = "lunch"
             if not m_time and (now.hour >= 17 or now.hour < 11):
                 m_time = "13:30"
-        elif any(w in txt for w in ["ערב", "ארוחת ערב", "בערב", "לילה"]):
+        elif any(w in norm_txt for w in ["ערב", "ארוחת ערב", "בערב", "לילה"]):
             m_type = "dinner"
             if not m_time and now.hour < 18:
                 m_time = "19:30"
-        elif any(w in txt for w in ["ביניים", "נשנוש", "חטיף", "שייק", "פרי", "נשנשתי", "אחה\"צ", "ארבע"]):
-            m_type = "snack"
+        elif any(w in norm_txt for w in ["ביניים", "נשנוש", "חטיף", "שייק", "פרי", "נשנשתי"]):
+            if m_time and m_time < "13:00":
+                m_type = "morning_snack"
+            elif m_time and m_time >= "13:00":
+                m_type = "afternoon_snack"
+            elif now.hour < 13:
+                m_type = "morning_snack"
+            else:
+                m_type = "afternoon_snack"
         else:
             # Check effective hour of eating
             if m_time:
@@ -1243,16 +1267,18 @@ def resolve_eating_time_and_type(
             else:
                 eff_h = now.hour + now.minute / 60.0
 
-            if 5.5 <= eff_h < 11.25:
+            if 5.5 <= eff_h < 10.25:
                 m_type = "breakfast"
-            elif 11.25 <= eff_h < 16.25:
+            elif 10.25 <= eff_h < 12.0:
+                m_type = "morning_snack"
+            elif 12.0 <= eff_h < 15.75:
                 m_type = "lunch"
-            elif 16.25 <= eff_h < 18.75:
-                m_type = "snack"
-            elif 18.75 <= eff_h < 22.5:
+            elif 15.75 <= eff_h < 18.5:
+                m_type = "afternoon_snack"
+            elif 18.5 <= eff_h < 22.5:
                 m_type = "dinner"
             else:
-                m_type = "snack"
+                m_type = "afternoon_snack"
 
     if not m_time:
         m_time = now.strftime("%H:%M")
@@ -4922,6 +4948,228 @@ def api_meals_legacy(request: Request):
     """Backwards-compatible endpoint returning flat list of meals."""
     uid = require_approved_user(request)
     return _fetch_user_history(uid=uid, days=30)["meals"]
+
+
+
+# ---------------------------------------------------------------------------
+# 5-Slot Daily Meal Flow Presets & AI Generator (Itamar Coaching Platform)
+# ---------------------------------------------------------------------------
+
+SLOT_PRESETS = {
+    "breakfast": [
+        {
+            "description": "2 ביצים (עין / מקושקשת), פרוסת לחם מלא, חצי קוטג' 5%, עגבניה ומלפפון",
+            "calories": 340,
+            "protein_g": 28.0,
+            "items": [
+                {"name": "2 ביצים L", "calories": 145, "protein_g": 13.0},
+                {"name": "פרוסת לחם מלא", "calories": 75, "protein_g": 3.5},
+                {"name": "קוטג' 5% (125 גרם)", "calories": 100, "protein_g": 11.0},
+                {"name": "סלט עגבניה ומלפפון", "calories": 20, "protein_g": 0.5}
+            ]
+        },
+        {
+            "description": "יוגורט PRO 20g חלבון, 30 גרם שיבולת שועל, כפית חמאת בוטנים ואוכמניות",
+            "calories": 350,
+            "protein_g": 26.0,
+            "items": [
+                {"name": "יוגורט PRO חלבון", "calories": 140, "protein_g": 20.0},
+                {"name": "שיבולת שועל 30 גרם", "calories": 115, "protein_g": 4.0},
+                {"name": "כפית חמאת בוטנים טבעית", "calories": 65, "protein_g": 2.0},
+                {"name": "חופן אוכמניות", "calories": 30, "protein_g": 0.0}
+            ]
+        },
+        {
+            "description": "שקשוקה מ-2 ביצים ברוטב עגבניות טרי עם פטרוזיליה, טחינה ופרוסת שיפון",
+            "calories": 370,
+            "protein_g": 21.0,
+            "items": [
+                {"name": "שקשוקה ביתית 2 ביצים", "calories": 220, "protein_g": 14.0},
+                {"name": "פרוסת לחם שיפון קל", "calories": 80, "protein_g": 3.0},
+                {"name": "כף טחינה גולמית", "calories": 70, "protein_g": 4.0}
+            ]
+        }
+    ],
+    "morning_snack": [
+        {
+            "description": "תפוח עץ ירוק גרני סמית' ו-12 שקדים טבעיים",
+            "calories": 135,
+            "protein_g": 3.5,
+            "items": [
+                {"name": "תפוח עץ ירוק", "calories": 75, "protein_g": 0.5},
+                {"name": "12 שקדים טבעיים", "calories": 60, "protein_g": 3.0}
+            ]
+        },
+        {
+            "description": "יוגורט דנונה GO 0% בטעם תות / בננה",
+            "calories": 95,
+            "protein_g": 12.0,
+            "items": [
+                {"name": "יוגורט GO 0%", "calories": 95, "protein_g": 12.0}
+            ]
+        },
+        {
+            "description": "3 פריכיות כוסמין / אורז עם 2 כפות גבינה לבנה 5% ועגבניות שרי",
+            "calories": 125,
+            "protein_g": 8.0,
+            "items": [
+                {"name": "3 פריכיות", "calories": 75, "protein_g": 2.0},
+                {"name": "גבינה לבנה 5% (50 גרם)", "calories": 50, "protein_g": 6.0}
+            ]
+        }
+    ],
+    "lunch": [
+        {
+            "description": "180 גרם חזה עוף מתובל, כוס אורז בסמטי מאודה, סלט ירקות וכפית טחינה",
+            "calories": 540,
+            "protein_g": 48.0,
+            "items": [
+                {"name": "חזה עוף בגריל (180 גרם)", "calories": 280, "protein_g": 42.0},
+                {"name": "אורז בסמטי מבושל (כוס)", "calories": 190, "protein_g": 4.0},
+                {"name": "סלט ירקות קצוץ + כפית טחינה", "calories": 70, "protein_g": 2.0}
+            ]
+        },
+        {
+            "description": "170 גרם פילה סלמון בתנור, בטטה בינונית אפויה ושעועית ירוקה עדינה",
+            "calories": 560,
+            "protein_g": 44.0,
+            "items": [
+                {"name": "פילה סלמון בתנור (170 גרם)", "calories": 340, "protein_g": 38.0},
+                {"name": "בטטה בינונית אפויה", "calories": 160, "protein_g": 3.0},
+                {"name": "שעועית ירוקה מאודה", "calories": 60, "protein_g": 3.0}
+            ]
+        },
+        {
+            "description": "200 גרם קציצות בקר רזה ברוטב עגבניות ביתי, כוס קינואה וסלט ירוק",
+            "calories": 580,
+            "protein_g": 46.0,
+            "items": [
+                {"name": "קציצות בקר רזה (200 גרם)", "calories": 330, "protein_g": 38.0},
+                {"name": "קינואה מבושלת (כוס)", "calories": 190, "protein_g": 6.0},
+                {"name": "סלט ירוק עם לימון", "calories": 60, "protein_g": 2.0}
+            ]
+        },
+        {
+            "description": "220 גרם טופו מוקפץ עם פטריות וברוקולי על אטריות סובה ברוטב סויה-שום",
+            "calories": 510,
+            "protein_g": 38.0,
+            "items": [
+                {"name": "טופו צרוב 220 גרם", "calories": 260, "protein_g": 30.0},
+                {"name": "אטריות סובה מבושלות", "calories": 180, "protein_g": 6.0},
+                {"name": "ירקות מוקפצים בסויה", "calories": 70, "protein_g": 2.0}
+            ]
+        }
+    ],
+    "afternoon_snack": [
+        {
+            "description": "שייק חלבון על בסיס מים / חלב שקדים ללא סוכר ובננה קטנה",
+            "calories": 180,
+            "protein_g": 25.0,
+            "items": [
+                {"name": "סקופ אבקת חלבון", "calories": 110, "protein_g": 24.0},
+                {"name": "בננה קטנה", "calories": 70, "protein_g": 1.0}
+            ]
+        },
+        {
+            "description": "גביע יוגורט PRO 20g חלבון בטעם וניל עם כפית זרעי צ'יה",
+            "calories": 150,
+            "protein_g": 21.0,
+            "items": [
+                {"name": "יוגורט PRO 20g", "calories": 130, "protein_g": 20.0},
+                {"name": "כפית זרעי צ'יה", "calories": 20, "protein_g": 1.0}
+            ]
+        },
+        {
+            "description": "חטיף חלבון איכותי עד 180 קלוריות",
+            "calories": 180,
+            "protein_g": 20.0,
+            "items": [
+                {"name": "חטיף חלבון", "calories": 180, "protein_g": 20.0}
+            ]
+        }
+    ],
+    "dinner": [
+        {
+            "description": "קופסת טונה במים, ביצה קשה, סלט ירקות עשיר עם כף טחינה ופרוסת שיפון",
+            "calories": 390,
+            "protein_g": 38.0,
+            "items": [
+                {"name": "קופסת טונה במים", "calories": 130, "protein_g": 29.0},
+                {"name": "ביצה קשה L", "calories": 75, "protein_g": 6.5},
+                {"name": "כף טחינה גולמית", "calories": 85, "protein_g": 3.0},
+                {"name": "סלט ישראלי עשיר", "calories": 30, "protein_g": 1.0},
+                {"name": "פרוסת לחם שיפון", "calories": 70, "protein_g": 2.5}
+            ]
+        },
+        {
+            "description": "חביתת ירק מ-2 ביצים, 3 כפות גבינת ריקוטה 5%, סלט עלים וטוסט קל",
+            "calories": 380,
+            "protein_g": 31.0,
+            "items": [
+                {"name": "חביתת ירק מ-2 ביצים", "calories": 160, "protein_g": 14.0},
+                {"name": "גבינת ריקוטה 5% (100 גרם)", "calories": 110, "protein_g": 11.0},
+                {"name": "פרוסת לחם קל", "calories": 60, "protein_g": 3.0},
+                {"name": "סלט עלי בייבי וירקות", "calories": 50, "protein_g": 3.0}
+            ]
+        },
+        {
+            "description": "160 גרם פילה דג דניס בתנור, ירקות אנטיפסטי קלויים וכפית שמן זית",
+            "calories": 410,
+            "protein_g": 35.0,
+            "items": [
+                {"name": "פילה דניס בתנור 160 גרם", "calories": 260, "protein_g": 32.0},
+                {"name": "ירקות אנטיפסטי קלויים", "calories": 110, "protein_g": 3.0},
+                {"name": "כפית שמן זית ולימון", "calories": 40, "protein_g": 0.0}
+            ]
+        }
+    ]
+}
+
+
+@app.post("/api/meals/suggest-slot")
+def api_suggest_slot_meal(req: SlotSuggestRequest, request: Request):
+    """
+    Returns an optimized meal suggestion for a specific daily slot (breakfast, morning_snack, lunch, afternoon_snack, dinner)
+    respecting Itamar's calorie and protein thresholds.
+    """
+    uid = require_approved_user(request)
+    slot_key = req.slot_key if req.slot_key in SLOT_PRESETS else "lunch"
+    presets = SLOT_PRESETS.get(slot_key, SLOT_PRESETS["lunch"])
+    
+    # Check if AI client is available for dynamic variation
+    if ai_client and req.preference:
+        try:
+            check_and_increment_ai_quota(uid)
+            cal_target = req.target_calories or (540 if slot_key == "lunch" else (350 if "snack" not in slot_key else 150))
+            prot_target = req.target_protein or (45 if slot_key == "lunch" else (25 if "snack" not in slot_key else 15))
+            
+            prompt = f"""אתה תזונאי ישראלי מקצועי. הצע ארוחה אחת מושלמת בעברית עבור ארוחה מסוג '{slot_key}'.
+היעד הקלורי של ארוחה זו: כ-{cal_target} קק"ל, והחלבון: כ-{prot_target} גרם חלבון.
+העדפת המשתמש: '{req.preference}'.
+החזר תיאור טבעי ופרקטי שמתאמנים בישראל אוהבים, עם פירוט מדויק של הפריטים ב-items."""
+            
+            response = ai_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=NutritionExtraction,
+                    temperature=0.3,
+                ),
+            )
+            parsed = NutritionExtraction.model_validate_json(response.text)
+            return {
+                "description": parsed.summary,
+                "calories": parsed.calories,
+                "protein_g": parsed.protein_g,
+                "items": [it.model_dump() for it in parsed.items] if parsed.items else []
+            }
+        except Exception as e:
+            print(f"Error in dynamic slot suggestion, using preset fallback: {e}")
+
+    # Fallback to smart rotation of presets
+    idx = int(time.time() // 10) % len(presets)
+    return presets[idx]
 
 
 @app.post("/api/meals/")
