@@ -7,6 +7,21 @@ import hashlib
 import urllib.request
 import urllib.parse
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+IL_TZ = ZoneInfo("Asia/Jerusalem")
+
+def get_israel_now() -> datetime:
+    """Returns the current timezone-aware datetime in Israel (Asia/Jerusalem)."""
+    return datetime.now(IL_TZ)
+
+def get_israel_today_str() -> str:
+    """Returns today's date formatted as YYYY-MM-DD in Israel timezone."""
+    return get_israel_now().strftime("%Y-%m-%d")
+
+def get_israel_time_str() -> str:
+    """Returns current time formatted as HH:MM in Israel timezone."""
+    return get_israel_now().strftime("%H:%M")
 from typing import List, Optional
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -929,7 +944,7 @@ def check_and_increment_ai_quota(user_id: str) -> None:
     uid = _normalize_user_id(user_id)
     if is_admin_user_id(uid):
         # Owner / Admin has unlimited AI quota, still track usage count for visibility
-        today_str = str(date.today())
+        today_str = get_israel_today_str()
         udoc = get_user_doc_db(uid)
         used = int(udoc.get("ai_calls_today") or 0) if udoc.get("ai_quota_date") == today_str else 0
         if not db:
@@ -946,7 +961,7 @@ def check_and_increment_ai_quota(user_id: str) -> None:
                 pass
         return
 
-    today_str = str(date.today())
+    today_str = get_israel_today_str()
     udoc = get_user_doc_db(uid)
     if udoc.get("is_blocked"):
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
@@ -1012,7 +1027,7 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
     # Only admin/owner or users explicitly approved by owner get immediate access!
     is_approved = bool(is_admin or existing_doc_data.get("approved_by_owner", False))
     daily_ai_limit = int(existing_doc_data.get("daily_ai_limit") if existing_doc_data.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
-    today_str = str(date.today())
+    today_str = get_israel_today_str()
     ai_calls_today = int(existing_doc_data.get("ai_calls_today") or 0) if existing_doc_data.get("ai_quota_date") == today_str else 0
 
     was_already_known = bool(existing_doc_data)
@@ -1143,7 +1158,7 @@ def get_targets(target_date: Optional[str] = None, user_id: str = "default") -> 
             default_targets["target_calories"] = g_data.get("target_calories", 1800)
             default_targets["target_protein"] = g_data.get("target_protein", 120)
 
-        d_str = target_date or str(date.today())
+        d_str = target_date or get_israel_today_str()
         date_doc_id = d_str if uid == "default" else f"{uid}_{d_str}"
         doc = db.collection("daily_targets").document(date_doc_id).get()
         if doc.exists:
@@ -1162,7 +1177,7 @@ def set_targets(target_calories: int, target_protein: int, target_date: Optional
     _LOCAL_TARGETS_BY_USER[uid] = {"target_calories": target_calories, "target_protein": target_protein}
     if not db:
         return dict(_LOCAL_TARGETS_BY_USER[uid])
-    d_str = target_date or str(date.today())
+    d_str = target_date or get_israel_today_str()
     payload = {
         "user_id": uid,
         "target_calories": target_calories,
@@ -1187,7 +1202,7 @@ def resolve_eating_time_and_type(
     (breakfast, lunch, dinner, snack) according to time expressions, relative intervals,
     explicit user choice, or smart time windows.
     """
-    now = ref_dt or datetime.now()
+    now = ref_dt or get_israel_now()
     txt = (text_context or "").strip().lower()
 
     # 1. Resolve explicit or extracted meal_time
@@ -1298,8 +1313,8 @@ def log_meal_db(
     user_id: str = "default",
 ) -> Optional[dict]:
     uid = _normalize_user_id(user_id)
-    d_str = log_date or str(date.today())
-    t_str = log_time or datetime.now().strftime("%H:%M")
+    d_str = log_date or get_israel_today_str()
+    t_str = log_time or get_israel_time_str()
     clean_items = items or []
     if not db:
         entry = {
@@ -1370,8 +1385,8 @@ def log_workout_db(
     notes: str = "",
 ) -> Optional[dict]:
     uid = _normalize_user_id(user_id)
-    d_str = log_date or str(date.today())
-    t_str = log_time or datetime.now().strftime("%H:%M")
+    d_str = log_date or get_israel_today_str()
+    t_str = log_time or get_israel_time_str()
 
     if not db:
         entry = {
@@ -1435,8 +1450,8 @@ def upsert_health_sync_workout_db(
     notes: str = "",
 ) -> Optional[dict]:
     uid = _normalize_user_id(user_id)
-    d_str = log_date or str(date.today())
-    t_str = datetime.now().strftime("%H:%M")
+    d_str = log_date or get_israel_today_str()
+    t_str = get_israel_time_str()
     sync_doc_id = f"{uid}_health_sync_{d_str}"
 
     if not db:
@@ -1525,7 +1540,7 @@ def delete_workout_db(workout_id: str, user_id: str = "default") -> bool:
 
 def get_day_summary(target_date: Optional[str] = None, user_id: str = "default"):
     uid = _normalize_user_id(user_id)
-    d_str = target_date or str(date.today())
+    d_str = target_date or get_israel_today_str()
     total_cal = 0
     total_prot = 0.0
     meals_list = []
@@ -1621,7 +1636,7 @@ def get_day_summary(target_date: Optional[str] = None, user_id: str = "default")
 
 
 def get_today_summary(user_id: str = "default"):
-    s = get_day_summary(str(date.today()), user_id=user_id)
+    s = get_day_summary(get_israel_today_str(), user_id=user_id)
     return (
         s["total_calories"],
         s["total_protein"],
@@ -1652,6 +1667,8 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
             cal, prot = 180, 20.0
         return NutritionExtraction(is_meal=True, calories=cal, protein_g=prot, summary=txt)
     prompt = f"""המשתמש דיווח: '{user_text}'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך.
+זמן נוכחי בישראל: {get_israel_time_str()} ({get_israel_today_str()}).
+אם המשתמש ציין מתי אכל (כגון 'לפני שעה', 'בבוקר', 'ב-14:00'), חלץ את שעת האכילה המשוערת בפורמט HH:MM בשדה meal_time לפי שעון ישראל.
 חשוב מאוד: קפה, קפוצ'ינו, וכל משקאות החלב/שתייה הם פריטי צריכה תקפים לחלוטין. עבור פריטים אלו, הציבו תמיד is_meal: true.
 דוגמאות לשתיה וקפה שחייבים לקבל is_meal: true: "הפוך קטן", "קפוצ'ינו", "נס קפה", "אמריקנו עם חלב".
 הערך קלוריות וחלבון במדויק לישראל. עבור הפוך קטן/קפוצ'ינו ישראלי סטנדרטי, הערך כ-70-90 קק"ל וכ-3-4 גרם חלבון (תלוי בחלב).
@@ -1831,7 +1848,7 @@ def add_vision_calibration_rule_db(rule_text: str, category: str = "כיול א�
     clean_text = (rule_text or "").strip()
     if not clean_text:
         raise ValueError("נא להזין כלל כיול לסוכן")
-    now_iso = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now_iso = get_israel_now().strftime("%Y-%m-%d %H:%M")
     rule_id = f"rule-{int(datetime.now().timestamp() * 1000)}"
     entry = {
         "id": rule_id,
@@ -2413,7 +2430,7 @@ def save_vision_analysis_log_db(
         user_prof = get_user_doc_db(uid) or {}
     except Exception:
         user_prof = {}
-    now_iso = created_at_iso_override or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_iso = created_at_iso_override or get_israel_now().strftime("%Y-%m-%d %H:%M:%S")
     log_id = f"vlog-{int(datetime.now().timestamp() * 1000)}-{abs(hash(meal_id or now_iso)) % 1000:03d}"
     items_list = [it.model_dump() if hasattr(it, "model_dump") else dict(it) for it in (extraction.items or [])]
     summary_str = extraction.summary or ""
@@ -2573,7 +2590,7 @@ def _backfill_photo_meals_to_vision_logs():
                 visual_cues=vis_cues,
                 hidden_calories_note=hid_note,
             )
-            dt_iso = f"{pm.get('log_date') or str(date.today())} {pm.get('log_time') or '12:00'}:00"
+            dt_iso = f"{pm.get('log_date') or get_israel_today_str()} {pm.get('log_time') or '12:00'}:00"
             save_vision_analysis_log_db(
                 user_id=uid,
                 extraction=ex,
@@ -2690,7 +2707,7 @@ def reanalyze_vision_log_db(log_id: str, caller_uid: str) -> dict:
         "ai_analysis": new_ai,
         "previous_ai_analysis": old_ai,
         "reanalysis_count": re_count,
-        "last_reanalyzed_iso": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "last_reanalyzed_iso": get_israel_now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     target_log.update(updates)
     for idx, lg in enumerate(_LOCAL_VISION_LOGS):
@@ -2852,7 +2869,9 @@ def analyze_meal_audio(audio_bytes: bytes, mime_type: str = "audio/webm", captio
 
     caption_note = f"\nהערת טקסט מצורפת: '{caption.strip()}'." if caption and caption.strip() else ""
     prompt = f"""האזן להקלטה הקולית של המשתמש (בעברית) שבה הוא מדווח מה אכל או שתה.{caption_note}
+זמן נוכחי בישראל: {get_israel_time_str()} ({get_israel_today_str()}).
 1. תמלל והבן בדיוק את המנות, המשקאות או המוצרים שהמשתמש ציין בהקלטה.
+2. אם המשתמש ציין מתי נאכלה המנה (למשל 'לפני חצי שעה', 'בבוקר', 'ב-12:30'), חלץ את שעת האכילה המדויקת בפורמט HH:MM בשדה meal_time לפי שעון ישראל.
 2. חשב הערכת קלוריות כוללת וחלבון בגרמים בצורה מציאותית ומדויקת לישראל.
 3. החזר תיאור תמציתי, טבעי וברור בעברית בשדה summary (למשל: "שתי ביצים מקושקשות, חצי קוטג' והפוך קטן").
 4. ברשימת items, פרט כל פריט בנפרד עם שמו (name), כמות הקלוריות שלו (calories) וגרם החלבון שלו (protein_g).
@@ -3696,7 +3715,7 @@ def get_weights_db(limit: int = 60, user_id: str = "default") -> dict:
 
 def log_weight_db(weight_kg: float, log_date: Optional[str] = None, note: str = "", user_id: str = "default") -> dict:
     uid = _normalize_user_id(user_id)
-    d_str = log_date or str(date.today())
+    d_str = log_date or get_israel_today_str()
     w_val = round(float(weight_kg), 1)
     doc_id = d_str if uid == "default" else f"{uid}_{d_str}"
     entry = {
@@ -4079,7 +4098,7 @@ def api_auth_dev_bypass(response: Response, request: Request):
     """Local development authentication bypass for testing."""
     admin_email = "iftach.raftar@gmail.com"
     uid = _make_user_id_from_email(admin_email)
-    now_iso = datetime.now().isoformat()
+    now_iso = get_israel_now().isoformat()
     user_doc = {
         "user_id": uid,
         "email": admin_email,
@@ -4135,7 +4154,7 @@ def api_auth_me(request: Request, response: Response):
     if user_doc.get("is_blocked") and not owner_flag:
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
     is_approved = bool(admin_flag or owner_flag or user_doc.get("approved_by_owner", False))
-    today_str = str(date.today())
+    today_str = get_israel_today_str()
     daily_ai_limit = int(user_doc.get("daily_ai_limit") if user_doc.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
     ai_calls_today = int(user_doc.get("ai_calls_today") or 0) if user_doc.get("ai_quota_date") == today_str else 0
     refreshed_token = create_session_token(uid)
@@ -4173,7 +4192,7 @@ def api_claim_legacy_data(request: Request):
 # ---------------------------------------------------------------------------
 
 def list_all_users_admin_db() -> dict:
-    today_str = str(date.today())
+    today_str = get_israel_today_str()
     users_map = {}
 
     if not db:
@@ -4851,7 +4870,7 @@ def api_summary(request: Request, target_date: Optional[str] = Query(default=Non
 
 
 def _fetch_user_history(uid: str, days: int = 14) -> dict:
-    today_date = date.today()
+    today_date = get_israel_now().date()
     start_date_str = str(today_date - timedelta(days=days - 1))
 
     all_meals = []
@@ -5225,7 +5244,7 @@ def api_add_ai_meal(req: AIMealRequest, request: Request):
             "calories": extraction.calories,
             "protein_g": extraction.protein_g,
             "items": items_data,
-            "log_date": req.log_date or str(date.today()),
+            "log_date": req.log_date or get_israel_today_str(),
             "log_time": cal_time,
             "meal_type": cal_type,
             "source": "web-ai"
@@ -5319,7 +5338,7 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
             "carbs_g": getattr(extraction, 'carbs_g', 0) or 0,
             "fat_g": getattr(extraction, 'fat_g', 0) or 0,
             "items": items_data,
-            "log_date": req.log_date or str(date.today()),
+            "log_date": req.log_date or get_israel_today_str(),
             "log_time": cal_time,
             "meal_type": cal_type,
             "is_meal": True
@@ -5399,7 +5418,7 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
             "calories": extraction.calories,
             "protein_g": extraction.protein_g,
             "items": items_data,
-            "log_date": req.log_date or str(date.today()),
+            "log_date": req.log_date or get_israel_today_str(),
             "log_time": cal_time,
             "meal_type": cal_type,
             "source": "web-voice"
@@ -5424,7 +5443,7 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
 def api_coach_analyze(request: Request, req: Optional[CoachAnalyzeRequest] = None):
     uid = require_approved_user(request)
     check_and_increment_ai_quota(uid)
-    d_str = (req.log_date if req and req.log_date else None) or str(date.today())
+    d_str = (req.log_date if req and req.log_date else None) or get_israel_today_str()
     day_summary = get_day_summary(d_str, user_id=uid)
     hist = _fetch_user_history(uid=uid, days=7)
     return generate_daily_coach_insight(day_summary=day_summary, daily_trend=hist.get("daily_trend", []))
@@ -5561,7 +5580,7 @@ def api_add_ai_workout(req: AIWorkoutRequest, request: Request):
         raise HTTPException(status_code=422, detail="לא זוהתה פעילות גופנית או אימון בטקסט שהוזן")
 
     added_entries = []
-    d_str = req.log_date or str(date.today())
+    d_str = req.log_date or get_israel_today_str()
     for item in extraction.workouts:
         entry = log_workout_db(
             activity_name=item.activity_name,
@@ -5657,7 +5676,7 @@ def api_add_photo_workout(req: PhotoWorkoutRequest, request: Request):
     if not extraction.is_workout or not extraction.workouts:
         raise HTTPException(status_code=422, detail="לא זוהו נתוני צעדים, קלוריות או אימון בצילום המסך שהועלה")
 
-    d_str = req.log_date or str(date.today())
+    d_str = req.log_date or get_israel_today_str()
     added_entries = []
     for item in extraction.workouts:
         entry = log_workout_db(
@@ -6133,7 +6152,7 @@ def _legacy_sync_google_fit_unused(req: GoogleFitSyncRequest, request: Request):
     if not token:
         raise HTTPException(status_code=400, detail="נא לספק Google OAuth access token")
 
-    target_date_str = req.log_date or str(date.today())
+    target_date_str = req.log_date or get_israel_today_str()
     try:
         target_dt = datetime.strptime(target_date_str, "%Y-%m-%d")
     except Exception:

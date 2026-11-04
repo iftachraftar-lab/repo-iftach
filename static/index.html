@@ -1289,7 +1289,7 @@
                                         </span>
                                     </template>
                                     <template x-if="!getSlotLoggedMeal(slot.key) && !isSlotSkipped(slot.key)">
-                                        <span class="text-xs text-slate-400 font-bold font-mono" x-text="slot.defaultTime"></span>
+                                        <span class="text-[11px] text-slate-400 font-medium" x-text="'שעת יעד: ' + slot.defaultTime"></span>
                                     </template>
                                 </div>
                             </div>
@@ -6084,7 +6084,7 @@
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-black text-amber-950 flex items-center gap-1.5">
                             <span>🕒</span>
-                            <span>שעת האכילה בפועל:</span>
+                            <span>שעת האכילה בפועל:</span><span class="px-1.5 py-0.2 rounded bg-amber-200/80 text-[10px] text-amber-900 font-extrabold">שעון ישראל 🇮🇱</span>
                         </span>
                         <span class="text-[10px] text-amber-700 font-bold">חילוץ AI מתוך ההקלטה / עריכה מהירה</span>
                     </div>
@@ -6261,12 +6261,46 @@
             });
         }
 
+        function getIsraelTimeStr(dateObj = new Date()) {
+            try {
+                const parts = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Asia/Jerusalem',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                }).formatToParts(dateObj);
+                const h = parts.find(p => p.type === 'hour')?.value || '12';
+                const m = parts.find(p => p.type === 'minute')?.value || '00';
+                return `${h}:${m}`;
+            } catch (e) {
+                const d = dateObj || new Date();
+                return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            }
+        }
+
+        function getIsraelDateStr(dateObj = new Date()) {
+            try {
+                const parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'Asia/Jerusalem',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                }).formatToParts(dateObj);
+                const y = parts.find(p => p.type === 'year')?.value;
+                const m = parts.find(p => p.type === 'month')?.value;
+                const d = parts.find(p => p.type === 'day')?.value;
+                return `${y}-${m}-${d}`;
+            } catch (e) {
+                const d = dateObj || new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+        }
+
         function getLocalTodayStr() {
-            const d = new Date();
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            return getIsraelDateStr();
         }
 
     window.APP_I18N = {
@@ -12135,8 +12169,8 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     calories: sug.calories,
                     protein_g: sug.protein_g,
                     items: sug.items || [],
-                    log_date: this.selectedDate || this.todayDateStr,
-                    log_time: slot.defaultTime,
+                    log_date: this.selectedDate || this.todayStr,
+                    log_time: getIsraelTimeStr(),
                     meal_type: slot.key,
                     source: 'web-slot-preset'
                 });
@@ -12165,22 +12199,29 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             openSlotVoiceLogger(slot) {
                 this.activeTargetSlot = slot;
                 this.mealConfirmForm.meal_type = slot.key;
-                this.mealConfirmForm.log_time = slot.defaultTime;
+                this.mealConfirmForm.log_time = getIsraelTimeStr();
                 this.startVoiceRecording();
             },
 
             openSlotPhotoLogger(slot) {
                 this.activeTargetSlot = slot;
                 this.mealConfirmForm.meal_type = slot.key;
-                this.mealConfirmForm.log_time = slot.defaultTime;
+                this.mealConfirmForm.log_time = getIsraelTimeStr();
                 document.getElementById('photoMealFileInput')?.click();
             },
 
             openSlotManualLogger(slot) {
                 this.activeTargetSlot = slot;
-                this.manualMealForm.meal_type = slot.key;
-                this.manualMealForm.log_time = slot.defaultTime;
-                this.openManualMealModal();
+                this.openMealConfirmModal({
+                    description: '',
+                    calories: '',
+                    protein_g: '',
+                    items: [],
+                    log_date: this.selectedDate || this.todayStr,
+                    log_time: getIsraelTimeStr(),
+                    meal_type: slot.key,
+                    source: 'web-manual'
+                });
             },
 
             toggleAppMode() {
@@ -12192,11 +12233,11 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             openMealConfirmModal(data) {
                 this.mealConfirmForm = {
                     description: data.description || '',
-                    calories: Number(data.calories) || 0,
-                    protein_g: Number(data.protein_g) || 0,
+                    calories: (data.calories !== undefined && data.calories !== null && data.calories !== '') ? Number(data.calories) : '',
+                    protein_g: (data.protein_g !== undefined && data.protein_g !== null && data.protein_g !== '') ? Number(data.protein_g) : '',
                     items: data.items || [],
-                    log_date: data.log_date || this.todayDateStr,
-                    log_time: data.log_time || new Date().toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}),
+                    log_date: data.log_date || this.todayStr,
+                    log_time: data.log_time || getIsraelTimeStr(),
                     meal_type: data.meal_type || 'lunch',
                     source: data.source || 'web-voice'
                 };
@@ -12216,8 +12257,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             },
 
             setMealConfirmTimeToNow() {
-                const now = new Date();
-                this.mealConfirmForm.log_time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                this.mealConfirmForm.log_time = getIsraelTimeStr();
             },
 
             async saveConfirmedMeal() {
@@ -12231,7 +12271,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         description: this.mealConfirmForm.description.trim(),
                         calories: this.mealConfirmForm.calories,
                         protein_g: this.mealConfirmForm.protein_g,
-                        log_date: this.mealConfirmForm.log_date || this.todayDateStr,
+                        log_date: this.mealConfirmForm.log_date || this.todayStr,
                         log_time: this.mealConfirmForm.log_time,
                         meal_type: this.mealConfirmForm.meal_type
                     };
