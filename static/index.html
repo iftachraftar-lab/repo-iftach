@@ -398,7 +398,26 @@
                     <svg class="w-4 h-4 text-emerald-700 flex-shrink-0"><use href="#icon-wolt-dish"></use></svg>
                     <span x-text="t('tabRecipes', 'מתכונים ו-Wolt')">מתכונים ו-Wolt</span>
                 </button>
-                <button x-cloak x-show="currentUser && currentUser.is_admin"
+                <!-- Coach / Trainees Hub Tab for Coach & Admin -->
+                <button x-cloak x-show="isCoachOrAdmin()"
+                    @click="openTraineesTab()"
+                    :class="(activeTab === 'summary' && coachingSubTab === 'trainees') ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-indigo-700 hover:bg-indigo-50 font-semibold'"
+                    class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="ניהול רשימת המתאמנים של איתמר והפקת קישורי שיתוף לטלגרם / וואטסאפ">
+                    <span>👥</span>
+                    <span>מתאמנים ובוט</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                          :class="(activeTab === 'summary' && coachingSubTab === 'trainees') ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'"
+                          x-text="trainees.length"></span>
+                </button>
+                <button x-cloak x-show="isCoachOrAdmin()"
+                    @click="openTraineesTab()"
+                    :class="(activeTab === 'summary' && coachingSubTab === 'trainees') ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'"
+                    class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer">
+                <span class="text-lg leading-none mb-0.5">👥</span>
+                <span class="text-[10px]">מתאמנים</span>
+            </button>
+            <button x-cloak x-show="currentUser && currentUser.is_admin"
                     @click="switchTab('admin')"
                     :class="activeTab === 'admin' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-indigo-700 hover:bg-indigo-50 font-semibold'"
                     class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer">
@@ -409,6 +428,16 @@
 
             <!-- Uniform Action Toolbar (Clean, Spaced & Uncluttered) -->
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-nowrap">
+                <!-- Fast Trainee Link Generation for Coach/Admin -->
+                <button x-cloak x-show="isCoachOrAdmin()"
+                    type="button"
+                    @click="showAddTraineeModal = true"
+                    class="h-8 px-2.5 sm:px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-95 flex-shrink-0"
+                    title="הפק קישור הצטרפות אישי לטלגרם / וואטסאפ למתאמן חדש">
+                    <span>➕</span>
+                    <span class="hidden sm:inline">הפק קישור למתאמן</span>
+                    <span class="sm:hidden font-bold">קישור</span>
+                </button>
 
                 <!-- 1. Language Switcher (Hebrew <-> English) -->
                 <button type="button" @click="toggleLanguage()"
@@ -3786,6 +3815,34 @@
                             <span>SLA 99.98% פעיל</span>
                         </div>
                         <span class="text-[10px] text-slate-400">Web Push VAPID</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COACHING QUICK LINK & TRAINEES HUB BANNER (Admin View) -->
+            <div x-show="adminNavTab === 'users'" class="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 rounded-3xl p-5 sm:p-6 text-white shadow-lg space-y-3 relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                    <div class="space-y-1">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-bold">
+                            <span>🤖</span>
+                            <span>חיבור מתאמן לבוט טלגרם / וואטסאפ</span>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-black">הפקת קישור אישי מהמאמן למתאמן</h3>
+                        <p class="text-xs text-emerald-100 max-w-xl">
+                            בלחיצה אחת: מפיקים קישור deep-link אישי לבוט הטלגרם של איתמר (<span class="font-mono bg-black/20 px-1 py-0.5 rounded">@Iftachtaskbot</span>) וטקסט הזמנה לוואטסאפ. כשהמתאמן לוחץ על הלינק, הוא מחובר מיד לחשבון שלו וכל ארוחה מתועדת ביומן!
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" @click="showAddTraineeModal = true"
+                                class="px-4 py-2.5 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-950 font-black text-xs transition cursor-pointer shadow-md flex items-center gap-1.5 active:scale-95">
+                            <span>➕</span>
+                            <span>הוסף מתאמן והפק קישור ➔</span>
+                        </button>
+                        <button type="button" @click="openTraineesTab()"
+                                class="px-3.5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/30 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5">
+                            <span>👥</span>
+                            <span>לוח מתאמנים של איתמר (<span x-text="trainees.length"></span>)</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -13045,6 +13102,13 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 } catch (e) {
                     console.error('Error deleting trainee:', e);
                 }
+            },
+            openTraineesTab() {
+                this.appMode = 'coaching';
+                this.activeTab = 'summary';
+                this.coachingSubTab = 'trainees';
+                this.resetViewingTrainee();
+                this.fetchCoachTrainees();
             },
             isCoachOrAdmin() {
                 if (!this.currentUser) return false;
