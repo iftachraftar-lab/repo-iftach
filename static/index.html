@@ -1444,6 +1444,20 @@
                                         </div>
                                     </div>
 
+                                    <!-- Quick HoldOn Protein Shake Option (Morning & Afternoon Snacks) -->
+                                    <div x-show="slot.key === 'morning_snack' || slot.key === 'afternoon_snack'"
+                                         class="p-2.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                                        <button type="button" @click="logHoldonShake(slot.key)"
+                                                class="py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs">
+                                            <span>🥤</span>
+                                            <span>שתיתי שייק חלבון HoldOn (180 קק״ל / 25g)</span>
+                                        </button>
+                                        <button type="button" @click="showHoldonAffiliateModal = true"
+                                                class="text-[11px] text-amber-900 hover:text-amber-950 font-bold underline cursor-pointer flex items-center justify-center gap-1">
+                                            <span>🎁 10% הנחה בלעדית ב-HoldOn</span>
+                                        </button>
+                                    </div>
+
                                     <!-- Primary 1-Tap Log Action Button -->
                                     <button type="button" @click="logSlotSuggestion(slot)"
                                             class="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer">
@@ -1483,6 +1497,32 @@
                             </template>
                         </div>
                     </template>
+                </div>
+
+                <!-- ================= HOLDON AFFILIATE PROMOTION BANNER ================= -->
+                <div class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/15 border border-amber-300 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-300 flex items-center justify-center text-2xl flex-shrink-0">
+                            🥤
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs sm:text-sm font-black text-amber-950">הטבת שייקים ותוספים למתאמנים – HoldOn (הולד-און)</span>
+                                <span class="px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 text-[10px] font-black">10% הנחה בלעדית</span>
+                            </div>
+                            <p class="text-xs text-amber-800 mt-0.5">קוד קופון בלעדי בקופה: <span class="font-mono font-black text-amber-950 bg-white px-2 py-0.5 rounded-md border border-amber-300">HOLDON10</span></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <button type="button" @click="copyHoldonCoupon()"
+                                class="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-white hover:bg-amber-50 text-amber-950 border border-amber-300 font-extrabold text-xs transition cursor-pointer">
+                            <span x-text="copiedHoldonCoupon ? '✓ הועתק!' : '📋 העתק קופון'">📋 העתק קופון</span>
+                        </button>
+                        <a href="https://www.holdon.co.il/" target="_blank" rel="noopener noreferrer"
+                           class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs transition cursor-pointer shadow-xs text-center whitespace-nowrap">
+                            לרכישה באתר HoldOn ➔
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -10478,6 +10518,15 @@
                         ]);
                     }
                     this.loading = false;
+                    // Load any stored slot suggestions into reactive state
+                    for (const sl of (this.dailySlots || [])) {
+                        try {
+                            const saved = localStorage.getItem('nutri_slot_sug_' + sl.key);
+                            if (saved) {
+                                this.slotSuggestions[sl.key] = JSON.parse(saved);
+                            }
+                        } catch (e) {}
+                    }
                     
                     // Check if first-time user needs Onboarding (Stage 2)
                     if (!localStorage.getItem('nutri_onboarding_completed') && (!this.currentUser || !this.currentUser.onboarding_completed)) {
@@ -12217,22 +12266,14 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             },
 
             getSlotSuggestion(slot) {
-                if (this.slotSuggestions[slot.key]) {
+                if (this.slotSuggestions && this.slotSuggestions[slot.key]) {
                     return this.slotSuggestions[slot.key];
                 }
-                try {
-                    const saved = localStorage.getItem('nutri_slot_sug_' + slot.key);
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        this.slotSuggestions[slot.key] = parsed;
-                        return parsed;
-                    }
-                } catch (e) {}
                 return slot.defaultSuggestion;
             },
 
             async refreshSlotSuggestion(slot) {
-                this.slotShuffling[slot.key] = true;
+                this.slotShuffling = { ...this.slotShuffling, [slot.key]: true };
                 try {
                     const res = await fetch('/api/meals/suggest-slot', {
                         method: 'POST',
@@ -12245,7 +12286,11 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        this.slotSuggestions[slot.key] = data;
+                        // Trigger full Alpine reactivity via new object reference
+                        this.slotSuggestions = {
+                            ...this.slotSuggestions,
+                            [slot.key]: data
+                        };
                         try {
                             localStorage.setItem('nutri_slot_sug_' + slot.key, JSON.stringify(data));
                         } catch (e) {}
@@ -12256,7 +12301,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 } catch (e) {
                     this.showToast('שגיאת תקשורת');
                 } finally {
-                    this.slotShuffling[slot.key] = false;
+                    this.slotShuffling = { ...this.slotShuffling, [slot.key]: false };
                 }
             },
 

@@ -5189,17 +5189,18 @@ def api_suggest_slot_meal(req: SlotSuggestRequest, request: Request):
     slot_key = req.slot_key if req.slot_key in SLOT_PRESETS else "lunch"
     presets = SLOT_PRESETS.get(slot_key, SLOT_PRESETS["lunch"])
     
-    # Check if AI client is available for dynamic variation
-    if ai_client and req.preference:
+    # Try dynamic Gemini AI generation first for real variation
+    if ai_client:
         try:
             check_and_increment_ai_quota(uid)
             cal_target = req.target_calories or (540 if slot_key == "lunch" else (350 if "snack" not in slot_key else 150))
             prot_target = req.target_protein or (45 if slot_key == "lunch" else (25 if "snack" not in slot_key else 15))
+            user_pref = f" העדפה: '{req.preference}'." if req.preference else ""
             
-            prompt = f"""אתה תזונאי ישראלי מקצועי. הצע ארוחה אחת מושלמת בעברית עבור ארוחה מסוג '{slot_key}'.
-היעד הקלורי של ארוחה זו: כ-{cal_target} קק"ל, והחלבון: כ-{prot_target} גרם חלבון.
-העדפת המשתמש: '{req.preference}'.
-החזר תיאור טבעי ופרקטי שמתאמנים בישראל אוהבים, עם פירוט מדויק של הפריטים ב-items."""
+            prompt = f"""אתה תזונאי ומאמן כושר ישראלי בכיר. הצע מנה חדשה, מגוונת ומדויקת לארוחת '{slot_key}' שמתאמנים בישראל אוהבים.{user_pref}
+היעד הקלורי של מנה זו: כ-{cal_target} קק"ל, והחלבון: כ-{prot_target} גרם חלבון.
+החזר תיאור טבעי, טעים ומדויק בעברית בשדה summary (שונה ומגוון, למשל מנות עוף, דגים, ביצים, שקשוקה, קטניות, יוגורט חלבון).
+פרט את כל הרכיבים ברשימת items עם calories ו-protein_g מדויקים."""
             
             response = ai_client.models.generate_content(
                 model="gemini-2.5-flash",
@@ -5207,22 +5208,23 @@ def api_suggest_slot_meal(req: SlotSuggestRequest, request: Request):
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=NutritionExtraction,
-                    temperature=0.3,
+                    temperature=0.7,
                 ),
             )
             parsed = NutritionExtraction.model_validate_json(response.text)
-            return {
-                "description": parsed.summary,
-                "calories": parsed.calories,
-                "protein_g": parsed.protein_g,
-                "items": [it.model_dump() for it in parsed.items] if parsed.items else []
-            }
+            if parsed.summary and parsed.calories > 0:
+                return {
+                    "description": parsed.summary,
+                    "calories": parsed.calories,
+                    "protein_g": parsed.protein_g,
+                    "items": [it.model_dump() for it in parsed.items] if parsed.items else []
+                }
         except Exception as e:
-            print(f"Error in dynamic slot suggestion, using preset fallback: {e}")
+            print(f"Error in dynamic slot suggestion, using random preset fallback: {e}")
 
-    # Fallback to smart rotation of presets
-    idx = int(time.time() // 10) % len(presets)
-    return presets[idx]
+    # Fallback: pick a different preset randomly every time
+    import random
+    return random.choice(presets)
 
 
 @app.post("/api/meals/")
