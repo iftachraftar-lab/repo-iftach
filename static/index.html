@@ -3286,7 +3286,7 @@
                     <span>משתמשים ומתאמנים</span>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black"
                           :class="adminNavTab === 'users' ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-200 text-slate-700'"
-                          x-text="adminUsers.length"></span>
+                          x-text="adminData?.users?.length || 0"></span>
                 </button>
                 <button type="button" @click="adminNavTab = 'demo'"
                         class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
@@ -3301,7 +3301,7 @@
                     <span>לידים נכנסים והתראות</span>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black"
                           :class="adminNavTab === 'leads' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'"
-                          x-text="adminLeads.length"></span>
+                          x-text="adminLeads?.length || 0"></span>
                 </button>
                 <button type="button" @click="adminNavTab = 'settings'"
                         class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
@@ -3392,7 +3392,7 @@
                             :class="adminPartnerSubTab === 'leads' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
                             class="px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer">
                         <span>📋 לידים שנאספו במערכת</span>
-                        <span x-text="adminLeads.length" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800"></span>
+                        <span x-text="adminLeads?.length || 0" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800"></span>
                     </button>
                 </div>
 
