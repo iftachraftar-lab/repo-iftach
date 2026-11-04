@@ -535,6 +535,7 @@ _LOCAL_VAPID: Optional[dict] = None
 _LOCAL_PUSH_SUBS: List[dict] = []
 _LOCAL_WATER: dict = {}
 _LOCAL_USERS: dict = {}
+_LOCAL_TRAINEES: dict = {}
 _LOCAL_LEADS: List[dict] = []
 _LOCAL_TG_LINKS: dict = {}
 _LOCAL_FEATURES: dict = {
@@ -1153,11 +1154,249 @@ def resolve_user_id_by_phone(phone_str: str) -> str:
     return "default"
 
 
+# ---------------------------------------------------------------------------
+# Coach & Trainee Roster Management Helpers (Multi-Tenant Coaching)
+# ---------------------------------------------------------------------------
+
+def create_trainee_record(
+    coach_id: str = "itamar",
+    name: str = "",
+    phone: str = "",
+    email: str = "",
+    target_calories: int = 1800,
+    target_protein: float = 120.0,
+    notes: str = "",
+) -> dict:
+    c_name = "איתמר"
+    clean_name = (name or "").strip()
+    if not clean_name:
+        raise ValueError("שם המתאמן הוא שדה חובה")
+
+    clean_phone = (phone or "").strip()
+    clean_email = (email or "").strip().lower()
+
+    # Generate clean, memorable invite code: e.g. ITAMAR-DANNY-3A
+    safe_name_prefix = re.sub(r"[^a-zA-Z0-9]", "", clean_name)[:8].upper() or "TRAINEE"
+    rand_suffix = secrets.token_hex(2).upper()
+    invite_code = f"ITAMAR-{safe_name_prefix}-{rand_suffix}"
+    trainee_id = f"tr_{secrets.token_hex(6)}"
+
+    now_iso = get_israel_now().isoformat()
+    record = {
+        "id": trainee_id,
+        "coach_id": coach_id or "itamar",
+        "coach_name": c_name,
+        "name": clean_name,
+        "phone": clean_phone,
+        "email": clean_email,
+        "invite_code": invite_code,
+        "telegram_linked": False,
+        "telegram_chat_id": None,
+        "telegram_username": None,
+        "target_calories": int(target_calories or 1800),
+        "target_protein": float(target_protein or 120.0),
+        "target_water_ml": 2500,
+        "notes": notes.strip(),
+        "status": "pending",
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+
+    _LOCAL_TRAINEES[trainee_id] = dict(record)
+
+    # Initialize user profile & targets so all meal, water, and metabolic journal calls work out-of-the-box
+    user_doc = {
+        "id": trainee_id,
+        "name": clean_name,
+        "phone": clean_phone,
+        "email": clean_email,
+        "coach_id": coach_id or "itamar",
+        "coach_name": c_name,
+        "link_code": invite_code,
+        "is_approved": True,
+        "approved_by_owner": True,
+        "target_calories": int(target_calories or 1800),
+        "target_protein": float(target_protein or 120.0),
+        "onboarding_completed": False,
+        "created_at": now_iso,
+    }
+    _LOCAL_USERS[trainee_id] = user_doc
+    set_targets(int(target_calories or 1800), float(target_protein or 120.0), user_id=trainee_id)
+
+    if db:
+        try:
+            db.collection("trainees").document(trainee_id).set(record, merge=True)
+            db.collection("users").document(trainee_id).set(user_doc, merge=True)
+        except Exception as e:
+            print(f"ERROR saving trainee to firestore: {e}")
+
+    bot_name = os.getenv("TELEGRAM_BOT_USERNAME", "Iftachtaskbot").lstrip("@")
+    app_base = "https://nutrition-service-313955139672.me-west1.run.app"
+    record["telegram_link"] = f"https://t.me/{bot_name}?start=pair_{invite_code}"
+    record["web_link"] = f"{app_base}/?invite={invite_code}"
+    record["whatsapp_share_text"] = (
+        f"היי {clean_name}, כאן {c_name} המאמן שלך!\n"
+        f"הכנתי לך את תוכנית התזונה שלך באפליקציה 💪\n\n"
+        f"לחיבור ישיר לטלגרם למעקב מהיר (צילום צלחות והודעות קוליות):\n"
+        f"https://t.me/{bot_name}?start=pair_{invite_code}\n\n"
+        f"ולכניסה ישירה ליומן התזונה המלא:\n"
+        f"{app_base}/?invite={invite_code}"
+    )
+    return record
+
+
+def find_trainee_by_invite_code(code: str) -> Optional[dict]:
+    query = (code or "").strip().lower()
+    if not query:
+        return None
+    # Check local memory
+    for t in _LOCAL_TRAINEES.values():
+        if t.get("invite_code", "").lower() == query or t.get("id", "").lower() == query:
+            return dict(t)
+    # Check Firestore
+    if db:
+        try:
+            for doc in db.collection("trainees").stream():
+                t = doc.to_dict() or {}
+                t["id"] = doc.id
+                if t.get("invite_code", "").lower() == query or doc.id.lower() == query:
+                    _LOCAL_TRAINEES[doc.id] = t
+                    return t
+        except Exception as e:
+            print(f"ERROR find_trainee_by_invite_code: {e}")
+    return None
+
+
+def get_daily_water_db(log_date: Optional[str] = None, user_id: str = "default") -> dict:
+    uid = _normalize_user_id(user_id)
+    d_str = log_date or get_israel_today_str()
+    key = f"{uid}_{d_str}"
+    if not db:
+        ml = int(_LOCAL_WATER.get(key, 0))
+        return {"water_ml": ml, "log_date": d_str, "user_id": uid}
+    try:
+        doc = db.collection("water_logs").document(key).get()
+        if doc.exists:
+            ml = int(doc.to_dict().get("amount_ml") or doc.to_dict().get("water_ml") or 0)
+            return {"water_ml": ml, "log_date": d_str, "user_id": uid}
+    except Exception as e:
+        print(f"ERROR get_daily_water_db: {e}")
+    return {"water_ml": 0, "log_date": d_str, "user_id": uid}
+
+
+def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
+    res = []
+    bot_name = os.getenv("TELEGRAM_BOT_USERNAME", "Iftachtaskbot").lstrip("@")
+    app_base = "https://nutrition-service-313955139672.me-west1.run.app"
+
+    trainee_items = []
+    if not db:
+        trainee_items = list(_LOCAL_TRAINEES.values())
+    else:
+        try:
+            for doc in db.collection("trainees").stream():
+                d = doc.to_dict() or {}
+                d["id"] = doc.id
+                _LOCAL_TRAINEES[doc.id] = d
+                trainee_items.append(d)
+        except Exception as e:
+            print(f"ERROR list_coach_trainees: {e}")
+            trainee_items = list(_LOCAL_TRAINEES.values())
+
+    for t in trainee_items:
+        uid = t["id"]
+        # Attach live today metrics
+        s = get_day_summary(user_id=uid)
+        w = get_daily_water_db(user_id=uid)
+        rec = dict(t)
+        rec["today_calories"] = s.get("total_calories", 0)
+        rec["remaining_calories"] = s.get("remaining_calories", t.get("target_calories", 1800))
+        rec["today_protein"] = s.get("total_protein", 0)
+        rec["today_water_ml"] = w.get("water_ml", 0)
+        rec["meals_count"] = len(s.get("meals", []))
+        inv = t.get("invite_code", "")
+        rec["telegram_link"] = f"https://t.me/{bot_name}?start=pair_{inv}"
+        rec["web_link"] = f"{app_base}/?invite={inv}"
+        rec["whatsapp_share_text"] = (
+            f"היי {t.get('name')}, כאן {t.get('coach_name', 'איתמר')} המאמן שלך!\n"
+            f"הכנתי לך את תוכנית התזונה שלך באפליקציה 💪\n\n"
+            f"לחיבור ישיר לטלגרם למעקב מהיר (צילום צלחות והודעות קוליות):\n"
+            f"https://t.me/{bot_name}?start=pair_{inv}\n\n"
+            f"ולכניסה ישירה ליומן התזונה המלא:\n"
+            f"{app_base}/?invite={inv}"
+        )
+        res.append(rec)
+
+    # Sort newest first
+    res.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return res
+
+
+def delete_trainee_record(trainee_id: str) -> bool:
+    _LOCAL_TRAINEES.pop(trainee_id, None)
+    if db:
+        try:
+            db.collection("trainees").document(trainee_id).delete()
+            return True
+        except Exception as e:
+            print(f"ERROR delete_trainee_record: {e}")
+            return False
+    return True
+
+
 def link_telegram_Account(tg_chat_id: int, code_or_email: str) -> Optional[dict]:
     query = (code_or_email or "").strip().lower()
     if not query:
         return None
     matched_user = None
+
+    # 1. First check if this is an invite code or ID of a trainee under Coach Itamar
+    for t in _LOCAL_TRAINEES.values():
+        if t.get("invite_code", "").lower() == query or t.get("id", "").lower() == query:
+            matched_user = t
+            break
+    if not matched_user and db:
+        try:
+            for doc in db.collection("trainees").stream():
+                t = doc.to_dict() or {}
+                t["id"] = doc.id
+                if t.get("invite_code", "").lower() == query or doc.id.lower() == query:
+                    matched_user = t
+                    _LOCAL_TRAINEES[doc.id] = t
+                    break
+        except Exception as e:
+            print(f"ERROR checking trainees for telegram link: {e}")
+
+    if matched_user:
+        # Mark trainee as active & linked
+        matched_user["telegram_chat_id"] = str(tg_chat_id)
+        matched_user["telegram_linked"] = True
+        matched_user["status"] = "active"
+        _LOCAL_TG_LINKS[str(tg_chat_id)] = matched_user["id"]
+        if db:
+            try:
+                db.collection("trainees").document(matched_user["id"]).set({
+                    "telegram_chat_id": str(tg_chat_id),
+                    "telegram_linked": True,
+                    "status": "active",
+                    "updated_at": firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+                db.collection("users").document(matched_user["id"]).set({
+                    "telegram_chat_id": str(tg_chat_id),
+                    "telegram_linked": True,
+                    "telegram_linked_at": firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+                db.collection("telegram_links").document(str(tg_chat_id)).set({
+                    "tg_chat_id": str(tg_chat_id),
+                    "user_id": matched_user["id"],
+                    "trainee_id": matched_user["id"],
+                    "coach_id": matched_user.get("coach_id", "itamar"),
+                    "name": matched_user.get("name", ""),
+                    "updated_at": firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+            except Exception as e:
+                print(f"ERROR updating trainee telegram link: {e}")
+        return matched_user
     if not db:
         for u in _LOCAL_USERS.values():
             if u["email"].lower() == query or u.get("link_code", "").lower() == query or u["id"].lower() == query:
@@ -5702,6 +5941,104 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
     if not entry:
         raise HTTPException(status_code=500, detail="Failed to save voice meal to Firestore")
     return entry
+
+
+class CoachTraineeCreateRequest(BaseModel):
+    name: str
+    phone: Optional[str] = ""
+    email: Optional[str] = ""
+    target_calories: Optional[int] = 1800
+    target_protein: Optional[float] = 120.0
+    notes: Optional[str] = ""
+
+
+@app.get("/api/coach/trainees")
+def api_coach_list_trainees(request: Request):
+    uid = get_request_user_id(request)
+    coach_id = "itamar"
+    return {
+        "coach_id": coach_id,
+        "coach_name": "איתמר",
+        "trainees": list_coach_trainees(coach_id=coach_id)
+    }
+
+
+@app.post("/api/coach/trainees")
+def api_coach_create_trainee(req: CoachTraineeCreateRequest, request: Request):
+    uid = get_request_user_id(request)
+    coach_id = "itamar"
+    if not req.name.strip():
+        raise HTTPException(status_code=400, detail="שם המתאמן הוא שדה חובה")
+    record = create_trainee_record(
+        coach_id=coach_id,
+        name=req.name,
+        phone=req.phone or "",
+        email=req.email or "",
+        target_calories=req.target_calories or 1800,
+        target_protein=req.target_protein or 120.0,
+        notes=req.notes or "",
+    )
+    return {"ok": True, "trainee": record}
+
+
+@app.get("/api/coach/trainees/{trainee_id}/details")
+def api_coach_trainee_details(trainee_id: str, request: Request):
+    t = _LOCAL_TRAINEES.get(trainee_id)
+    if not t and db:
+        snap = db.collection("trainees").document(trainee_id).get()
+        if snap.exists:
+            t = snap.to_dict()
+            t["id"] = snap.id
+    if not t:
+        raise HTTPException(status_code=404, detail="מתאמן לא נמצא")
+
+    s = get_day_summary(user_id=trainee_id)
+    w = get_daily_water_db(user_id=trainee_id)
+    weights = get_weights_db(limit=7, user_id=trainee_id)
+    meals = get_meals_db(limit=20, user_id=trainee_id)
+    return {
+        "trainee": t,
+        "summary": s,
+        "water": w,
+        "weights": weights,
+        "recent_meals": meals,
+    }
+
+
+@app.delete("/api/coach/trainees/{trainee_id}")
+def api_coach_delete_trainee(trainee_id: str, request: Request):
+    ok = delete_trainee_record(trainee_id)
+    return {"ok": ok, "deleted_id": trainee_id}
+
+
+@app.post("/api/auth/invite/{invite_code}")
+def api_auth_invite(invite_code: str, response: Response):
+    trainee = find_trainee_by_invite_code(invite_code)
+    if not trainee:
+        raise HTTPException(status_code=404, detail="קוד הזמנה לא נמצא או שפג תוקפו")
+    uid = trainee["id"]
+    token = create_session_token(uid)
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        max_age=SESSION_TOKEN_TTL_SECONDS,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    return {
+        "id": uid,
+        "name": trainee.get("name", ""),
+        "email": trainee.get("email", ""),
+        "phone": trainee.get("phone", ""),
+        "coach_id": trainee.get("coach_id", "itamar"),
+        "coach_name": trainee.get("coach_name", "איתמר"),
+        "target_calories": trainee.get("target_calories", 1800),
+        "target_protein": trainee.get("target_protein", 120.0),
+        "is_approved": True,
+        "session_token": token,
+        "telegram_linked": bool(trainee.get("telegram_linked")),
+    }
 
 
 @app.post("/api/coach/analyze")

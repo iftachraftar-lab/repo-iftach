@@ -496,6 +496,188 @@
         <!-- =============================================================== -->
         <div x-show="activeTab === 'summary'" x-transition.opacity class="space-y-6">
 
+            <!-- Coaching Subtabs Switcher & Quick Add (When Coaching Mode Active) -->
+            <div x-show="appMode === 'coaching'" class="p-2 sm:p-2.5 bg-white rounded-3xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-2.5">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <button type="button" @click="coachingSubTab = 'summary'; resetViewingTrainee()"
+                            class="px-3.5 py-2 rounded-2xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                            :class="coachingSubTab === 'summary' && !viewingTrainee ? 'bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs' : 'text-slate-600 hover:text-slate-900 border border-transparent'">
+                        <span>📋</span>
+                        <span>יומן יומי וסלוטים</span>
+                    </button>
+                    <button type="button" @click="coachingSubTab = 'trainees'; resetViewingTrainee(); fetchCoachTrainees()"
+                            class="px-3.5 py-2 rounded-2xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                            :class="coachingSubTab === 'trainees' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 border border-transparent'">
+                        <span>👥</span>
+                        <span>רשימת המתאמנים של איתמר</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black"
+                              :class="coachingSubTab === 'trainees' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'"
+                              x-text="trainees.length"></span>
+                    </button>
+                </div>
+                <button type="button" @click="showAddTraineeModal = true"
+                        class="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-95 text-white font-black text-xs transition cursor-pointer shadow-xs flex items-center gap-1.5">
+                    <span>➕</span>
+                    <span>הוסף מתאמן חדש</span>
+                </button>
+            </div>
+
+            <!-- Viewing Trainee Diary Mode Banner -->
+            <div x-show="viewingTrainee" class="p-3.5 sm:p-4 rounded-3xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center text-xl flex-shrink-0">
+                        👁️
+                    </div>
+                    <div>
+                        <div class="text-xs text-indigo-100 font-bold">מצב צפייה ביומן מתאמן (איתמר):</div>
+                        <div class="text-sm sm:text-base font-black">
+                            <span x-text="viewingTrainee?.name"></span>
+                            <span class="text-xs font-bold text-indigo-200 mr-1" x-text="`(${viewingTrainee?.phone || 'ללא טלפון'})`"></span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" @click="resetViewingTrainee(); coachingSubTab = 'trainees'"
+                        class="px-4 py-2 rounded-2xl bg-white text-indigo-950 hover:bg-indigo-50 font-black text-xs transition cursor-pointer shadow-xs self-start sm:self-auto">
+                    ✕ חזור לרשימת המתאמנים
+                </button>
+            </div>
+
+            <!-- COACH TRAINEES ROSTER VIEW -->
+            <div x-show="appMode === 'coaching' && coachingSubTab === 'trainees'" class="space-y-4">
+                <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div>
+                            <h2 class="text-lg sm:text-xl font-black text-slate-900">לוח מעקב מתאמנים — איתמר</h2>
+                            <p class="text-xs text-slate-500">מעקב תזונה יומי חי, סטטוס סנכרון לטלגרם והפקת קישורי שיתוף אישיים</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="fetchCoachTrainees()" :disabled="traineesLoading"
+                                    class="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 transition cursor-pointer flex items-center gap-1 shadow-2xs">
+                                <span :class="{'animate-spin': traineesLoading}">🔄</span>
+                                <span>רענן נתונים</span>
+                            </button>
+                            <button type="button" @click="showAddTraineeModal = true"
+                                    class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs transition cursor-pointer shadow-xs flex items-center gap-1">
+                                <span>➕</span>
+                                <span>הוסף מתאמן</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div x-show="trainees.length === 0 && !traineesLoading" class="text-center py-10 space-y-3">
+                        <div class="w-14 h-14 rounded-full bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center text-2xl shadow-xs">
+                            👥
+                        </div>
+                        <h4 class="text-sm font-black text-slate-800">טרם נוספו מתאמנים</h4>
+                        <p class="text-xs text-slate-500 max-w-sm mx-auto">
+                            לחץ על "הוסף מתאמן חדש" כדי להפיק קישור טלגרם אישי ולשלוח למתאמן הראשון שלך בוואטסאפ!
+                        </p>
+                        <button type="button" @click="showAddTraineeModal = true"
+                                class="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition cursor-pointer shadow-xs inline-flex items-center gap-1.5">
+                            <span>➕</span>
+                            <span>הוסף את המתאמן הראשון</span>
+                        </button>
+                    </div>
+
+                    <!-- Trainees Grid -->
+                    <div x-show="trainees.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <template x-for="t in trainees" :key="t.id">
+                            <div class="p-4 rounded-3xl border border-slate-200/90 hover:border-indigo-300 bg-white hover:shadow-xs transition space-y-3 flex flex-col justify-between">
+                                <div class="space-y-3">
+                                    <!-- Trainee Header -->
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-900 font-black text-sm flex items-center justify-center flex-shrink-0 shadow-2xs"
+                                                 x-text="(t.name || 'מ')[0]"></div>
+                                            <div class="min-w-0">
+                                                <h4 class="text-sm font-black text-slate-900 truncate" x-text="t.name"></h4>
+                                                <p class="text-[11px] text-slate-500 truncate" x-text="t.phone || 'ללא מספר'"></p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span x-show="t.telegram_linked" class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-black flex items-center gap-1">
+                                                <span>✓</span> מחובר לטלגרם
+                                            </span>
+                                            <span x-show="!t.telegram_linked" class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black flex items-center gap-1">
+                                                <span>⏳</span> ממתין לחיבור
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Live Macro Bars -->
+                                    <div class="space-y-2 p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 text-xs">
+                                        <!-- Calories -->
+                                        <div class="space-y-1">
+                                            <div class="flex justify-between text-[11px]">
+                                                <span class="font-bold text-slate-600">קלוריות היום:</span>
+                                                <span class="font-black text-slate-900" x-text="`${t.today_calories || 0} / ${t.target_calories || 1800} קק״ל`"></span>
+                                            </div>
+                                            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                                <div class="bg-emerald-500 h-full rounded-full transition-all"
+                                                     :style="`width: ${Math.min(100, Math.round(((t.today_calories || 0) / (t.target_calories || 1800)) * 100))}%`"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Protein -->
+                                        <div class="space-y-1">
+                                            <div class="flex justify-between text-[11px]">
+                                                <span class="font-bold text-slate-600">חלבון:</span>
+                                                <span class="font-black text-indigo-900" x-text="`${Math.round(t.today_protein || 0)} / ${t.target_protein || 120}g`"></span>
+                                            </div>
+                                            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                                <div class="bg-indigo-500 h-full rounded-full transition-all"
+                                                     :style="`width: ${Math.min(100, Math.round(((t.today_protein || 0) / (t.target_protein || 120)) * 100))}%`"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Water -->
+                                        <div class="space-y-1">
+                                            <div class="flex justify-between text-[11px]">
+                                                <span class="font-bold text-slate-600">שתיית מים:</span>
+                                                <span class="font-black text-sky-900" x-text="`${t.today_water_ml || 0} / 2,500 מ״ל`"></span>
+                                            </div>
+                                            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                                <div class="bg-sky-500 h-full rounded-full transition-all"
+                                                     :style="`width: ${Math.min(100, Math.round(((t.today_water_ml || 0) / 2500) * 100))}%`"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                                    <button type="button" @click="viewTraineeDiary(t)"
+                                            class="flex-1 py-1.5 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-extrabold text-[11px] transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs">
+                                        <span>👁️</span>
+                                        <span>צפה ביומן</span>
+                                    </button>
+                                    <button type="button" @click="copyTraineeTelegramLink(t.telegram_link)"
+                                            class="py-1.5 px-2.5 rounded-xl bg-white hover:bg-sky-50 text-sky-800 border border-sky-200 font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                            title="העתק קישור לטלגרם">
+                                        <span>🔗</span>
+                                        <span>קישור</span>
+                                    </button>
+                                    <button type="button" @click="shareTraineeWhatsApp(t)"
+                                            class="py-1.5 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                            title="שלח הודעה מוכנה בוואטסאפ">
+                                        <span>💬</span>
+                                    </button>
+                                    <button type="button" @click="deleteTrainee(t)"
+                                            class="py-1.5 px-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 font-bold text-[11px] transition cursor-pointer shadow-2xs"
+                                            title="מחק מתאמן">
+                                        <span>🗑️</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REGULAR METABOLIC JOURNAL & SLOTS (Shown when in Summary sub-tab) -->
+            <div x-show="coachingSubTab === 'summary'" class="space-y-6">
+
             <!-- Hero Macro Cards Grid: Stitch Dual Nested Progress Rings & 3 Macro Cards -->
             <div class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-slate-200/90 relative overflow-hidden">
                 <div class="space-y-3 mb-6">
@@ -1899,6 +2081,7 @@
 </div>
 
         <!-- =============================================================== -->
+            </div>
         <!-- TAB 2: HISTORY, WEIGHT TRACKER & 7-DAY TRENDS                   -->
         <!-- =============================================================== -->
         <div x-show="activeTab === 'history'" x-cloak x-transition.opacity class="space-y-6">
@@ -8574,6 +8757,22 @@
                 telegramLinked: false,
                 telegramLinkUrl: "",
                 telegramBotUrl: "https://t.me/Iftachtaskbot",
+                trainees: [],
+                traineesLoading: false,
+                showAddTraineeModal: false,
+                showTraineeCreatedModal: false,
+                createdTrainee: null,
+                copiedTraineeLink: false,
+                viewingTrainee: null,
+                coachingSubTab: 'summary',
+                newTraineeForm: {
+                    name: '',
+                    phone: '',
+                    email: '',
+                    target_calories: 2000,
+                    target_protein: 140,
+                    notes: ''
+                },
                 onboardingForm: {
                     height_cm: 175,
                     weight_kg: 75,
@@ -10674,6 +10873,19 @@
                     if (this.currentUser && (this.currentUser.is_approved !== false || this.currentUser.is_admin)) {
                         this.checkPushStatus();
                         this.fetchMessagingStatus();
+                        this.fetchCoachTrainees();
+                        const inviteParam = urlParams.get('invite');
+                        if (inviteParam) {
+                            fetch('/api/auth/invite/' + encodeURIComponent(inviteParam), { method: 'POST' })
+                                .then(r => r.ok ? r.json() : null)
+                                .then(traineeUser => {
+                                    if (traineeUser) {
+                                        this.currentUser = traineeUser;
+                                        this.appMode = 'coaching';
+                                        this.showToast('ברוך הבא לתוכנית הליווי, ' + traineeUser.name + '!');
+                                    }
+                                }).catch(e => console.error('Invite login error:', e));
+                        }
                         await this.fetchVisionLogs();
                         await Promise.all([
                             this.fetchSummary(),
@@ -12712,6 +12924,90 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     console.error('Error toggling feature:', e);
                 }
             },
+            async fetchCoachTrainees() {
+                this.traineesLoading = true;
+                try {
+                    const res = await fetch('/api/coach/trainees');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.trainees = data.trainees || [];
+                    }
+                } catch (e) {
+                    console.error('Error fetching coach trainees:', e);
+                } finally {
+                    this.traineesLoading = false;
+                }
+            },
+            async createTrainee() {
+                if (!this.newTraineeForm.name || !this.newTraineeForm.name.trim()) {
+                    alert('נא להזין שם מלא של המתאמן');
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/coach/trainees', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.newTraineeForm)
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.createdTrainee = data.trainee;
+                        this.showAddTraineeModal = false;
+                        this.showTraineeCreatedModal = true;
+                        await this.fetchCoachTrainees();
+                        this.newTraineeForm = { name: '', phone: '', email: '', target_calories: 2000, target_protein: 140, notes: '' };
+                    } else {
+                        const err = await res.json();
+                        alert(err.detail || 'שגיאה ביצירת מתאמן');
+                    }
+                } catch (e) {
+                    console.error('Error creating trainee:', e);
+                    alert('שגיאה בתקשורת עם השרת');
+                }
+            },
+            copyTraineeTelegramLink(link) {
+                if (!link) return;
+                navigator.clipboard.writeText(link);
+                this.copiedTraineeLink = true;
+                setTimeout(() => { this.copiedTraineeLink = false; }, 3000);
+            },
+            shareTraineeWhatsApp(trainee) {
+                if (!trainee) return;
+                const text = encodeURIComponent(trainee.whatsapp_share_text || ('היי ' + trainee.name + ', הנה קישור ההצטרפות שלך לטלגרם: ' + trainee.telegram_link));
+                const phone = (trainee.phone || '').replace(/\D/g, '');
+                const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+                window.open(url, '_blank');
+            },
+            async viewTraineeDiary(trainee) {
+                try {
+                    const res = await fetch(`/api/coach/trainees/${trainee.id}/details`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.viewingTrainee = trainee;
+                        this.summary = data.summary || this.summary;
+                        this.todayMeals = (data.summary && data.summary.meals) || [];
+                        this.coachingSubTab = 'summary';
+                        this.activeTab = 'summary';
+                    }
+                } catch (e) {
+                    console.error('Error viewing trainee diary:', e);
+                }
+            },
+            async resetViewingTrainee() {
+                this.viewingTrainee = null;
+                await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+            },
+            async deleteTrainee(trainee) {
+                if (!confirm(`האם ברצונך למחוק את המתאמן ${trainee.name}?`)) return;
+                try {
+                    const res = await fetch(`/api/coach/trainees/${trainee.id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        await this.fetchCoachTrainees();
+                    }
+                } catch (e) {
+                    console.error('Error deleting trainee:', e);
+                }
+            },
             copyHoldonCoupon() {
                 try {
                     navigator.clipboard.writeText('HOLDON10');
@@ -14716,6 +15012,110 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
         </div>
     </div>
 
+
+        <!-- ================= ADD TRAINEE MODAL (Coach Itamar) ================= -->
+        <div x-show="showAddTraineeModal" style="display: none;"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs">
+            <div @click.away="showAddTraineeModal = false"
+                 class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 text-right space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">➕</span>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900">הוספת מתאמן חדש (איתמר)</h3>
+                    </div>
+                    <button type="button" @click="showAddTraineeModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">שם מלא של המתאמן *</label>
+                        <input type="text" x-model="newTraineeForm.name" placeholder="למשל: דני כהן"
+                               class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-900 font-bold outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">מספר טלפון (לשליחה מהירה בוואטסאפ)</label>
+                        <input type="tel" x-model="newTraineeForm.phone" placeholder="050-1234567"
+                               class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-900 font-bold outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">יעד קלוריות יומי</label>
+                            <input type="number" x-model="newTraineeForm.target_calories"
+                                   class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 text-slate-900 font-bold outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">יעד חלבון יומי (גרם)</label>
+                            <input type="number" x-model="newTraineeForm.target_protein"
+                                   class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 text-slate-900 font-bold outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">הערות / דגשים אישיים</label>
+                        <textarea x-model="newTraineeForm.notes" rows="2" placeholder="דגשים לתוכנית, העדפות מזון, פציעות..."
+                                  class="w-full px-3.5 py-2 rounded-2xl border border-slate-200 focus:border-indigo-500 text-slate-900 text-xs outline-none resize-none"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="showAddTraineeModal = false"
+                            class="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition">
+                        ביטול
+                    </button>
+                    <button type="button" @click="createTrainee()"
+                            class="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-xs text-center shadow-md shadow-indigo-500/25 transition cursor-pointer">
+                        צור מתאמן והפק קישור שיתוף ➔
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TRAINEE CREATED SUCCESS MODAL ================= -->
+        <div x-show="showTraineeCreatedModal" style="display: none;"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs">
+            <div @click.away="showTraineeCreatedModal = false"
+                 class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-emerald-200 text-right space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🎉</span>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">המתאמן נוצר בהצלחה!</h3>
+                            <p class="text-[11px] text-slate-500" x-text="createdTrainee?.name"></p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showTraineeCreatedModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-1">
+                    <p class="font-black text-sm">קישור ההצטרפות האישי מוכן לשליחה:</p>
+                    <p class="text-[11px] text-emerald-800">
+                        המתאמן ילחץ על הקישור ויתחבר ישירות לבוט הטלגרם. כל ארוחה שיצלם תעודכן אצלך ביומן!
+                    </p>
+                </div>
+
+                <div class="p-3 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-between gap-2">
+                    <span class="font-mono text-xs text-slate-800 truncate select-all" x-text="createdTrainee?.telegram_link"></span>
+                    <button type="button" @click="copyTraineeTelegramLink(createdTrainee?.telegram_link)"
+                            class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition cursor-pointer flex-shrink-0">
+                        <span x-text="copiedTraineeLink ? '✓ הועתק!' : 'העתק'">העתק</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button type="button" @click="shareTraineeWhatsApp(createdTrainee)"
+                            class="py-2.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs text-center flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-500/25 transition cursor-pointer">
+                        <span>💬</span>
+                        <span>שלח בוואטסאפ</span>
+                    </button>
+                    <button type="button" @click="showTraineeCreatedModal = false"
+                            class="py-2.5 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition">
+                        סגור
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- ================= HOLDON AFFILIATE PROMOTION MODAL ================= -->
         <div x-show="showHoldonAffiliateModal" style="display: none;"
