@@ -1409,138 +1409,133 @@
                             </div>
 
                             <!-- ================= STATE 1: LOGGED MEAL (נאכל בהצלחה) ================= -->
-                            <template x-if="getSlotLoggedMeal(slot.key)">
-                                <div class="p-3.5 rounded-2xl bg-white/95 border border-emerald-200/90 shadow-2xs space-y-2">
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div class="min-w-0">
-                                            <p class="font-extrabold text-sm text-slate-900" x-text="getSlotLoggedMeal(slot.key).description"></p>
-                                            <div class="flex items-center gap-2 mt-1 text-xs text-slate-500 flex-wrap">
-                                                <span class="inline-flex items-center gap-1 font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
-                                                    💪 <span x-text="`${Number(getSlotLoggedMeal(slot.key).protein_g).toFixed(1)}g חלבון`"></span>
-                                                </span>
-                                                <span class="inline-flex items-center gap-1 font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                                                    🔥 <span x-text="`${getSlotLoggedMeal(slot.key).calories} קק"ל`"></span>
-                                                </span>
-                                                <span class="text-slate-400 font-mono text-[11px]">
-                                                    🕒 <span x-text="getSlotLoggedMeal(slot.key).log_time || slot.defaultTime"></span>
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <!-- Edit, Replace and Delete Actions -->
-                                        <div class="flex items-center gap-1.5 flex-shrink-0">
-                                            <button type="button" @click="replaceSlotMeal(slot)"
-                                                    class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 text-xs font-black transition flex items-center gap-1 cursor-pointer"
-                                                    title="החלף ארוחה זו בארוחה אחרת או קבל הצעת AI">
-                                                <span>🔄</span>
-                                                <span>החלף ארוחה</span>
-                                            </button>
-                                            <button type="button" @click="openEditMeal(getSlotLoggedMeal(slot.key))"
-                                                    class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition cursor-pointer" title="ערוך פרטי ארוחה זו">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
-                                            </button>
-                                            <button type="button" @click="confirmDelete(getSlotLoggedMeal(slot.key))"
-                                                    class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer" title="מחק ארוחה זו">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                            </button>
+                            <div x-show="getSlotLoggedMeal(slot.key)" class="p-3.5 rounded-2xl bg-white/95 border border-emerald-200/90 shadow-2xs space-y-2">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="font-extrabold text-sm text-slate-900" x-text="getSlotLoggedMeal(slot.key)?.description || ''"></p>
+                                        <div class="flex items-center gap-2 mt-1 text-xs text-slate-500 flex-wrap">
+                                            <span class="inline-flex items-center gap-1 font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
+                                                💪 <span x-text="`${Number(getSlotLoggedMeal(slot.key)?.protein_g || 0).toFixed(1)}g חלבון`"></span>
+                                            </span>
+                                            <span class="inline-flex items-center gap-1 font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                                                🔥 <span x-text="`${getSlotLoggedMeal(slot.key)?.calories || 0} קק״ל`"></span>
+                                            </span>
+                                            <span class="text-slate-400 font-mono text-[11px]">
+                                                🕒 <span x-text="getSlotLoggedMeal(slot.key)?.log_time || slot.defaultTime"></span>
+                                            </span>
                                         </div>
                                     </div>
+
+                                    <!-- Edit, Replace and Delete Actions -->
+                                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                                        <button type="button" @click="replaceSlotMeal(slot)"
+                                                class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 text-xs font-black transition flex items-center gap-1 cursor-pointer"
+                                                title="החלף ארוחה זו בארוחה אחרת או קבל הצעת AI">
+                                            <span>🔄</span>
+                                            <span>החלף ארוחה</span>
+                                        </button>
+                                        <button type="button" @click="openEditMeal(getSlotLoggedMeal(slot.key))"
+                                                class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition cursor-pointer" title="ערוך פרטי ארוחה זו">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                        </button>
+                                        <button type="button" @click="confirmDelete(getSlotLoggedMeal(slot.key))"
+                                                class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer" title="מחק ארוחה זו">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                    </div>
                                 </div>
-                            </template>
+                            </div>
 
                             <!-- ================= STATE 2: SKIPPED (דולג) ================= -->
-                            <template x-if="!getSlotLoggedMeal(slot.key) && isSlotSkipped(slot.key)">
-                                <div class="p-3 rounded-2xl bg-slate-100/80 border border-slate-200 flex items-center justify-between text-xs">
-                                    <span class="text-slate-500 font-bold">ארוחה זו דולגה (צום לסירוגין / ללא נשנוש)</span>
-                                    <button type="button" @click="toggleSkipSlot(slot.key)"
-                                            class="text-indigo-600 hover:text-indigo-800 font-extrabold cursor-pointer">
-                                        בטל דילוג
-                                    </button>
-                                </div>
-                            </template>
+                            <div x-show="!getSlotLoggedMeal(slot.key) && isSlotSkipped(slot.key)" class="p-3 rounded-2xl bg-slate-100/80 border border-slate-200 flex items-center justify-between text-xs">
+                                <span class="text-slate-500 font-bold">ארוחה זו דולגה (צום לסירוגין / ללא נשנוש)</span>
+                                <button type="button" @click="toggleSkipSlot(slot.key)"
+                                        class="text-indigo-600 hover:text-indigo-800 font-extrabold cursor-pointer">
+                                    בטל דילוג
+                                </button>
+                            </div>
 
                             <!-- ================= STATE 3: PENDING / AI SUGGESTION (ממתין / הצעה) ================= -->
-                            <template x-if="!getSlotLoggedMeal(slot.key) && !isSlotSkipped(slot.key)">
-                                <div class="space-y-2.5">
-                                    <!-- AI Suggestion Box -->
-                                    <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2.5">
-                                        <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                                            <span class="text-[11px] font-black text-slate-500 flex items-center gap-1">
-                                                <span>💡</span>
-                                                <span>הצעת AI מותאמת אישית:</span>
-                                            </span>
-                                            <!-- Refresh / Shuffle Suggestion Button -->
-                                            <button type="button" @click="refreshSlotSuggestion(slot)" :disabled="slotShuffling[slot.key]"
-                                                    class="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 text-xs font-black transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs">
-                                                <span :class="{'animate-spin': slotShuffling[slot.key]}">🔄</span>
-                                                <span x-text="slotShuffling[slot.key] ? 'מחליף הצעה...' : 'החלף להצעה אחרת (AI)'"></span>
-                                            </button>
-                                        </div>
-
-                                        <p class="font-black text-xs sm:text-sm text-slate-900 leading-snug"
-                                           x-text="(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion).description"></p>
-
-                                        <div class="flex items-center justify-between text-[11px] text-slate-500 font-bold pt-0.5">
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-amber-800" x-text="`🔥 ${(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion).calories} קק״ל`"></span>
-                                                <span class="text-slate-300">•</span>
-                                                <span class="text-indigo-700" x-text="`💪 ${(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion).protein_g}g חלבון`"></span>
-                                            </div>
-                                            <span class="text-slate-400 text-[10px]" x-text="`שעה מומלצת: ${slot.defaultTime}`"></span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Quick HoldOn Protein Shake Option (Morning & Afternoon Snacks) -->
-                                    <div x-show="slot.key === 'morning_snack' || slot.key === 'afternoon_snack'"
-                                         class="p-2.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
-                                        <button type="button" @click="logHoldonShake(slot.key)"
-                                                class="py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs">
-                                            <span>🥤</span>
-                                            <span>שתיתי שייק חלבון HoldOn (180 קק״ל / 25g)</span>
-                                        </button>
-                                        <button type="button" @click="showHoldonAffiliateModal = true"
-                                                class="text-[11px] text-amber-900 hover:text-amber-950 font-bold underline cursor-pointer flex items-center justify-center gap-1">
-                                            <span>🎁 10% הנחה בלעדית ב-HoldOn</span>
+                            <div x-show="!getSlotLoggedMeal(slot.key) && !isSlotSkipped(slot.key)" class="space-y-2.5">
+                                <!-- AI Suggestion Box -->
+                                <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2.5">
+                                    <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                                        <span class="text-[11px] font-black text-slate-500 flex items-center gap-1">
+                                            <span>💡</span>
+                                            <span>הצעת AI מותאמת אישית:</span>
+                                        </span>
+                                        <!-- Refresh / Shuffle Suggestion Button -->
+                                        <button type="button" @click="refreshSlotSuggestionByKey(slot.key)"
+                                                :disabled="!!(slotShuffling && slotShuffling[slot.key])"
+                                                class="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 text-xs font-black transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs">
+                                            <span :class="{'animate-spin': slotShuffling && slotShuffling[slot.key]}">🔄</span>
+                                            <span x-text="(slotShuffling && slotShuffling[slot.key]) ? 'מחליף הצעה...' : 'החלף להצעה אחרת (AI)'"></span>
                                         </button>
                                     </div>
 
-                                    <!-- Primary 1-Tap Log Action Button -->
-                                    <button type="button" @click="logSlotSuggestion(slot)"
-                                            class="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer">
-                                        <span>⚡ אכלתי בדיוק את זה (רישום בטאפ)</span>
-                                    </button>
+                                    <p class="font-black text-xs sm:text-sm text-slate-900 leading-snug"
+                                       x-text="(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion)?.description || ''"></p>
 
-                                    <!-- Alternative Actions Row: אכלתי משהו אחר -->
-                                    <div class="flex items-center justify-between gap-1.5 pt-0.5 text-xs">
-                                        <div class="flex items-center gap-1.5 flex-1">
-                                            <span class="text-[10px] text-slate-400 font-bold flex-shrink-0">אכלת משהו אחר?</span>
-                                            <button type="button" @click="openSlotVoiceLogger(slot)"
-                                                    class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="הקלט מה אכלת במקום">
-                                                <span>🎙️</span>
-                                                <span class="hidden sm:inline">הקלטה</span>
-                                            </button>
-                                            <button type="button" @click="openSlotPhotoLogger(slot)"
-                                                    class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="צלם מנה לארוחה זו">
-                                                <span>📸</span>
-                                                <span class="hidden sm:inline">צילום</span>
-                                            </button>
-                                            <button type="button" @click="openSlotManualLogger(slot)"
-                                                    class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="רשום ידנית">
-                                                <span>✍️</span>
-                                                <span class="hidden sm:inline">ידני</span>
-                                            </button>
+                                    <div class="flex items-center justify-between text-[11px] text-slate-500 font-bold pt-0.5">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-amber-800" x-text="`🔥 ${(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion)?.calories || 0} קק״ל`"></span>
+                                            <span class="text-slate-300">•</span>
+                                            <span class="text-indigo-700" x-text="`💪 ${(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion)?.protein_g || 0}g חלבון`"></span>
                                         </div>
-
-                                        <!-- Skip button for optional morning snack -->
-                                        <template x-if="slot.isOptional">
-                                            <button type="button" @click="toggleSkipSlot(slot.key)"
-                                                    class="text-[11px] font-extrabold text-slate-500 hover:text-slate-800 bg-white border border-slate-200 px-2.5 py-1 rounded-xl transition cursor-pointer flex-shrink-0">
-                                                ⏭️ אני מדלג
-                                            </button>
-                                        </template>
+                                        <span class="text-slate-400 text-[10px]" x-text="`שעה מומלצת: ${slot.defaultTime}`"></span>
                                     </div>
                                 </div>
-                            </template>
+
+                                <!-- Quick HoldOn Protein Shake Option (Morning & Afternoon Snacks) -->
+                                <div x-show="slot.key === 'morning_snack' || slot.key === 'afternoon_snack'"
+                                     class="p-2.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                                    <button type="button" @click="logHoldonShake(slot.key)"
+                                            class="py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs">
+                                        <span>🥤</span>
+                                        <span>שתיתי שייק חלבון HoldOn (180 קק״ל / 25g)</span>
+                                    </button>
+                                    <button type="button" @click="showHoldonAffiliateModal = true"
+                                            class="text-[11px] text-amber-900 hover:text-amber-950 font-bold underline cursor-pointer flex items-center justify-center gap-1">
+                                        <span>🎁 10% הנחה בלעדית ב-HoldOn</span>
+                                    </button>
+                                </div>
+
+                                <!-- Primary 1-Tap Log Action Button -->
+                                <button type="button" @click="logSlotSuggestion(slot)"
+                                        class="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer">
+                                    <span>⚡ אכלתי בדיוק את זה (רישום בטאפ)</span>
+                                </button>
+
+                                <!-- Alternative Actions Row: אכלתי משהו אחר -->
+                                <div class="flex items-center justify-between gap-1.5 pt-0.5 text-xs">
+                                    <div class="flex items-center gap-1.5 flex-1">
+                                        <span class="text-[10px] text-slate-400 font-bold flex-shrink-0">אכלת משהו אחר?</span>
+                                        <button type="button" @click="openSlotVoiceLogger(slot)"
+                                                class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="הקלט מה אכלת במקום">
+                                            <span>🎙️</span>
+                                            <span class="hidden sm:inline">הקלטה</span>
+                                        </button>
+                                        <button type="button" @click="openSlotPhotoLogger(slot)"
+                                                class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="צלם מנה לארוחה זו">
+                                            <span>📸</span>
+                                            <span class="hidden sm:inline">צילום</span>
+                                        </button>
+                                        <button type="button" @click="openSlotManualLogger(slot)"
+                                                class="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="רשום ידנית">
+                                            <span>✍️</span>
+                                            <span class="hidden sm:inline">ידני</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Skip button for optional morning snack -->
+                                    <template x-if="slot.isOptional">
+                                        <button type="button" @click="toggleSkipSlot(slot.key)"
+                                                class="text-[11px] font-extrabold text-slate-500 hover:text-slate-800 bg-white border border-slate-200 px-2.5 py-1 rounded-xl transition cursor-pointer flex-shrink-0">
+                                            ⏭️ אני מדלג
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </template>
                 </div>
@@ -2885,13 +2880,13 @@
                 </div>
 
                 <!-- Grocery Checklist Content Container -->
-                <div x-show="groceryList && groceryList.aisles" class="space-y-5">
+                <div x-show="groceryList && groceryList?.aisles" class="space-y-5">
                     
                     <!-- Progress & Actions Bar -->
                     <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
-                                <h3 class="text-sm font-black text-slate-900" x-text="groceryList.title || t('groceryTitle', 'רשימת קניות לסופר')"></h3>
+                                <h3 class="text-sm font-black text-slate-900" x-text="groceryList?.title || t('groceryTitle', 'רשימת קניות לסופר')"></h3>
                                 <div class="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
                                     <span>🛒 <strong class="text-emerald-700" x-text="`${groceryCollectedCount} / ${groceryTotalCount}`"></strong> <span x-text="t('itemsCollected', 'מוצרים נאספו לסל')">מוצרים נאספו לסל</span></span>
                                     <span class="text-slate-300">•</span>
@@ -2926,7 +2921,7 @@
                                     :class="groceryAisleFilter === 'all' ? 'bg-slate-900 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
                                     class="px-3 py-1 rounded-xl text-xs flex-shrink-0 transition cursor-pointer"
                                     x-text="t('allAisles', 'הכל')">הכל</button>
-                            <template x-for="aisle in (groceryList.aisles || [])" :key="aisle.category">
+                            <template x-for="aisle in (groceryList?.aisles || [])" :key="aisle.category">
                                 <button type="button" @click="groceryAisleFilter = aisle.category"
                                         :class="groceryAisleFilter === aisle.category ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
                                         class="px-3 py-1 rounded-xl text-xs flex-shrink-0 transition flex items-center gap-1 cursor-pointer">
@@ -2945,7 +2940,7 @@
                             <input type="text" x-model="groceryCustomAmount" :placeholder="t('amountPlaceholder', 'כמות (1 ליטר)')"
                                    class="w-full sm:w-28 bg-slate-50 focus:bg-white text-slate-900 text-xs px-3 py-2.5 rounded-xl border border-slate-200 outline-none">
                             <select x-model="groceryCustomAisle" class="bg-slate-50 text-slate-700 text-xs px-2.5 py-2.5 rounded-xl border border-slate-200 outline-none">
-                                <template x-for="aisle in (groceryList.aisles || [])" :key="aisle.category">
+                                <template x-for="aisle in (groceryList?.aisles || [])" :key="aisle.category">
                                     <option :value="aisle.category" x-text="aisle.category"></option>
                                 </template>
                             </select>
@@ -2972,7 +2967,7 @@
                                     <template x-for="(item, iIdx) in (aisle.items || [])" :key="iIdx">
                                         <div class="p-3 rounded-2xl border transition-all flex items-start justify-between gap-3 cursor-pointer"
                                              :class="item.checked ? 'bg-slate-50/80 border-slate-200/60 opacity-60' : 'bg-white hover:bg-slate-50/60 border-slate-200/90 shadow-2xs'"
-                                             @click="toggleGroceryItem(groceryList.aisles.indexOf(aisle), iIdx)">
+                                             @click="toggleGroceryItem(groceryList?.aisles.indexOf(aisle), iIdx)">
                                             
                                             <div class="flex items-start gap-2.5 min-w-0 flex-1">
                                                 <!-- Checkbox -->
@@ -2994,7 +2989,7 @@
                                                 </div>
                                             </div>
 
-                                            <button type="button" @click.stop="removeGroceryItem(groceryList.aisles.indexOf(aisle), iIdx)"
+                                            <button type="button" @click.stop="removeGroceryItem(groceryList?.aisles.indexOf(aisle), iIdx)"
                                                     class="text-slate-300 hover:text-rose-500 p-1 text-xs cursor-pointer transition">✕</button>
                                         </div>
                                     </template>
@@ -3004,13 +2999,13 @@
                     </div>
 
                     <!-- Clinical Supermarket Tips -->
-                    <div x-show="groceryList.tips && groceryList.tips.length" class="bg-amber-50/80 rounded-2xl p-4 border border-amber-200/80 space-y-2">
+                    <div x-show="groceryList?.tips && groceryList?.tips.length" class="bg-amber-50/80 rounded-2xl p-4 border border-amber-200/80 space-y-2">
                         <div class="flex items-center gap-1.5 text-xs font-black text-amber-900">
                             <span>💡</span>
                             <span x-text="t('supermarketTipsTitle', 'טיפים קליניים לקנייה חכמה ובריאה בסופר')">טיפים קליניים לקנייה חכמה ובריאה בסופר</span>
                         </div>
                         <ul class="text-xs text-amber-900/90 space-y-1.5 list-disc list-inside">
-                            <template x-for="(tip, idx) in groceryList.tips" :key="idx">
+                            <template x-for="(tip, idx) in groceryList?.tips" :key="idx">
                                 <li x-text="tip"></li>
                             </template>
                         </ul>
@@ -5280,7 +5275,7 @@
                     </div>
                     <div>
                         <h3 class="text-base sm:text-lg font-black text-slate-900" x-text="t('groceryTitle', 'רשימת קניות לסופר')">רשימת קניות לסופר</h3>
-                        <p class="text-xs text-slate-500 mt-0.5" x-text="t('groceryHeroSub', 'צ'קבוקסים אינטראקטיביים לקנייה חכמה ובריאה לפי מעברים')">צ'קבוקסים אינטראקטיביים לקנייה חכמה ובריאה לפי מעברים</p>
+                        <p class="text-xs text-slate-500 mt-0.5" x-text="t('groceryHeroSub', 'צ\'קבוקסים אינטראקטיביים לקנייה חכמה ובריאה לפי מעברים')">צ'קבוקסים אינטראקטיביים לקנייה חכמה ובריאה לפי מעברים</p>
                     </div>
                 </div>
                 <button type="button" @click="showGroceryModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
@@ -5320,7 +5315,7 @@
             </form>
 
             <!-- Aisles Checklist in Modal -->
-            <div x-show="groceryList && groceryList.aisles" class="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+            <div x-show="groceryList && groceryList?.aisles" class="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
                 <template x-for="(aisle, aIdx) in (groceryList?.aisles || [])" :key="aisle.category">
                     <div class="bg-slate-50/70 rounded-2xl p-3.5 border border-slate-200/80 space-y-2">
                         <div class="flex items-center justify-between border-b border-slate-200/50 pb-1.5">
@@ -6211,7 +6206,7 @@
                                 <template x-for="item in mealConfirmForm.items">
                                     <div class="px-2 py-1 rounded-lg bg-white/80 border border-slate-200/60 flex items-center justify-between text-[11px]">
                                         <span class="font-bold truncate" x-text="item.name"></span>
-                                        <span class="font-mono text-slate-500" x-text="`${item.calories} קק"ל`"></span>
+                                        <span class="font-mono text-slate-500" x-text="`${item.calories} קק״ל`"></span>
                                     </div>
                                 </template>
                             </div>
@@ -8335,6 +8330,7 @@
                 dailySlots: [
                     {
                         key: 'breakfast',
+                        suggestion: null,
                         title: 'ארוחת בוקר',
                         icon: '🌅',
                         styleLabel: 'ארוחה קלה',
@@ -8360,6 +8356,7 @@
                     },
                     {
                         key: 'morning_snack',
+                        suggestion: null,
                         title: 'ביניים בוקר',
                         icon: '☕',
                         styleLabel: 'נשנוש קל (אופציונלי)',
@@ -8384,6 +8381,7 @@
                     },
                     {
                         key: 'lunch',
+                        suggestion: null,
                         title: 'ארוחה עיקרית (צהריים)',
                         icon: '☀️',
                         styleLabel: 'ארוחה עיקרית מרכזית',
@@ -8408,6 +8406,7 @@
                     },
                     {
                         key: 'afternoon_snack',
+                        suggestion: null,
                         title: 'ביניים אחה"צ',
                         icon: '🍎',
                         styleLabel: 'נשנוש / שייק חלבון',
@@ -8431,6 +8430,7 @@
                     },
                     {
                         key: 'dinner',
+                        suggestion: null,
                         title: 'ארוחת ערב',
                         icon: '🌙',
                         styleLabel: 'ארוחה קלה / משביעה',
@@ -9334,7 +9334,7 @@
 ],
                 showAchievementsModal: false,
                 showGroceryModal: false,
-                groceryList: null,
+                groceryList: { title: '', aisles: [], tips: [] },
                 groceryGenerating: false,
                 groceryPreferences: '',
                 groceryAisleFilter: 'all',
@@ -10384,19 +10384,19 @@
                 },
 
                 get groceryTotalCount() {
-                    if (!this.groceryList || !this.groceryList.aisles) return 0;
-                    return this.groceryList.aisles.reduce((acc, a) => acc + (a.items || []).length, 0);
+                    if (!this.groceryList || !this.groceryList?.aisles) return 0;
+                    return this.groceryList?.aisles.reduce((acc, a) => acc + (a.items || []).length, 0);
                 },
 
                 get groceryCollectedCount() {
-                    if (!this.groceryList || !this.groceryList.aisles) return 0;
-                    return this.groceryList.aisles.reduce((acc, a) => acc + (a.items || []).filter(i => i.checked).length, 0);
+                    if (!this.groceryList || !this.groceryList?.aisles) return 0;
+                    return this.groceryList?.aisles.reduce((acc, a) => acc + (a.items || []).filter(i => i.checked).length, 0);
                 },
 
                 get filteredGroceryAisles() {
-                    if (!this.groceryList || !this.groceryList.aisles) return [];
-                    if (this.groceryAisleFilter === 'all') return this.groceryList.aisles;
-                    return this.groceryList.aisles.filter(a => a.category === this.groceryAisleFilter);
+                    if (!this.groceryList || !this.groceryList?.aisles) return [];
+                    if (this.groceryAisleFilter === 'all') return this.groceryList?.aisles;
+                    return this.groceryList?.aisles.filter(a => a.category === this.groceryAisleFilter);
                 },
 
                 initGroceryList() {
@@ -10452,8 +10452,8 @@
                 },
 
                 toggleGroceryItem(aisleIdx, itemIdx) {
-                    if (!this.groceryList || !this.groceryList.aisles || !this.groceryList.aisles[aisleIdx]) return;
-                    const itm = this.groceryList.aisles[aisleIdx].items[itemIdx];
+                    if (!this.groceryList || !this.groceryList?.aisles || !this.groceryList?.aisles[aisleIdx]) return;
+                    const itm = this.groceryList?.aisles[aisleIdx].items[itemIdx];
                     if (itm) {
                         itm.checked = !itm.checked;
                         this.saveGroceryList();
@@ -10463,7 +10463,7 @@
                 addCustomGroceryItem() {
                     const name = (this.groceryCustomName || '').trim();
                     if (!name) return;
-                    if (!this.groceryList || !this.groceryList.aisles) {
+                    if (!this.groceryList || !this.groceryList?.aisles) {
                         this.groceryList = {
                             title: this.currentLang === 'en' ? 'My Custom Grocery List' : 'רשימת קניות אישית לסופר',
                             aisles: [
@@ -10476,9 +10476,9 @@
                         };
                     }
                     const catName = this.groceryCustomAisle || (this.currentLang === 'en' ? 'Proteins & Dairy' : 'חלבונים ומוצרי חלב');
-                    let targetAisle = this.groceryList.aisles.find(a => a.category === catName);
+                    let targetAisle = this.groceryList?.aisles.find(a => a.category === catName);
                     if (!targetAisle) {
-                        targetAisle = this.groceryList.aisles[0];
+                        targetAisle = this.groceryList?.aisles[0];
                     }
                     targetAisle.items.push({
                         name: name,
@@ -10493,14 +10493,14 @@
                 },
 
                 removeGroceryItem(aisleIdx, itemIdx) {
-                    if (!this.groceryList || !this.groceryList.aisles || !this.groceryList.aisles[aisleIdx]) return;
-                    this.groceryList.aisles[aisleIdx].items.splice(itemIdx, 1);
+                    if (!this.groceryList || !this.groceryList?.aisles || !this.groceryList?.aisles[aisleIdx]) return;
+                    this.groceryList?.aisles[aisleIdx].items.splice(itemIdx, 1);
                     this.saveGroceryList();
                 },
 
                 clearCheckedGroceryItems() {
-                    if (!this.groceryList || !this.groceryList.aisles) return;
-                    this.groceryList.aisles.forEach(a => {
+                    if (!this.groceryList || !this.groceryList?.aisles) return;
+                    this.groceryList?.aisles.forEach(a => {
                         a.items = (a.items || []).filter(i => !i.checked);
                     });
                     this.saveGroceryList();
@@ -10508,7 +10508,7 @@
                 },
 
                 shareGroceryWhatsApp() {
-                    if (!this.groceryList || !this.groceryList.aisles) {
+                    if (!this.groceryList || !this.groceryList?.aisles) {
                         this.showToast(this.currentLang === 'en' ? 'No grocery items to share' : 'אין פריטים ברשימה לשיתוף', 'error');
                         return;
                     }
@@ -10516,7 +10516,7 @@
                     let text = isEn ? `🛒 *NutriAgent - Smart Weekly Grocery List* 🛒\n\n` : `🛒 *נוטרי-אייג'נט - רשימת קניות שבועית חכמה* 🛒\n\n`;
                     
                     let uncompletedCount = 0;
-                    this.groceryList.aisles.forEach(a => {
+                    this.groceryList?.aisles.forEach(a => {
                         const remaining = (a.items || []).filter(i => !i.checked);
                         if (remaining.length > 0) {
                             text += `*${a.icon || '▫️'} ${a.category}:*\n`;
@@ -12350,7 +12350,18 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 }
             },
 
+            async refreshSlotSuggestionByKey(slotKey) {
+                console.log('>>> refreshSlotSuggestionByKey called with:', slotKey);
+                const slot = this.dailySlots.find(s => s.key === slotKey);
+                if (!slot) {
+                    console.error('Slot not found:', slotKey);
+                    return;
+                }
+                return this.refreshSlotSuggestion(slot);
+            },
+
             async refreshSlotSuggestion(slot) {
+                console.log('>>> refreshSlotSuggestion called for:', slot.key);
                 this.slotShuffling = { ...this.slotShuffling, [slot.key]: true };
                 try {
                     const curDesc = (slot.suggestion || this.slotSuggestions[slot.key] || slot.defaultSuggestion)?.description || '';
@@ -12366,13 +12377,16 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        // 1. Mutate directly on slot object so Alpine x-for subscope updates immediately!
+                        console.log('>>> suggest-slot returned:', data);
+                        // 1. Mutate directly on slot object
                         slot.suggestion = data;
-                        // 2. Also update root reactive map
+                        // 2. Update reactive map
                         this.slotSuggestions = {
                             ...this.slotSuggestions,
                             [slot.key]: data
                         };
+                        // 3. Force Alpine x-for reactivity by creating new array reference
+                        this.dailySlots = this.dailySlots.map(s => s.key === slot.key ? { ...s, suggestion: data } : s);
                         try {
                             localStorage.setItem('nutri_slot_sug_' + slot.key, JSON.stringify(data));
                         } catch (e) {}
