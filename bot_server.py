@@ -4961,12 +4961,25 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
         cal = sum(m["calories"] for m in day_meals)
         burned = sum(w["burned_calories"] for w in day_workouts)
         prot = round(sum(m["protein_g"] for m in day_meals), 1)
+        
+        day_water = 0
+        if db:
+            try:
+                w_doc = db.collection("daily_water").document(f"{uid}_{d}").get()
+                if w_doc.exists:
+                    day_water = int(w_doc.to_dict().get("water_ml", 0))
+            except Exception:
+                pass
+        else:
+            day_water = int(_LOCAL_WATER.get(f"{uid}_{d}", 0))
+
         daily_trend.append({
             "date": d,
             "calories": cal,
             "burned_calories": burned,
             "net_calories": cal - burned,
             "protein_g": prot,
+            "water_ml": day_water,
             "meal_count": len(day_meals),
             "workout_count": len(day_workouts),
         })
@@ -5183,19 +5196,23 @@ SLOT_PRESETS = {
 def api_suggest_slot_meal(req: SlotSuggestRequest, request: Request):
     """
     Returns an optimized meal suggestion for a specific daily slot (breakfast, morning_snack, lunch, afternoon_snack, dinner)
-    respecting Itamar's calorie and protein thresholds.
+    respecting Itamar's calorie and protein thresholds. Never crashes with 401.
     """
-    uid = require_approved_user(request)
+    uid = get_request_user_id(request)
     slot_key = req.slot_key if req.slot_key in SLOT_PRESETS else "lunch"
     presets = SLOT_PRESETS.get(slot_key, SLOT_PRESETS["lunch"])
     
     # Try dynamic Gemini AI generation first for real variation
     if ai_client:
         try:
-            check_and_increment_ai_quota(uid)
+            if uid != "default":
+                try:
+                    check_and_increment_ai_quota(uid)
+                except Exception:
+                    pass
             cal_target = req.target_calories or (540 if slot_key == "lunch" else (350 if "snack" not in slot_key else 150))
             prot_target = req.target_protein or (45 if slot_key == "lunch" else (25 if "snack" not in slot_key else 15))
-            user_pref = f" העדפה: '{req.preference}'." if req.preference else ""
+            user_pref = f" שים לב שהמנה הקודמת הייתה '{req.preference}', נא לגוון ולהציע מנה שונה לחלוטין!" if req.preference else ""
             
             prompt = f"""אתה תזונאי ומאמן כושר ישראלי בכיר. הצע מנה חדשה, מגוונת ומדויקת לארוחת '{slot_key}' שמתאמנים בישראל אוהבים.{user_pref}
 היעד הקלורי של מנה זו: כ-{cal_target} קק"ל, והחלבון: כ-{prot_target} גרם חלבון.
@@ -5222,9 +5239,10 @@ def api_suggest_slot_meal(req: SlotSuggestRequest, request: Request):
         except Exception as e:
             print(f"Error in dynamic slot suggestion, using random preset fallback: {e}")
 
-    # Fallback: pick a different preset randomly every time
+    # Fallback: pick a different preset randomly every time (excluding current preference if possible)
     import random
-    return random.choice(presets)
+    candidates = [p for p in presets if p.get("description") != req.preference]
+    return random.choice(candidates if candidates else presets)
 
 
 @app.post("/api/meals/")

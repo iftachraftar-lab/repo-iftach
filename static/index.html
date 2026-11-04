@@ -1237,71 +1237,74 @@
             </div>
 
             
-            <!-- ================= DAILY WATER TRACKER (Stage 3 - Itamar Coaching Platform) ================= -->
-            <div class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-sky-50/90 via-blue-50/70 to-indigo-50/80 border border-sky-200/90 shadow-xs space-y-3.5">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-300 flex items-center justify-center text-xl shadow-2xs">
-                            💧
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="text-sm sm:text-base font-black text-slate-900">מעקב שתיית מים יומית</h3>
-                                <span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 border border-sky-300 text-[10px] font-black">יעד יומי</span>
+            <!-- ================= SLIM WATER TRACKER & QUICK SHAKE BAR (Itamar Coaching Platform) ================= -->
+            <div class="space-y-2">
+                <!-- Slim Lightweight Water Bar -->
+                <div class="px-3.5 py-2 rounded-2xl bg-white/95 border border-sky-200/90 shadow-2xs flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+                    <!-- Info & Mini Progress Track -->
+                    <div class="flex items-center gap-2.5 min-w-[200px]">
+                        <span class="text-lg select-none">💧</span>
+                        <div class="flex flex-col">
+                            <div class="flex items-center gap-1.5 text-xs font-black text-slate-900">
+                                <span x-text="`${(summary.water_ml || 0).toLocaleString()} / ${(summary.water_target_ml || 2500).toLocaleString()} מ״ל`"></span>
+                                <span class="text-[10px] text-sky-700 font-bold" x-text="`(${Math.floor((summary.water_ml || 0) / 250)} כוסות)`"></span>
                             </div>
-                            <p class="text-xs text-slate-500 mt-0.5">
-                                <span class="font-extrabold text-sky-900" x-text="`${(summary.water_ml || 0).toLocaleString()} מ״ל`"></span>
-                                <span class="text-slate-400"> מתוך </span>
-                                <span class="font-bold text-slate-700" x-text="`${(summary.water_target_ml || 2500).toLocaleString()} מ״ל`"></span>
-                                <span class="text-slate-400 font-mono text-[11px]" x-text="` (${Math.floor((summary.water_ml || 0) / 250)}/${Math.ceil((summary.water_target_ml || 2500) / 250)} כוסות)`"></span>
-                            </p>
+                            <div class="w-28 sm:w-36 bg-slate-100 rounded-full h-1.5 overflow-hidden mt-0.5">
+                                <div class="bg-gradient-to-r from-sky-400 to-blue-600 h-full rounded-full transition-all duration-300"
+                                     :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Water Push Reminders Toggle -->
-                    <div class="flex items-center gap-2">
+                    <!-- Fast Slim Action Pills -->
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <button type="button" @click="addWater(250)"
+                                class="px-2.5 py-1 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 font-bold text-xs transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                                title="הוסף כוס מים (250 מ״ל)">
+                            <span>🥛</span>
+                            <span>+250</span>
+                        </button>
+                        <button type="button" @click="addWater(500)"
+                                class="px-2.5 py-1 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 font-bold text-xs transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                                title="הוסף בקבוק מים (500 מ״ל)">
+                            <span>🍶</span>
+                            <span>+500</span>
+                        </button>
+                        <button type="button" @click="decreaseWater(250)" :disabled="(summary.water_ml || 0) <= 0"
+                                class="w-7 h-7 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 font-bold text-xs transition active:scale-95 flex items-center justify-center disabled:opacity-30 cursor-pointer"
+                                title="הפחת כוס (250 מ״ל)">
+                            <span>↩️</span>
+                        </button>
                         <button type="button" @click="toggleWaterReminders()"
-                                :class="waterRemindersActive ? 'bg-sky-600 text-white shadow-xs' : 'bg-white/80 hover:bg-white text-slate-700 border border-slate-200'"
-                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
-                            <span x-text="waterRemindersActive ? '🔔 תזכורות פעילות' : '🔕 הפעל תזכורת שתייה'"></span>
+                                :class="waterRemindersActive ? 'bg-sky-500 text-white border-sky-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-700'"
+                                class="w-7 h-7 rounded-xl border font-bold text-xs transition active:scale-95 flex items-center justify-center cursor-pointer"
+                                :title="waterRemindersActive ? 'תזכורות שתייה פעילות' : 'הפעל תזכורת שתייה'">
+                            <span x-text="waterRemindersActive ? '🔔' : '🔕'"></span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Animated Water Progress Bar -->
-                <div class="space-y-1">
-                    <div class="w-full bg-slate-200/90 rounded-full h-3 overflow-hidden p-0.5">
-                        <div class="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500 shadow-2xs"
-                             :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
+                <!-- Prominent Quick HoldOn Protein Shake & Affiliate Promo Pill -->
+                <div class="px-3 py-1.5 rounded-2xl bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-amber-100/60 border border-amber-300/80 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shadow-2xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base select-none">🥤</span>
+                        <div class="text-xs">
+                            <span class="font-extrabold text-amber-950">שייק חלבון HoldOn</span>
+                            <span class="text-amber-800 font-bold text-[11px] mr-1">(180 קק״ל • 25g חלבון)</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between text-[10px] text-slate-500 font-bold px-1">
-                        <span x-text="`${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}% הושלם`"></span>
-                        <span x-text="(summary.water_ml || 0) >= (summary.water_target_ml || 2500) ? '🎉 השלמת את יעד השתייה היומי!' : `נותרו עוד ${Math.max(0, (summary.water_target_ml || 2500) - (summary.water_ml || 0)).toLocaleString()} מ״ל`"></span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="logHoldonShake('afternoon_snack')"
+                                class="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-black text-xs transition cursor-pointer shadow-2xs flex items-center gap-1">
+                            <span>⚡</span>
+                            <span>רישום שייק בטאפ</span>
+                        </button>
+                        <button type="button" @click="showHoldonAffiliateModal = true"
+                                class="px-2.5 py-1 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 font-extrabold text-xs transition cursor-pointer flex items-center gap-1">
+                            <span>🎁</span>
+                            <span>קוד קופון 10% באתר</span>
+                        </button>
                     </div>
-                </div>
-
-                <!-- Fast 1-Tap Logging Buttons -->
-                <div class="grid grid-cols-4 gap-2 pt-1">
-                    <button type="button" @click="addWater(250)"
-                            class="py-2.5 px-1.5 rounded-2xl bg-white hover:bg-sky-50 text-sky-950 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95">
-                        <span>🥛</span>
-                        <span>+250 מ״ל</span>
-                    </button>
-                    <button type="button" @click="addWater(500)"
-                            class="py-2.5 px-1.5 rounded-2xl bg-white hover:bg-sky-50 text-sky-950 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95">
-                        <span>🍶</span>
-                        <span>+500 מ״ל</span>
-                    </button>
-                    <button type="button" @click="addWater(1000)"
-                            class="py-2.5 px-1.5 rounded-2xl bg-white hover:bg-sky-50 text-sky-950 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95">
-                        <span>🚰</span>
-                        <span>+1 ליטר</span>
-                    </button>
-                    <button type="button" @click="decreaseWater(250)" :disabled="(summary.water_ml || 0) <= 0"
-                            class="py-2.5 px-1 rounded-2xl bg-white hover:bg-rose-50 text-rose-800 border border-slate-200 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1 disabled:opacity-40 shadow-2xs active:scale-95">
-                        <span>↩️</span>
-                        <span>-250 מ״ל</span>
-                    </button>
                 </div>
             </div>
 
@@ -1830,7 +1833,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
                     <div class="bg-white/10 border border-white/15 rounded-2xl p-3.5">
                         <div class="text-[11px] text-slate-300 font-medium">🔥 ממוצע קלוריות יומי</div>
                         <div class="text-lg sm:text-xl font-extrabold text-white mt-0.5" x-text="`${weeklyStats.avgCalories} קק״ל`"></div>
@@ -1840,6 +1843,11 @@
                         <div class="text-[11px] text-slate-300 font-medium">💪 ממוצע חלבון יומי</div>
                         <div class="text-lg sm:text-xl font-extrabold text-emerald-300 mt-0.5" x-text="`${weeklyStats.avgProtein}g`"></div>
                         <div class="text-[10px] text-slate-300" x-text="`יעד: ${summary.target_protein}g חלבון`"></div>
+                    </div>
+                    <div class="bg-white/10 border border-white/15 rounded-2xl p-3.5">
+                        <div class="text-[11px] text-slate-300 font-medium">💧 ממוצע שתייה יומי</div>
+                        <div class="text-lg sm:text-xl font-extrabold text-sky-300 mt-0.5" x-text="`${((weeklyStats.avgWater || 0) / 1000).toFixed(1)}L`"></div>
+                        <div class="text-[10px] text-slate-300" x-text="`יעד: ${((summary.water_target_ml || 2500) / 1000).toFixed(1)}L (${Math.round((weeklyStats.avgWater || 0) / 250)} כוסות)`"></div>
                     </div>
                     <div class="bg-white/10 border border-white/15 rounded-2xl p-3.5">
                         <div class="text-[11px] text-slate-300 font-medium">🏃‍♂️ שריפה באימונים השבוע</div>
@@ -1937,6 +1945,7 @@
                                   :class="selectedDate === day.date ? 'text-emerald-700 font-bold' : 'text-slate-600'"
                                   x-text="shortDayLabel(day.date)"></span>
                             <span class="text-[10px] text-slate-400" x-text="`${day.protein_g.toFixed(0)}g חלבון`"></span>
+                            <span class="text-[9px] font-extrabold text-sky-600 mt-0.5" x-show="day.water_ml" x-text="`💧 ${((day.water_ml || 0) / 1000).toFixed(1)}L`"></span>
                         </button>
                     </template>
                 </div>
@@ -9348,13 +9357,15 @@
                 fridgeRecipes: [],
                 get weeklyStats() {
                     const trend = this.dailyTrend || [];
-                    const active = trend.filter(d => Number(d.calories) > 0);
+                    const active = trend.filter(d => Number(d.calories) > 0 || Number(d.water_ml) > 0);
                     const activeDays = active.length;
                     const avgCalories = activeDays ? Math.round(active.reduce((s, d) => s + Number(d.calories || 0), 0) / activeDays) : 0;
                     const avgProtein = activeDays ? Math.round(active.reduce((s, d) => s + Number(d.protein_g || 0), 0) / activeDays) : 0;
+                    const totalWater = trend.reduce((s, d) => s + Number(d.water_ml || 0), 0);
+                    const avgWater = activeDays ? Math.round(totalWater / activeDays) : (trend.length ? Math.round(totalWater / trend.length) : 0);
                     const totalBurned = trend.reduce((s, d) => s + Number(d.burned_calories || 0), 0);
                     const totalWorkouts = trend.reduce((s, d) => s + Number(d.workout_count || 0), 0);
-                    return { activeDays, avgCalories, avgProtein, totalBurned, totalWorkouts };
+                    return { activeDays, avgCalories, avgProtein, avgWater, totalWater, totalBurned, totalWorkouts };
                 },
                 woltCategories: [
                     { id: 'all', label: 'הכל' },
@@ -12028,6 +12039,16 @@
                     }
                 });
 
+                let totalWater = 0;
+                let daysWithWater = 0;
+                trend.forEach(d => {
+                    if (d.water_ml > 0) {
+                        totalWater += d.water_ml;
+                        daysWithWater++;
+                    }
+                });
+                const avgWaterL = (daysWithWater ? (totalWater / daysWithWater / 1000) : ((this.summary.water_ml || 0) / 1000)).toFixed(1);
+
                 const avgCals = daysWithData ? Math.round(totalCals / daysWithData) : (this.summary.total_calories || 0);
                 const avgProtein = daysWithData ? Math.round(totalProtein / daysWithData) : Math.round(this.summary.total_protein || 0);
                 const targetCals = this.summary.target_calories || 1800;
@@ -12042,6 +12063,7 @@
 
 🔥 *ממוצע קלורי יומי:* ${avgCals} / ${targetCals} קק״ל
 💪 *ממוצע חלבון יומי:* ${avgProtein}g / יעד ${targetProt}g
+💧 *ממוצע שתיית מים:* ${avgWaterL} ליטר ליום
 ⚖️ *משקל נוכחי:* ${latestWeight}
 ⭐ *רצף תיעוד פעיל:* ${streak} ימים
 
@@ -12275,13 +12297,15 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             async refreshSlotSuggestion(slot) {
                 this.slotShuffling = { ...this.slotShuffling, [slot.key]: true };
                 try {
+                    const currentSug = this.getSlotSuggestion(slot);
                     const res = await fetch('/api/meals/suggest-slot', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             slot_key: slot.key,
                             target_calories: slot.targetCal,
-                            target_protein: slot.targetProt
+                            target_protein: slot.targetProt,
+                            preference: currentSug?.description || ''
                         })
                     });
                     if (res.ok) {
@@ -12296,7 +12320,8 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         } catch (e) {}
                         this.showToast(`🔄 עודכנה הצעה חדשה ל${slot.title}!`);
                     } else {
-                        this.showToast('שגיאה ברענון ההצעה');
+                        const err = await res.json().catch(() => ({}));
+                        this.showToast(err.detail || 'שגיאה ברענון ההצעה');
                     }
                 } catch (e) {
                     this.showToast('שגיאת תקשורת');
