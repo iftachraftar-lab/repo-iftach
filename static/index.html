@@ -12343,10 +12343,16 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             async replaceSlotMeal(slot) {
                 const meal = this.getSlotLoggedMeal(slot.key);
                 if (!meal) return;
-                if (confirm(`להחליף את ארוחת "${meal.description}"? הארוחה הנוכחית תימחק ותוכל לבחור או לקבל הצעה חדשה.`)) {
-                    await this.deleteMeal(meal.id);
-                    await this.refreshSlotSuggestion(slot);
+                try {
+                    const res = await fetch(`/api/meals/${meal.id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                    }
+                    await this.refreshSlotSuggestionByKey(slot.key);
                     this.showToast(`✨ ארוחת ${slot.title} פונתה להצעה חדשה`);
+                } catch (e) {
+                    console.error('Error replacing slot meal:', e);
+                    this.showToast('שגיאה בהחלפת הארוחה', 'error');
                 }
             },
 
