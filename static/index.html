@@ -571,7 +571,12 @@
 
                             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
                                 <span class="text-3xl sm:text-4xl font-black text-slate-900 leading-none tracking-tight" x-text="summary.total_calories.toLocaleString()">0</span>
-                                <span class="text-xs text-slate-500 mt-1 font-semibold">מתוך <span x-text="summary.target_calories">1,800</span> קק״ל</span>
+                                <span class="text-xs text-slate-500 mt-1 font-semibold">יעד בסיס: <span x-text="summary.target_calories">1,800</span> קק״ל</span>
+                                <div x-show="summary.burned_calories > 0" class="mt-1 flex items-center gap-1">
+                                    <span class="text-[10px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                                        🔥 +<span x-text="summary.burned_calories"></span> קק״ל נשרפו באימון
+                                    </span>
+                                </div>
                                 <div class="flex items-center gap-1.5 mt-1">
                                     <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded" x-text="`${caloriePercent}% קלוריות`"></span>
                                     <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded" x-text="`${proteinPercent}% חלבון`"></span>
@@ -1230,6 +1235,76 @@
                     <span>←</span>
                 </button>
             </div>
+
+            
+            <!-- ================= DAILY WATER TRACKER (Stage 3 - Itamar Coaching Platform) ================= -->
+            <div class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-sky-50/90 via-blue-50/70 to-indigo-50/80 border border-sky-200/90 shadow-xs space-y-3.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-300 flex items-center justify-center text-xl shadow-2xs">
+                            💧
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm sm:text-base font-black text-slate-900">מעקב שתיית מים יומית</h3>
+                                <span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 border border-sky-300 text-[10px] font-black">יעד יומי</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                <span class="font-extrabold text-sky-900" x-text="`${(summary.water_ml || 0).toLocaleString()} מ״ל`"></span>
+                                <span class="text-slate-400"> מתוך </span>
+                                <span class="font-bold text-slate-700" x-text="`${(summary.water_target_ml || 2500).toLocaleString()} מ״ל`"></span>
+                                <span class="text-slate-400 font-mono text-[11px]" x-text="` (${Math.floor((summary.water_ml || 0) / 250)}/${Math.ceil((summary.water_target_ml || 2500) / 250)} כוסות)`"></span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Water Push Reminders Toggle -->
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="toggleWaterReminders()"
+                                :class="waterRemindersActive ? 'bg-sky-600 text-white shadow-xs' : 'bg-white/80 hover:bg-white text-slate-700 border border-slate-200'"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
+                            <span x-text="waterRemindersActive ? '🔔 תזכורות פעילות' : '🔕 הפעל תזכורת שתייה'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Animated Water Progress Bar -->
+                <div class="space-y-1">
+                    <div class="w-full bg-slate-200/90 rounded-full h-3 overflow-hidden p-0.5">
+                        <div class="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500 shadow-2xs"
+                             :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-500 font-bold px-1">
+                        <span x-text="`${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}% הושלם`"></span>
+                        <span x-text="(summary.water_ml || 0) >= (summary.water_target_ml || 2500) ? '🎉 השלמת את יעד השתייה היומי!' : `נותרו עוד ${Math.max(0, (summary.water_target_ml || 2500) - (summary.water_ml || 0)).toLocaleString()} מ״ל`"></span>
+                    </div>
+                </div>
+
+                <!-- Fast 1-Tap Logging Buttons -->
+                <div class="grid grid-cols-4 gap-2 pt-1">
+                    <button type="button" @click="addWater(250)"
+                            class="py-2.5 px-1.5 rounded-2xl bg-white hover:bg-sky-50 text-sky-950 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95">
+                        <span>🥛</span>
+                        <span>+250 מ״ל</span>
+                    </button>
+                    <button type="button" @click="addWater(500)"
+                            class="py-2.5 px-1.5 rounded-2xl bg-white hover:bg-sky-50 text-sky-950 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95">
+                        <span>🍶</span>
+                        <span>+500 מ״ל</span>
+                    </button>
+                    <button type="button" @click="addWater(1000)"
+                            class="py-2.5 px-1.5 rounded-2xl bg-white hover:bg-sky-50 text-sky-950 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95">
+                        <span>🚰</span>
+                        <span>+1 ליטר</span>
+                    </button>
+                    <button type="button" @click="decreaseWater(250)" :disabled="(summary.water_ml || 0) <= 0"
+                            class="py-2.5 px-1 rounded-2xl bg-white hover:bg-rose-50 text-rose-800 border border-slate-200 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1 disabled:opacity-40 shadow-2xs active:scale-95">
+                        <span>↩️</span>
+                        <span>-250 מ״ל</span>
+                    </button>
+                </div>
+            </div>
+
 
             <!-- ================= COACHING MODE: 5-SLOT STRUCTURED DAILY MEAL FLOW (Itamar Coaching Platform) ================= -->
             <div x-show="appMode === 'coaching'" class="space-y-4">
@@ -8290,6 +8365,21 @@
                     }
                 ],
                 showMealConfirmModal: false,
+                showHoldonAffiliateModal: false,
+                copiedHoldonCoupon: false,
+                showOnboardingModal: false,
+                onboardingStep: 1,
+                onboardingSaving: false,
+                waterRemindersActive: false,
+                onboardingForm: {
+                    height_cm: 175,
+                    weight_kg: 75,
+                    age: 28,
+                    gender: 'male',
+                    activity: 1.55,
+                    sleep_hours: 7.5,
+                    goal: 'cut_moderate'
+                },
                 mealConfirmSaving: false,
                 mealConfirmForm: {
                     description: '',
@@ -10388,6 +10478,14 @@
                         ]);
                     }
                     this.loading = false;
+                    
+                    // Check if first-time user needs Onboarding (Stage 2)
+                    if (!localStorage.getItem('nutri_onboarding_completed') && (!this.currentUser || !this.currentUser.onboarding_completed)) {
+                        setTimeout(() => { this.showOnboardingModal = true; }, 700);
+                    }
+                    if (localStorage.getItem('water_reminders_active') === 'true') {
+                        this.waterRemindersActive = true;
+                    }
                 },
 
                 async checkApprovalStatusNow() {
@@ -12222,6 +12320,168 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     meal_type: slot.key,
                     source: 'web-manual'
                 });
+            },
+
+            async addWater(amountMl) {
+                try {
+                    const res = await fetch('/api/water/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            amount_ml: amountMl,
+                            log_date: this.selectedDate || this.todayStr
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.summary.water_ml = data.water_ml;
+                        this.showToast(`💧 נוספו ${amountMl} מ״ל מים! סה״כ להיום: ${data.water_ml.toLocaleString()} מ״ל`);
+                    }
+                } catch (e) {
+                    console.error('Error adding water:', e);
+                }
+            },
+
+            async decreaseWater(amountMl = 250) {
+                if ((this.summary.water_ml || 0) <= 0) return;
+                try {
+                    const res = await fetch('/api/water/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            amount_ml: -amountMl,
+                            log_date: this.selectedDate || this.todayStr
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.summary.water_ml = data.water_ml;
+                        this.showToast(`הופחתו ${amountMl} מ״ל`);
+                    }
+                } catch (e) {
+                    console.error('Error decreasing water:', e);
+                }
+            },
+
+            toggleWaterReminders() {
+                this.waterRemindersActive = !this.waterRemindersActive;
+                if (this.waterRemindersActive) {
+                    if ('Notification' in window && Notification.permission !== 'granted') {
+                        Notification.requestPermission();
+                    }
+                    localStorage.setItem('water_reminders_active', 'true');
+                    this.showToast('🔔 תזכורות שתייה הופעלו! נזכיר לך לשתות כוס מים במהלך היום');
+                } else {
+                    localStorage.removeItem('water_reminders_active');
+                    this.showToast('🔕 תזכורות שתייה כובו');
+                }
+            },
+
+            async logHoldonShake(slotKey = 'afternoon_snack') {
+                try {
+                    const currTime = getIsraelTimeStr();
+                    const payload = {
+                        description: 'שייק חלבון HoldOn (הולד-און) איכותי על בסיס מים',
+                        calories: 180,
+                        protein_g: 25.0,
+                        items: [
+                            { name: 'סקופ שייק חלבון HoldOn', calories: 140, protein_g: 24.0 },
+                            { name: 'נוזל ומים קרים', calories: 40, protein_g: 1.0 }
+                        ],
+                        log_date: this.selectedDate || this.todayStr,
+                        log_time: currTime,
+                        meal_type: slotKey,
+                        source: 'web-holdon-shake'
+                    };
+                    const res = await fetch('/api/meals/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showHoldonAffiliateModal = true;
+                    }
+                } catch (e) {
+                    alert('שגיאה ברישום שייק חלבון');
+                }
+            },
+
+            copyHoldonCoupon() {
+                try {
+                    navigator.clipboard.writeText('HOLDON10');
+                    this.copiedHoldonCoupon = true;
+                    setTimeout(() => { this.copiedHoldonCoupon = false; }, 3000);
+                } catch (e) {
+                    this.copiedHoldonCoupon = true;
+                }
+            },
+
+            get onboardingBmr() {
+                const w = Number(this.onboardingForm.weight_kg) || 75;
+                const h = Number(this.onboardingForm.height_cm) || 175;
+                const a = Number(this.onboardingForm.age) || 28;
+                const isMale = this.onboardingForm.gender === 'male';
+                return Math.round(10 * w + 6.25 * h - 5 * a + (isMale ? 5 : -161));
+            },
+
+            get onboardingTdee() {
+                const act = Number(this.onboardingForm.activity) || 1.55;
+                return Math.round(this.onboardingBmr * act);
+            },
+
+            get onboardingTargetCalories() {
+                const tdee = this.onboardingTdee;
+                const g = this.onboardingForm.goal;
+                if (g === 'cut_aggressive') return Math.max(1200, tdee - 500);
+                if (g === 'cut_moderate') return Math.max(1300, tdee - 300);
+                if (g === 'bulk') return tdee + 300;
+                return tdee;
+            },
+
+            get onboardingTargetProtein() {
+                const w = Number(this.onboardingForm.weight_kg) || 75;
+                const g = this.onboardingForm.goal;
+                if (g === 'cut_aggressive' || g === 'cut_moderate') return Math.round(w * 2.1);
+                if (g === 'bulk') return Math.round(w * 2.0);
+                return Math.round(w * 1.8);
+            },
+
+            get onboardingWaterTarget() {
+                const w = Number(this.onboardingForm.weight_kg) || 75;
+                return Math.round((w * 35) / 100) * 100;
+            },
+
+            async submitOnboarding() {
+                this.onboardingSaving = true;
+                try {
+                    const res = await fetch('/api/user/onboarding', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            height_cm: this.onboardingForm.height_cm,
+                            weight_kg: this.onboardingForm.weight_kg,
+                            age: this.onboardingForm.age,
+                            gender: this.onboardingForm.gender,
+                            activity_level: String(this.onboardingForm.activity),
+                            sleep_hours: this.onboardingForm.sleep_hours,
+                            goal: this.onboardingForm.goal,
+                            target_calories: this.onboardingTargetCalories,
+                            target_protein: this.onboardingTargetProtein,
+                            water_target_ml: this.onboardingWaterTarget
+                        })
+                    });
+                    if (res.ok) {
+                        localStorage.setItem('nutri_onboarding_completed', 'true');
+                        this.showOnboardingModal = false;
+                        await this.fetchSummary();
+                        this.showToast('🎉 היעדים האישיים שלך הוגדרו ונשמרו בהצלחה!');
+                    }
+                } catch (e) {
+                    alert('שגיאה בשמירת יעדי האונבורדינג');
+                } finally {
+                    this.onboardingSaving = false;
+                }
             },
 
             toggleAppMode() {
@@ -14150,6 +14410,264 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             </div>
         </div>
     </div>
+
+
+        <!-- ================= HOLDON AFFILIATE PROMOTION MODAL ================= -->
+        <div x-show="showHoldonAffiliateModal" style="display: none;"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs">
+            <div @click.away="showHoldonAffiliateModal = false"
+                 class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-amber-200 text-right space-y-4 relative overflow-hidden">
+                <div class="absolute -top-12 -left-12 w-36 h-36 bg-amber-100/70 rounded-full blur-2xl pointer-events-none"></div>
+                
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full">
+                        ⭐ הטבת מתאמנים בלעדית
+                    </span>
+                    <button type="button" @click="showHoldonAffiliateModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+
+                <div class="text-center space-y-2 pt-1">
+                    <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-300 flex items-center justify-center text-3xl shadow-xs">
+                        🥤
+                    </div>
+                    <h3 class="text-lg font-black text-slate-900">שייק החלבון נרשם בהצלחה!</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
+                        רוצה להצטייד בשייקים, אבקות חלבון וחטיפים איכותיים? השגנו עבורך <span class="font-bold text-amber-950">10% הנחה על כל ההזמנה</span> באתר הרשמי של <strong>HoldOn (הולד-און)</strong>!
+                    </p>
+                </div>
+
+                <!-- Coupon Box -->
+                <div class="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-dashed border-amber-300 text-center space-y-2">
+                    <span class="text-[11px] font-bold text-amber-900 block">קוד הקופון שלך להעתקה בקופה:</span>
+                    <div class="flex items-center justify-center gap-2">
+                        <span class="text-2xl font-black font-mono tracking-widest text-amber-950 bg-white px-4 py-1.5 rounded-xl border border-amber-200 shadow-2xs">
+                            HOLDON10
+                        </span>
+                        <button type="button" @click="copyHoldonCoupon()"
+                                class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-extrabold transition cursor-pointer shadow-xs">
+                            <span x-text="copiedHoldonCoupon ? '✓ הועתק!' : 'העתק'">העתק</span>
+                        </button>
+                    </div>
+                    <span class="text-[10px] text-amber-700 font-semibold block">10% הנחה לכל מוצרי השייקים והתוספים</span>
+                </div>
+
+                <!-- Actions -->
+                <div class="pt-2 flex items-center gap-2">
+                    <button type="button" @click="showHoldonAffiliateModal = false"
+                            class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition">
+                        סגור
+                    </button>
+                    <a href="https://www.holdon.co.il/" target="_blank" rel="noopener noreferrer"
+                       @click="showHoldonAffiliateModal = false"
+                       class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs text-center flex items-center justify-center gap-2 shadow-md shadow-amber-500/25 transition cursor-pointer">
+                        <span>עבור לאתר HoldOn עכשיו</span>
+                        <span>➔</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ================= ONBOARDING WELCOME & TARGETS WIZARD (Stage 2) ================= -->
+        <div x-show="showOnboardingModal" style="display: none;"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
+            <div class="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-emerald-200 text-right space-y-4 max-h-[92vh] overflow-y-auto relative">
+                
+                <!-- Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl font-bold">
+                            🎯
+                        </div>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-black text-slate-900">ברוך הבא! הגדרת יעדים אישיים</h2>
+                            <p class="text-xs text-slate-500">שלב <span x-text="onboardingStep">1</span> מתוך 3 (60 שניות בלבד)</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showOnboardingModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+
+                <!-- Progress Steps Indicator -->
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="h-1.5 rounded-full" :class="onboardingStep >= 1 ? 'bg-emerald-600' : 'bg-slate-200'"></div>
+                    <div class="h-1.5 rounded-full" :class="onboardingStep >= 2 ? 'bg-emerald-600' : 'bg-slate-200'"></div>
+                    <div class="h-1.5 rounded-full" :class="onboardingStep >= 3 ? 'bg-emerald-600' : 'bg-slate-200'"></div>
+                </div>
+
+                <!-- STEP 1: PHYSICAL METRICS -->
+                <div x-show="onboardingStep === 1" class="space-y-3.5">
+                    <h3 class="text-sm font-black text-slate-800">1. נתונים פיזיולוגיים בסיסיים</h3>
+                    <p class="text-xs text-slate-500">הנתונים ישמשו לחישוב שריפת האנרגיה במנוחה (BMR) ויעד החלבון.</p>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">גובה (ס״מ)</label>
+                            <input type="number" x-model.number="onboardingForm.height_cm" min="120" max="230"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-sm focus:bg-white focus:border-emerald-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">משקל נוכחי (ק״ג)</label>
+                            <input type="number" step="0.1" x-model.number="onboardingForm.weight_kg" min="30" max="250"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-sm focus:bg-white focus:border-emerald-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">גיל</label>
+                            <input type="number" x-model.number="onboardingForm.age" min="14" max="100"
+                                   class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-sm focus:bg-white focus:border-emerald-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">מגדר</label>
+                            <select x-model="onboardingForm.gender"
+                                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-sm focus:bg-white focus:border-emerald-500 outline-none">
+                                <option value="male">גבר</option>
+                                <option value="female">אישה</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex justify-end">
+                        <button type="button" @click="onboardingStep = 2"
+                                class="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition cursor-pointer shadow-md shadow-emerald-600/20">
+                            המשך לשלב הבא ➔
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 2: LIFESTYLE, ACTIVITY & SLEEP -->
+                <div x-show="onboardingStep === 2" class="space-y-3.5">
+                    <h3 class="text-sm font-black text-slate-800">2. רמת פעילות ושעות שינה</h3>
+                    
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-slate-700">רמת פעילות ספורטיבית שבועית:</label>
+                        <div class="grid grid-cols-1 gap-2">
+                            <div @click="onboardingForm.activity = 1.2"
+                                 :class="onboardingForm.activity === 1.2 ? 'border-2 border-emerald-600 bg-emerald-50/60 font-black' : 'border border-slate-200 bg-white'"
+                                 class="p-2.5 rounded-xl cursor-pointer flex items-center justify-between text-xs">
+                                <span>🛋️ יושבני / מעט ספורט (משרדי)</span>
+                                <span x-show="onboardingForm.activity === 1.2" class="text-emerald-700">✓</span>
+                            </div>
+                            <div @click="onboardingForm.activity = 1.375"
+                                 :class="onboardingForm.activity === 1.375 ? 'border-2 border-emerald-600 bg-emerald-50/60 font-black' : 'border border-slate-200 bg-white'"
+                                 class="p-2.5 rounded-xl cursor-pointer flex items-center justify-between text-xs">
+                                <span>🚶 קל (1–2 אימונים בשבוע / הליכות)</span>
+                                <span x-show="onboardingForm.activity === 1.375" class="text-emerald-700">✓</span>
+                            </div>
+                            <div @click="onboardingForm.activity = 1.55"
+                                 :class="onboardingForm.activity === 1.55 ? 'border-2 border-emerald-600 bg-emerald-50/60 font-black' : 'border border-slate-200 bg-white'"
+                                 class="p-2.5 rounded-xl cursor-pointer flex items-center justify-between text-xs">
+                                <span>🏋️ פעיל / כושר קבוע (3–5 אימונים בשבוע - מומלץ)</span>
+                                <span x-show="onboardingForm.activity === 1.55" class="text-emerald-700">✓</span>
+                            </div>
+                            <div @click="onboardingForm.activity = 1.725"
+                                 :class="onboardingForm.activity === 1.725 ? 'border-2 border-emerald-600 bg-emerald-50/60 font-black' : 'border border-slate-200 bg-white'"
+                                 class="p-2.5 rounded-xl cursor-pointer flex items-center justify-between text-xs">
+                                <span>⚡ אינטנסיבי (6+ אימונים כבדים בשבוע / ספורטאי)</span>
+                                <span x-show="onboardingForm.activity === 1.725" class="text-emerald-700">✓</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sleep Hours Field (Requested by Itamar) -->
+                    <div class="p-3 rounded-2xl bg-indigo-50/60 border border-indigo-200/70 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                                <span>🌙</span>
+                                <span>שעות שינה ממוצעות בלילה:</span>
+                            </span>
+                            <span class="text-xs font-black font-mono text-indigo-800" x-text="`${onboardingForm.sleep_hours} שעות`"></span>
+                        </div>
+                        <input type="range" min="4" max="11" step="0.5" x-model.number="onboardingForm.sleep_hours"
+                               class="w-full accent-indigo-600 cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-indigo-600 font-bold px-1">
+                            <span>4 שעות (גרעון שינה)</span>
+                            <span>7–8 שעות (אידיאלי להתאוששות)</span>
+                            <span>10+ שעות</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-between gap-2">
+                        <button type="button" @click="onboardingStep = 1"
+                                class="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+                            חזור
+                        </button>
+                        <button type="button" @click="onboardingStep = 3"
+                                class="flex-1 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition cursor-pointer shadow-md shadow-emerald-600/20">
+                            צפה ביעדים המחושבים ➔
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: GOALS & CALCULATED TARGETS -->
+                <div x-show="onboardingStep === 3" class="space-y-3.5">
+                    <h3 class="text-sm font-black text-slate-800">3. מטרת התוכנית והיעדים שלך</h3>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" @click="onboardingForm.goal = 'cut_moderate'"
+                                :class="onboardingForm.goal === 'cut_moderate' ? 'border-2 border-emerald-600 bg-emerald-50 text-emerald-950 font-black' : 'border border-slate-200 bg-white text-slate-700'"
+                                class="p-2.5 rounded-xl text-xs transition text-center cursor-pointer">
+                            🔥 חיטוב ושריפת שומן
+                        </button>
+                        <button type="button" @click="onboardingForm.goal = 'maintain'"
+                                :class="onboardingForm.goal === 'maintain' ? 'border-2 border-emerald-600 bg-emerald-50 text-emerald-950 font-black' : 'border border-slate-200 bg-white text-slate-700'"
+                                class="p-2.5 rounded-xl text-xs transition text-center cursor-pointer">
+                            ⚖️ שמירה ואיזון
+                        </button>
+                        <button type="button" @click="onboardingForm.goal = 'bulk'"
+                                :class="onboardingForm.goal === 'bulk' ? 'border-2 border-emerald-600 bg-emerald-50 text-emerald-950 font-black' : 'border border-slate-200 bg-white text-slate-700'"
+                                class="p-2.5 rounded-xl text-xs transition text-center cursor-pointer">
+                            💪 עלייה במסת שריר
+                        </button>
+                        <button type="button" @click="onboardingForm.goal = 'cut_aggressive'"
+                                :class="onboardingForm.goal === 'cut_aggressive' ? 'border-2 border-emerald-600 bg-emerald-50 text-emerald-950 font-black' : 'border border-slate-200 bg-white text-slate-700'"
+                                class="p-2.5 rounded-xl text-xs transition text-center cursor-pointer">
+                            ⚡ חיטוב מואץ
+                        </button>
+                    </div>
+
+                    <!-- Calculated Targets Card -->
+                    <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border-2 border-emerald-300 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-slate-800">סיכום היעדים היומיים המומלצים:</span>
+                            <span class="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">מחושב מדעית</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="p-2.5 rounded-xl bg-white border border-emerald-200 shadow-2xs">
+                                <span class="text-[10px] font-bold text-slate-500 block">יעד קלוריות</span>
+                                <span class="text-lg font-black text-emerald-700" x-text="onboardingTargetCalories"></span>
+                                <span class="text-[9px] text-slate-400 block">קק״ל ליום</span>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-white border border-indigo-200 shadow-2xs">
+                                <span class="text-[10px] font-bold text-slate-500 block">יעד חלבון</span>
+                                <span class="text-lg font-black text-indigo-700" x-text="`${onboardingTargetProtein}g`"></span>
+                                <span class="text-[9px] text-slate-400 block">חלבון יומי</span>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-white border border-sky-200 shadow-2xs">
+                                <span class="text-[10px] font-bold text-slate-500 block">יעד מים</span>
+                                <span class="text-lg font-black text-sky-700" x-text="`${(onboardingWaterTarget / 1000).toFixed(1)}L`"></span>
+                                <span class="text-[9px] text-slate-400 block">שתייה יומית</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-between gap-2">
+                        <button type="button" @click="onboardingStep = 2"
+                                class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+                            חזור
+                        </button>
+                        <button type="button" @click="submitOnboarding()" :disabled="onboardingSaving"
+                                class="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer">
+                            <span x-show="!onboardingSaving">🚀 אשר יעדים והתחל ליווי!</span>
+                            <span x-show="onboardingSaving">שומר נתונים...</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
 
 </body>
 </html>

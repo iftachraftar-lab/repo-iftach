@@ -532,6 +532,7 @@ _LOCAL_FAVORITES: List[dict] = [dict(f, user_id="default") for f in DEFAULT_FAVO
 _LOCAL_WEIGHTS: List[dict] = []
 _LOCAL_VAPID: Optional[dict] = None
 _LOCAL_PUSH_SUBS: List[dict] = []
+_LOCAL_WATER: dict = {}
 _LOCAL_USERS: dict = {}
 _LOCAL_LEADS: List[dict] = []
 _LOCAL_TG_LINKS: dict = {}
@@ -1618,6 +1619,20 @@ def get_day_summary(target_date: Optional[str] = None, user_id: str = "default")
     target_prot = targets["target_protein"]
     net_cal = total_cal - burned_cal
     remaining_cal = target_cal - total_cal
+    
+    # Retrieve daily water intake
+    water_ml = 0
+    water_target_ml = int(targets.get("water_target_ml") or 2500)
+    if db:
+        try:
+            w_doc = db.collection("daily_water").document(f"{uid}_{d_str}").get()
+            if w_doc.exists:
+                water_ml = int(w_doc.to_dict().get("water_ml", 0))
+        except Exception as e:
+            print(f"ERROR get daily_water: {e}")
+    else:
+        water_ml = int(_LOCAL_WATER.get(f"{uid}_{d_str}", 0))
+
     return {
         "date": d_str,
         "user_id": uid,
@@ -1628,6 +1643,8 @@ def get_day_summary(target_date: Optional[str] = None, user_id: str = "default")
         "target_calories": target_cal,
         "target_protein": target_prot,
         "remaining_calories": remaining_cal,
+        "water_ml": water_ml,
+        "water_target_ml": water_target_ml,
         "meal_count": len(meals_list),
         "workout_count": len(workouts_list),
         "meals": meals_list,
@@ -4178,6 +4195,14 @@ def api_auth_me(request: Request, response: Response):
         "ai_calls_today": ai_calls_today,
         "verified_oauth": True,
         "session_token": refreshed_token,
+        "onboarding_completed": bool(user_doc.get("onboarding_completed", False)),
+        "height_cm": user_doc.get("height_cm"),
+        "weight_kg": user_doc.get("weight_kg"),
+        "age": user_doc.get("age"),
+        "gender": user_doc.get("gender"),
+        "activity_level": user_doc.get("activity_level"),
+        "sleep_hours": user_doc.get("sleep_hours"),
+        "goal": user_doc.get("goal"),
     }
 
 
@@ -5080,6 +5105,15 @@ SLOT_PRESETS = {
         }
     ],
     "afternoon_snack": [
+        {
+            "description": "שייק חלבון HoldOn (הולד-און) איכותי על בסיס מים",
+            "calories": 180,
+            "protein_g": 25.0,
+            "items": [
+                {"name": "סקופ שייק חלבון HoldOn", "calories": 140, "protein_g": 24.0},
+                {"name": "נוזל ומים קרים", "calories": 40, "protein_g": 1.0}
+            ]
+        },
         {
             "description": "שייק חלבון על בסיס מים / חלב שקדים ללא סוכר ובננה קטנה",
             "calories": 180,
@@ -7430,3 +7464,137 @@ async def telegram_webhook(request: Request):
     update = Update.de_json(req_data, tg_app.bot)
     await tg_app.process_update(update)
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 & 3: Water Tracking & Onboarding Flow Endpoints (Itamar Platform)
+# ---------------------------------------------------------------------------
+
+class WaterAddRequest(BaseModel):
+    amount_ml: int
+    log_date: Optional[str] = None
+
+class WaterSetRequest(BaseModel):
+    amount_ml: int
+    log_date: Optional[str] = None
+
+class OnboardingSaveRequest(BaseModel):
+    height_cm: Optional[float] = None
+    weight_kg: Optional[float] = None
+    age: Optional[int] = None
+    gender: Optional[str] = "male"
+    activity_level: Optional[str] = "moderate"
+    sleep_hours: Optional[float] = 7.0
+    goal: Optional[str] = "cut_moderate"
+    target_calories: Optional[int] = None
+    target_protein: Optional[float] = None
+    water_target_ml: Optional[int] = 2500
+
+
+@app.post("/api/water/add")
+def api_add_water(req: WaterAddRequest, request: Request):
+    uid = require_approved_user(request)
+    d_str = req.log_date or get_israel_today_str()
+    key = f"{uid}_{d_str}"
+    
+    current_ml = 0
+    if db:
+        try:
+            doc_ref = db.collection("daily_water").document(key)
+            snap = doc_ref.get()
+            if snap.exists:
+                current_ml = int(snap.to_dict().get("water_ml", 0))
+            new_ml = max(0, current_ml + req.amount_ml)
+            doc_ref.set({
+                "user_id": uid,
+                "log_date": d_str,
+                "water_ml": new_ml,
+                "updated_at": get_israel_now().isoformat()
+            }, merge=True)
+            return {"status": "ok", "water_ml": new_ml, "log_date": d_str}
+        except Exception as e:
+            print(f"ERROR api_add_water firestore: {e}")
+            raise HTTPException(status_code=500, detail="Failed to update water intake")
+    else:
+        current_ml = _LOCAL_WATER.get(key, 0)
+        new_ml = max(0, current_ml + req.amount_ml)
+        _LOCAL_WATER[key] = new_ml
+        return {"status": "ok", "water_ml": new_ml, "log_date": d_str}
+
+
+@app.post("/api/water/set")
+def api_set_water(req: WaterSetRequest, request: Request):
+    uid = require_approved_user(request)
+    d_str = req.log_date or get_israel_today_str()
+    key = f"{uid}_{d_str}"
+    new_ml = max(0, req.amount_ml)
+    
+    if db:
+        try:
+            db.collection("daily_water").document(key).set({
+                "user_id": uid,
+                "log_date": d_str,
+                "water_ml": new_ml,
+                "updated_at": get_israel_now().isoformat()
+            }, merge=True)
+        except Exception as e:
+            print(f"ERROR api_set_water: {e}")
+            raise HTTPException(status_code=500, detail="Failed to set water intake")
+    else:
+        _LOCAL_WATER[key] = new_ml
+    return {"status": "ok", "water_ml": new_ml, "log_date": d_str}
+
+
+@app.post("/api/user/onboarding")
+def api_save_onboarding(req: OnboardingSaveRequest, request: Request):
+    uid = require_approved_user(request)
+    today_str = get_israel_today_str()
+    
+    user_updates = {
+        "onboarding_completed": True,
+        "height_cm": req.height_cm,
+        "weight_kg": req.weight_kg,
+        "age": req.age,
+        "gender": req.gender,
+        "activity_level": req.activity_level,
+        "sleep_hours": req.sleep_hours,
+        "goal": req.goal,
+        "updated_at": get_israel_now().isoformat()
+    }
+    
+    # Save daily targets if supplied
+    cal_target = req.target_calories or 1800
+    prot_target = req.target_protein or 120.0
+    water_target = req.water_target_ml or 2500
+    
+    set_targets(
+        target_calories=cal_target,
+        target_protein=int(prot_target),
+        target_date=today_str,
+        user_id=uid
+    )
+    
+    if db:
+        try:
+            db.collection("users").document(uid).set(user_updates, merge=True)
+            # Also update water_target_ml in daily_targets doc
+            doc_id = today_str if uid == "default" else f"{uid}_{today_str}"
+            db.collection("daily_targets").document(doc_id).set({
+                "water_target_ml": water_target
+            }, merge=True)
+        except Exception as e:
+            print(f"ERROR api_save_onboarding: {e}")
+            raise HTTPException(status_code=500, detail="Failed to save onboarding data")
+    else:
+        if uid in _LOCAL_USERS:
+            _LOCAL_USERS[uid].update(user_updates)
+        else:
+            _LOCAL_USERS[uid] = user_updates
+
+    return {
+        "status": "ok",
+        "onboarding_completed": True,
+        "target_calories": cal_target,
+        "target_protein": prot_target,
+        "water_target_ml": water_target
+    }
