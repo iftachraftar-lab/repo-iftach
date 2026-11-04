@@ -5287,15 +5287,39 @@ async def api_admin_test_telegram_alert(request: Request):
 
 @app.get("/api/admin/vision-logs")
 def api_admin_get_vision_logs(request: Request, limit: int = Query(default=100, ge=1, le=300)):
-    require_admin_user(request)
-    return get_vision_analysis_logs_db(limit=limit)
+    admin_uid = require_admin_user(request)
+    udoc = get_user_doc_db(admin_uid)
+    email = (udoc.get("email") or "").lower().strip()
+    is_itamar = "itamar" in email or "itamar" in admin_uid.lower()
+    if is_itamar:
+        limit = min(limit, 15)
+    res = get_vision_analysis_logs_db(limit=limit)
+    if is_itamar:
+        if "logs" in res and isinstance(res["logs"], list):
+            res["logs"] = res["logs"][:15]
+        if res.get("stats") and "total_photos" in res["stats"]:
+            res["stats"]["total_photos"] = min(res["stats"]["total_photos"], 15)
+        res["itamar_limit_applied"] = True
+    return res
 
 
 @app.get("/api/meals/photo-history")
 def api_get_user_photo_history(request: Request, limit: int = Query(default=100, ge=1, le=300)):
     uid = require_approved_user(request)
+    udoc = get_user_doc_db(uid)
+    email = (udoc.get("email") or "").lower().strip()
+    is_itamar = "itamar" in email or "itamar" in uid.lower()
+    if is_itamar:
+        limit = min(limit, 15)
     filter_uid = None if is_admin_user_id(uid) else uid
-    return get_vision_analysis_logs_db(limit=limit, user_id_filter=filter_uid)
+    res = get_vision_analysis_logs_db(limit=limit, user_id_filter=filter_uid)
+    if is_itamar:
+        if "logs" in res and isinstance(res["logs"], list):
+            res["logs"] = res["logs"][:15]
+        if res.get("stats") and "total_photos" in res["stats"]:
+            res["stats"]["total_photos"] = min(res["stats"]["total_photos"], 15)
+        res["itamar_limit_applied"] = True
+    return res
 
 
 @app.post("/api/vision-logs/{log_id}/reanalyze")

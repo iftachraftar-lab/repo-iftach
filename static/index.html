@@ -4122,9 +4122,16 @@
                 <div class="space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex flex-wrap items-center gap-2">
-                            <h4 class="text-xs sm:text-sm font-extrabold text-slate-800">
-                                📊 היסטוריית כל הצילומים וההיסטוגרמות (<span x-text="filteredVisionLogs.length"></span>/<span x-text="(visionLogs || []).length"></span>)
-                            </h4>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h4 class="text-xs sm:text-sm font-extrabold text-slate-800">
+                                    📊 היסטוריית כל הצילומים וההיסטוגרמות (<span x-text="filteredVisionLogs.length"></span>/<span x-text="(visionLogs || []).length"></span>)
+                                </h4>
+                                <template x-if="(currentUser?.email || '').toLowerCase().includes('itamar')">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                        🔒 מוגבל ל-15 צילומים (איתמר)
+                                    </span>
+                                </template>
+                            </div>
                             <div class="flex flex-wrap items-center gap-1 text-[11px]">
                                 <button type="button" @click="visionFilter = 'all'"
                                         :class="visionFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
@@ -10665,7 +10672,8 @@
                 get filteredVisionLogs() {
                     const q = (this.visionSearchQuery || '').trim().toLowerCase();
                     const flt = this.visionFilter || 'all';
-                    return (this.visionLogs || []).filter(vlog => {
+                    const isItamar = (this.currentUser?.email || '').toLowerCase().includes('itamar');
+                    let logs = (this.visionLogs || []).filter(vlog => {
                         if (flt === 'meals' && !(vlog.ai_analysis && vlog.ai_analysis.is_meal)) return false;
                         if (flt === 'enhanced' && !(vlog.forensics && vlog.forensics.enhancements_applied && vlog.forensics.enhancements_applied.length > 0)) return false;
                         if (flt === 'calibrated' && !vlog.calibrated) return false;
@@ -10675,6 +10683,10 @@
                         const dt = (vlog.created_at_iso || '').toLowerCase();
                         return summary.includes(q) || user.includes(q) || dt.includes(q);
                     });
+                    if (isItamar) {
+                        return logs.slice(0, 15);
+                    }
+                    return logs;
                 },
 
                 
@@ -11817,13 +11829,22 @@
                     if (!this.currentUser) return;
                     this.visionLoading = true;
                     try {
-                        const endpoint = this.currentUser.is_admin ? '/api/admin/vision-logs?limit=150' : '/api/meals/photo-history?limit=150';
+                        const isItamar = (this.currentUser.email || '').toLowerCase().includes('itamar');
+                        const limitParam = isItamar ? 15 : (this.currentUser.is_admin ? 150 : 150);
+                        const endpoint = this.currentUser.is_admin ? `/api/admin/vision-logs?limit=${limitParam}` : `/api/meals/photo-history?limit=${limitParam}`;
                         const res = await fetch(endpoint);
                         if (!res.ok) return;
                         const data = await res.json();
-                        this.visionLogs = data.logs || [];
+                        let logs = data.logs || [];
+                        if (isItamar) {
+                            logs = logs.slice(0, 15);
+                        }
+                        this.visionLogs = logs;
                         this.visionCalibrationRules = data.calibration_rules || [];
                         this.visionStats = data.stats || null;
+                        if (isItamar && this.visionStats && this.visionStats.total_photos > 15) {
+                            this.visionStats.total_photos = 15;
+                        }
                     } catch (e) {
                         console.error('fetchVisionLogs error:', e);
                     } finally {
