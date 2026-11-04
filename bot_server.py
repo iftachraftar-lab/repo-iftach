@@ -865,8 +865,42 @@ def claim_legacy_data_for_user(user_id: str) -> dict:
 OWNER_ADMIN_EMAILS = {
     "iftach.raftar@gmail.com",
     "iftachraftar@gmail.com",
+    "itamarfitk@gmail.com",
     *[e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()],
 }
+
+
+COACH_EMAILS = {
+    "iftach.raftar@gmail.com",
+    "iftachraftar@gmail.com",
+    "itamarfitk@gmail.com",
+}
+
+
+def is_coach_email(email: str) -> bool:
+    clean = (email or "").strip().lower()
+    if not clean:
+        return False
+    if clean in COACH_EMAILS or is_owner_email(clean):
+        return True
+    if clean.endswith("@gmail.com"):
+        local_part = clean.split("@")[0].replace(".", "")
+        if f"{local_part}@gmail.com" in COACH_EMAILS:
+            return True
+    return False
+
+
+def is_coach_or_admin(request: Request) -> str:
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="נדרשת התחברות למערכת")
+    if is_admin_user_id(uid):
+        return uid
+    user_doc = get_user_profile_db(uid)
+    email = (user_doc.get("email") or "").strip().lower()
+    if is_coach_email(email) or user_doc.get("is_admin") or user_doc.get("is_coach"):
+        return uid
+    raise HTTPException(status_code=403, detail="גישה מורשית רק למאמנים (איתמר) ולמנהל המערכת בלבד")
 
 
 def is_owner_email(email: str) -> bool:
@@ -5954,7 +5988,7 @@ class CoachTraineeCreateRequest(BaseModel):
 
 @app.get("/api/coach/trainees")
 def api_coach_list_trainees(request: Request):
-    uid = get_request_user_id(request)
+    uid = is_coach_or_admin(request)
     coach_id = "itamar"
     return {
         "coach_id": coach_id,
@@ -5965,7 +5999,7 @@ def api_coach_list_trainees(request: Request):
 
 @app.post("/api/coach/trainees")
 def api_coach_create_trainee(req: CoachTraineeCreateRequest, request: Request):
-    uid = get_request_user_id(request)
+    uid = is_coach_or_admin(request)
     coach_id = "itamar"
     if not req.name.strip():
         raise HTTPException(status_code=400, detail="שם המתאמן הוא שדה חובה")
@@ -5983,6 +6017,7 @@ def api_coach_create_trainee(req: CoachTraineeCreateRequest, request: Request):
 
 @app.get("/api/coach/trainees/{trainee_id}/details")
 def api_coach_trainee_details(trainee_id: str, request: Request):
+    is_coach_or_admin(request)
     t = _LOCAL_TRAINEES.get(trainee_id)
     if not t and db:
         snap = db.collection("trainees").document(trainee_id).get()
@@ -6007,6 +6042,7 @@ def api_coach_trainee_details(trainee_id: str, request: Request):
 
 @app.delete("/api/coach/trainees/{trainee_id}")
 def api_coach_delete_trainee(trainee_id: str, request: Request):
+    is_coach_or_admin(request)
     ok = delete_trainee_record(trainee_id)
     return {"ok": ok, "deleted_id": trainee_id}
 

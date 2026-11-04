@@ -496,8 +496,8 @@
         <!-- =============================================================== -->
         <div x-show="activeTab === 'summary'" x-transition.opacity class="space-y-6">
 
-            <!-- Coaching Subtabs Switcher & Quick Add (When Coaching Mode Active) -->
-            <div x-show="appMode === 'coaching'" class="p-2 sm:p-2.5 bg-white rounded-3xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-2.5">
+            <!-- Coaching Subtabs Switcher & Quick Add (Restricted Strictly to Coach/Admin) -->
+            <div x-show="appMode === 'coaching' && isCoachOrAdmin()" class="p-2 sm:p-2.5 bg-white rounded-3xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-2.5">
                 <div class="flex items-center gap-1.5 flex-wrap">
                     <button type="button" @click="coachingSubTab = 'summary'; resetViewingTrainee()"
                             class="px-3.5 py-2 rounded-2xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
@@ -543,7 +543,7 @@
             </div>
 
             <!-- COACH TRAINEES ROSTER VIEW -->
-            <div x-show="appMode === 'coaching' && coachingSubTab === 'trainees'" class="space-y-4">
+            <div x-show="appMode === 'coaching' && coachingSubTab === 'trainees' && isCoachOrAdmin()" class="space-y-4">
                 <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                         <div>
@@ -3277,8 +3277,42 @@
                 </button>
             </div>
 
+            <!-- Admin Navigation Tabs: Clean, Organized Subtabs (Users, B2B Demo, Leads, Settings) -->
+            <div class="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/90 shadow-2xs flex-wrap">
+                <button type="button" @click="adminNavTab = 'users'"
+                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                        :class="adminNavTab === 'users' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+                    <span>👥</span>
+                    <span>משתמשים ומתאמנים</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black"
+                          :class="adminNavTab === 'users' ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-200 text-slate-700'"
+                          x-text="adminUsers.length"></span>
+                </button>
+                <button type="button" @click="adminNavTab = 'demo'"
+                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                        :class="adminNavTab === 'demo' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+                    <span>🎯</span>
+                    <span>מחולל דמו B2B</span>
+                </button>
+                <button type="button" @click="adminNavTab = 'leads'"
+                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                        :class="adminNavTab === 'leads' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+                    <span>📥</span>
+                    <span>לידים נכנסים והתראות</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black"
+                          :class="adminNavTab === 'leads' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'"
+                          x-text="adminLeads.length"></span>
+                </button>
+                <button type="button" @click="adminNavTab = 'settings'"
+                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                        :class="adminNavTab === 'settings' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+                    <span>⚙️</span>
+                    <span>הגדרות ערוצים ו-AI</span>
+                </button>
+            </div>
+
             <!-- Feature Flags & Messaging Integrations Manager (Admin Control) -->
-            <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
+            <div x-show="adminNavTab === 'settings'" class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center text-xl shadow-xs flex-shrink-0">
@@ -3325,8 +3359,8 @@
                 </div>
             </div>
 
-            <!-- Leads Management & Telegram Alerts Settings (Admin Only) -->
-            <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-5">
+            <!-- B2B Demo Card (Admin Only) -->
+            <div x-show="adminNavTab === 'demo'" class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-5">
                 <!-- Header with Subtabs Navigation -->
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                     <div class="flex items-center gap-3">
@@ -3505,7 +3539,10 @@
                 </div>
 
                 <!-- ================= TAB 2: INCOMING LEADS & TELEGRAM TARGET ================= -->
-                <div x-show="adminPartnerSubTab === 'leads'" class="space-y-4">
+                </div>
+
+            <!-- Incoming Leads & Telegram Alerts Card -->
+            <div x-show="adminNavTab === 'leads'" class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-5">
                     <!-- Telegram Alert Configuration Bar -->
                     <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3">
                         <div class="flex items-center gap-2.5 w-full md:w-auto">
@@ -3754,7 +3791,7 @@
             </div>
 
             <!-- Pre-Add / Invite User Card -->
-            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+            <div x-show="adminNavTab === 'users'" class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="text-base font-bold text-slate-900">➕ הוספת משתמש חדש והגדרת יעדים מראש</h3>
@@ -3804,7 +3841,7 @@
             </div>
 
             <!-- Users List & Search -->
-            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+            <div x-show="adminNavTab === 'users'" class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <h3 class="text-base sm:text-lg font-bold text-slate-900">👥 משתמשים רשומים במערכת</h3>
@@ -3921,7 +3958,7 @@
             <!-- =============================================================== -->
             <!-- VISION AI FORENSICS, HISTOGRAM & AGENT CALIBRATION STUDIO        -->
             <!-- =============================================================== -->
-            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-indigo-200/90 space-y-5">
+            <div x-show="adminNavTab === 'settings'" class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-indigo-200/90 space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div class="space-y-1">
                         <div class="inline-flex items-center gap-1.5 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -8765,6 +8802,7 @@
                 copiedTraineeLink: false,
                 viewingTrainee: null,
                 coachingSubTab: 'summary',
+                adminNavTab: 'users',
                 newTraineeForm: {
                     name: '',
                     phone: '',
@@ -13007,6 +13045,14 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 } catch (e) {
                     console.error('Error deleting trainee:', e);
                 }
+            },
+            isCoachOrAdmin() {
+                if (!this.currentUser) return false;
+                const em = (this.currentUser.email || '').toLowerCase().trim();
+                if (['iftach.raftar@gmail.com', 'iftachraftar@gmail.com', 'itamarfitk@gmail.com'].includes(em)) {
+                    return true;
+                }
+                return Boolean(this.currentUser.is_coach || this.currentUser.is_admin);
             },
             copyHoldonCoupon() {
                 try {

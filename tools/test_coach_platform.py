@@ -75,3 +75,4 @@ async def test_full_coaching_flow():
 if __name__ == '__main__':
     asyncio.run(test_full_coaching_flow())
     print("\nALL COACHING FLOW TESTS PASSED!")
+
