@@ -64,6 +64,7 @@ except ImportError:
 load_dotenv()
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "Iftachtaskbot").lstrip("@")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 ENV_GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
@@ -536,6 +537,11 @@ _LOCAL_WATER: dict = {}
 _LOCAL_USERS: dict = {}
 _LOCAL_LEADS: List[dict] = []
 _LOCAL_TG_LINKS: dict = {}
+_LOCAL_FEATURES: dict = {
+    "telegram_enabled": os.getenv("ENABLE_TELEGRAM_BOT", "true").lower() in ("true", "1", "yes"),
+    "whatsapp_enabled": os.getenv("ENABLE_WHATSAPP_BOT", "false").lower() in ("true", "1", "yes"),
+    "telegram_bot_username": os.getenv("TELEGRAM_BOT_USERNAME", "Iftachtaskbot").lstrip("@"),
+}
 _LOCAL_AUTH_CONFIG: dict = {"google_client_id": ENV_GOOGLE_CLIENT_ID, "primary_user_id": "default"}
 _LOCAL_VISION_RULES: List[dict] = [dict(r) for r in DEFAULT_VISION_CALIBRATION_RULES]
 _LOCAL_VISION_LOGS: List[dict] = []
@@ -1082,6 +1088,71 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
     return {**profile, "claimed": claimed}
 
 
+def get_feature_flags() -> dict:
+    flags = dict(_LOCAL_FEATURES)
+    if db:
+        try:
+            doc = db.collection("app_config").document("features").get()
+            if doc.exists:
+                d = doc.to_dict() or {}
+                if "telegram_enabled" in d:
+                    flags["telegram_enabled"] = bool(d["telegram_enabled"])
+                if "whatsapp_enabled" in d:
+                    flags["whatsapp_enabled"] = bool(d["whatsapp_enabled"])
+        except Exception as e:
+            print(f"ERROR get_feature_flags: {e}")
+    return flags
+
+
+def update_feature_flags(telegram_enabled: Optional[bool] = None, whatsapp_enabled: Optional[bool] = None) -> dict:
+    flags = get_feature_flags()
+    if telegram_enabled is not None:
+        flags["telegram_enabled"] = bool(telegram_enabled)
+        _LOCAL_FEATURES["telegram_enabled"] = bool(telegram_enabled)
+    if whatsapp_enabled is not None:
+        flags["whatsapp_enabled"] = bool(whatsapp_enabled)
+        _LOCAL_FEATURES["whatsapp_enabled"] = bool(whatsapp_enabled)
+    if db:
+        try:
+            db.collection("app_config").document("features").set(flags, merge=True)
+        except Exception as e:
+            print(f"ERROR update_feature_flags: {e}")
+    return flags
+
+
+def is_telegram_linked_for_user(user_id: str) -> bool:
+    uid = _normalize_user_id(user_id)
+    if uid == "default":
+        return False
+    if not db:
+        return any(v == uid for v in _LOCAL_TG_LINKS.values())
+    try:
+        udoc = db.collection("users").document(uid).get()
+        if udoc.exists and udoc.to_dict().get("telegram_linked"):
+            return True
+        links = list(db.collection("telegram_links").where("user_id", "==", uid).limit(1).stream())
+        return len(links) > 0
+    except Exception:
+        return False
+
+
+def resolve_user_id_by_phone(phone_str: str) -> str:
+    cleaned = re.sub(r"[^\d+]", "", phone_str or "").strip()
+    if not cleaned:
+        return "default"
+    if not db:
+        return "default"
+    try:
+        for doc in db.collection("users").stream():
+            d = doc.to_dict() or {}
+            u_phone = re.sub(r"[^\d+]", "", d.get("phone", "") or "")
+            if u_phone and (u_phone == cleaned or u_phone.endswith(cleaned[-9:]) or cleaned.endswith(u_phone[-9:])):
+                return doc.id
+    except Exception as e:
+        print(f"ERROR resolve_user_id_by_phone: {e}")
+    return "default"
+
+
 def link_telegram_Account(tg_chat_id: int, code_or_email: str) -> Optional[dict]:
     query = (code_or_email or "").strip().lower()
     if not query:
@@ -1089,7 +1160,7 @@ def link_telegram_Account(tg_chat_id: int, code_or_email: str) -> Optional[dict]
     matched_user = None
     if not db:
         for u in _LOCAL_USERS.values():
-            if u["email"].lower() == query or u["link_code"].lower() == query or u["id"].lower() == query:
+            if u["email"].lower() == query or u.get("link_code", "").lower() == query or u["id"].lower() == query:
                 matched_user = u
                 break
         if matched_user:
@@ -1097,16 +1168,23 @@ def link_telegram_Account(tg_chat_id: int, code_or_email: str) -> Optional[dict]
         return matched_user
 
     try:
-        for doc in db.collection("users").stream():
-            u = doc.to_dict()
-            if (
-                (u.get("email") or "").lower() == query
-                or (u.get("link_code") or "").lower() == query
-                or doc.id.lower() == query
-            ):
-                matched_user = u
-                matched_user["id"] = doc.id
-                break
+        # Fast direct lookup by exact user_id
+        direct_snap = db.collection("users").document(query).get()
+        if direct_snap.exists:
+            matched_user = direct_snap.to_dict() or {}
+            matched_user["id"] = direct_snap.id
+        else:
+            for doc in db.collection("users").stream():
+                u = doc.to_dict()
+                if (
+                    (u.get("email") or "").lower() == query
+                    or (u.get("link_code") or "").lower() == query
+                    or doc.id.lower() == query
+                ):
+                    matched_user = u
+                    matched_user["id"] = doc.id
+                    break
+
         if matched_user:
             db.collection("telegram_links").document(str(tg_chat_id)).set({
                 "tg_chat_id": str(tg_chat_id),
@@ -1115,10 +1193,43 @@ def link_telegram_Account(tg_chat_id: int, code_or_email: str) -> Optional[dict]
                 "name": matched_user.get("name", ""),
                 "updated_at": firestore.SERVER_TIMESTAMP,
             }, merge=True)
+            db.collection("users").document(matched_user["id"]).set({
+                "telegram_chat_id": str(tg_chat_id),
+                "telegram_linked": True,
+                "telegram_linked_at": firestore.SERVER_TIMESTAMP,
+            }, merge=True)
             _LOCAL_TG_LINKS[str(tg_chat_id)] = matched_user["id"]
     except Exception as e:
         print(f"ERROR link_telegram_Account: {e}")
     return matched_user
+
+
+def unlink_telegram_Account(tg_chat_id: int = 0, user_id: Optional[str] = None) -> bool:
+    cid_str = str(tg_chat_id) if tg_chat_id else ""
+    uid = user_id or ""
+    if not uid and cid_str and cid_str in _LOCAL_TG_LINKS:
+        uid = _LOCAL_TG_LINKS.pop(cid_str, "")
+    if cid_str:
+        _LOCAL_TG_LINKS.pop(cid_str, None)
+    if not db:
+        return True
+    try:
+        if cid_str:
+            doc = db.collection("telegram_links").document(cid_str).get()
+            if doc.exists and not uid:
+                uid = doc.to_dict().get("user_id")
+            db.collection("telegram_links").document(cid_str).delete()
+        if uid:
+            for ldoc in db.collection("telegram_links").where("user_id", "==", uid).stream():
+                ldoc.reference.delete()
+            db.collection("users").document(uid).set({
+                "telegram_chat_id": firestore.DELETE_FIELD,
+                "telegram_linked": False,
+            }, merge=True)
+        return True
+    except Exception as e:
+        print(f"ERROR unlink_telegram_Account: {e}")
+        return False
 
 
 def resolve_telegram_user_id(update: Update) -> str:
@@ -3356,6 +3467,149 @@ CURATED_RECIPES = [
 
 
 # ---------------------------------------------------------------------------
+# Unified Cross-Channel Chat Ingestion Engine (Telegram, WhatsApp, etc.)
+# ---------------------------------------------------------------------------
+
+async def process_chat_meal_message(
+    channel: str,
+    user_id: str,
+    text: Optional[str] = None,
+    photo_bytes: Optional[bytes] = None,
+    photo_mime: str = "image/jpeg",
+    audio_bytes: Optional[bytes] = None,
+    audio_mime: str = "audio/ogg",
+    caption: Optional[str] = None,
+) -> dict:
+    """
+    Unified meal logging engine across messaging platforms.
+    Processes photos, voice notes, and free text via Gemini, extracts macros,
+    resolves eating time and meal slot, updates database, and returns a localized Hebrew summary.
+    """
+    flags = get_feature_flags()
+    if channel == "telegram" and not flags.get("telegram_enabled"):
+        return {
+            "success": False,
+            "reply_text": "⚠️ החיבור לטלגרם מושבת כרגע במערכת. אנא היכנס לאפליקציה לרישום ארוחות.",
+        }
+    if channel == "whatsapp" and not flags.get("whatsapp_enabled"):
+        return {
+            "success": False,
+            "reply_text": "⚠️ החיבור לוואטסאפ מושבת כרגע במערכת. אנא היכנס לאפליקציה לרישום ארוחות.",
+        }
+
+    uid = user_id or "default"
+    forensics = None
+    res = None
+    kind = "text"
+
+    try:
+        if photo_bytes:
+            kind = "photo"
+            forensics = compute_image_forensics_and_histogram(photo_bytes)
+            res = analyze_meal_image(photo_bytes, mime_type=photo_mime, caption=caption or "", forensics=forensics)
+        elif audio_bytes:
+            kind = "voice"
+            res = analyze_meal_audio(audio_bytes, mime_type=audio_mime, caption=caption or "")
+        elif text:
+            kind = "text"
+            res = analyze_meal(text)
+        else:
+            return {
+                "success": False,
+                "reply_text": "לא התקבל תוכן לעיבוד 🤔 נסה לשלוח תמונה, הודעה קולית או תיאור טקסט.",
+            }
+
+        if not res or not getattr(res, "is_meal", False):
+            if photo_bytes and res:
+                save_vision_analysis_log_db(uid, res, forensics, source=f"{channel}-photo", caption=caption or "", meal_id="")
+                return {
+                    "success": False,
+                    "reply_text": "לא זיהיתי מזון ברור בתמונה 🥗 נסה לצלם שוב מקרוב, או שלח תיאור טקסט של מה שאכלת.",
+                }
+            elif audio_bytes:
+                return {
+                    "success": False,
+                    "reply_text": "לא זיהיתי דיווח על אוכל או שתייה בהקלטה 🤔 נסה להקליט שוב בבירור.",
+                }
+            else:
+                return {
+                    "success": False,
+                    "reply_text": "לא זיהיתי דיווח על ארוחה בטקסט 🤔 נסה לפרט מה אכלת (למשל: '2 ביצים, סלט ופרוסת לחם').",
+                }
+
+        items_data = [item.model_dump() for item in res.items] if getattr(res, "items", None) else []
+        cal_time, cal_type = resolve_eating_time_and_type(
+            explicit_time=getattr(res, "meal_time", "") or getattr(res, "time", ""),
+            explicit_type=getattr(res, "meal_type", ""),
+            text_context=f"{caption or ''} {getattr(res, 'summary', '')} {text or ''}",
+        )
+
+        type_label_map = {
+            "breakfast": "ארוחת בוקר",
+            "morning_snack": "ביניים בוקר",
+            "lunch": "ארוחת צהריים",
+            "afternoon_snack": "ארוחת ארבע",
+            "dinner": "ארוחת ערב",
+            "snack": "נשנוש / ביניים",
+        }
+        slot_name = type_label_map.get(cal_type, "ארוחה")
+
+        entry = log_meal_db(
+            description=res.summary,
+            calories=res.calories,
+            protein=res.protein_g,
+            items=items_data,
+            log_time=cal_time,
+            meal_type=cal_type,
+            source=f"{channel}-{kind}",
+            user_id=uid,
+        )
+        if photo_bytes and entry:
+            save_vision_analysis_log_db(uid, res, forensics, source=f"{channel}-photo", caption=caption or "", meal_id=entry.get("id", ""))
+
+        s = get_day_summary(user_id=uid)
+
+        breakdown_text = ""
+        if items_data and len(items_data) > 1:
+            lines = "\n".join(f"  • {it.get('name')}: {it.get('calories')} קק\"ל ({float(it.get('protein_g', 0)):.0f}g חלבון)" for it in items_data)
+            breakdown_text = f"\n📋 פירוט רכיבים:\n{lines}\n"
+
+        icon = "📸" if kind == "photo" else ("🎙️" if kind == "voice" else "🍽️")
+        reply_lines = [
+            f"{icon} נרשמה {slot_name} ({cal_time}): {res.summary}",
+            f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון",
+            breakdown_text.strip(),
+            f"📊 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})",
+        ]
+        if uid == "default":
+            reply_lines.append("\n💡 שים לב: חשבונך טרם קושר לפרופיל האישי שלך באפליקציה! לחץ על כפתור החיבור באפליקציה או שלח /link עם המייל שלך.")
+
+        reply_msg = "\n".join(l for l in reply_lines if l)
+
+        send_web_push_to_all(
+            title=f"{icon} נרשמה {slot_name}: {res.summary}",
+            body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
+            tag="nutriagent-meal",
+            user_id=uid,
+        )
+
+        return {
+            "success": True,
+            "reply_text": reply_msg,
+            "meal": entry,
+            "summary": s,
+            "slot": cal_type,
+            "time": cal_time,
+        }
+    except Exception as e:
+        print(f"ERROR process_chat_meal_message ({channel}/{kind}): {e}")
+        return {
+            "success": False,
+            "reply_text": f"אירעה שגיאה בעיבוד הנתונים ({kind}), אנא נסה שוב בעוד מספר רגעים.",
+        }
+
+
+# ---------------------------------------------------------------------------
 # Telegram Bot Handlers (Multi-User + Voice + Photo + Text)
 # ---------------------------------------------------------------------------
 
@@ -3363,12 +3617,37 @@ tg_app = ApplicationBuilder().token(BOT_TOKEN).build() if BOT_TOKEN else None
 
 if tg_app:
     async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        flags = get_feature_flags()
+        if not flags.get("telegram_enabled"):
+            await update.message.reply_text("החיבור לטלגרם מושבת כרגע במערכת.")
+            return
+
+        tg_uid = update.effective_user.id if update.effective_user else 0
+        if context.args:
+            token = context.args[0].strip()
+            if token.startswith("pair_"):
+                token = token[5:]
+            matched = link_telegram_Account(tg_uid, token)
+            if matched:
+                user_name = matched.get("name") or "מתאמן"
+                await update.message.reply_text(
+                    f"🎉 שלום {user_name}!\n"
+                    f"חשבון הטלגרם שלך חובר בהצלחה לפלטפורמת התזונה של איתמר 🚀\n\n"
+                    f"מעכשיו קל ונוח לתעד ארוחות:\n"
+                    f"📸 שלח תמונה של הצלחת או של תווית המוצר\n"
+                    f"🎙️ שלח הודעה קולית (למשל: 'אכלתי 2 ביצים ופרוסת לחם')\n"
+                    f"✍️ או כתוב בהודעת טקסט רגילה\n\n"
+                    f"ה-AI ינתח ויעדכן מיד את היומן שלך באפליקציה! שיהיה בהצלחה 💪"
+                )
+                return
+
         await update.message.reply_text(
             "היי! הבוט של NutriAgent AI מחובר ומסונכרן 🚀\n"
             "• שלח בטקסט חופשי מה אכלת או שתית.\n"
             "• שלח 🎙️ הודעה קולית ודבר חופשי — ה-AI יתמלל ויחשב קלוריות וחלבון!\n"
             "• שלח 📸 תמונה של הצלחת או של תווית המוצר לניתוח אוטומטי.\n"
-            "• שלח /link <קוד או אימייל> לקישור הבוט לחשבון האישי שלך באפליקציה.\n"
+            "• לחץ על 'חבר טלגרם' באפליקציה לחיבור מהיר או שלח /link <מייל/קוד>.\n"
+            "• שלח /unlink לניתוק הטלגרם מחשבונך בכל עת.\n"
             "• שלח /weight 78.5 לתיעוד משקל יומי.\n"
             "• שלח /push לשליחת התראת פוש לנייד.\n"
             "• שלח /status לסיכום היומי שלך."
@@ -3378,7 +3657,7 @@ if tg_app:
         if not context.args:
             await update.message.reply_text(
                 "🔗 לקישור הטלגרם לחשבון שלך באפליקציה:\n"
-                "שלח `/link` ואחריו האימייל שלך או קוד הקישור שמופיע בפרופיל באפליקציה.\n"
+                "שלח `/link` ואחריו האימייל שלך או מזהה המשתמש שלך באפליקציה.\n"
                 "לדוגמה: `/link user@gmail.com`"
             )
             return
@@ -3388,13 +3667,21 @@ if tg_app:
         if matched:
             await update.message.reply_text(
                 f"✅ הטלגרם קושר בהצלחה לחשבון של {matched.get('name')} ({matched.get('email')})!\n"
-                "מעכשיו כל הודעה, תמונה או הקלטה קול שתשלח כאן יישמרו ישירות בחשבון האישי שלך."
+                "מעכשיו כל הודעה, תמונה או הקלטה קולית שתשלח כאן יישמרו ישירות ביומן האישי שלך."
             )
         else:
             await update.message.reply_text(
                 "❌ לא נמצא חשבון מתאים.\n"
-                "היכנס תחילה לאפליקציית ה-Web, התחבר עם חשבון ה-Google שלך, ונסה שוב עם האימייל או קוד הקישור שלך."
+                "היכנס תחילה לאפליקציית ה-Web, לחץ על 'חבר טלגרם בטאפ אחד' או נסה שוב עם האימייל המדויק שלך."
             )
+
+    async def unlink_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        tg_uid = update.effective_user.id if update.effective_user else 0
+        unlink_telegram_Account(tg_chat_id=tg_uid)
+        await update.message.reply_text(
+            "🔓 החשבון נותק בהצלחה מהטלגרם. לא יישלחו או יתועדו יותר נתונים מחשבון זה.\n"
+            "תוכל לחבר אותו מחדש בכל עת דרך האפליקציה."
+        )
 
     async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         uid = resolve_telegram_user_id(update)
@@ -3438,59 +3725,26 @@ if tg_app:
         uid = resolve_telegram_user_id(update)
         if not context.args:
             w = get_weights_db(limit=5, user_id=uid)
-            if w.get("latest_weight"):
-                await update.message.reply_text(f"⚖️ המשקל האחרון שתועד: {w['latest_weight']} ק\"ג\nלתיעוד שקילה חדשה שלח למשל: /weight 78.5")
-            else:
-                await update.message.reply_text("לתיעוד שקילה חדשה שלח למשל: /weight 78.5")
+            cur = w.get("latest_weight")
+            txt = f"⚖️ המשקל האחרון שתועד: {cur} ק\"ג" if cur else "טרם תועד משקל."
+            txt += "\nלתיעוד משקל חדש שלח: `/weight 78.5`"
+            await update.message.reply_text(txt)
             return
+        val_str = context.args[0].replace(",", ".").strip()
         try:
-            val = float(context.args[0].replace(",", "."))
-            if val < 25 or val > 350:
-                raise ValueError()
-            log_weight_db(val, user_id=uid)
-            w = get_weights_db(limit=60, user_id=uid)
-            diff_str = ""
-            if w.get("weight_change"):
-                sign = "+" if w["weight_change"] > 0 else ""
-                diff_str = f" ({sign}{w['weight_change']} ק\"ג מההתחלה)"
-            await update.message.reply_text(f"⚖️ המשקל עודכן בהצלחה: {val:.1f} ק\"ג{diff_str}")
-            send_web_push_to_all(
-                title="⚖️ שקילה חדשה נשמרה!",
-                body=f"משקל נוכחי: {val:.1f} ק\"ג{diff_str}",
-                tag="nutriagent-weight",
-                user_id=uid,
-            )
+            val = float(val_str)
+            if not (30.0 <= val <= 300.0):
+                await update.message.reply_text("המשקל חייב להיות בטווח הגיוני בין 30 ל-300 ק\"ג.")
+                return
+            saved = log_weight_db(val, source="telegram", user_id=uid)
+            await update.message.reply_text(f"✅ נרשם בהצלחה משקל יומי: {val} ק\"ג!")
         except ValueError:
-            await update.message.reply_text("נא להזין משקל תקין במספרים, למשל: /weight 78.5")
+            await update.message.reply_text("ערך משקל לא תקין. דוגמה: `/weight 78.5`")
 
     async def text_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         uid = resolve_telegram_user_id(update)
-        res = analyze_meal(update.message.text)
-        if not res.is_meal:
-            await update.message.reply_text("לא זיהיתי ארוחה או שתייה בהודעה 🤔 נסה לתאר שוב מה אכלת.")
-            return
-
-        items_data = [item.model_dump() for item in res.items] if res.items else []
-        log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, source="telegram", user_id=uid)
-        s = get_day_summary(user_id=uid)
-
-        breakdown_text = ""
-        if res.items and len(res.items) > 1:
-            breakdown_lines = "\n".join(f"  • {it.name}: {it.calories} קק\"ל ({it.protein_g:.0f}g חלבון)" for it in res.items)
-            breakdown_text = f"\n📋 פירוט רכיבים:\n{breakdown_lines}\n"
-
-        await update.message.reply_text(
-            f"✅ נרשם: {res.summary}\n"
-            f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
-            f"{breakdown_text}"
-            f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
-        )
-        send_web_push_to_all(
-            title=f"✅ נרשם: {res.summary}",
-            body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
-            tag="nutriagent-meal",
-            user_id=uid,
-        )
+        res = await process_chat_meal_message(channel="telegram", user_id=uid, text=update.message.text)
+        await update.message.reply_text(res["reply_text"])
 
     async def photo_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message or not update.message.photo:
@@ -3501,37 +3755,16 @@ if tg_app:
             photo_file = await update.message.photo[-1].get_file()
             img_bytes = bytes(await photo_file.download_as_bytearray())
             caption = update.message.caption or ""
-            forensics = compute_image_forensics_and_histogram(img_bytes)
-            res = analyze_meal_image(img_bytes, mime_type="image/jpeg", caption=caption, forensics=forensics)
-            if not res.is_meal:
-                save_vision_analysis_log_db(uid, res, forensics, source="telegram-photo", caption=caption, meal_id="")
-                await status_reply.edit_text("לא זיהיתי אוכל, משקה או תווית מזון בתמונה 🤔 נסה לצלם שוב או להוסיף כיתוב.")
-                return
-
-            items_data = [item.model_dump() for item in res.items] if res.items else []
-            entry = log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, source="telegram-photo", user_id=uid)
-            save_vision_analysis_log_db(uid, res, forensics, source="telegram-photo", caption=caption, meal_id=(entry or {}).get("id", ""))
-            s = get_day_summary(user_id=uid)
-
-            breakdown_text = ""
-            if res.items and len(res.items) > 1:
-                breakdown_lines = "\n".join(f"  • {it.name}: {it.calories} קק\"ל ({it.protein_g:.0f}g חלבון)" for it in res.items)
-                breakdown_text = f"\n📋 פירוט רכיבים:\n{breakdown_lines}\n"
-
-            await status_reply.edit_text(
-                f"📸 נרשם מתמונה: {res.summary}\n"
-                f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
-                f"{breakdown_text}"
-                f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
-            )
-            send_web_push_to_all(
-                title=f"📸 נרשם מתמונה: {res.summary}",
-                body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
-                tag="nutriagent-meal",
+            res = await process_chat_meal_message(
+                channel="telegram",
                 user_id=uid,
+                photo_bytes=img_bytes,
+                photo_mime="image/jpeg",
+                caption=caption,
             )
+            await status_reply.edit_text(res["reply_text"])
         except Exception as e:
-            print(f"ERROR photo_msg: {type(e).__name__} - {e}")
+            print(f"ERROR photo_msg: {e}")
             await status_reply.edit_text("שגיאה בניתוח התמונה, נסה שוב מאוחר יותר.")
 
     async def voice_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3547,47 +3780,23 @@ if tg_app:
             audio_bytes = bytes(await tg_file.download_as_bytearray())
             mime_type = getattr(voice_obj, "mime_type", None) or "audio/ogg"
             caption = update.message.caption or ""
-            res = analyze_meal_audio(audio_bytes, mime_type=mime_type, caption=caption)
-            if not res.is_meal:
-                await status_reply.edit_text("לא זיהיתי דיווח על אוכל או שתייה בהקלטה 🤔 נסה להקליט שוב בבירור.")
-                return
-
-            items_data = [item.model_dump() for item in res.items] if res.items else []
-            cal_time, cal_type = resolve_eating_time_and_type(
-                explicit_time=getattr(res, "meal_time", ""),
-                explicit_type=getattr(res, "meal_type", ""),
-                text_context=f"{caption} {res.summary}",
-            )
-            type_label_map = {"breakfast": "בוקר", "lunch": "צהריים", "dinner": "ערב", "snack": "ביניים / נשנוש"}
-            t_hebrew = type_label_map.get(cal_type, "צהריים")
-            log_meal_db(res.summary, res.calories, res.protein_g, items=items_data, log_time=cal_time, meal_type=cal_type, source="telegram-voice", user_id=uid)
-            s = get_day_summary(user_id=uid)
-
-            breakdown_text = ""
-            if res.items and len(res.items) > 1:
-                breakdown_lines = "\n".join(f"  • {it.name}: {it.calories} קק\"ל ({it.protein_g:.0f}g חלבון)" for it in res.items)
-                breakdown_text = f"\n📋 פירוט רכיבים:\n{breakdown_lines}\n"
-
-            await status_reply.edit_text(
-                f"🎙️ נרשם לארוחת {t_hebrew} (שעה {cal_time}): {res.summary}\n"
-                f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון\n"
-                f"{breakdown_text}"
-                f"💰 נותר להיום: {s['remaining_calories']}/{s['target_calories']} קק\"ל (סה\"כ: {s['total_calories']})"
-            )
-            send_web_push_to_all(
-                title=f"🎙️ נרשם מהקלטה: {res.summary}",
-                body=f"🔥 +{res.calories} קק\"ל | 💪 +{res.protein_g:.0f}g חלבון • נותר להיום: {s['remaining_calories']} קק\"ל",
-                tag="nutriagent-meal",
+            res = await process_chat_meal_message(
+                channel="telegram",
                 user_id=uid,
+                audio_bytes=audio_bytes,
+                audio_mime=mime_type,
+                caption=caption,
             )
+            await status_reply.edit_text(res["reply_text"])
         except Exception as e:
-            print(f"ERROR voice_msg: {type(e).__name__} - {e}")
+            print(f"ERROR voice_msg: {e}")
             await status_reply.edit_text("שגיאה בפענוח ההקלטה הקולית, נסה שוב.")
 
     tg_app.add_handler(CommandHandler("start", start_cmd))
     tg_app.add_handler(CommandHandler("myid", myid_cmd))
     tg_app.add_handler(CommandHandler("id", myid_cmd))
     tg_app.add_handler(CommandHandler("link", link_cmd))
+    tg_app.add_handler(CommandHandler("unlink", unlink_cmd))
     tg_app.add_handler(CommandHandler("status", status_cmd))
     tg_app.add_handler(CommandHandler("push", push_cmd))
     tg_app.add_handler(CommandHandler("weight", weight_cmd))
@@ -4203,6 +4412,8 @@ def api_auth_me(request: Request, response: Response):
         "activity_level": user_doc.get("activity_level"),
         "sleep_hours": user_doc.get("sleep_hours"),
         "goal": user_doc.get("goal"),
+        "telegram_linked": is_telegram_linked_for_user(uid),
+        "features": get_feature_flags(),
     }
 
 
@@ -7469,6 +7680,101 @@ def api_push_daily_reminder(request: Request):
         title = "🎯 הגעת ליעד הקלורי היומי!"
         body = f"סה\"כ היום: {s['total_calories']} קק\"ל ו-{s['total_protein']:.0f}g חלבון. כל הכבוד!"
     return send_web_push_to_all(title=title, body=body, tag="nutriagent-reminder", user_id=uid)
+
+
+# ---------------------------------------------------------------------------
+# Cross-Channel Messaging & Feature Toggle Endpoints (Telegram & WhatsApp)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/messaging/status")
+def api_messaging_status(request: Request):
+    uid = get_request_user_id(request)
+    flags = get_feature_flags()
+    is_linked = is_telegram_linked_for_user(uid)
+    bot_name = flags.get("telegram_bot_username", "Iftachtaskbot")
+    return {
+        "features": flags,
+        "user_id": uid,
+        "telegram_linked": is_linked,
+        "telegram_link_url": f"https://t.me/{bot_name}?start=pair_{uid}",
+        "telegram_bot_url": f"https://t.me/{bot_name}",
+        "whatsapp_linked": False,
+    }
+
+
+@app.post("/api/messaging/telegram/unlink")
+def api_messaging_telegram_unlink(request: Request):
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    ok = unlink_telegram_Account(user_id=uid)
+    return {"ok": ok, "message": "הטלגרם נותק בהצלחה"}
+
+
+class AdminFeaturesUpdateRequest(BaseModel):
+    telegram_enabled: Optional[bool] = None
+    whatsapp_enabled: Optional[bool] = None
+
+
+@app.put("/api/admin/features")
+def api_admin_update_features(req: AdminFeaturesUpdateRequest, request: Request):
+    require_admin_user(request)
+    updated = update_feature_flags(telegram_enabled=req.telegram_enabled, whatsapp_enabled=req.whatsapp_enabled)
+    return {"ok": True, "features": updated}
+
+
+# WhatsApp Cloud API Webhook Bridge (Future Switch & Meta Verification Ready)
+@app.get("/api/whatsapp/webhook")
+def whatsapp_verify_webhook(
+    hub_mode: Optional[str] = Query(None, alias="hub.mode"),
+    hub_challenge: Optional[str] = Query(None, alias="hub.challenge"),
+    hub_verify_token: Optional[str] = Query(None, alias="hub.verify_token"),
+):
+    """
+    Meta WhatsApp Cloud API verification challenge endpoint.
+    Allows instant zero-code connection with Meta Developer Console.
+    """
+    expected_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "nutriagent_wa_token")
+    if hub_mode == "subscribe" and hub_verify_token == expected_token:
+        try:
+            return int(hub_challenge) if hub_challenge and hub_challenge.isdigit() else hub_challenge
+        except Exception:
+            return hub_challenge
+    raise HTTPException(status_code=403, detail="Verification token mismatch")
+
+
+@app.post("/api/whatsapp/webhook")
+async def whatsapp_webhook(request: Request):
+    """
+    WhatsApp Cloud API incoming message endpoint.
+    Seamlessly routes through process_chat_meal_message.
+    """
+    flags = get_feature_flags()
+    if not flags.get("whatsapp_enabled"):
+        return {"status": "disabled", "message": "WhatsApp integration is currently disabled"}
+
+    try:
+        body = await request.json()
+        entry = (body.get("entry") or [{}])[0]
+        changes = (entry.get("changes") or [{}])[0]
+        value = changes.get("value") or {}
+        messages = value.get("messages") or []
+        if not messages:
+            return {"status": "no_messages"}
+
+        msg = messages[0]
+        from_phone = msg.get("from", "")
+        uid = resolve_user_id_by_phone(from_phone)
+
+        msg_type = msg.get("type", "")
+        text = msg.get("text", {}).get("body", "") if msg_type == "text" else None
+
+        # Route directly to the unified engine
+        res = await process_chat_meal_message(channel="whatsapp", user_id=uid, text=text)
+        return {"status": "processed", "user_id": uid, "success": res.get("success")}
+    except Exception as e:
+        print(f"ERROR whatsapp_webhook: {e}")
+        return {"status": "error", "error": str(e)}
 
 
 @app.post("/webhook")
