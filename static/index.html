@@ -3633,7 +3633,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
             <!-- Modal: Branded VIP Voucher Demo Preview -->
             <div x-show="demoVoucherModalOpen" style="display: none;"
@@ -4443,8 +4442,8 @@
                 </div>
             </div>
 
-            <!-- System & Google OAuth Settings Card (Admin Only) -->
-            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+            <!-- System & Google OAuth Settings Card (Admin Only - Settings Subtab) -->
+            <div x-show="adminNavTab === 'settings'" class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
                 <div>
                     <h3 class="text-base font-bold text-slate-900">🔐 הגדרות מערכת ו-Google OAuth Client ID</h3>
                     <p class="text-xs text-slate-500">עדכון מפתח ה-OAuth של האפליקציה וייבוא נתונים היסטוריים</p>
@@ -6762,7 +6761,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=65').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=66').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });

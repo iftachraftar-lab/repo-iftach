@@ -865,7 +865,6 @@ def claim_legacy_data_for_user(user_id: str) -> dict:
 OWNER_ADMIN_EMAILS = {
     "iftach.raftar@gmail.com",
     "iftachraftar@gmail.com",
-    "itamarfitk@gmail.com",
     *[e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()],
 }
 
@@ -4648,6 +4647,7 @@ def api_auth_me(request: Request, response: Response):
                 "name": "Iftach (Local Dev)",
                 "picture": "",
                 "is_admin": True,
+                "is_coach": True,
                 "is_approved": True,
                 "is_blocked": False,
                 "daily_ai_limit": 100,
@@ -4694,6 +4694,7 @@ def api_auth_me(request: Request, response: Response):
         "name": user_doc.get("name") or "",
         "picture": user_doc.get("picture") or "",
         "is_admin": bool(admin_flag),
+        "is_coach": bool(is_coach_email(email) or user_doc.get("is_coach", False)),
         "is_approved": is_approved,
         "is_blocked": False,
         "daily_ai_limit": daily_ai_limit,
