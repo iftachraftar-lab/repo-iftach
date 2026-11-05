@@ -959,7 +959,7 @@ def is_coach_or_admin(request: Request) -> str:
         raise HTTPException(status_code=401, detail="נדרשת התחברות למערכת")
     if is_admin_user_id(uid):
         return uid
-    user_doc = get_user_profile_db(uid)
+    user_doc = get_user_doc_db(uid)
     email = (user_doc.get("email") or "").strip().lower()
     if is_coach_email(email) or user_doc.get("is_admin") or user_doc.get("is_coach"):
         return uid
