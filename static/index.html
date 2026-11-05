@@ -698,6 +698,12 @@
                                         <span>👁️</span>
                                         <span>צפה ביומן</span>
                                     </button>
+                                    <button type="button" @click="openAdminTargetModal(t)"
+                                            class="py-1.5 px-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                            title="ערוך יעדים ומחשבון TDEE">
+                                        <span>🎯</span>
+                                        <span>יעדים</span>
+                                    </button>
                                     <button type="button" @click="copyTraineeTelegramLink(t.telegram_link)"
                                             class="py-1.5 px-2.5 rounded-xl bg-white hover:bg-sky-50 text-sky-800 border border-sky-200 font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 shadow-2xs"
                                             title="העתק קישור לטלגרם">
@@ -4562,42 +4568,204 @@
         </div>
     </div>
 
-    <!-- Admin Edit User Targets Modal -->
+    <!-- Admin & Coach Edit User Targets & Onboarding Calculator Modal -->
     <div x-cloak x-show="adminEditingTargetUser"
-         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+         class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
          @click.self="adminEditingTargetUser = null">
-        <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4" @click.stop>
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-bold text-slate-900">
-                    🎯 יעדים עבור <span class="text-indigo-600" x-text="adminEditingTargetUser?.name"></span>
-                </h3>
-                <button @click="adminEditingTargetUser = null" class="text-slate-400 hover:text-slate-600">✕</button>
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto border border-slate-100" @click.stop>
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center text-lg font-bold shadow-2xs">
+                        🎯
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black text-slate-900">
+                            הגדרת יעדים ומדדים עבור <span class="text-indigo-600" x-text="adminEditingTargetUser?.name"></span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400">מחשבון BMR / TDEE מדעי והתאמה ידנית מלאה</p>
+                    </div>
+                </div>
+                <button type="button" @click="adminEditingTargetUser = null" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold transition cursor-pointer">✕</button>
             </div>
-            <form @submit.prevent="saveAdminUserTargets()" class="space-y-3.5">
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">יעד קלוריות יומי (קק"ל)</label>
-                    <input type="number" min="500" max="10000" required
-                           x-model.number="adminTargetForm.calories"
-                           class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-bold">
+
+            <form @submit.prevent="saveAdminUserTargets()" class="space-y-4">
+                
+                <!-- SECTION 1: PHYSICAL METRICS CALCULATOR (Exact Onboarding Engine) -->
+                <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span>🧙‍♂️</span>
+                            <span>מחשבון מדדים גופניים ויעדים (Onboarding Engine)</span>
+                        </span>
+                        <span class="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 font-bold px-2 py-0.5 rounded-full">Mifflin-St Jeor</span>
+                    </div>
+
+                    <!-- Gender Toggle -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">מין ביולוגי</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" @click="adminTargetForm.gender = 'male'"
+                                    :class="adminTargetForm.gender === 'male' ? 'bg-indigo-600 text-white font-black shadow-xs' : 'bg-white text-slate-700 border border-slate-200 font-semibold'"
+                                    class="py-1.5 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1">
+                                <span>👨</span> <span>גבר</span>
+                            </button>
+                            <button type="button" @click="adminTargetForm.gender = 'female'"
+                                    :class="adminTargetForm.gender === 'female' ? 'bg-indigo-600 text-white font-black shadow-xs' : 'bg-white text-slate-700 border border-slate-200 font-semibold'"
+                                    class="py-1.5 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1">
+                                <span>👩</span> <span>אישה</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Grid: Height, Weight, Age, Sleep -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">גובה (ס״מ)</label>
+                            <input type="number" min="100" max="250" required
+                                   x-model.number="adminTargetForm.height_cm"
+                                   class="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-center">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">משקל (ק״ג)</label>
+                            <input type="number" step="0.1" min="30" max="300" required
+                                   x-model.number="adminTargetForm.weight_kg"
+                                   class="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-center">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">גיל</label>
+                            <input type="number" min="12" max="120" required
+                                   x-model.number="adminTargetForm.age"
+                                   class="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-center">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">שעות שינה</label>
+                            <input type="number" step="0.5" min="4" max="14" required
+                                   x-model.number="adminTargetForm.sleep_hours"
+                                   class="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-center">
+                        </div>
+                    </div>
+
+                    <!-- Activity Level Select -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">רמת פעילות גופנית</label>
+                        <select x-model.number="adminTargetForm.activity"
+                                class="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold">
+                            <option value="1.2">יושבני - מעט או ללא אימונים (1.2)</option>
+                            <option value="1.375">פעילות קלה - אימונים 1-3 פעמים בשבוע (1.375)</option>
+                            <option value="1.55">פעילות בינונית - אימונים 3-5 פעמים בשבוע (1.55)</option>
+                            <option value="1.725">פעילות גבוהה - אימונים 6-7 פעמים בשבוע (1.725)</option>
+                            <option value="1.9">אתלט / עבודה פיזית מאומצת מאוד (1.9)</option>
+                        </select>
+                    </div>
+
+                    <!-- Program Goal Buttons -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">מטרת התוכנית</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            <button type="button" @click="adminTargetForm.goal = 'cut_moderate'"
+                                    :class="adminTargetForm.goal === 'cut_moderate' ? 'border-2 border-indigo-600 bg-indigo-50/80 text-indigo-950 font-black' : 'border border-slate-200 bg-white text-slate-700'"
+                                    class="p-2 rounded-xl text-[11px] transition text-center cursor-pointer">
+                                🔥 חיטוב שומן
+                            </button>
+                            <button type="button" @click="adminTargetForm.goal = 'cut_aggressive'"
+                                    :class="adminTargetForm.goal === 'cut_aggressive' ? 'border-2 border-indigo-600 bg-indigo-50/80 text-indigo-950 font-black' : 'border border-slate-200 bg-white text-slate-700'"
+                                    class="p-2 rounded-xl text-[11px] transition text-center cursor-pointer">
+                                ⚡ חיטוב מואץ
+                            </button>
+                            <button type="button" @click="adminTargetForm.goal = 'maintain'"
+                                    :class="adminTargetForm.goal === 'maintain' ? 'border-2 border-indigo-600 bg-indigo-50/80 text-indigo-950 font-black' : 'border border-slate-200 bg-white text-slate-700'"
+                                    class="p-2 rounded-xl text-[11px] transition text-center cursor-pointer">
+                                ⚖️ שמירה ואיזון
+                            </button>
+                            <button type="button" @click="adminTargetForm.goal = 'bulk'"
+                                    :class="adminTargetForm.goal === 'bulk' ? 'border-2 border-indigo-600 bg-indigo-50/80 text-indigo-950 font-black' : 'border border-slate-200 bg-white text-slate-700'"
+                                    class="p-2 rounded-xl text-[11px] transition text-center cursor-pointer">
+                                💪 מסת שריר
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Calculated Target Preview Box & Apply Button -->
+                    <div class="p-3 rounded-xl bg-gradient-to-r from-indigo-50 via-teal-50 to-emerald-50 border border-indigo-200 space-y-2">
+                        <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                            <span>תוצאות חישוב מדעיות:</span>
+                            <span class="text-slate-500 font-mono text-[10px]">
+                                BMR: <strong x-text="adminTargetCalcBmr"></strong> | TDEE: <strong x-text="adminTargetCalcTdee"></strong>
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1.5 text-center">
+                            <div class="p-1.5 bg-white/90 rounded-lg border border-indigo-100 shadow-2xs">
+                                <span class="text-[10px] text-slate-500 block">קלוריות</span>
+                                <span class="text-sm font-black text-indigo-700" x-text="adminTargetCalcCalories"></span>
+                            </div>
+                            <div class="p-1.5 bg-white/90 rounded-lg border border-indigo-100 shadow-2xs">
+                                <span class="text-[10px] text-slate-500 block">חלבון</span>
+                                <span class="text-sm font-black text-indigo-700" x-text="`${adminTargetCalcProtein}g`"></span>
+                            </div>
+                            <div class="p-1.5 bg-white/90 rounded-lg border border-indigo-100 shadow-2xs">
+                                <span class="text-[10px] text-slate-500 block">מים</span>
+                                <span class="text-sm font-black text-sky-700" x-text="`${adminTargetCalcWater} מ״ל`"></span>
+                            </div>
+                        </div>
+                        <button type="button" @click="applyAdminCalculatedTargets()"
+                                class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-700 hover:to-teal-700 active:scale-95 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer">
+                            <span>🪄</span>
+                            <span>החל ערכים מחושבים אלו על היעדים בפועל</span>
+                        </button>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">יעד חלבון יומי (גרם)</label>
-                    <input type="number" min="20" max="500" required
-                           x-model.number="adminTargetForm.protein"
-                           class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-bold">
+
+                <!-- SECTION 2: ACTUAL TARGETS (Full Manual Control) -->
+                <div class="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span>✏️</span>
+                            <span>יעדי התוכנית בפועל (ניתנים לעריכה ידנית מלאה)</span>
+                        </span>
+                        <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">סופי למשתמש</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">🎯 יעד קלוריות יומי (קק"ל)</label>
+                            <input type="number" min="500" max="10000" required
+                                   x-model.number="adminTargetForm.calories"
+                                   class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-black text-slate-900 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">🥩 יעד חלבון יומי (גרם)</label>
+                            <input type="number" min="20" max="500" required
+                                   x-model.number="adminTargetForm.protein"
+                                   class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-black text-slate-900 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">💧 יעד שתיית מים יומית (מ״ל)</label>
+                            <input type="number" min="500" max="10000" step="50" required
+                                   x-model.number="adminTargetForm.water_target_ml"
+                                   class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-black text-slate-900 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">🤖 מכסת קריאות Gemini AI יומית</label>
+                            <input type="number" min="0" max="500" required
+                                   x-model.number="adminTargetForm.daily_ai_limit"
+                                   class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-black text-slate-900 focus:bg-white transition">
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">🤖 מכסת קריאות Gemini AI יומית (0 = ללא AI)</label>
-                    <input type="number" min="0" max="500" required
-                           x-model.number="adminTargetForm.daily_ai_limit"
-                           class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-bold">
-                    <p class="text-[11px] text-slate-400 mt-1">מגביל כמה פעמים ביום המשתמש יכול להפעיל ניתוח AI / תמונה / קול / שף.</p>
-                </div>
-                <div class="flex justify-end gap-2 pt-2">
+
+                <!-- Footer Buttons -->
+                <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
                     <button type="button" @click="adminEditingTargetUser = null"
-                            class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">ביטול</button>
+                            class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition">
+                        ביטול
+                    </button>
                     <button type="submit"
-                            class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer">שמור יעדים ומכסה</button>
+                            class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-indigo-600/20 cursor-pointer active:scale-95 transition">
+                        <span>💾</span>
+                        <span>שמור יעדים ומדדים</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -6748,7 +6916,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=71').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=72').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12292,31 +12460,93 @@
                     this.adminTargetForm = {
                         calories: user.target_calories || 1800,
                         protein: user.target_protein || 120,
-                        daily_ai_limit: user.daily_ai_limit ?? 15
+                        water_target_ml: user.water_target_ml || 2500,
+                        daily_ai_limit: user.daily_ai_limit !== undefined ? user.daily_ai_limit : 15,
+                        height_cm: user.height_cm || 175,
+                        weight_kg: user.weight_kg || user.latest_weight || 75,
+                        age: user.age || 28,
+                        gender: user.gender || 'male',
+                        activity: user.activity_level ? Number(user.activity_level) : 1.55,
+                        sleep_hours: user.sleep_hours || 7.5,
+                        goal: user.goal || 'cut_moderate'
                     };
+                },
+
+                get adminTargetCalcBmr() {
+                    const w = Number(this.adminTargetForm.weight_kg) || 75;
+                    const h = Number(this.adminTargetForm.height_cm) || 175;
+                    const a = Number(this.adminTargetForm.age) || 28;
+                    const isMale = this.adminTargetForm.gender === 'male';
+                    return Math.round(10 * w + 6.25 * h - 5 * a + (isMale ? 5 : -161));
+                },
+
+                get adminTargetCalcTdee() {
+                    const act = Number(this.adminTargetForm.activity) || 1.55;
+                    return Math.round(this.adminTargetCalcBmr * act);
+                },
+
+                get adminTargetCalcCalories() {
+                    const tdee = this.adminTargetCalcTdee;
+                    const g = this.adminTargetForm.goal;
+                    if (g === 'cut_aggressive') return Math.max(1200, tdee - 500);
+                    if (g === 'cut_moderate') return Math.max(1300, tdee - 300);
+                    if (g === 'bulk') return tdee + 300;
+                    return tdee;
+                },
+
+                get adminTargetCalcProtein() {
+                    const w = Number(this.adminTargetForm.weight_kg) || 75;
+                    const g = this.adminTargetForm.goal;
+                    if (g === 'cut_aggressive' || g === 'cut_moderate') return Math.round(w * 2.1);
+                    if (g === 'bulk') return Math.round(w * 2.0);
+                    return Math.round(w * 1.8);
+                },
+
+                get adminTargetCalcWater() {
+                    const w = Number(this.adminTargetForm.weight_kg) || 75;
+                    return Math.round((w * 35) / 100) * 100;
+                },
+
+                applyAdminCalculatedTargets() {
+                    this.adminTargetForm.calories = this.adminTargetCalcCalories;
+                    this.adminTargetForm.protein = this.adminTargetCalcProtein;
+                    this.adminTargetForm.water_target_ml = this.adminTargetCalcWater;
+                    this.showToast('✨ היעדים המחושבים הועתקו לטופס בהצלחה! באפשרותך לשנותם ידנית.');
                 },
 
                 async saveAdminUserTargets() {
                     if (!this.adminEditingTargetUser) return;
                     try {
                         const uid = this.adminEditingTargetUser.id;
+                        const payload = {
+                            target_calories: Number(this.adminTargetForm.calories) || 1800,
+                            target_protein: Number(this.adminTargetForm.protein) || 120,
+                            water_target_ml: Number(this.adminTargetForm.water_target_ml) || 2500,
+                            daily_ai_limit: this.adminTargetForm.daily_ai_limit !== undefined ? Number(this.adminTargetForm.daily_ai_limit) : 15,
+                            height_cm: Number(this.adminTargetForm.height_cm) || null,
+                            weight_kg: Number(this.adminTargetForm.weight_kg) || null,
+                            age: Number(this.adminTargetForm.age) || null,
+                            gender: this.adminTargetForm.gender || 'male',
+                            activity_level: String(this.adminTargetForm.activity || '1.55'),
+                            sleep_hours: Number(this.adminTargetForm.sleep_hours) || 7.5,
+                            goal: this.adminTargetForm.goal || 'cut_moderate'
+                        };
                         const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/targets`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                target_calories: Number(this.adminTargetForm.calories) || 1800,
-                                target_protein: Number(this.adminTargetForm.protein) || 120,
-                                daily_ai_limit: this.adminTargetForm.daily_ai_limit !== undefined ? Number(this.adminTargetForm.daily_ai_limit) : 15
-                            })
+                            body: JSON.stringify(payload)
                         });
                         if (!res.ok) throw new Error('שגיאה בעדכון יעדי המשתמש');
                         const userName = this.adminEditingTargetUser.name;
                         this.adminEditingTargetUser = null;
-                        await this.fetchAdminUsers();
+                        await Promise.all([
+                            this.fetchAdminUsers(),
+                            this.fetchCoachTrainees()
+                        ]);
                         if (this.currentUser && this.currentUser.id === uid) {
                             await this.fetchSummary();
                         }
-                        this.showToast(`🎯 היעדים ומכסת ה-AI של ${userName} עודכנו בהצלחה!`);
+                        this.showToast(`🎯 היעדים והמדדים של ${userName} עודכנו בהצלחה!`);
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בעדכון יעדים', 'error');
                     }

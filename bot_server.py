@@ -302,7 +302,15 @@ class AuthConfigRequest(BaseModel):
 class TargetUpdateRequest(BaseModel):
     target_calories: int = Field(ge=500, le=10000)
     target_protein: int = Field(default=120, ge=20, le=500)
+    water_target_ml: Optional[int] = Field(default=2500, ge=500, le=10000)
     daily_ai_limit: Optional[int] = Field(default=None, ge=0, le=1000)
+    height_cm: Optional[float] = None
+    weight_kg: Optional[float] = None
+    age: Optional[int] = None
+    gender: Optional[str] = "male"
+    activity_level: Optional[str] = "1.55"
+    sleep_hours: Optional[float] = 7.5
+    goal: Optional[str] = "cut_moderate"
 
 
 class WoltDishItem(BaseModel):
@@ -4865,6 +4873,14 @@ def list_all_users_admin_db() -> dict:
             "ai_calls_today": ai_calls_today,
             "target_calories": int(targets.get("target_calories") or 1800),
             "target_protein": int(targets.get("target_protein") or 120),
+            "water_target_ml": int(u.get("water_target_ml") or 2500),
+            "height_cm": u.get("height_cm"),
+            "weight_kg": u.get("weight_kg") or latest_weight,
+            "age": u.get("age"),
+            "gender": u.get("gender") or "male",
+            "activity_level": u.get("activity_level") or "1.55",
+            "sleep_hours": u.get("sleep_hours") or 7.5,
+            "goal": u.get("goal") or "cut_moderate",
             "today_calories": today_cal,
             "today_protein": today_prot,
             "today_meals_count": len(today_meals),
@@ -5232,7 +5248,53 @@ def api_admin_update_user_targets(target_uid: str, req: TargetUpdateRequest, req
     uid = _normalize_user_id(target_uid)
     if req.daily_ai_limit is not None:
         update_user_status_admin_db(uid, daily_ai_limit=req.daily_ai_limit, caller_uid=admin_uid)
-    return set_targets(req.target_calories, req.target_protein, user_id=uid)
+    res = set_targets(req.target_calories, req.target_protein, user_id=uid)
+
+    today_str = get_israel_today_str()
+    water_ml = req.water_target_ml or 2500
+    doc_id = today_str if uid == "default" else f"{uid}_{today_str}"
+    if db:
+        try:
+            db.collection("daily_targets").document(doc_id).set({
+                "water_target_ml": water_ml
+            }, merge=True)
+        except Exception:
+            pass
+
+    profile_updates = {
+        "target_calories": req.target_calories,
+        "target_protein": req.target_protein,
+        "water_target_ml": water_ml,
+        "updated_at": get_israel_now().isoformat()
+    }
+    if req.height_cm is not None:
+        profile_updates["height_cm"] = req.height_cm
+    if req.weight_kg is not None:
+        profile_updates["weight_kg"] = req.weight_kg
+    if req.age is not None:
+        profile_updates["age"] = req.age
+    if req.gender is not None:
+        profile_updates["gender"] = req.gender
+    if req.activity_level is not None:
+        profile_updates["activity_level"] = req.activity_level
+    if req.sleep_hours is not None:
+        profile_updates["sleep_hours"] = req.sleep_hours
+    if req.goal is not None:
+        profile_updates["goal"] = req.goal
+
+    if not db:
+        if uid in _LOCAL_USERS:
+            _LOCAL_USERS[uid].update(profile_updates)
+        if uid in _LOCAL_TRAINEES:
+            _LOCAL_TRAINEES[uid].update(profile_updates)
+    else:
+        try:
+            db.collection("users").document(uid).set(profile_updates, merge=True)
+            db.collection("trainees").document(uid).set(profile_updates, merge=True)
+        except Exception as e:
+            print(f"ERROR updating user profile targets: {e}")
+
+    return {**res, **profile_updates}
 
 
 @app.put("/api/admin/users/{target_uid}/status")
