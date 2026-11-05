@@ -862,11 +862,19 @@ def claim_legacy_data_for_user(user_id: str) -> dict:
     }
 
 
-OWNER_ADMIN_EMAILS = {
+SUPER_ADMIN_EMAILS = {
     "iftach.raftar@gmail.com",
     "iftachraftar@gmail.com",
+    *[e.strip().lower() for e in os.getenv("SUPER_ADMIN_EMAILS", "").split(",") if e.strip()],
+}
+
+ADMIN_EMAILS = {
+    "itamarfitk@gmail.com",
+    *SUPER_ADMIN_EMAILS,
     *[e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()],
 }
+
+OWNER_ADMIN_EMAILS = SUPER_ADMIN_EMAILS
 
 
 COACH_EMAILS = {
@@ -876,11 +884,59 @@ COACH_EMAILS = {
 }
 
 
+def is_super_admin_email(email: str) -> bool:
+    clean = (email or "").strip().lower()
+    if not clean:
+        return False
+    if clean in SUPER_ADMIN_EMAILS:
+        return True
+    if clean.endswith("@gmail.com"):
+        local_part = clean.split("@")[0].replace(".", "")
+        if f"{local_part}@gmail.com" in SUPER_ADMIN_EMAILS:
+            return True
+    return False
+
+
+def is_super_admin_user_id(user_id: str) -> bool:
+    uid = _normalize_user_id(user_id)
+    if not uid or uid == "default":
+        return False
+    for sa_em in SUPER_ADMIN_EMAILS:
+        if _make_user_id_from_email(sa_em) == uid:
+            return True
+    user_doc = get_user_doc_db(uid)
+    return is_super_admin_email(user_doc.get("email", ""))
+
+
+def require_super_admin(request: Request) -> str:
+    uid = get_request_user_id(request)
+    if not is_super_admin_user_id(uid):
+        raise HTTPException(status_code=403, detail="גישה חסומה: פעולה זו מורשית לסופר-אדמין (Owner) בלבד")
+    return uid
+
+
+def is_admin_email(email: str) -> bool:
+    clean = (email or "").strip().lower()
+    if not clean:
+        return False
+    if clean in ADMIN_EMAILS or is_super_admin_email(clean):
+        return True
+    if clean.endswith("@gmail.com"):
+        local_part = clean.split("@")[0].replace(".", "")
+        if f"{local_part}@gmail.com" in ADMIN_EMAILS:
+            return True
+    return False
+
+
+def is_owner_email(email: str) -> bool:
+    return is_super_admin_email(email)
+
+
 def is_coach_email(email: str) -> bool:
     clean = (email or "").strip().lower()
     if not clean:
         return False
-    if clean in COACH_EMAILS or is_owner_email(clean):
+    if clean in COACH_EMAILS or is_super_admin_email(clean):
         return True
     if clean.endswith("@gmail.com"):
         local_part = clean.split("@")[0].replace(".", "")
@@ -902,43 +958,22 @@ def is_coach_or_admin(request: Request) -> str:
     raise HTTPException(status_code=403, detail="גישה מורשית רק למאמנים (איתמר) ולמנהל המערכת בלבד")
 
 
-def is_owner_email(email: str) -> bool:
-    clean = (email or "").strip().lower()
-    if not clean:
-        return False
-    if clean in OWNER_ADMIN_EMAILS:
-        return True
-    if clean.endswith("@gmail.com"):
-        local_part = clean.split("@")[0].replace(".", "")
-        if f"{local_part}@gmail.com" in OWNER_ADMIN_EMAILS:
-            return True
-    return False
-
-
 def is_admin_user_id(user_id: str) -> bool:
     uid = _normalize_user_id(user_id)
     if not uid or uid == "default":
         return False
-    user_doc = {}
-    if not db:
-        user_doc = _LOCAL_USERS.get(uid, {})
-    else:
-        try:
-            doc = db.collection("users").document(uid).get()
-            if doc.exists:
-                user_doc = doc.to_dict() or {}
-        except Exception as e:
-            print(f"ERROR is_admin_user_id: {e}")
-
+    if is_super_admin_user_id(uid):
+        return True
+    for a_em in ADMIN_EMAILS:
+        if _make_user_id_from_email(a_em) == uid:
+            return True
+    user_doc = get_user_doc_db(uid)
     if user_doc.get("admin_revoked") is True:
         return False
-    if user_doc.get("admin_granted_by_owner") is True:
+    if user_doc.get("admin_granted_by_owner") is True or user_doc.get("is_admin") is True:
         return True
-    if is_owner_email(user_doc.get("email", "")):
+    if is_admin_email(user_doc.get("email", "")):
         return True
-    for owner_em in OWNER_ADMIN_EMAILS:
-        if _make_user_id_from_email(owner_em) == uid:
-            return True
     return False
 
 
@@ -4553,9 +4588,9 @@ def api_get_auth_config():
 @app.put("/api/auth/config")
 def api_set_auth_config(req: AuthConfigRequest, request: Request):
     cfg = get_auth_config_db()
-    # Allow initial setup when no client_id is set yet; afterwards require admin access
+    # Allow initial setup when no client_id is set yet; afterwards require super admin access
     if cfg.get("google_client_id"):
-        require_admin_user(request)
+        require_super_admin(request)
     return set_auth_config_db(req.google_client_id)
 
 
@@ -4646,8 +4681,10 @@ def api_auth_me(request: Request, response: Response):
                 "email": "iftach.raftar@gmail.com",
                 "name": "Iftach (Local Dev)",
                 "picture": "",
+                "is_super_admin": True,
                 "is_admin": True,
                 "is_coach": True,
+                "role": "super_admin",
                 "is_approved": True,
                 "is_blocked": False,
                 "daily_ai_limit": 100,
@@ -4660,7 +4697,8 @@ def api_auth_me(request: Request, response: Response):
                 "features": get_feature_flags(),
             }
         raise HTTPException(status_code=401, detail="Not authenticated")
-    admin_flag = is_admin_user_id(uid)
+    super_admin_flag = is_super_admin_user_id(uid)
+    admin_flag = bool(super_admin_flag or is_admin_user_id(uid))
     user_doc = {}
     if not db:
         user_doc = _LOCAL_USERS.get(uid, {})
@@ -4672,7 +4710,8 @@ def api_auth_me(request: Request, response: Response):
         except Exception as e:
             print(f"ERROR api_auth_me: {e}")
     email = (user_doc.get("email") or "").strip().lower()
-    owner_flag = is_owner_email(email) and not bool(user_doc.get("admin_revoked", False))
+    owner_flag = is_super_admin_email(email) and not bool(user_doc.get("admin_revoked", False))
+    coach_flag = bool(is_coach_email(email) or user_doc.get("is_coach", False))
     if user_doc.get("is_blocked") and not owner_flag:
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
     is_approved = bool(admin_flag or owner_flag or user_doc.get("approved_by_owner", False))
@@ -4688,13 +4727,16 @@ def api_auth_me(request: Request, response: Response):
         secure=True,
         samesite="lax",
     )
+    role = "super_admin" if super_admin_flag else ("admin" if admin_flag else ("coach" if coach_flag else "user"))
     return {
         "id": uid,
         "email": email,
         "name": user_doc.get("name") or "",
         "picture": user_doc.get("picture") or "",
+        "is_super_admin": bool(super_admin_flag),
         "is_admin": bool(admin_flag),
-        "is_coach": bool(is_coach_email(email) or user_doc.get("is_coach", False)),
+        "is_coach": bool(coach_flag),
+        "role": role,
         "is_approved": is_approved,
         "is_blocked": False,
         "daily_ai_limit": daily_ai_limit,
@@ -4906,6 +4948,15 @@ def update_user_status_admin_db(
     caller_uid: str = "",
 ) -> dict:
     uid = _normalize_user_id(target_uid)
+    if is_super_admin_user_id(uid):
+        if is_blocked:
+            raise ValueError("לא ניתן לחסום את חשבון הסופר-אדמין (Owner)")
+        if is_admin is False:
+            raise ValueError("לא ניתן להסיר הרשאת אדמין מחשבון הסופר-אדמין (Owner)")
+        if is_approved is False:
+            raise ValueError("לא ניתן לבטל אישור לחשבון הסופר-אדמין (Owner)")
+    if is_admin is not None and caller_uid and not is_super_admin_user_id(caller_uid):
+        raise ValueError("רק סופר-אדמין (Owner) רשאי להעניק או לבטל הרשאות אדמין")
     if caller_uid and uid == _normalize_user_id(caller_uid):
         if is_blocked:
             raise ValueError("לא ניתן לחסום את החשבון של עצמך")
@@ -5102,6 +5153,10 @@ async def send_lead_telegram_alert(title: str, details_html: str, phone: str, wa
 
 def delete_user_admin_db(target_uid: str, caller_uid: str = "") -> dict:
     uid = _normalize_user_id(target_uid)
+    if is_super_admin_user_id(uid):
+        raise ValueError("לא ניתן למחוק את חשבון הסופר-אדמין (Owner)")
+    if caller_uid and not is_super_admin_user_id(caller_uid):
+        raise ValueError("רק סופר-אדמין (Owner) רשאי למחוק משתמשים לצמיתות")
     if caller_uid and uid == _normalize_user_id(caller_uid):
         raise ValueError("לא ניתן למחוק את החשבון שממנו אתה מחובר כרגע")
 
@@ -5198,7 +5253,7 @@ def api_admin_update_user_status(target_uid: str, req: AdminUpdateUserStatusRequ
 
 @app.delete("/api/admin/users/{target_uid}")
 def api_admin_delete_user(target_uid: str, request: Request):
-    admin_uid = require_admin_user(request)
+    admin_uid = require_super_admin(request)
     try:
         return delete_user_admin_db(target_uid, caller_uid=admin_uid)
     except ValueError as e:
@@ -8139,7 +8194,7 @@ class AdminFeaturesUpdateRequest(BaseModel):
 
 @app.put("/api/admin/features")
 def api_admin_update_features(req: AdminFeaturesUpdateRequest, request: Request):
-    require_admin_user(request)
+    require_super_admin(request)
     updated = update_feature_flags(telegram_enabled=req.telegram_enabled, whatsapp_enabled=req.whatsapp_enabled)
     return {"ok": True, "features": updated}
 
