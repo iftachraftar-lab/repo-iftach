@@ -1549,88 +1549,53 @@
                     </div>
                 </div>
 
-                <!-- Clear, Informative & Lightweight Daily Water Card -->
-                <div class="p-4 rounded-3xl bg-gradient-to-r from-sky-50/90 via-blue-50/50 to-white border border-sky-200/90 shadow-2xs space-y-3">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 rounded-2xl bg-sky-500/15 border border-sky-300 flex items-center justify-center text-lg shadow-2xs flex-shrink-0">
-                                💧
-                            </div>
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <h3 class="text-sm sm:text-base font-black text-slate-900">מעקב שתיית מים יומית</h3>
-                                    <span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 border border-sky-300 text-[10px] font-black">יעד יומי</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mt-0.5">
-                                    <span class="font-extrabold text-sky-900" x-text="`${(summary.water_ml || 0).toLocaleString()} מ״ל`"></span>
-                                    <span class="text-slate-400"> מתוך </span>
-                                    <span class="font-bold text-slate-700" x-text="`${(summary.water_target_ml || 2500).toLocaleString()} מ״ל`"></span>
-                                    <span class="text-sky-700 font-bold text-[11px]" x-text="` • ${Math.floor((summary.water_ml || 0) / 250)} מתוך ${Math.ceil((summary.water_target_ml || 2500) / 250)} כוסות`"></span>
-                                </p>
+                <!-- Clean, Ultra-Compact & Lightweight Water Tracker (Mobile-Optimized) -->
+                <div class="px-3.5 py-2.5 rounded-2xl bg-sky-50/70 border border-sky-200/80 shadow-2xs space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <!-- Left: Info & Metrics -->
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-lg select-none flex-shrink-0">💧</span>
+                            <div class="flex items-baseline gap-1.5 flex-wrap min-w-0">
+                                <span class="text-xs font-black text-slate-800">שתיית מים</span>
+                                <span class="text-xs font-black text-sky-900" x-text="`${(summary.water_ml || 0).toLocaleString()} מ״ל`"></span>
+                                <span class="text-[10px] text-slate-400">/ <span x-text="`${(summary.water_target_ml || 2500).toLocaleString()}`"></span></span>
+                                <span class="text-[10px] font-bold text-sky-800 bg-sky-100/90 px-1.5 py-0.2 rounded-md"
+                                      x-text="`${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></span>
                             </div>
                         </div>
 
-                        <!-- Reminders Toggle Button -->
-                        <div class="flex items-center gap-2">
+                        <!-- Right: Action Buttons -->
+                        <div class="flex items-center gap-1 flex-shrink-0">
                             <button type="button" @click="toggleWaterReminders()"
-                                    :class="waterRemindersActive ? 'bg-sky-600 text-white shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
-                                    class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
-                                <span x-text="waterRemindersActive ? '🔔 תזכורות פעילות' : '🔕 הפעל תזכורת שתייה'"></span>
+                                    :title="waterRemindersActive ? 'תזכורות מים פעילות' : 'הפעל תזכורות מים'"
+                                    class="h-7 w-7 rounded-xl transition cursor-pointer flex items-center justify-center text-xs border"
+                                    :class="waterRemindersActive ? 'bg-sky-600 text-white border-sky-600 shadow-2xs' : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600'">
+                                🔔
+                            </button>
+                            <button type="button" @click="decreaseWater(250)" :disabled="(summary.water_ml || 0) <= 0"
+                                    title="הפחת 250 מ״ל"
+                                    class="h-7 w-7 rounded-xl bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 font-bold text-xs transition cursor-pointer flex items-center justify-center disabled:opacity-30 active:scale-95">
+                                –
+                            </button>
+                            <button type="button" @click="addWater(250)"
+                                    title="הוסף כוס (250 מ״ל)"
+                                    class="h-7 px-2 rounded-xl bg-white hover:bg-sky-50 text-sky-900 border border-sky-200 font-bold text-xs transition cursor-pointer flex items-center gap-0.5 active:scale-95 shadow-2xs">
+                                <span>🥛</span>
+                                <span>+250</span>
+                            </button>
+                            <button type="button" @click="addWater(500)"
+                                    title="הוסף בקבוק (500 מ״ל)"
+                                    class="h-7 px-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-0.5 active:scale-95 shadow-2xs">
+                                <span>🍶</span>
+                                <span>+500</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Sleek Progress Track -->
-                    <div class="space-y-1">
-                        <div class="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
-                            <div class="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500"
-                                 :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
-                        </div>
-                        <div class="flex justify-between text-[10px] text-slate-500 font-bold px-0.5">
-                            <span x-text="`${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}% מהיעד היומי`"></span>
-                            <span x-text="(summary.water_ml || 0) >= (summary.water_target_ml || 2500) ? '🎉 יעד השתייה היומי הושלם!' : `נותרו עוד ${Math.max(0, (summary.water_target_ml || 2500) - (summary.water_ml || 0)).toLocaleString()} מ״ל`"></span>
-                        </div>
-                    </div>
-
-                    <!-- Interactive Visual Cups Grid (10 Glasses Target) -->
-                    <div class="space-y-1.5 pt-1">
-                        <div class="flex items-center justify-between text-[11px] font-bold text-slate-600 px-1">
-                            <span class="flex items-center gap-1"><span>🥛</span> <span>כוסות יומיות שנשתו:</span></span>
-                            <span class="text-sky-700 font-black text-xs" x-text="`${Math.min(10, Math.floor((summary.water_ml || 0) / 250))} / 10 כוסות`"></span>
-                        </div>
-                        <div class="grid grid-cols-10 gap-1 p-2 rounded-2xl bg-white/95 border border-sky-200/80 shadow-2xs">
-                            <template x-for="glassNum in 10" :key="'cup-' + glassNum">
-                                <button type="button"
-                                        @click="setWaterGlasses(glassNum)"
-                                        :title="`לחץ לעדכון ל-${glassNum} כוסות (${glassNum * 250} מ״ל)`"
-                                        class="py-2 px-0.5 rounded-xl flex flex-col items-center justify-center gap-0.5 transition cursor-pointer select-none active:scale-95"
-                                        :class="(glassNum * 250) <= (summary.water_ml || 0) 
-                                                ? 'bg-gradient-to-b from-sky-400 to-blue-600 text-white shadow-xs font-black' 
-                                                : 'bg-slate-100 hover:bg-sky-50 text-slate-400 hover:text-sky-700 font-bold'">
-                                    <span class="text-xs">💧</span>
-                                    <span class="text-[9px]" x-text="glassNum"></span>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-
-                    <!-- Fast 1-Tap Buttons with clear labels -->
-                    <div class="grid grid-cols-3 gap-2 pt-0.5">
-                        <button type="button" @click="addWater(250)"
-                                class="py-2 px-2 rounded-2xl bg-white hover:bg-sky-50 text-sky-950 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95">
-                            <span>🥛</span>
-                            <span>+ כוס (250 מ״ל)</span>
-                        </button>
-                        <button type="button" @click="addWater(500)"
-                                class="py-2 px-2 rounded-2xl bg-white hover:bg-sky-50 text-sky-950 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95">
-                            <span>🍶</span>
-                            <span>+ בקבוק (500 מ״ל)</span>
-                        </button>
-                        <button type="button" @click="decreaseWater(250)" :disabled="(summary.water_ml || 0) <= 0"
-                                class="py-2 px-2 rounded-2xl bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1 disabled:opacity-40 shadow-2xs active:scale-95">
-                            <span>↩️</span>
-                            <span>הפחת 250 מ״ל</span>
-                        </button>
+                    <!-- Micro Progress Bar -->
+                    <div class="w-full bg-slate-200/80 rounded-full h-1 overflow-hidden">
+                        <div class="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500"
+                             :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
                     </div>
                 </div>
 
@@ -6791,7 +6756,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=68').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=69').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
