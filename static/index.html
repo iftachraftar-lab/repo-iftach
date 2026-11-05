@@ -6791,7 +6791,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=67').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=68').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -13634,13 +13634,18 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
 
                 async deleteWorkout(workoutId) {
                     if (!confirm('האם למחוק אימון זה?')) return;
+                    this.allWorkouts = (this.allWorkouts || []).filter(w => w.id !== workoutId);
+                    if (this.summary && Array.isArray(this.summary.workouts)) {
+                        this.summary.workouts = this.summary.workouts.filter(w => w.id !== workoutId);
+                    }
                     try {
                         const res = await fetch(`/api/workouts/${workoutId}`, { method: 'DELETE' });
-                        if (!res.ok) throw new Error('שגיאה במחיקת האימון');
+                        if (!res.ok && res.status !== 404) throw new Error('שגיאה במחיקת האימון');
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast('🗑️ האימון נמחק בהצלחה');
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה במחיקה', 'error');
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                     }
                 },
 
@@ -14055,13 +14060,25 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     if (!this.mealToDelete) return;
                     const id = this.mealToDelete.id;
                     this.mealToDelete = null;
+
+                    // Optimistically remove from local arrays immediately
+                    this.allMeals = (this.allMeals || []).filter(m => m.id !== id);
+                    if (this.summary && Array.isArray(this.summary.meals)) {
+                        this.summary.meals = this.summary.meals.filter(m => m.id !== id);
+                    }
+
                     try {
                         const res = await fetch(`/api/meals/${id}`, { method: 'DELETE' });
-                        if (!res.ok) throw new Error('Failed delete');
+                        if (!res.ok && res.status !== 404) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || 'Failed delete');
+                        }
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast('🗑️ הארוחה נמחקה');
                     } catch (e) {
-                        this.showToast('שגיאה במחיקת הארוחה', 'error');
+                        console.error('Delete meal error:', e);
+                        this.showToast(e.message || 'שגיאה במחיקת הארוחה', 'error');
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                     }
                 },
 

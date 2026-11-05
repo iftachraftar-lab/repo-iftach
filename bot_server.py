@@ -6283,14 +6283,13 @@ def api_delete_meal(meal_id: str, request: Request):
                     raise HTTPException(status_code=403, detail="אין הרשאה למחוק ארוחה זו")
         orig_len = len(_LOCAL_MEALS)
         _LOCAL_MEALS = [m for m in _LOCAL_MEALS if m.get("id") != meal_id]
-        if len(_LOCAL_MEALS) == orig_len:
-            raise HTTPException(status_code=404, detail="Meal not found")
-        return {"status": "deleted", "id": meal_id}
+        return {"status": "deleted", "id": meal_id, "already_deleted": len(_LOCAL_MEALS) == orig_len}
     try:
         doc_ref = db.collection("meals").document(meal_id)
         doc = doc_ref.get()
         if not doc.exists:
-            raise HTTPException(status_code=404, detail="Meal not found")
+            # Idempotent DELETE: document already removed from Firestore
+            return {"status": "deleted", "id": meal_id, "already_deleted": True}
         doc_data = doc.to_dict() or {}
         if not _doc_matches_user(doc_data, uid) and not is_admin_user_id(uid):
             raise HTTPException(status_code=403, detail="אין הרשאה למחוק ארוחה זו")
@@ -6372,9 +6371,7 @@ def api_add_manual_workout(req: ManualWorkoutRequest, request: Request):
 def api_delete_workout(workout_id: str, request: Request):
     uid = require_approved_user(request)
     deleted = delete_workout_db(workout_id, user_id=uid)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="אימון לא נמצא")
-    return {"status": "deleted", "id": workout_id}
+    return {"status": "deleted", "id": workout_id, "already_deleted": not deleted}
 
 
 @app.post("/api/workouts/photo")
