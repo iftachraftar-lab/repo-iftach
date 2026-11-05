@@ -283,6 +283,16 @@
                 <p x-show="authLoading" class="text-xs text-indigo-600 font-semibold animate-pulse">
                     מאמת חשבון מול שרתי Google...
                 </p>
+
+                <!-- Clear Legal & Privacy Agreement Note -->
+                <div class="pt-2 text-center text-[11px] text-slate-500 leading-relaxed border-t border-slate-200/70 w-full space-y-1">
+                    <p>
+                        כניסה ושימוש באפליקציה מהווים הסכמה מלאה לתנאי השימוש ומדיניות הפרטיות המפורטים.
+                    </p>
+                    <button type="button" @click="showTermsModal = true" class="text-emerald-700 hover:text-emerald-900 font-extrabold underline cursor-pointer text-xs">
+                        📄 קרא את תנאי השימוש ומדיניות הפרטיות המלאים
+                    </button>
+                </div>
             </div>
 
             <!-- 1-Time Setup Box when Google OAuth Client ID is not configured yet -->
@@ -6916,7 +6926,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=72').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=73').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -9043,6 +9053,8 @@
                 showMealConfirmModal: false,
                 showHoldonAffiliateModal: false,
                 copiedHoldonCoupon: false,
+                showTermsModal: false,
+                onboardingAcceptedTerms: false,
                 showOnboardingModal: false,
                 onboardingStep: 1,
                 onboardingSaving: false,
@@ -13610,6 +13622,10 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     this.showToast('יש להתחבר עם חשבון Google תחילה', 'warning');
                     return;
                 }
+                if (!this.onboardingAcceptedTerms) {
+                    this.showToast('חובה לקרוא ולאשר את תנאי השימוש ומדיניות הפרטיות', 'warning');
+                    return;
+                }
                 this.onboardingSaving = true;
                 try {
                     const res = await fetch('/api/user/onboarding', {
@@ -13625,7 +13641,8 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                             goal: this.onboardingForm.goal,
                             target_calories: this.onboardingTargetCalories,
                             target_protein: this.onboardingTargetProtein,
-                            water_target_ml: this.onboardingWaterTarget
+                            water_target_ml: this.onboardingWaterTarget,
+                            terms_accepted: true
                         })
                     });
                     if (res.ok) {
@@ -15948,12 +15965,31 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         </div>
                     </div>
 
+                    <!-- Mandatory Terms & Privacy Policy Consent Checkbox -->
+                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-right space-y-1.5">
+                        <label class="flex items-start gap-2.5 cursor-pointer select-none">
+                            <input type="checkbox" x-model="onboardingAcceptedTerms"
+                                   class="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer flex-shrink-0">
+                            <span class="text-xs text-slate-800 font-semibold leading-relaxed">
+                                קראתי, הבנתי ואני מאשר/ת את 
+                                <button type="button" @click.stop="showTermsModal = true" class="text-emerald-700 hover:text-emerald-900 font-extrabold underline cursor-pointer">תנאי השימוש</button> 
+                                ואת 
+                                <button type="button" @click.stop="showTermsModal = true" class="text-emerald-700 hover:text-emerald-900 font-extrabold underline cursor-pointer">מדיניות הפרטיות</button> 
+                                של NutriAgent (חובה).
+                            </span>
+                        </label>
+                        <p class="text-[10px] text-slate-500 pr-6">
+                            * ידוע לי כי המערכת משלבת בינה מלאכותית ואינה תחליף לייעוץ רפואי או תזונאי מוסמך.
+                        </p>
+                    </div>
+
                     <div class="pt-2 flex items-center justify-between gap-2">
                         <button type="button" @click="onboardingStep = 2"
                                 class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
                             חזור
                         </button>
-                        <button type="button" @click="submitOnboarding()" :disabled="onboardingSaving"
+                        <button type="button" @click="submitOnboarding()" :disabled="onboardingSaving || !onboardingAcceptedTerms"
+                                :class="{'opacity-50 cursor-not-allowed': !onboardingAcceptedTerms}"
                                 class="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer">
                             <span x-show="!onboardingSaving">🚀 אשר יעדים והתחל ליווי!</span>
                             <span x-show="onboardingSaving">שומר נתונים...</span>
@@ -15961,6 +15997,96 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- ================= TERMS OF USE & PRIVACY POLICY MODAL ================= -->
+        <div x-cloak x-show="showTermsModal" style="display: none;"
+             class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs"
+             @click.self="showTermsModal = false">
+            <div class="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 text-right space-y-4 max-h-[90vh] overflow-y-auto relative" @click.stop>
+                
+                <!-- Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center text-xl font-bold shadow-2xs">
+                            📜
+                        </div>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-black text-slate-900">תנאי שימוש ומדיניות פרטיות</h2>
+                            <p class="text-xs text-slate-500">NutriAgent AI • עודכן נובמבר 2026</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showTermsModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold transition cursor-pointer">✕</button>
+                </div>
+
+                <!-- Terms Content -->
+                <div class="text-xs text-slate-700 leading-relaxed space-y-3.5 pr-1">
+                    
+                    <div class="p-3 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-950 font-bold space-y-1">
+                        <div class="flex items-center gap-1.5 text-xs text-amber-900 font-black">
+                            <span>⚠️</span>
+                            <span>הצהרת בריאות ואחריות רפואית:</span>
+                        </div>
+                        <p class="text-[11px] font-normal text-amber-900 leading-relaxed">
+                            אפליקציית NutriAgent הינה מערכת עזר טכנולוגית המבוססת על בינה מלאכותית (AI) למעקב, תיעוד וחישוב נתוני תזונה ואימונים. המידע, ההמלצות והחישובים המופיעים במערכת <strong>אינם מהווים ייעוץ רפואי, אבחון קליני או תחליף להיוועצות עם רופא או דיאטן קליני מוסמך</strong>. השימוש באפליקציה ובתוכניות התזונה הינו באחריותו המלאה והבלעדית של המשתמש.
+                        </p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
+                            <span>1.</span> <span>הסכמה לתנאים:</span>
+                        </h4>
+                        <p class="text-slate-600 text-[11px]">
+                            כניסה למערכת, התחברות באמצעות Google או קישור אישי, וכל שימוש באפליקציה מהווים הסכמה מלאה, מפורשת ובלתי חוזרת לכל תנאי השימוש ומדיניות הפרטיות המפורטים במסמך זה. במידה ואינך מסכים/ה לאחד מהתנאים, הנך מתבקש/ת לחדול משימוש באפליקציה.
+                        </p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
+                            <span>2.</span> <span>שמירה על פרטיות ואבטחת מידע:</span>
+                        </h4>
+                        <p class="text-slate-600 text-[11px]">
+                            אנו מייחסים חשיבות עליונה להגנה על פרטיותך. המידע שתזין/י (לרבות תמונות ארוחות, הודעות קוליות, משקל גוף ומדדים) משמש אך ורק לצרכי הפעלת יומן התזונה האישי שלך ובקרה מול המאמן המלווה שלך (Coach Itamar). המידע נשמר בתקני אבטחה מחמירים בענן של Google Cloud Platform ואינו מועבר, נמכר או מושכר לצדדים שלישיים לצרכי שיווק או פרסום.
+                        </p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
+                            <span>3.</span> <span>הרשאות מכשיר (מצלמה, קול והתראות):</span>
+                        </h4>
+                        <p class="text-slate-600 text-[11px]">
+                            האפליקציה מבקשת הרשאות גישה למצלמה (לצילום מנות ומזונות), למיקרופון (לתיאור קולי של ארוחות) ולהתראות Push (לתזכורות שתייה ותזונה). הרשאות אלו מופעלות אך ורק ביוזמתך ובפעולה ישירה שלך באפליקציה.
+                        </p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
+                            <span>4.</span> <span>זכויות המשתמש ומחיקת נתונים:</span>
+                        </h4>
+                        <p class="text-slate-600 text-[11px]">
+                            למשתמש הזכות המלאה לצפות בנתוניו, לערוך אותם, למחוק ארוחות או יומנים בכל רגע נתון, או לדרוש מחיקה מלאה של חשבונו וכלל נתוניו מהשרתים באמצעות פנייה למנהל המערכת.
+                        </p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
+                            <span>5.</span> <span>שינויים ועדכונים:</span>
+                        </h4>
+                        <p class="text-slate-600 text-[11px]">
+                            הנהלת המערכת רשאית לעדכן תנאים אלו מעת לעת. המשך שימושך באפליקציה לאחר עדכון התנאים מהווה הסכמתך לתנאים המעודכנים.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Footer Action -->
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <span class="text-[11px] text-slate-400 font-medium">NutriAgent AI • בטוח ומאובטח</span>
+                    <button type="button" @click="showTermsModal = false; onboardingAcceptedTerms = true;"
+                            class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer">
+                        קראתי ואני מאשר/ת ✓
+                    </button>
+                </div>
             </div>
         </div>
 

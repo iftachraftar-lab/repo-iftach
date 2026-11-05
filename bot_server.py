@@ -8352,6 +8352,7 @@ class OnboardingSaveRequest(BaseModel):
     target_calories: Optional[int] = None
     target_protein: Optional[float] = None
     water_target_ml: Optional[int] = 2500
+    terms_accepted: bool = True
 
 
 @app.post("/api/water/add")
@@ -8420,6 +8421,8 @@ def api_save_onboarding(req: OnboardingSaveRequest, request: Request):
     
     user_updates = {
         "onboarding_completed": True,
+        "terms_accepted": bool(req.terms_accepted),
+        "terms_accepted_at": get_israel_now().isoformat(),
         "height_cm": req.height_cm,
         "weight_kg": req.weight_kg,
         "age": req.age,
