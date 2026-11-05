@@ -286,8 +286,8 @@
 
                 <!-- Clear Legal & Privacy Agreement Note -->
                 <div class="pt-2 text-center text-[11px] text-slate-500 leading-relaxed border-t border-slate-200/70 w-full space-y-1">
-                    <p>
-                        כניסה ושימוש באפליקציה מהווים הסכמה מלאה לתנאי השימוש ומדיניות הפרטיות המפורטים.
+                    <p class="font-semibold text-slate-700">
+                        שימוש או התחברות לאפליקציה מהווים הסכמה מלאה לתנאי השימוש ומדיניות הפרטיות.
                     </p>
                     <button type="button" @click="showTermsModal = true" class="text-emerald-700 hover:text-emerald-900 font-extrabold underline cursor-pointer text-xs">
                         📄 קרא את תנאי השימוש ומדיניות הפרטיות המלאים
@@ -6970,7 +6970,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=76').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=77').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -16033,7 +16033,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                                 <button type="button" @click.stop="showTermsModal = true" class="text-emerald-700 hover:text-emerald-900 font-extrabold underline cursor-pointer">תנאי השימוש</button> 
                                 ואת 
                                 <button type="button" @click.stop="showTermsModal = true" class="text-emerald-700 hover:text-emerald-900 font-extrabold underline cursor-pointer">מדיניות הפרטיות</button> 
-                                של NutriAgent (חובה).
+                                של NutriAgent (חובה). ידוע לי כי שימוש או התחברות לאפליקציה מהווים הסכמה מלאה לתנאים.
                             </span>
                         </label>
                         <p class="text-[10px] text-slate-500 pr-6">
@@ -16081,6 +16081,17 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 <!-- Terms Content -->
                 <div class="text-xs text-slate-700 leading-relaxed space-y-3.5 pr-1">
                     
+                    <!-- Prominent Legal Binding Notice -->
+                    <div class="p-3.5 rounded-2xl bg-emerald-50/90 border-2 border-emerald-300 text-emerald-950 font-bold space-y-1">
+                        <div class="flex items-center gap-1.5 text-xs text-emerald-900 font-black">
+                            <span>⚖️</span>
+                            <span>הסכמה מחייבת לתנאי השימוש והפרטיות:</span>
+                        </div>
+                        <p class="text-[11px] font-semibold text-emerald-950 leading-relaxed">
+                            יובהר בזאת כי <strong>שימוש או התחברות לאפליקציה (לרבות באמצעות חשבון Google, טלגרם או קישור ייעודי) מהווים הסכמה מלאה, מפורשת ובלתי חוזרת לתנאי השימוש ולמדיניות הפרטיות המפורטים להלן</strong>. במידה ואינך מסכים/ה לאחד מתנאים אלו, אינך מורשה/ית להשתמש באפליקציה ועליך לחדול מכל שימוש בה באופן מיידי.
+                        </p>
+                    </div>
+
                     <div class="p-3 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-950 font-bold space-y-1">
                         <div class="flex items-center gap-1.5 text-xs text-amber-900 font-black">
                             <span>⚠️</span>
@@ -16095,8 +16106,8 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
                             <span>1.</span> <span>הסכמה לתנאים:</span>
                         </h4>
-                        <p class="text-slate-600 text-[11px]">
-                            כניסה למערכת, התחברות באמצעות Google או קישור אישי, וכל שימוש באפליקציה מהווים הסכמה מלאה, מפורשת ובלתי חוזרת לכל תנאי השימוש ומדיניות הפרטיות המפורטים במסמך זה. במידה ואינך מסכים/ה לאחד מהתנאים, הנך מתבקש/ת לחדול משימוש באפליקציה.
+                        <p class="text-slate-600 text-[11px] leading-relaxed">
+                            שימוש, כניסה או התחברות לאפליקציה מהווים הסכמה מלאה לכל תנאי השימוש ומדיניות הפרטיות. המערכת שומרת את אישור המשתמש והסכמתו לתנאים במסד הנתונים.
                         </p>
                     </div>
 
