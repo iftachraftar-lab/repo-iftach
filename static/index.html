@@ -1228,27 +1228,6 @@
                         </button>
                     </form>
 
-                    <!-- Dedicated Automatic Macro & AI Live Viewfinder Card (Always Available even after meals logged) -->
-                    <div @click="showLiveViewfinder = true; startLiveViewfinderCamera();"
-                         class="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/70 to-slate-50 border-2 border-emerald-200/90 hover:border-emerald-400 hover:shadow-md transition active:scale-[0.99] cursor-pointer flex items-center justify-between gap-3 shadow-2xs">
-                        <div class="flex items-center gap-3.5 min-w-0">
-                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/25 flex-shrink-0">
-                                <svg class="w-6 h-6"><use href="#icon-meal-camera"></use></svg>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="text-sm sm:text-base font-extrabold text-slate-900">סורק צלחת וברקוד חי (Live AI)</span>
-                                    <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">צילום מאקרו אוטומטי</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mt-0.5 leading-snug">כוון את המצלמה לצלחת או לברקוד לזיהוי רכיבים, שקילה וקלוריות בזמן אמת</p>
-                            </div>
-                        </div>
-                        <button type="button" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs flex items-center gap-1 flex-shrink-0 cursor-pointer">
-                            <span>פתח סורק</span>
-                            <span>←</span>
-                        </button>
-                    </div>
-
                     <!-- Instant Smart Catalog Autocomplete Dropdown (with Calories & Protein Breakdown) -->
                     <div x-cloak x-show="showAutocomplete && autocompleteSuggestions.length > 0"
                          @click.outside="showAutocomplete = false"
@@ -6967,7 +6946,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=74').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=75').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
