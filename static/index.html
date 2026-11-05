@@ -406,8 +406,17 @@
                     <svg class="w-4 h-4 text-emerald-700 flex-shrink-0"><use href="#icon-wolt-dish"></use></svg>
                     <span x-text="t('tabRecipes', 'מתכונים ו-Wolt')">מתכונים ו-Wolt</span>
                 </button>
+                <!-- Organic Experts Directory (Dietitians, Instructors & Trainers) -->
+                <button x-cloak x-show="appMode !== 'coaching'"
+                    type="button"
+                    @click="openExpertsDirectory('dietitian')"
+                    class="h-8 px-2.5 sm:px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 font-medium hover:bg-white/60"
+                    title="נבחרת מאמני כושר, מדריכים ותזונאים קליניים עם הטבת שיחת ייעוץ חינם">
+                    <span>🤝</span>
+                    <span>מאמנים ותזונאים</span>
+                </button>
                 <!-- Coach / Trainees Hub Tab for Coach & Admin -->
-                <button x-cloak x-show="isCoachOrAdmin()"
+                <button x-cloak x-show="appMode === 'coaching' && isCoachOrAdmin()"
                     @click="openTraineesTab()"
                     :class="(activeTab === 'summary' && coachingSubTab === 'trainees') ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-indigo-700 hover:bg-indigo-50 font-semibold'"
                     class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
@@ -418,7 +427,7 @@
                           :class="(activeTab === 'summary' && coachingSubTab === 'trainees') ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'"
                           x-text="trainees.length"></span>
                 </button>
-                <button x-cloak x-show="isCoachOrAdmin()"
+                <button x-cloak x-show="appMode === 'coaching' && isCoachOrAdmin()"
                     @click="openTraineesTab()"
                     :class="(activeTab === 'summary' && coachingSubTab === 'trainees') ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'"
                     class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer">
@@ -437,7 +446,7 @@
             <!-- Uniform Action Toolbar (Clean, Spaced & Uncluttered) -->
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-nowrap">
                 <!-- Fast Trainee Link Generation for Coach/Admin -->
-                <button x-cloak x-show="isCoachOrAdmin()"
+                <button x-cloak x-show="appMode === 'coaching' && isCoachOrAdmin()"
                     type="button"
                     @click="showAddTraineeModal = true"
                     class="h-8 px-2.5 sm:px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-95 flex-shrink-0"
@@ -737,10 +746,11 @@
 
                     <!-- Actions / Badges Row (Streak + BMI Calibrate + Burned calories) -->
                     <div class="flex items-center gap-2 flex-wrap pt-0.5">
-                        <button type="button" @click="toggleAppMode()"
+                        <!-- Mode Switcher: Strictly restricted to Admin ONLY (Hidden from organic users and Itamar trainees) -->
+                        <button x-cloak x-show="currentUser && currentUser.is_admin" type="button" @click="toggleAppMode()"
                                 class="px-3 py-1.5 rounded-xl text-xs font-black border transition flex items-center gap-1.5 cursor-pointer"
                                 :class="appMode === 'coaching' ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-700'"
-                                title="החלף בין מצב ליווי מתאמנים ממוקד (איתמר) למצב פלטפורמה מלא">
+                                title="החלף בין מצב ליווי מתאמנים ממוקד (איתמר) למצב פלטפורמה מלא (למנהל בלבד)">
                             <span x-text="appMode === 'coaching' ? '🎯 מצב ליווי מתאמנים (איתמר)' : '🌐 מצב פלטפורמה מלא'"></span>
                         </button>
                         <button type="button" @click="showAchievementsModal = true"
@@ -1594,25 +1604,22 @@
                     </div>
                 </div>
 
-                <!-- Prominent Quick HoldOn Protein Shake & Affiliate Promo Pill -->
-                <div class="px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-amber-100/60 border border-amber-300/80 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shadow-2xs">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xl select-none">🥤</span>
-                        <div class="text-xs">
-                            <span class="font-black text-amber-950">שייק חלבון מובנה HoldOn</span>
-                            <span class="text-amber-800 font-bold text-[11px] mr-1">(180 קק״ל • 25g חלבון)</span>
-                        </div>
+                <!-- Clean Quick Protein Shake Bar (Subtle & Functional) -->
+                <div class="px-3.5 py-2 rounded-2xl bg-amber-50/60 border border-amber-200/80 flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-base select-none">🥤</span>
+                        <span class="font-bold text-slate-800">שייק חלבון יומי</span>
+                        <span class="text-slate-500 text-[11px]">(180 קק״ל • 25g חלבון)</span>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5">
                         <button type="button" @click="logHoldonShake('afternoon_snack')"
-                                class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-black text-xs transition cursor-pointer shadow-2xs flex items-center gap-1">
+                                class="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-xs transition cursor-pointer flex items-center gap-1">
                             <span>⚡</span>
-                            <span>רישום שייק בטאפ</span>
+                            <span>רשום שייק</span>
                         </button>
                         <button type="button" @click="showHoldonAffiliateModal = true"
-                                class="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 font-extrabold text-xs transition cursor-pointer flex items-center gap-1 shadow-2xs">
-                            <span>🎁</span>
-                            <span>קוד קופון 10% באתר</span>
+                                class="text-[10px] text-amber-800 hover:underline px-1 cursor-pointer" title="פרטי קופון">
+                            הטבה
                         </button>
                     </div>
                 </div>
@@ -1760,17 +1767,17 @@
                                     </div>
                                 </div>
 
-                                <!-- Quick HoldOn Protein Shake Option (Morning & Afternoon Snacks) -->
-                                <div x-show="slot.key === 'morning_snack' || slot.key === 'afternoon_snack'"
-                                     class="p-2.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                                <!-- Clean Quick Shake Option (Afternoon Snack only) -->
+                                <div x-show="slot.key === 'afternoon_snack'"
+                                     class="p-2 rounded-xl bg-amber-50/50 border border-amber-200/70 flex items-center justify-between gap-2 text-xs">
                                     <button type="button" @click="logHoldonShake(slot.key)"
-                                            class="py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs">
+                                            class="py-1 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition cursor-pointer flex items-center gap-1">
                                         <span>🥤</span>
-                                        <span>שתיתי שייק חלבון HoldOn (180 קק״ל / 25g)</span>
+                                        <span>שילבתי שייק חלבון (180 קק״ל • 25g)</span>
                                     </button>
                                     <button type="button" @click="showHoldonAffiliateModal = true"
-                                            class="text-[11px] text-amber-900 hover:text-amber-950 font-bold underline cursor-pointer flex items-center justify-center gap-1">
-                                        <span>🎁 10% הנחה בלעדית ב-HoldOn</span>
+                                            class="text-[10px] text-amber-800 hover:underline cursor-pointer">
+                                        קוד הנחה
                                     </button>
                                 </div>
 
@@ -1814,31 +1821,7 @@
                     </template>
                 </div>
 
-                <!-- ================= HOLDON AFFILIATE PROMOTION BANNER ================= -->
-                <div class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/15 border border-amber-300 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-300 flex items-center justify-center text-2xl flex-shrink-0">
-                            🥤
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs sm:text-sm font-black text-amber-950">הטבת שייקים ותוספים למתאמנים – HoldOn (הולד-און)</span>
-                                <span class="px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 text-[10px] font-black">10% הנחה בלעדית</span>
-                            </div>
-                            <p class="text-xs text-amber-800 mt-0.5">קוד קופון בלעדי בקופה: <span class="font-mono font-black text-amber-950 bg-white px-2 py-0.5 rounded-md border border-amber-300">HOLDON10</span></p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2 w-full sm:w-auto">
-                        <button type="button" @click="copyHoldonCoupon()"
-                                class="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-white hover:bg-amber-50 text-amber-950 border border-amber-300 font-extrabold text-xs transition cursor-pointer">
-                            <span x-text="copiedHoldonCoupon ? '✓ הועתק!' : '📋 העתק קופון'">📋 העתק קופון</span>
-                        </button>
-                        <a href="https://www.holdon.co.il/" target="_blank" rel="noopener noreferrer"
-                           class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs transition cursor-pointer shadow-xs text-center whitespace-nowrap">
-                            לרכישה באתר HoldOn ➔
-                        </a>
-                    </div>
-                </div>
+<!-- Big banner removed to prevent marketing spam -->
             </div>
 
             <!-- FULL MODE: Legacy Logged Meals List (Kept 100% Intact) -->
@@ -2059,7 +2042,7 @@
                             <span class="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-black border border-amber-400/30">
                                 🌟 הטבת VIP בלעדית לחברי קהילה
                             </span>
-                            <span class="text-[10px] text-indigo-300 font-bold bg-white/10 px-2 py-0.5 rounded-md">Admin Preview</span>
+                            <span class="text-[10px] text-indigo-300 font-bold bg-white/10 px-2 py-0.5 rounded-md">נבחרת מומחים מוסמכים</span>
                         </div>
                         <h3 class="text-base sm:text-lg font-black text-white">רוצה להאיץ את התוצאות בליווי מומחה אישי?</h3>
                         <p class="text-xs text-indigo-100/80 leading-relaxed max-w-2xl">
@@ -2266,27 +2249,30 @@
 
             <!-- Dietitian & Coach Mode Integration Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                <!-- 1. Share Weekly Report to Dietitian -->
+                <!-- 1. Share Weekly Report to Coach / Dietitian -->
                 <div class="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/90 shadow-2xs flex flex-col justify-between space-y-3">
                     <div class="flex items-start gap-3">
                         <div class="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm flex-shrink-0">
                             📋
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">מצב דיאטנית</span>
-                            <h4 class="text-sm sm:text-base font-extrabold text-slate-900 mt-1">שתף סיכום שבועי עם התזונאית</h4>
-                            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">הפק בלחיצה אחת דוח מעקב מעוצב (ממוצע קלורי, חלבון, ואימונים) לשליחה ישירה בוואטסאפ לדיאטנית שלך</p>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md"
+                                  x-text="appMode === 'coaching' ? 'ליווי מאמן (איתמר)' : 'שיתוף דוח'"></span>
+                            <h4 class="text-sm sm:text-base font-extrabold text-slate-900 mt-1"
+                                x-text="appMode === 'coaching' ? 'שתף סיכום שבועי עם איתמר' : 'שתף סיכום שבועי עם התזונאי/ת'"></h4>
+                            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed"
+                               x-text="appMode === 'coaching' ? 'הפק בלחיצה אחת דוח מעקב מעוצב לשליחה ישירה בוואטסאפ לאיתמר' : 'הפק בלחיצה אחת דוח מעקב מעוצב (ממוצע קלורי, חלבון ואימונים) לשליחה בוואטסאפ'"></p>
                         </div>
                     </div>
                     <button type="button" @click="shareDietitianReport()"
                             class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer">
                         <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
-                        <span>שלח סיכום שבועי בוואטסאפ</span>
+                        <span x-text="appMode === 'coaching' ? 'שלח סיכום לאיתמר בוואטסאפ' : 'שלח סיכום שבועי בוואטסאפ'"></span>
                     </button>
                 </div>
 
-                <!-- 2. Coach / Dietitian Early Beta Partner Program -->
-                <div class="p-5 rounded-3xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200/90 shadow-2xs flex flex-col justify-between space-y-3">
+                <!-- 2. Coach / Dietitian Early Beta Partner Program (Shown ONLY for organic platform, hidden in coaching mode) -->
+                <div x-show="appMode !== 'coaching'" class="p-5 rounded-3xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200/90 shadow-2xs flex flex-col justify-between space-y-3">
                     <div class="flex items-start gap-3">
                         <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-sm flex-shrink-0">
                             🤝
@@ -3827,8 +3813,8 @@
                 </div>
             </div>
 
-            <!-- COACHING QUICK LINK & TRAINEES HUB BANNER (Admin View) -->
-            <div x-show="adminNavTab === 'users'" class="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 rounded-3xl p-5 sm:p-6 text-white shadow-lg space-y-3 relative overflow-hidden">
+            <!-- COACHING QUICK LINK & TRAINEES HUB BANNER (Admin View - Shown ONLY in coaching mode or for Coach Itamar) -->
+            <div x-show="adminNavTab === 'users' && (appMode === 'coaching' || (currentUser?.email || '').toLowerCase().includes('itamar'))" class="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 rounded-3xl p-5 sm:p-6 text-white shadow-lg space-y-3 relative overflow-hidden">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
                     <div class="space-y-1">
                         <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-bold">
@@ -6469,6 +6455,29 @@
                         </div>
                     </div>
 
+                    <!-- Connect with Personal Trainer or Dietitian (Organic Users) -->
+                    <div x-show="appMode !== 'coaching'" class="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-indigo-50 border border-emerald-200 space-y-2.5">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-2xl">🥗🏋️‍♂️</span>
+                            <div>
+                                <h4 class="text-xs font-black text-slate-900">ליווי אישי של מאמן או תזונאי/ת</h4>
+                                <p class="text-[11px] text-slate-600">שיחת התאמה אישית 1-על-1 ללא עלות והנחת קהילה</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <button type="button" @click="openAuthModal = false; openExpertsDirectory('dietitian')"
+                                    class="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs">
+                                <span>🥗</span>
+                                <span>תזונאי/ת קליני/ת</span>
+                            </button>
+                            <button type="button" @click="openAuthModal = false; openExpertsDirectory('trainer')"
+                                    class="py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs">
+                                <span>🏋️‍♂️</span>
+                                <span>מאמן/ת כושר</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Claim Legacy Data Button -->
                     <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
                         <p class="text-xs font-bold text-amber-950">📥 ייבוא היסטוריה קיימת</p>
@@ -6753,7 +6762,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=64').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=65').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -8742,7 +8751,8 @@
                 adminLeads: [],
                 adminTelegramChatId: '604190384',
                 adminTelegramSaving: false,
-                appMode: 'coaching', // 'coaching' (Itamar trainee 5-slot flow) or 'full' (legacy B2B)
+                appPartner: 'organic',
+                appMode: 'full', // 'coaching' (Itamar trainee 5-slot flow) or 'full' (legacy B2B / organic)
                 skippedSlots: {},
                 slotSuggestions: {},
                 slotShuffling: {},
@@ -10996,7 +11006,115 @@
                     this.showGroceryModal = true;
                 },
 
-                async init() {
+                detectPartnerAndMode() {
+                try {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const pathname = (window.location.pathname || '').toLowerCase();
+                    const partnerParam = (urlParams.get('partner') || urlParams.get('ref') || '').toLowerCase();
+
+                    if (urlParams.get('reset_partner') === '1' || partnerParam === 'reset' || partnerParam === 'organic') {
+                        localStorage.removeItem('app_partner');
+                        localStorage.removeItem('app_mode_override');
+                        this.appPartner = 'organic';
+                        this.appMode = 'full';
+                        return;
+                    }
+
+                    // Check explicit URL partner routes or parameters:
+                    let detectedPartner = null;
+                    if (pathname === '/itamar' || pathname === '/itamar/' || pathname.startsWith('/p/itamar') || partnerParam === 'itamar') {
+                        detectedPartner = 'itamar';
+                    } else if (pathname.startsWith('/p/')) {
+                        const segs = pathname.split('/').filter(Boolean);
+                        if (segs.length >= 2) detectedPartner = segs[1];
+                    } else if (partnerParam) {
+                        detectedPartner = partnerParam;
+                    }
+
+                    if (detectedPartner) {
+                        localStorage.setItem('app_partner', detectedPartner);
+                        this.appPartner = detectedPartner;
+                        this.appMode = detectedPartner === 'itamar' ? 'coaching' : 'full';
+                        return;
+                    }
+
+                    // Explicit root path '/' or '/index.html' -> Organic platform by default!
+                    // A past visit to /itamar must NEVER permanently hijack the root URL.
+                    if (pathname === '/' || pathname === '' || pathname === '/index.html') {
+                        const savedOverride = localStorage.getItem('app_mode_override');
+                        if (savedOverride === 'coaching' || savedOverride === 'full') {
+                            this.appMode = savedOverride;
+                            this.appPartner = savedOverride === 'coaching' ? 'itamar' : 'organic';
+                            return;
+                        }
+                        this.appPartner = 'organic';
+                        this.appMode = 'full';
+                        localStorage.removeItem('app_partner');
+                        return;
+                    }
+
+                    // Automatic detection for Itamar himself (only if logged in with Itamar account)
+                    const savedUserRaw = localStorage.getItem('nutri_user');
+                    if (savedUserRaw) {
+                        try {
+                            const u = JSON.parse(savedUserRaw);
+                            if ((u?.email || '').toLowerCase().includes('itamar')) {
+                                this.appPartner = 'itamar';
+                                this.appMode = 'coaching';
+                                return;
+                            }
+                        } catch(e) {}
+                    }
+
+                    const savedOverride = localStorage.getItem('app_mode_override');
+                    if (savedOverride === 'coaching' || savedOverride === 'full') {
+                        this.appMode = savedOverride;
+                        this.appPartner = localStorage.getItem('app_partner') || (savedOverride === 'coaching' ? 'itamar' : 'organic');
+                        return;
+                    }
+
+                    const savedPartner = localStorage.getItem('app_partner');
+                    if (savedPartner) {
+                        this.appPartner = savedPartner;
+                        this.appMode = savedPartner === 'itamar' ? 'coaching' : 'full';
+                        return;
+                    }
+
+                    this.appPartner = 'organic';
+                    this.appMode = 'full';
+                } catch (e) {
+                    console.error('Error detecting partner/mode:', e);
+                }
+            },
+
+            async init() {
+                    // LOCAL ONLY BYPASS (Zero impact on production):
+                    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    if (isLocalhost) {
+                        if (!this.currentUser) {
+                            this.currentUser = {
+                                id: 'iftach_raftar_gmail_com',
+                                email: 'iftach.raftar@gmail.com',
+                                name: 'Iftach (Local Dev)',
+                                picture: '',
+                                is_admin: true,
+                                is_approved: true,
+                                verified_oauth: true,
+                                onboarding_completed: true
+                            };
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        }
+                        // If accessed at root '/' on localhost without partner params, ensure clean organic mode:
+                        const pName = (window.location.pathname || '').toLowerCase();
+                        const pParams = new URLSearchParams(window.location.search);
+                        if ((pName === '/' || pName === '' || pName === '/index.html') && !pParams.get('partner') && !pParams.get('ref')) {
+                            localStorage.removeItem('app_partner');
+                            localStorage.removeItem('app_mode_override');
+                            this.appPartner = 'organic';
+                            this.appMode = 'full';
+                        }
+                    }
+                    this.detectPartnerAndMode();
                     this.initGroceryList();
                     if (this.currentLang === 'en' && window.applyTranslations) {
                         this.$nextTick(() => { window.applyTranslations('en'); });
@@ -11078,9 +11196,12 @@
                     try {
                         const res = await fetch('/api/auth/me');
                         if (res.status === 403 || res.status === 401) {
-                            this.currentUser = null;
-                            localStorage.removeItem('nutri_user');
-                            return;
+                            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                            if (!isLocalhost) {
+                                this.currentUser = null;
+                                localStorage.removeItem('nutri_user');
+                                return;
+                            }
                         }
                         if (res.ok) {
                             const me = await res.json();
@@ -13261,6 +13382,9 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
 
             toggleAppMode() {
                 this.appMode = this.appMode === 'coaching' ? 'full' : 'coaching';
+                try {
+                    localStorage.setItem('app_mode_override', this.appMode);
+                } catch (e) {}
                 const msg = this.appMode === 'coaching' ? '🎯 עברת למצב ליווי מתאמנים ממוקד (איתמר)' : '🌐 עברת למצב פלטפורמה מלאה (כולל שותפים ו-B2B)';
                 this.showToast(msg);
             },

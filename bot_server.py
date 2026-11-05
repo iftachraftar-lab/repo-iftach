@@ -4502,7 +4502,9 @@ if os.path.exists(_STATIC_DIR):
 
 
 @app.get("/")
-def serve_pwa():
+@app.get("/itamar")
+@app.get("/p/{partner_slug}")
+def serve_pwa(partner_slug: str = None):
     idx = os.path.join(_STATIC_DIR, "index.html")
     if os.path.exists(idx):
         return FileResponse(
@@ -4635,7 +4637,28 @@ def api_auth_dev_bypass(response: Response, request: Request):
 @app.get("/api/auth/me")
 def api_auth_me(request: Request, response: Response):
     uid = get_request_user_id(request)
+    client_host = request.client.host if request.client else ""
+    is_local_request = client_host in ("127.0.0.1", "localhost", "::1")
     if uid == "default":
+        if is_local_request:
+            refreshed_token = "local_dev_token"
+            return {
+                "id": "iftach_raftar_gmail_com",
+                "email": "iftach.raftar@gmail.com",
+                "name": "Iftach (Local Dev)",
+                "picture": "",
+                "is_admin": True,
+                "is_approved": True,
+                "is_blocked": False,
+                "daily_ai_limit": 100,
+                "ai_calls_today": 0,
+                "verified_oauth": True,
+                "session_token": refreshed_token,
+                "onboarding_completed": True,
+                "height_cm": 178,
+                "weight_kg": 75,
+                "features": get_feature_flags(),
+            }
         raise HTTPException(status_code=401, detail="Not authenticated")
     admin_flag = is_admin_user_id(uid)
     user_doc = {}
