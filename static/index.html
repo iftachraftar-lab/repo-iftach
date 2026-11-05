@@ -6756,7 +6756,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=69').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=70').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -11114,6 +11114,23 @@
                         this.$nextTick(() => { window.applyTranslations('en'); });
                     }
                     const urlParams = new URLSearchParams(window.location.search);
+                    const inviteParam = urlParams.get('invite');
+                    if (inviteParam) {
+                        try {
+                            const inviteRes = await fetch('/api/auth/invite/' + encodeURIComponent(inviteParam), { method: 'POST' });
+                            if (inviteRes.ok) {
+                                const traineeUser = await inviteRes.json();
+                                await this.setLoggedInUser(traineeUser);
+                                this.appMode = 'coaching';
+                                this.showToast('🎉 ברוך הבא לתוכנית הליווי, ' + (traineeUser.name || '') + '!');
+                            } else {
+                                const err = await inviteRes.json().catch(() => ({}));
+                                this.showToast(err.detail || 'קוד ההזמנה אינו תקין או שפג תוקפו', 'error');
+                            }
+                        } catch (e) {
+                            console.error('Invite login error:', e);
+                        }
+                    }
                     if (urlParams.get('scan') === '1' || urlParams.get('viewfinder') === '1' || window.location.hash.includes('scanner')) {
                         setTimeout(() => { this.showLiveViewfinder = true; }, 300);
                     }
@@ -11126,18 +11143,6 @@
                         this.checkPushStatus();
                         this.fetchMessagingStatus();
                         this.fetchCoachTrainees();
-                        const inviteParam = urlParams.get('invite');
-                        if (inviteParam) {
-                            fetch('/api/auth/invite/' + encodeURIComponent(inviteParam), { method: 'POST' })
-                                .then(r => r.ok ? r.json() : null)
-                                .then(traineeUser => {
-                                    if (traineeUser) {
-                                        this.currentUser = traineeUser;
-                                        this.appMode = 'coaching';
-                                        this.showToast('ברוך הבא לתוכנית הליווי, ' + traineeUser.name + '!');
-                                    }
-                                }).catch(e => console.error('Invite login error:', e));
-                        }
                         await this.fetchVisionLogs();
                         await Promise.all([
                             this.fetchSummary(),
@@ -11160,9 +11165,11 @@
                         } catch (e) {}
                     }
                     
-                    // Check if first-time user needs Onboarding (Stage 2)
-                    if (!localStorage.getItem('nutri_onboarding_completed') && (!this.currentUser || !this.currentUser.onboarding_completed)) {
-                        setTimeout(() => { this.showOnboardingModal = true; }, 700);
+                    // Check if an authenticated user needs Onboarding (Stage 2) - Never show to unauthenticated guests!
+                    if (this.currentUser && (this.currentUser.is_approved !== false || this.currentUser.is_admin)) {
+                        if (!localStorage.getItem('nutri_onboarding_completed') && !this.currentUser.onboarding_completed) {
+                            setTimeout(() => { this.showOnboardingModal = true; }, 700);
+                        }
                     }
                     if (localStorage.getItem('water_reminders_active') === 'true') {
                         this.waterRemindersActive = true;
@@ -11352,6 +11359,9 @@
                         this.showToast(`🎉 ברוך הבא ${user.name}! שויכו ${claimedMeals} ארוחות קיימות לחשבונך.`);
                     } else {
                         this.showToast(`👋 שלום ${user.name}! התחברת בהצלחה.`);
+                    }
+                    if (!verifiedUser.onboarding_completed && !localStorage.getItem('nutri_onboarding_completed')) {
+                        setTimeout(() => { this.showOnboardingModal = true; }, 700);
                     }
                 },
 
@@ -13372,6 +13382,12 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             },
 
             async submitOnboarding() {
+                if (!this.currentUser) {
+                    this.showOnboardingModal = false;
+                    this.openUserAuthModal();
+                    this.showToast('יש להתחבר עם חשבון Google תחילה', 'warning');
+                    return;
+                }
                 this.onboardingSaving = true;
                 try {
                     const res = await fetch('/api/user/onboarding', {
@@ -13392,12 +13408,26 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     });
                     if (res.ok) {
                         localStorage.setItem('nutri_onboarding_completed', 'true');
+                        if (this.currentUser) {
+                            this.currentUser.onboarding_completed = true;
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        }
                         this.showOnboardingModal = false;
                         await this.fetchSummary();
                         this.showToast('🎉 היעדים האישיים שלך הוגדרו ונשמרו בהצלחה!');
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        if (res.status === 401) {
+                            this.showOnboardingModal = false;
+                            this.openUserAuthModal();
+                            this.showToast(err.detail || 'יש להתחבר עם חשבון Google תחילה', 'warning');
+                        } else {
+                            this.showToast(err.detail || 'שגיאה בשמירת יעדי האונבורדינג', 'error');
+                        }
                     }
                 } catch (e) {
-                    alert('שגיאה בשמירת יעדי האונבורדינג');
+                    console.error('submitOnboarding error:', e);
+                    this.showToast('שגיאה בתקשורת מול השרת', 'error');
                 } finally {
                     this.onboardingSaving = false;
                 }

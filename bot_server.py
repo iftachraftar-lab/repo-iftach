@@ -6177,6 +6177,8 @@ def api_auth_invite(invite_code: str, response: Response):
         "is_approved": True,
         "session_token": token,
         "telegram_linked": bool(trainee.get("telegram_linked")),
+        "verified_oauth": True,
+        "onboarding_completed": bool(trainee.get("onboarding_completed", False)),
     }
 
 
@@ -8346,7 +8348,12 @@ def api_set_water(req: WaterSetRequest, request: Request):
 
 @app.post("/api/user/onboarding")
 def api_save_onboarding(req: OnboardingSaveRequest, request: Request):
-    uid = require_approved_user(request)
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר עם חשבון Google תחילה")
+    udoc = get_user_doc_db(uid)
+    if udoc.get("is_blocked"):
+        raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
     today_str = get_israel_today_str()
     
     user_updates = {

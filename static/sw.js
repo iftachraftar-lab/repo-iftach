@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutriagent-v69";
+const CACHE_NAME = "nutriagent-v70";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
