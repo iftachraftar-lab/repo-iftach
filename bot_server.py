@@ -1026,8 +1026,8 @@ def require_approved_user(request: Request) -> str:
 
 def check_and_increment_ai_quota(user_id: str) -> None:
     uid = _normalize_user_id(user_id)
-    if is_admin_user_id(uid):
-        # Owner / Admin has unlimited AI quota, still track usage count for visibility
+    if is_super_admin_user_id(uid):
+        # Only Super Admin (Owner / Iftach) has unlimited AI quota, still track usage count for visibility
         today_str = get_israel_today_str()
         udoc = get_user_doc_db(uid)
         used = int(udoc.get("ai_calls_today") or 0) if udoc.get("ai_quota_date") == today_str else 0
@@ -1049,7 +1049,7 @@ def check_and_increment_ai_quota(user_id: str) -> None:
     udoc = get_user_doc_db(uid)
     if udoc.get("is_blocked"):
         raise HTTPException(status_code=403, detail="החשבון שלך נחסם על ידי מנהל המערכת")
-    if not udoc.get("approved_by_owner", False):
+    if not udoc.get("approved_by_owner", False) and not is_admin_user_id(uid):
         raise HTTPException(status_code=403, detail="חשבונך ממתין לאישור מנהל המערכת")
 
     limit = int(udoc.get("daily_ai_limit") if udoc.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
@@ -5855,10 +5855,8 @@ def api_suggest_slot_meal(req: SlotSuggestRequest, request: Request):
     if ai_client:
         try:
             if uid != "default":
-                try:
-                    check_and_increment_ai_quota(uid)
-                except Exception:
-                    pass
+                # Enforce daily AI quota (15/day for users, trainees and coaches/Itamar)
+                check_and_increment_ai_quota(uid)
             cal_target = req.target_calories or (540 if slot_key == "lunch" else (350 if "snack" not in slot_key else 150))
             prot_target = req.target_protein or (45 if slot_key == "lunch" else (25 if "snack" not in slot_key else 15))
             user_pref = f" שים לב שהמנה הקודמת הייתה '{req.preference}', נא לגוון ולהציע מנה שונה לחלוטין!" if req.preference else ""
@@ -5883,15 +5881,24 @@ def api_suggest_slot_meal(req: SlotSuggestRequest, request: Request):
                     "description": parsed.summary,
                     "calories": parsed.calories,
                     "protein_g": parsed.protein_g,
-                    "items": [it.model_dump() for it in parsed.items] if parsed.items else []
+                    "items": [it.model_dump() for it in parsed.items] if parsed.items else [],
+                    "ai_generated": True
                 }
+        except HTTPException as http_exc:
+            if http_exc.status_code == 429:
+                print(f"User {uid} reached daily AI quota ({DEFAULT_DAILY_AI_LIMIT}/day) for slot suggestions, falling back to preset without calling Gemini")
+            else:
+                raise
         except Exception as e:
             print(f"Error in dynamic slot suggestion, using random preset fallback: {e}")
 
     # Fallback: pick a different preset randomly every time (excluding current preference if possible)
     import random
     candidates = [p for p in presets if p.get("description") != req.preference]
-    return random.choice(candidates if candidates else presets)
+    chosen = random.choice(candidates if candidates else presets)
+    res = dict(chosen)
+    res["quota_reached"] = True
+    return res
 
 
 @app.post("/api/meals/")

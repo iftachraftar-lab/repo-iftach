@@ -6970,7 +6970,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=77').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=78').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -13285,7 +13285,11 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         try {
                             localStorage.setItem('nutri_slot_sug_' + slot.key, JSON.stringify(data));
                         } catch (e) {}
-                        this.showToast(`✨ עודכנה הצעה חדשה ל${slot.title}!`);
+                        if (data.quota_reached) {
+                            this.showToast(`✨ הוצעה מנה מגוונת מהמאגר (מכסת AI יומית: 15/15)`);
+                        } else {
+                            this.showToast(`✨ עודכנה הצעה חדשה ל${slot.title}!`);
+                        }
                     } else {
                         const err = await res.json().catch(() => ({}));
                         this.showToast(err.detail || 'שגיאה ברענון ההצעה', 'error');
