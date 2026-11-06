@@ -4625,6 +4625,7 @@ def api_auth_google(req: GoogleAuthRequest, response: Response):
             httponly=True,
             secure=True,
             samesite="lax",
+            path="/",
         )
         return profile
     except Exception as e:
@@ -4668,6 +4669,7 @@ def api_auth_dev_bypass(response: Response, request: Request):
         max_age=SESSION_TOKEN_TTL_SECONDS,
         httponly=False,
         samesite="lax",
+        path="/",
     )
     return {
         "status": "ok",
@@ -4734,6 +4736,7 @@ def api_auth_me(request: Request, response: Response):
         httponly=True,
         secure=True,
         samesite="lax",
+        path="/",
     )
     role = "super_admin" if super_admin_flag else ("admin" if admin_flag else ("coach" if coach_flag else "user"))
     return {
@@ -6233,6 +6236,7 @@ def api_auth_invite(invite_code: str, response: Response):
         httponly=True,
         secure=True,
         samesite="lax",
+        path="/",
     )
     return {
         "id": uid,

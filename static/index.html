@@ -7157,7 +7157,7 @@
                     if (!headers.has('X-User-Id')) {
                         headers.set('X-User-Id', uid);
                     }
-                    init = { ...init, headers, credentials: init.credentials || 'same-origin' };
+                    init = { ...init, headers, credentials: 'include' };
                 }
             } catch (e) {
                 console.warn('Fetch interceptor warn:', e);
@@ -7167,7 +7167,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=83').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=84').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -11614,10 +11614,29 @@
 
                 async verifyCurrentUserSession() {
                     try {
-                        const res = await fetch('/api/auth/me');
-                        if (res.status === 403 || res.status === 401) {
+                        const token = this.currentUser?.session_token || '';
+                        const headers = {};
+                        if (token) {
+                            headers['Authorization'] = 'Bearer ' + token;
+                            headers['X-Session-Token'] = token;
+                        }
+                        const res = await fetch('/api/auth/me', {
+                            headers,
+                            credentials: 'include'
+                        });
+                        if (res.status === 403) {
+                            // User blocked explicitly by owner
                             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
                             if (!isLocalhost) {
+                                this.currentUser = null;
+                                localStorage.removeItem('nutri_user');
+                                return;
+                            }
+                        }
+                        if (res.status === 401) {
+                            // Only clear local user if we don't have a valid local token or if server explicitly rejected the bearer token
+                            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                            if (!isLocalhost && !token) {
                                 this.currentUser = null;
                                 localStorage.removeItem('nutri_user');
                                 return;
@@ -11628,7 +11647,8 @@
                             this.currentUser = {
                                 ...this.currentUser,
                                 ...me,
-                                verified_oauth: true
+                                verified_oauth: true,
+                                session_token: me.session_token || this.currentUser?.session_token || ''
                             };
                             localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
                             if (!this.currentUser.is_admin && this.activeTab === 'admin') {
@@ -11734,6 +11754,7 @@
                         const res = await fetch('/api/auth/google', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
                             body: JSON.stringify({ credential: response.credential })
                         });
                         if (!res.ok) {
