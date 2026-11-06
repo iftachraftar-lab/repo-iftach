@@ -746,7 +746,7 @@
                     <!-- Top Sub-Header: Tag + Remaining Calories Budget Badge -->
                     <div class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
-                            <span class="text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">מבט על יומי</span>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">מבט על יומי</span>
                             <span class="text-xs text-slate-400 font-medium" x-text="`${todayMeals.length} ארוחות שתועדו`"></span>
                         </div>
                         <span class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs flex-shrink-0"
@@ -765,24 +765,23 @@
                         <!-- Mode Switcher: Strictly restricted to Admin ONLY (Hidden from organic users and Itamar trainees) -->
                         <button x-cloak x-show="currentUser && currentUser.is_admin" type="button" @click="toggleAppMode()"
                                 class="px-3 py-1.5 rounded-xl text-xs font-black border transition flex items-center gap-1.5 cursor-pointer"
-                                :class="appMode === 'coaching' ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-700'"
+                                :class="appMode === 'coaching' ? 'bg-slate-900 border-slate-900 text-white shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-700'"
                                 title="החלף בין מצב ליווי מתאמנים ממוקד (איתמר) למצב פלטפורמה מלא (למנהל בלבד)">
                             <span x-text="appMode === 'coaching' ? '🎯 מצב ליווי מתאמנים (איתמר)' : '🌐 מצב פלטפורמה מלא'"></span>
                         </button>
                         <button type="button" @click="showAchievementsModal = true"
-                                class="px-3 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-900 border border-amber-200/90 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                                 :title="t('streakCardTitle', 'פתח הישגים ומסלול התמדה')">
                             <span class="text-sm">🔥</span>
                             <span x-text="currentStreak + ' ' + t('streakDays', 'ימים ברצף')"></span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                         </button>
                         <button type="button" @click="openBmiWizard()"
-                                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                                 :title="t('reopenWizard', 'אשף BMI וכיול קלוריות')">
-                            <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0"><use href="#icon-scale-weight"></use></svg>
+                            <svg class="w-3.5 h-3.5 text-slate-600 flex-shrink-0"><use href="#icon-scale-weight"></use></svg>
                             <span x-text="t('calibrateBmi', 'כייל לפי BMI')">כייל לפי BMI</span>
                         </button>
-                        <div x-show="summary.burned_calories > 0" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5">
+                        <div x-show="summary.burned_calories > 0" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-[15px]">directions_run</span>
                             <span x-text="`${summary.burned_calories} קק״ל נשרפו`"></span>
                         </div>
@@ -808,7 +807,7 @@
                                         :stroke-dashoffset="439.82 - (Math.min(100, caloriePercent) / 100) * 439.82"></circle>
 
                                 <!-- Ring 2: Protein (Middle, radius 58, circumference = 364.42) -->
-                                <circle class="text-indigo-600 transition-all duration-700 ease-out"
+                                <circle class="text-slate-700 transition-all duration-700 ease-out"
                                         cx="80" cy="80" fill="none" r="58" stroke="currentColor" stroke-width="8"
                                         stroke-linecap="round"
                                         stroke-dasharray="364.42"
@@ -826,14 +825,14 @@
                                 <span class="text-2xl sm:text-3xl font-black text-slate-900 leading-none tracking-tight" x-text="summary.total_calories.toLocaleString()">0</span>
                                 <span class="text-[11px] text-slate-500 mt-1 font-semibold">יעד: <span x-text="summary.target_calories">1,800</span> קק״ל</span>
                                 <div x-show="summary.burned_calories > 0" class="mt-0.5 flex items-center gap-1">
-                                    <span class="text-[9px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full">
+                                    <span class="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">
                                         🔥 +<span x-text="summary.burned_calories"></span> נשרפו
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-1 mt-1 flex-wrap justify-center">
-                                    <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded" x-text="`${caloriePercent}% קל׳`"></span>
-                                    <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded" x-text="`${proteinPercent}% חלבון`"></span>
-                                    <span class="text-[9px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded" x-text="`💧 ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></span>
+                                    <span class="text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded" x-text="`${caloriePercent}% קל׳`"></span>
+                                    <span class="text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded" x-text="`${proteinPercent}% חלבון`"></span>
+                                    <span class="text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded" x-text="`💧 ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></span>
                                 </div>
                             </div>
                         </div>
@@ -843,57 +842,57 @@
                     <div class="md:col-span-7 space-y-4">
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                             <!-- Card 1: Protein -->
-                            <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-between">
                                 <div>
-                                    <div class="flex items-center justify-center gap-1 text-xs font-black text-indigo-700 mb-0.5">
-                                        <svg class="w-3.5 h-3.5"><use href="#icon-protein-shaker"></use></svg>
+                                    <div class="flex items-center justify-center gap-1 text-xs font-extrabold text-slate-700 mb-0.5">
+                                        <svg class="w-3.5 h-3.5 text-slate-600"><use href="#icon-protein-shaker"></use></svg>
                                         <span x-text="t('protein', 'חלבון')">חלבון</span>
                                     </div>
                                     <div class="text-base sm:text-lg font-black text-slate-900">
                                         <span x-text="summary.total_protein.toFixed(0)">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="summary.target_protein">120</span>g</span>
                                     </div>
                                 </div>
-                                <div class="w-full bg-slate-200/80 rounded-full h-2 mt-2 overflow-hidden">
-                                    <div class="bg-indigo-600 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, proteinPercent)}%`"></div>
+                                <div class="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
+                                    <div class="bg-emerald-600 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, proteinPercent)}%`"></div>
                                 </div>
                             </div>
 
                             <!-- Card 2: Carbs -->
-                            <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-between">
                                 <div>
-                                    <div class="flex items-center justify-center gap-1 text-xs font-black text-amber-700 mb-0.5">
-                                        <svg class="w-3.5 h-3.5"><use href="#icon-target-goal"></use></svg>
+                                    <div class="flex items-center justify-center gap-1 text-xs font-extrabold text-slate-700 mb-0.5">
+                                        <svg class="w-3.5 h-3.5 text-slate-600"><use href="#icon-target-goal"></use></svg>
                                         <span x-text="t('carbs', 'פחמימות')">פחמימות</span>
                                     </div>
                                     <div class="text-base sm:text-lg font-black text-slate-900">
                                         <span x-text="totalCarbs">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="targetCarbs">200</span>g</span>
                                     </div>
                                 </div>
-                                <div class="w-full bg-slate-200/80 rounded-full h-2 mt-2 overflow-hidden">
-                                    <div class="bg-amber-500 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, carbsPercent)}%`"></div>
+                                <div class="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
+                                    <div class="bg-slate-400 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, carbsPercent)}%`"></div>
                                 </div>
                             </div>
 
                             <!-- Card 3: Fats -->
-                            <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-between">
                                 <div>
-                                    <div class="flex items-center justify-center gap-1 text-xs font-black text-teal-700 mb-0.5">
-                                        <svg class="w-3.5 h-3.5"><use href="#icon-scale-weight"></use></svg>
+                                    <div class="flex items-center justify-center gap-1 text-xs font-extrabold text-slate-700 mb-0.5">
+                                        <svg class="w-3.5 h-3.5 text-slate-600"><use href="#icon-scale-weight"></use></svg>
                                         <span x-text="t('fats', 'שומנים')">שומנים</span>
                                     </div>
                                     <div class="text-base sm:text-lg font-black text-slate-900">
                                         <span x-text="totalFats">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="targetFats">60</span>g</span>
                                     </div>
                                 </div>
-                                <div class="w-full bg-slate-200/80 rounded-full h-2 mt-2 overflow-hidden">
-                                    <div class="bg-teal-600 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, fatsPercent)}%`"></div>
+                                <div class="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
+                                    <div class="bg-slate-400 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, fatsPercent)}%`"></div>
                                 </div>
                             </div>
 
                             <!-- Card 4: Water (Directly in Metabolic Journal) -->
-                            <div class="p-3 rounded-2xl bg-sky-50/80 border border-sky-200/70 flex flex-col justify-between">
+                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-between">
                                 <div>
-                                    <div class="flex items-center justify-center gap-1 text-xs font-black text-sky-700 mb-0.5">
+                                    <div class="flex items-center justify-center gap-1 text-xs font-extrabold text-slate-700 mb-0.5">
                                         <span>💧</span>
                                         <span>מים</span>
                                     </div>
@@ -901,27 +900,27 @@
                                         <span x-text="((summary.water_ml || 0) / 1000).toFixed(1)">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="((summary.water_target_ml || 2500) / 1000).toFixed(1)">2.5</span>L</span>
                                     </div>
                                 </div>
-                                <div class="w-full bg-slate-200/80 rounded-full h-2 mt-2 overflow-hidden">
-                                    <div class="bg-gradient-to-r from-sky-400 to-blue-600 h-full rounded-full transition-all duration-700"
+                                <div class="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
+                                    <div class="bg-sky-500 h-full rounded-full transition-all duration-700"
                                          :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Real-time AI Coach Status Line -->
-                        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/60 flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white flex-shrink-0 mt-0.5 shadow-2xs">
-                                <span class="material-symbols-outlined text-[18px]">smart_toy</span>
+                        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-start gap-3">
+                            <div class="w-7 h-7 rounded-xl bg-slate-800 flex items-center justify-center text-white flex-shrink-0 mt-0.5 shadow-2xs">
+                                <span class="material-symbols-outlined text-[16px]">smart_toy</span>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center justify-between gap-2">
-                                    <span class="text-xs font-extrabold text-emerald-800">המלצת מנוע AI בזמן אמת</span>
-                                    <button @click="analyzeDayWithCoach()" :disabled="coachLoading" class="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 underline cursor-pointer">
+                                    <span class="text-xs font-black text-slate-900">המלצת מאמן AI</span>
+                                    <button @click="analyzeDayWithCoach()" :disabled="coachLoading" class="text-[11px] font-bold text-slate-600 hover:text-slate-900 underline cursor-pointer">
                                         <span x-show="!coachLoading">נתח יום</span>
                                         <span x-show="coachLoading">מנתח...</span>
                                     </button>
                                 </div>
-                                <p class="text-xs text-slate-700 mt-0.5 leading-relaxed"
+                                <p class="text-xs text-slate-600 mt-0.5 leading-relaxed"
                                    x-text="coachInsight?.headline || (summary.target_protein - summary.total_protein > 0 ? `נדרשים עוד ${Math.max(0, Math.round(summary.target_protein - summary.total_protein))} גרם חלבון להגעה ליעד היומי והשגת קצב התאוששות אופטימלי.` : '🎉 הגעת ליעד החלבון היומי שלך בהצלחה!')">
                                 </p>
                             </div>
@@ -1141,23 +1140,23 @@
                         </button>
                     </div>
 
-                    <!-- Floor 1: 4 Equal Fast-Action Buttons (Voice, Camera, Barcode, Gallery) -->
+                    <!-- Floor 1: 4 Equal Fast-Action Buttons (Calm, Unified & Accessible) -->
                     <div class="grid grid-cols-4 gap-2 sm:gap-2.5">
                         <!-- 1. Voice Recording Button -->
                         <button type="button"
                                 @click="isRecordingVoice ? stopAndSubmitVoiceRecording() : startVoiceRecording()"
                                 :disabled="aiAnalyzing"
-                                :class="isRecordingVoice ? 'bg-rose-600 text-white border-rose-600 animate-pulse' : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200/90 text-indigo-900'"
-                                class="h-16 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
-                            <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-voice-mic"></use></svg>
+                                :class="isRecordingVoice ? 'bg-rose-50 border-rose-400 text-rose-700 animate-pulse font-black' : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-700'"
+                                class="h-14 sm:h-15 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
+                            <svg class="w-5 h-5 flex-shrink-0" :class="isRecordingVoice ? 'text-rose-600' : 'text-slate-600'" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-voice-mic"></use></svg>
                             <span class="text-[11px] leading-none" x-text="isRecordingVoice ? (currentLang === 'en' ? 'Stop' : 'עצור') : (currentLang === 'en' ? 'Voice' : 'קולי')">קולי</span>
                         </button>
 
                         <!-- 2. Camera Button (Mobile opens native camera, Desktop opens Live Viewfinder / Webcam) -->
-                        <div class="h-16">
+                        <div class="h-14 sm:h-15">
                             <label x-show="isMobileDevice"
-                                   :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-emerald-100/80 active:scale-95'"
-                                   class="h-full w-full rounded-2xl bg-emerald-50/80 border border-emerald-200/90 text-emerald-900 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
+                                   :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-100/80 active:scale-95'"
+                                   class="h-full w-full rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
                                 <input type="file"
                                        accept="image/*"
                                        capture="environment"
@@ -1165,15 +1164,15 @@
                                        @change="handlePhotoSelect($event, true)"
                                        :disabled="aiAnalyzing"
                                        class="sr-only">
-                                <svg class="w-5 h-5 flex-shrink-0 text-emerald-700" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
+                                <svg class="w-5 h-5 flex-shrink-0 text-slate-600" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
                                 <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Camera' : 'צלם צלחת'">צלם צלחת</span>
                             </label>
                             <button type="button"
                                     x-show="!isMobileDevice"
                                     @click="openLiveCamera()"
                                     :disabled="aiAnalyzing"
-                                    class="h-full w-full rounded-2xl bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/90 text-emerald-900 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
-                                <svg class="w-5 h-5 flex-shrink-0 text-emerald-700" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
+                                    class="h-full w-full rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
+                                <svg class="w-5 h-5 flex-shrink-0 text-slate-600" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
                                 <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Camera' : 'צלם צלחת'">צלם צלחת</span>
                             </button>
                         </div>
@@ -1182,14 +1181,14 @@
                         <button type="button"
                                 @click="openBarcodeScannerModal()"
                                 :disabled="aiAnalyzing"
-                                class="h-16 rounded-2xl bg-amber-50/80 hover:bg-amber-100/80 border border-amber-200/90 text-amber-900 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
-                            <svg class="w-5 h-5 text-amber-800 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-barcode-scanner"></use></svg>
+                                class="h-14 sm:h-15 rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
+                            <svg class="w-5 h-5 text-slate-600 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-barcode-scanner"></use></svg>
                             <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Barcode' : 'ברקוד'">ברקוד</span>
                         </button>
 
                         <!-- 4. Gallery / File Upload Button -->
-                        <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-200/80 active:scale-95'"
-                               class="h-16 rounded-2xl bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
+                        <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-100/80 active:scale-95'"
+                               class="h-14 sm:h-15 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
                             <input type="file"
                                    accept="image/*"
                                    x-ref="photoInput"
@@ -1201,7 +1200,7 @@
                         </label>
                     </div>
 
-                    <!-- Floor 2: Spacious Free-Text Box + Submit Button -->
+                    <!-- Floor 2: Spacious Free-Text Box + Clean Solid Submit Button -->
                     <form @submit.prevent="selectedPhotoDataUrl ? submitPhotoMeal() : submitAIMeal()" class="space-y-3">
                         <div class="relative w-full">
                             <input type="text"
@@ -1211,12 +1210,12 @@
                                    @keydown.escape="showAutocomplete = false"
                                    :disabled="aiAnalyzing || isRecordingVoice"
                                    :placeholder="selectedPhotoDataUrl ? 'הערה לתמונה (אופציונלי: למשל חצי מנה, 2 פרוסות...)' : 'הקלד מה אכלת או שתית (למשל: 2 ביצים, סלט ירקות וכף טחינה)...'"
-                                   class="w-full min-h-[58px] sm:min-h-[64px] px-5 py-3.5 rounded-2xl bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none text-base font-medium text-slate-900 transition shadow-xs">
+                                   class="w-full min-h-[56px] sm:min-h-[60px] px-5 py-3.5 rounded-2xl bg-slate-50/70 hover:bg-white focus:bg-white border-2 border-slate-200 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 outline-none text-base font-medium text-slate-900 transition shadow-2xs">
                         </div>
 
                         <button type="submit"
                                 :disabled="aiAnalyzing || (!aiInputText.trim() && !selectedPhotoDataUrl)"
-                                class="w-full h-13 rounded-2xl bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-bold text-sm sm:text-base shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer">
+                                class="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black text-sm shadow-xs flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer">
                             <span x-show="!aiAnalyzing" x-text="selectedPhotoDataUrl ? 'נתח תמונה והוסף 📸' : 'נתח והוסף ב-AI ✨'"></span>
                             <span x-show="aiAnalyzing" class="flex items-center gap-2">
                                 <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -1490,64 +1489,64 @@
             <!-- ================= DAILY WATER TRACKER & QUICK SHAKE BAR (Itamar Coaching Platform) ================= -->
             <div class="space-y-2.5">
 
-                <!-- Ultra-Clean, Aesthetic & Minimal Water Bar -->
-                <div class="px-3.5 py-2 rounded-2xl bg-sky-50/60 hover:bg-sky-50/80 border border-sky-200/80 transition-all flex items-center justify-between gap-2">
+                <!-- Ultra-Clean, Calm & Minimal Water Bar -->
+                <div class="px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs transition-all flex items-center justify-between gap-2">
                     <!-- Left: Clean Water Status -->
                     <div class="flex items-center gap-2 text-xs min-w-0">
                         <span class="text-base select-none flex-shrink-0">💧</span>
                         <div class="flex items-baseline gap-1.5 min-w-0">
                             <span class="font-bold text-slate-800">שתיית מים</span>
-                            <span class="font-black text-sky-900" x-text="`${(summary.water_ml || 0).toLocaleString()} מ״ל`"></span>
+                            <span class="font-black text-slate-900" x-text="`${(summary.water_ml || 0).toLocaleString()} מ״ל`"></span>
                             <span class="text-slate-400 text-[11px]">/ <span x-text="`${(summary.water_target_ml || 2500).toLocaleString()}`"></span></span>
-                            <span class="text-[10px] font-bold text-sky-700 bg-sky-100/90 px-1.5 py-0.5 rounded-md"
+                            <span class="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md"
                                   x-text="`${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></span>
                         </div>
                     </div>
 
-                    <!-- Right: Aesthetic Light Buttons -->
+                    <!-- Right: Aesthetic Clean Buttons -->
                     <div class="flex items-center gap-1.5 flex-shrink-0">
                         <button type="button" @click="decreaseWater(250)" :disabled="(summary.water_ml || 0) <= 0"
                                 title="הפחת 250 מ״ל"
-                                class="h-7 w-7 rounded-lg bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 font-bold text-xs transition cursor-pointer flex items-center justify-center disabled:opacity-25 active:scale-95 shadow-2xs">
+                                class="h-7 w-7 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 font-bold text-xs transition cursor-pointer flex items-center justify-center disabled:opacity-25 active:scale-95 shadow-2xs">
                             –
                         </button>
                         <button type="button" @click="addWater(250)"
                                 title="הוסף כוס (250 מ״ל)"
-                                class="h-7 px-2.5 rounded-lg bg-white hover:bg-sky-50 text-sky-900 border border-sky-200 font-extrabold text-xs transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-2xs">
+                                class="h-7 px-2.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-extrabold text-xs transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-2xs">
                             <span>+250</span>
-                            <span class="text-[10px] text-sky-500 font-normal">מ״ל</span>
+                            <span class="text-[10px] text-slate-400 font-normal">מ״ל</span>
                         </button>
                         <button type="button" @click="addWater(500)"
                                 title="הוסף בקבוק (500 מ״ל)"
-                                class="h-7 px-2.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-2xs">
+                                class="h-7 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-2xs">
                             <span>+500</span>
-                            <span class="text-[10px] text-sky-200 font-normal">מ״ל</span>
+                            <span class="text-[10px] text-slate-300 font-normal">מ״ל</span>
                         </button>
                         <button type="button" @click="toggleWaterReminders()"
                                 :title="waterRemindersActive ? 'תזכורות מים פעילות' : 'הפעל תזכורות מים'"
                                 class="h-7 w-7 rounded-lg transition cursor-pointer flex items-center justify-center text-xs border"
-                                :class="waterRemindersActive ? 'bg-sky-100 text-sky-700 border-sky-300' : 'bg-white text-slate-300 border-slate-200 hover:text-slate-500'">
+                                :class="waterRemindersActive ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-white text-slate-300 border-slate-200 hover:text-slate-500'">
                             🔔
                         </button>
                     </div>
                 </div>
 
-                <!-- Clean Quick Protein Shake Bar (Subtle & Functional) -->
-                <div class="px-3.5 py-2 rounded-2xl bg-amber-50/60 border border-amber-200/80 flex items-center justify-between gap-2">
+                <!-- Clean Quick Protein Shake Bar (Neutral, Calm & Functional) -->
+                <div class="px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2 text-xs">
                         <span class="text-base select-none">🥤</span>
                         <span class="font-bold text-slate-800">שייק חלבון יומי</span>
-                        <span class="text-slate-500 text-[11px]">(180 קק״ל • 25g חלבון)</span>
+                        <span class="text-slate-400 text-[11px]">(180 קק״ל • 25g חלבון)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <button type="button" @click="logHoldonShake('afternoon_snack')"
                                 :disabled="isLoggingShake"
-                                class="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 disabled:opacity-50 text-amber-950 font-bold text-xs transition cursor-pointer flex items-center gap-1">
+                                class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-800 border border-slate-200/80 font-bold text-xs transition cursor-pointer flex items-center gap-1 shadow-2xs">
                             <span>⚡</span>
                             <span x-text="isLoggingShake ? 'רושם...' : 'רשום שייק'">רשום שייק</span>
                         </button>
                         <button type="button" @click="showHoldonAffiliateModal = true"
-                                class="text-[10px] text-amber-800 hover:underline px-1 cursor-pointer" title="פרטי קופון">
+                                class="text-[10px] text-slate-500 hover:text-slate-800 hover:underline px-1 cursor-pointer" title="פרטי קופון">
                             הטבה
                         </button>
                     </div>
@@ -1577,7 +1576,7 @@
                         <div class="rounded-3xl p-4 sm:p-5 transition space-y-3 relative overflow-hidden"
                              :class="[
                                  slot.borderClass,
-                                 getSlotLoggedMeal(slot.key) ? 'border-emerald-400/80 bg-emerald-50/25 ring-2 ring-emerald-400/20 shadow-xs' : '',
+                                 getSlotLoggedMeal(slot.key) ? 'border-emerald-500/80 bg-white ring-2 ring-emerald-500/15 shadow-xs' : '',
                                  isSlotSkipped(slot.key) ? 'opacity-65 border-dashed border-slate-300 bg-slate-50/80' : ''
                              ]">
                             <!-- Slot Card Header -->
@@ -1587,12 +1586,12 @@
                                     <div>
                                         <div class="flex items-center gap-2 flex-wrap">
                                             <h3 class="font-black text-sm sm:text-base text-slate-900" x-text="slot.title"></h3>
-                                            <!-- Yellow Highlight Badge for Main Meal (Lunch) -->
-                                            <span x-show="slot.isMainMeal" class="px-2 py-0.5 rounded-full bg-yellow-400 text-slate-950 font-black text-[10px] border border-yellow-500 shadow-2xs">
+                                            <!-- Prominent Badge for Main Meal (Lunch) -->
+                                            <span x-show="slot.isMainMeal" class="px-2 py-0.5 rounded-full bg-slate-900 text-white font-extrabold text-[10px] shadow-2xs">
                                                 ⭐️ ארוחה עיקרית
                                             </span>
                                             <!-- Calorie Range Target Pill -->
-                                            <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold"
+                                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold"
                                                   :class="slot.badgeClass" x-text="slot.calRange"></span>
                                         </div>
                                         <span class="text-[11px] text-slate-500 font-semibold" x-text="slot.styleLabel"></span>
@@ -1602,7 +1601,7 @@
                                 <!-- Slot State Badge -->
                                 <div class="flex items-center gap-1.5 flex-shrink-0">
                                     <template x-if="getSlotLoggedMeal(slot.key)">
-                                        <span class="px-2.5 py-1 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center gap-1 shadow-2xs">
+                                        <span class="px-2.5 py-1 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center gap-1 shadow-2xs">
                                             <span>✓</span>
                                             <span>נאכל</span>
                                         </span>
@@ -1619,15 +1618,15 @@
                             </div>
 
                             <!-- ================= STATE 1: LOGGED MEAL (נאכל בהצלחה) ================= -->
-                            <div x-show="getSlotLoggedMeal(slot.key)" class="p-3.5 rounded-2xl bg-white/95 border border-emerald-200/90 shadow-2xs space-y-2">
+                            <div x-show="getSlotLoggedMeal(slot.key)" class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <p class="font-extrabold text-sm text-slate-900" x-text="getSlotLoggedMeal(slot.key)?.description || ''"></p>
                                         <div class="flex items-center gap-2 mt-1 text-xs text-slate-500 flex-wrap">
-                                            <span class="inline-flex items-center gap-1 font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
+                                            <span class="inline-flex items-center gap-1 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                                                 💪 <span x-text="`${Number(getSlotLoggedMeal(slot.key)?.protein_g || 0).toFixed(1)}g חלבון`"></span>
                                             </span>
-                                            <span class="inline-flex items-center gap-1 font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                                            <span class="inline-flex items-center gap-1 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                                                 🔥 <span x-text="`${getSlotLoggedMeal(slot.key)?.calories || 0} קק״ל`"></span>
                                             </span>
                                             <span class="text-slate-400 font-mono text-[11px]">
@@ -1639,13 +1638,13 @@
                                     <!-- Edit, Replace and Delete Actions -->
                                     <div class="flex items-center gap-1.5 flex-shrink-0">
                                         <button type="button" @click="replaceSlotMeal(slot)"
-                                                class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 text-xs font-black transition flex items-center gap-1 cursor-pointer"
+                                                class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                                                 title="החלף ארוחה זו בארוחה אחרת או קבל הצעת AI">
                                             <span>🔄</span>
                                             <span>החלף ארוחה</span>
                                         </button>
                                         <button type="button" @click="openEditMeal(getSlotLoggedMeal(slot.key))"
-                                                class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition cursor-pointer" title="ערוך פרטי ארוחה זו">
+                                                class="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer" title="ערוך פרטי ארוחה זו">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
                                         </button>
                                         <button type="button" @click="confirmDelete(getSlotLoggedMeal(slot.key))"
@@ -1660,7 +1659,7 @@
                             <div x-show="!getSlotLoggedMeal(slot.key) && isSlotSkipped(slot.key)" class="p-3 rounded-2xl bg-slate-100/80 border border-slate-200 flex items-center justify-between text-xs">
                                 <span class="text-slate-500 font-bold">ארוחה זו דולגה (צום לסירוגין / ללא נשנוש)</span>
                                 <button type="button" @click="toggleSkipSlot(slot.key)"
-                                        class="text-indigo-600 hover:text-indigo-800 font-extrabold cursor-pointer">
+                                        class="text-slate-700 hover:text-slate-900 font-extrabold cursor-pointer">
                                     בטל דילוג
                                 </button>
                             </div>
@@ -1677,20 +1676,20 @@
                                         <!-- Refresh / Shuffle Suggestion Button -->
                                         <button type="button" @click="refreshSlotSuggestionByKey(slot.key)"
                                                 :disabled="!!(slotShuffling && slotShuffling[slot.key])"
-                                                class="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 text-xs font-black transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs">
+                                                class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs">
                                             <span :class="{'animate-spin': slotShuffling && slotShuffling[slot.key]}">🔄</span>
                                             <span x-text="(slotShuffling && slotShuffling[slot.key]) ? 'מחליף הצעה...' : 'החלף להצעה אחרת (AI)'"></span>
                                         </button>
                                     </div>
 
-                                    <p class="font-black text-xs sm:text-sm text-slate-900 leading-snug"
+                                    <p class="font-bold text-xs sm:text-sm text-slate-900 leading-snug"
                                        x-text="(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion)?.description || ''"></p>
 
                                     <div class="flex items-center justify-between text-[11px] text-slate-500 font-bold pt-0.5">
                                         <div class="flex items-center gap-2">
-                                            <span class="text-amber-800" x-text="`🔥 ${(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion)?.calories || 0} קק״ל`"></span>
+                                            <span class="text-slate-700" x-text="`🔥 ${(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion)?.calories || 0} קק״ל`"></span>
                                             <span class="text-slate-300">•</span>
-                                            <span class="text-indigo-700" x-text="`💪 ${(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion)?.protein_g || 0}g חלבון`"></span>
+                                            <span class="text-emerald-700 font-bold" x-text="`💪 ${(slot.suggestion || slotSuggestions[slot.key] || slot.defaultSuggestion)?.protein_g || 0}g חלבון`"></span>
                                         </div>
                                         <span class="text-slate-400 text-[10px]" x-text="`שעה מומלצת: ${slot.defaultTime}`"></span>
                                     </div>
@@ -1698,22 +1697,22 @@
 
                                 <!-- Clean Quick Shake Option (Afternoon Snack only) -->
                                 <div x-show="slot.key === 'afternoon_snack'"
-                                     class="p-2 rounded-xl bg-amber-50/50 border border-amber-200/70 flex items-center justify-between gap-2 text-xs">
+                                     class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/90 flex items-center justify-between gap-2 text-xs">
                                     <button type="button" @click="logHoldonShake(slot.key)"
                                             :disabled="isLoggingShake"
-                                            class="py-1 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold text-xs transition cursor-pointer flex items-center gap-1">
+                                            class="py-1 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5">
                                         <span>🥤</span>
                                         <span>שילבתי שייק חלבון (180 קק״ל • 25g)</span>
                                     </button>
                                     <button type="button" @click="showHoldonAffiliateModal = true"
-                                            class="text-[10px] text-amber-800 hover:underline cursor-pointer">
+                                            class="text-[10px] text-slate-500 hover:text-slate-800 hover:underline cursor-pointer">
                                         קוד הנחה
                                     </button>
                                 </div>
 
                                 <!-- Primary 1-Tap Log Action Button -->
                                 <button type="button" @click="logSlotSuggestion(slot)"
-                                        class="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer">
+                                        class="w-full py-2.5 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer">
                                     <span>⚡ אכלתי בדיוק את זה (רישום בטאפ)</span>
                                 </button>
 
@@ -1819,20 +1818,14 @@
                                     <div class="min-w-0">
                                         <p class="font-semibold text-slate-900 text-sm sm:text-base truncate" x-text="tr(meal.description)"></p>
                                         <div class="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
-                                            <span class="inline-flex items-center gap-1 font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                                            <span class="inline-flex items-center gap-1 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                                                 💪 <span x-text="`${Number(meal.protein_g).toFixed(1)}g חלבון`"></span>
                                             </span>
-                                            <span x-show="meal.log_time" class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-mono font-bold border border-amber-200 text-xs flex items-center gap-1">
+                                            <span x-show="meal.log_time" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-medium border border-slate-200 text-xs flex items-center gap-1">
                                                 <span>🕒</span>
                                                 <span x-text="meal.log_time"></span>
                                             </span>
-                                            <span x-show="meal.meal_type" class="px-2 py-0.5 rounded-md text-[11px] font-black"
-                                                  :class="{
-                                                      'bg-amber-100 text-amber-900 border border-amber-300': meal.meal_type === 'breakfast',
-                                                      'bg-sky-100 text-sky-900 border border-sky-300': meal.meal_type === 'lunch',
-                                                      'bg-emerald-100 text-emerald-900 border border-emerald-300': meal.meal_type === 'snack',
-                                                      'bg-indigo-100 text-indigo-900 border border-indigo-300': meal.meal_type === 'dinner'
-                                                  }"
+                                            <span x-show="meal.meal_type" class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200"
                                                   x-text="meal.meal_type === 'breakfast' ? '🌅 בוקר' : (meal.meal_type === 'lunch' ? '☀️ צהריים' : (meal.meal_type === 'dinner' ? '🌙 ערב' : (meal.meal_type === 'snack' ? '🍎 ביניים' : '🍽️ ארוחה')))">
                                             </span>
                                             <span class="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-500"
@@ -6970,7 +6963,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=78').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=79').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -8977,8 +8970,8 @@
                         targetProt: 28,
                         accentColor: 'amber',
                         isMainMeal: false,
-                        borderClass: 'border-amber-200/90 bg-amber-50/40 hover:border-amber-300',
-                        badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+                        borderClass: 'border border-slate-200/90 bg-white hover:border-slate-300 shadow-2xs',
+                        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200 font-bold',
                         defaultTime: '08:30',
                         defaultSuggestion: {
                             description: "2 ביצים (עין / מקושקשת), פרוסת לחם מלא, חצי קוטג' 5%, עגבניה ומלפפון",
@@ -9004,8 +8997,8 @@
                         accentColor: 'teal',
                         isMainMeal: false,
                         isOptional: true,
-                        borderClass: 'border-teal-200/80 bg-teal-50/30 hover:border-teal-300',
-                        badgeClass: 'bg-teal-100 text-teal-900 border-teal-300',
+                        borderClass: 'border border-slate-200/90 bg-white hover:border-slate-300 shadow-2xs',
+                        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200 font-bold',
                         defaultTime: '10:45',
                         defaultSuggestion: {
                             description: "תפוח עץ ירוק גרני סמית' ו-12 שקדים טבעיים",
@@ -9028,8 +9021,8 @@
                         targetProt: 48,
                         accentColor: 'yellow',
                         isMainMeal: true, // Itamar's prominent yellow highlighted main meal!
-                        borderClass: 'border-2 border-yellow-400 bg-yellow-50/80 shadow-xs hover:border-yellow-500 ring-2 ring-yellow-400/25',
-                        badgeClass: 'bg-yellow-400 text-slate-950 font-black border-yellow-500 shadow-2xs',
+                        borderClass: 'border-2 border-slate-300 bg-white shadow-2xs hover:border-slate-400',
+                        badgeClass: 'bg-slate-900 text-white font-extrabold border border-slate-900 shadow-2xs',
                         defaultTime: '13:30',
                         defaultSuggestion: {
                             description: "180 גרם חזה עוף מתובל, כוס אורז בסמטי מאודה, סלט ירקות וכפית טחינה",
@@ -9053,8 +9046,8 @@
                         targetProt: 25,
                         accentColor: 'emerald',
                         isMainMeal: false,
-                        borderClass: 'border-emerald-200/90 bg-emerald-50/40 hover:border-emerald-300',
-                        badgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+                        borderClass: 'border border-slate-200/90 bg-white hover:border-slate-300 shadow-2xs',
+                        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200 font-bold',
                         defaultTime: '16:45',
                         defaultSuggestion: {
                             description: "שייק חלבון על בסיס מים / חלב שקדים ללא סוכר ובננה קטנה",
@@ -9077,8 +9070,8 @@
                         targetProt: 38,
                         accentColor: 'indigo',
                         isMainMeal: false,
-                        borderClass: 'border-indigo-200/90 bg-indigo-50/40 hover:border-indigo-300',
-                        badgeClass: 'bg-indigo-100 text-indigo-900 border-indigo-300',
+                        borderClass: 'border border-slate-200/90 bg-white hover:border-slate-300 shadow-2xs',
+                        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200 font-bold',
                         defaultTime: '19:45',
                         defaultSuggestion: {
                             description: "קופסת טונה במים, ביצה קשה, סלט ירקות עשיר עם כף טחינה ופרוסת שיפון",
