@@ -740,13 +740,274 @@
             <!-- REGULAR METABOLIC JOURNAL & SLOTS (Shown when in Summary sub-tab) -->
             <div x-show="coachingSubTab === 'summary'" class="space-y-6">
 
-            <!-- Hero Macro Cards Grid: Stitch Dual Nested Progress Rings & 3 Macro Cards -->
-            <div class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-slate-200/90 relative overflow-hidden">
+            <!-- Interactive Switcher Bar: Switch Between 4 Layout Styles Live -->
+            <div class="p-2 sm:p-2.5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-2 shadow-sm text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="font-bold text-slate-200">סגנון תצוגה עליון (שמורים 4 סגנונות):</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 w-full sm:w-auto">
+                    <button type="button" @click="heroOption = 'opt2'; localStorage.setItem('nutriagent_hero_option', 'opt2')"
+                            :class="heroOption === 'opt2' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+                            class="py-1.5 px-2 rounded-xl text-center transition cursor-pointer">
+                        ⭐ 2. פס מדדים דק
+                    </button>
+                    <button type="button" @click="heroOption = 'opt1'; localStorage.setItem('nutriagent_hero_option', 'opt1')"
+                            :class="heroOption === 'opt1' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+                            class="py-1.5 px-2 rounded-xl text-center transition cursor-pointer">
+                        1. קומפקטי צדדי
+                    </button>
+                    <button type="button" @click="heroOption = 'opt3'; localStorage.setItem('nutriagent_hero_option', 'opt3')"
+                            :class="heroOption === 'opt3' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+                            class="py-1.5 px-2 rounded-xl text-center transition cursor-pointer">
+                        3. גרף מתקפל
+                    </button>
+                    <button type="button" @click="heroOption = 'opt_classic'; localStorage.setItem('nutriagent_hero_option', 'opt_classic')"
+                            :class="heroOption === 'opt_classic' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+                            class="py-1.5 px-2 rounded-xl text-center transition cursor-pointer">
+                        4. קלאסי מקורי
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- OPTION 1: COMPACT SIDE-BY-SIDE (APPLE HEALTH / PANGO)          -->
+            <!-- ============================================================== -->
+            <div x-show="heroOption === 'opt1'" class="bg-white rounded-3xl p-4 sm:p-5 shadow-2xs border border-slate-200/90 relative overflow-hidden space-y-3">
+                <!-- Top sub-row -->
+                <div class="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-extrabold text-slate-900">היעד היומי שלך</span>
+                        <button type="button" @click="showAchievementsModal = true" class="text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-0.5 rounded-md hover:bg-slate-200 transition cursor-pointer">
+                            🔥 <span x-text="`${currentStreak} ימים`"></span>
+                        </button>
+                        <button type="button" @click="openBmiWizard()" class="text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-0.5 rounded-md hover:bg-slate-200 transition cursor-pointer" title="כיול BMI">
+                            ⚖️ כיול
+                        </button>
+                    </div>
+                    <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border shadow-2xs"
+                          :class="summary.remaining_calories >= 0 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'">
+                        <span x-show="summary.remaining_calories >= 0" x-text="`נותרו ${summary.remaining_calories} קק״ל`"></span>
+                        <span x-show="summary.remaining_calories < 0" x-text="`חריגה: ${Math.abs(summary.remaining_calories)} קק״ל`"></span>
+                    </span>
+                </div>
+
+                <!-- Side-by-side Layout: Rings on right, 4 macro rows on left -->
+                <div class="flex items-center justify-between gap-4">
+                    <!-- Right: Compact Triple Ring (w-28 h-28 = 112px) -->
+                    <div class="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                            <!-- Background tracks -->
+                            <circle class="text-slate-100" cx="60" cy="60" fill="none" r="50" stroke="currentColor" stroke-width="7"></circle>
+                            <circle class="text-slate-100" cx="60" cy="60" fill="none" r="40" stroke="currentColor" stroke-width="6"></circle>
+                            <circle class="text-slate-100" cx="60" cy="60" fill="none" r="30" stroke="currentColor" stroke-width="5"></circle>
+
+                            <!-- Calorie Ring (Outer r=50, circ=314.15) -->
+                            <circle class="transition-all duration-700 ease-out"
+                                    :class="caloriePercent > 100 ? 'text-rose-500' : (caloriePercent > 85 ? 'text-amber-500' : 'text-emerald-600')"
+                                    cx="60" cy="60" fill="none" r="50" stroke="currentColor" stroke-width="7" stroke-linecap="round"
+                                    stroke-dasharray="314.15" :stroke-dashoffset="314.15 - (Math.min(100, caloriePercent) / 100) * 314.15"></circle>
+
+                            <!-- Protein Ring (Middle r=40, circ=251.32) -->
+                            <circle class="text-slate-700 transition-all duration-700 ease-out"
+                                    cx="60" cy="60" fill="none" r="40" stroke="currentColor" stroke-width="6" stroke-linecap="round"
+                                    stroke-dasharray="251.32" :stroke-dashoffset="251.32 - (Math.min(100, proteinPercent) / 100) * 251.32"></circle>
+
+                            <!-- Water Ring (Inner r=30, circ=188.49) -->
+                            <circle class="text-sky-500 transition-all duration-700 ease-out"
+                                    cx="60" cy="60" fill="none" r="30" stroke="currentColor" stroke-width="5" stroke-linecap="round"
+                                    stroke-dasharray="188.49" :stroke-dashoffset="188.49 - (Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100)) / 100) * 188.49"></circle>
+                        </svg>
+
+                        <!-- Ring Center Text -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                            <span class="text-lg font-black text-slate-900 leading-none" x-text="summary.total_calories.toLocaleString()">0</span>
+                            <span class="text-[9px] text-slate-400 font-semibold mt-0.5">/ <span x-text="summary.target_calories">1,800</span></span>
+                            <span class="text-[8px] font-bold text-slate-600 bg-slate-100 px-1 rounded mt-0.5" x-text="`${caloriePercent}%`"></span>
+                        </div>
+                    </div>
+
+                    <!-- Left: 4 Thin Macro Progress Rows -->
+                    <div class="flex-1 space-y-2 text-xs">
+                        <!-- Protein -->
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5 text-[11px]">
+                                <span class="font-extrabold text-slate-800">💪 חלבון</span>
+                                <span class="font-black text-slate-900" x-text="`${summary.total_protein.toFixed(0)} / ${summary.target_protein}g`"></span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-emerald-600 h-full rounded-full transition-all duration-500" :style="`width: ${Math.min(100, proteinPercent)}%`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Carbs -->
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5 text-[11px]">
+                                <span class="font-semibold text-slate-500">🌾 פחמימות</span>
+                                <span class="font-bold text-slate-700" x-text="`${totalCarbs} / ${targetCarbs}g`"></span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-slate-400 h-full rounded-full transition-all duration-500" :style="`width: ${Math.min(100, carbsPercent)}%`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Fats -->
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5 text-[11px]">
+                                <span class="font-semibold text-slate-500">🥑 שומנים</span>
+                                <span class="font-bold text-slate-700" x-text="`${totalFats} / ${targetFats}g`"></span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-slate-400 h-full rounded-full transition-all duration-500" :style="`width: ${Math.min(100, fatsPercent)}%`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Water -->
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5 text-[11px]">
+                                <span class="font-semibold text-slate-500">💧 מים</span>
+                                <span class="font-bold text-sky-700" x-text="`${((summary.water_ml || 0) / 1000).toFixed(1)} / ${((summary.water_target_ml || 2500) / 1000).toFixed(1)}L`"></span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-sky-500 h-full rounded-full transition-all duration-500" :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- OPTION 2: MINIMAL MACRO STRIP                                  -->
+            <!-- ============================================================== -->
+            <div x-show="heroOption === 'opt2'" class="bg-white rounded-3xl p-4 shadow-2xs border border-slate-200/90 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-xl font-black text-slate-900" x-text="summary.remaining_calories >= 0 ? `נותרו ${summary.remaining_calories}` : `חריגה של ${Math.abs(summary.remaining_calories)}`"></span>
+                            <span class="text-xs text-slate-500 font-bold">קק״ל להיום</span>
+                        </div>
+                        <span class="text-[11px] text-slate-400" x-text="`נאכלו ${summary.total_calories.toLocaleString()} מתוך ${summary.target_calories} קק״ל (${caloriePercent}%)`"></span>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" @click="showAchievementsModal = true" class="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-xl transition cursor-pointer">
+                            🔥 <span x-text="`${currentStreak} ימים`"></span>
+                        </button>
+                        <button type="button" @click="openBmiWizard()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-700 transition cursor-pointer" title="כיול BMI">
+                            ⚖️
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Macro Pills Grid In 1 Row -->
+                <div class="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100">
+                    <div class="text-center">
+                        <span class="block text-[10px] font-bold text-slate-500">חלבון</span>
+                        <span class="block text-xs font-black text-slate-900" x-text="`${summary.total_protein.toFixed(0)}g`"></span>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                            <div class="bg-emerald-600 h-full rounded-full" :style="`width: ${Math.min(100, proteinPercent)}%`"></div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <span class="block text-[10px] font-bold text-slate-500">פחמימה</span>
+                        <span class="block text-xs font-black text-slate-900" x-text="`${totalCarbs}g`"></span>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                            <div class="bg-slate-400 h-full rounded-full" :style="`width: ${Math.min(100, carbsPercent)}%`"></div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <span class="block text-[10px] font-bold text-slate-500">שומן</span>
+                        <span class="block text-xs font-black text-slate-900" x-text="`${totalFats}g`"></span>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                            <div class="bg-slate-400 h-full rounded-full" :style="`width: ${Math.min(100, fatsPercent)}%`"></div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <span class="block text-[10px] font-bold text-slate-500">מים</span>
+                        <span class="block text-xs font-black text-sky-700" x-text="`${((summary.water_ml || 0) / 1000).toFixed(1)}L`"></span>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                            <div class="bg-sky-500 h-full rounded-full" :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- OPTION 3: COLLAPSIBLE SMART GAUGE                              -->
+            <!-- ============================================================== -->
+            <div x-show="heroOption === 'opt3'" class="bg-white rounded-3xl p-3.5 sm:p-4 shadow-2xs border border-slate-200/90 transition-all">
+                <div class="flex items-center justify-between gap-2 cursor-pointer select-none" @click="heroExpanded = !heroExpanded">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black flex-shrink-0">🔥</span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-xs font-black text-slate-900" x-text="`${summary.total_calories.toLocaleString()} / ${summary.target_calories} קק״ל`"></span>
+                                <span class="text-[10px] font-bold px-1.5 py-0.2 rounded"
+                                      :class="summary.remaining_calories >= 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'"
+                                      x-text="summary.remaining_calories >= 0 ? `נותרו ${summary.remaining_calories}` : `חריגה של ${Math.abs(summary.remaining_calories)}`"></span>
+                            </div>
+                            <span class="text-[10px] text-slate-500 font-medium block truncate"
+                                  x-text="`חלבון: ${summary.total_protein.toFixed(0)}/${summary.target_protein}g • מים: ${((summary.water_ml || 0) / 1000).toFixed(1)}L`"></span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="py-1 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 transition flex-shrink-0">
+                        <span x-text="heroExpanded ? 'צמצם ▲' : 'פירוט ▼'"></span>
+                    </button>
+                </div>
+
+                <!-- Expanded Content (Nested Rings & Breakdown) -->
+                <div x-show="heroExpanded" x-cloak class="mt-4 pt-4 border-t border-slate-100 space-y-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                        <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                            <span class="text-slate-500 font-semibold block text-[11px]">💪 חלבון</span>
+                            <span class="text-sm font-black text-slate-900" x-text="`${summary.total_protein.toFixed(0)} / ${summary.target_protein}g`"></span>
+                            <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                                <div class="bg-emerald-600 h-full rounded-full" :style="`width: ${Math.min(100, proteinPercent)}%`"></div>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                            <span class="text-slate-500 font-semibold block text-[11px]">🌾 פחמימות</span>
+                            <span class="text-sm font-black text-slate-900" x-text="`${totalCarbs} / ${targetCarbs}g`"></span>
+                            <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                                <div class="bg-slate-400 h-full rounded-full" :style="`width: ${Math.min(100, carbsPercent)}%`"></div>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                            <span class="text-slate-500 font-semibold block text-[11px]">🥑 שומנים</span>
+                            <span class="text-sm font-black text-slate-900" x-text="`${totalFats} / ${targetFats}g`"></span>
+                            <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                                <div class="bg-slate-400 h-full rounded-full" :style="`width: ${Math.min(100, fatsPercent)}%`"></div>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                            <span class="text-slate-500 font-semibold block text-[11px]">💧 מים</span>
+                            <span class="text-sm font-black text-sky-700" x-text="`${((summary.water_ml || 0) / 1000).toFixed(1)} / ${((summary.water_target_ml || 2500) / 1000).toFixed(1)}L`"></span>
+                            <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                                <div class="bg-sky-500 h-full rounded-full" :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Coach Recommendation Line -->
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-start gap-2.5 text-xs text-slate-600">
+                        <span class="material-symbols-outlined text-[18px] text-slate-700 flex-shrink-0">smart_toy</span>
+                        <div class="flex-1">
+                            <span class="font-bold text-slate-900 block mb-0.5">המלצת מאמן AI:</span>
+                            <p x-text="coachInsight?.headline || (summary.target_protein - summary.total_protein > 0 ? `נדרשים עוד ${Math.max(0, Math.round(summary.target_protein - summary.total_protein))} גרם חלבון להגעה ליעד היומי.` : '🎉 הגעת ליעד החלבון היומי שלך בהצלחה!')"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- OPTION 4: CLASSIC LARGE TRIPLE RINGS (PREVIOUS VERSION)        -->
+            <!-- ============================================================== -->
+            <div x-show="heroOption === 'opt_classic'" class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-slate-200/90 relative overflow-hidden">
                 <div class="space-y-3 mb-6">
-                    <!-- Top Sub-Header: Tag + Remaining Calories Budget Badge -->
                     <div class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
-                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">מבט על יומי</span>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">מבט על יומי (קלאסי מקורי)</span>
                             <span class="text-xs text-slate-400 font-medium" x-text="`${todayMeals.length} ארוחות שתועדו`"></span>
                         </div>
                         <span class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs flex-shrink-0"
@@ -757,172 +1018,81 @@
                         </span>
                     </div>
 
-                    <!-- Main Section Title -->
                     <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">יומן מטבולי וערכים מותאמים</h2>
 
-                    <!-- Actions / Badges Row (Streak + BMI Calibrate + Burned calories) -->
                     <div class="flex items-center gap-2 flex-wrap pt-0.5">
-                        <!-- Mode Switcher: Strictly restricted to Admin ONLY (Hidden from organic users and Itamar trainees) -->
-                        <button x-cloak x-show="currentUser && currentUser.is_admin" type="button" @click="toggleAppMode()"
-                                class="px-3 py-1.5 rounded-xl text-xs font-black border transition flex items-center gap-1.5 cursor-pointer"
-                                :class="appMode === 'coaching' ? 'bg-slate-900 border-slate-900 text-white shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-700'"
-                                title="החלף בין מצב ליווי מתאמנים ממוקד (איתמר) למצב פלטפורמה מלא (למנהל בלבד)">
-                            <span x-text="appMode === 'coaching' ? '🎯 מצב ליווי מתאמנים (איתמר)' : '🌐 מצב פלטפורמה מלא'"></span>
-                        </button>
                         <button type="button" @click="showAchievementsModal = true"
-                                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
-                                :title="t('streakCardTitle', 'פתח הישגים ומסלול התמדה')">
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
                             <span class="text-sm">🔥</span>
                             <span x-text="currentStreak + ' ' + t('streakDays', 'ימים ברצף')"></span>
                         </button>
                         <button type="button" @click="openBmiWizard()"
-                                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
-                                :title="t('reopenWizard', 'אשף BMI וכיול קלוריות')">
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
                             <svg class="w-3.5 h-3.5 text-slate-600 flex-shrink-0"><use href="#icon-scale-weight"></use></svg>
                             <span x-text="t('calibrateBmi', 'כייל לפי BMI')">כייל לפי BMI</span>
                         </button>
-                        <div x-show="summary.burned_calories > 0" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[15px]">directions_run</span>
-                            <span x-text="`${summary.burned_calories} קק״ל נשרפו`"></span>
-                        </div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                    <!-- SVG Triple Nested Rings: Calories, Protein & Water (Col 5) -->
                     <div class="md:col-span-5 flex justify-center py-2 relative">
                         <div class="relative w-48 h-48 sm:w-52 sm:h-52 flex items-center justify-center">
                             <svg class="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
-                                <!-- Background Track Rings -->
                                 <circle class="text-slate-100" cx="80" cy="80" fill="none" r="70" stroke="currentColor" stroke-width="9"></circle>
                                 <circle class="text-slate-100/85" cx="80" cy="80" fill="none" r="58" stroke="currentColor" stroke-width="8"></circle>
                                 <circle class="text-slate-100/70" cx="80" cy="80" fill="none" r="46" stroke="currentColor" stroke-width="7"></circle>
-                                
-                                <!-- Ring 1: Calories (Outer, radius 70, circumference = 439.82) -->
                                 <circle class="transition-all duration-700 ease-out"
                                         :class="caloriePercent > 100 ? 'text-rose-500' : (caloriePercent > 85 ? 'text-amber-500' : 'text-emerald-600')"
                                         cx="80" cy="80" fill="none" r="70" stroke="currentColor" stroke-width="9"
                                         stroke-linecap="round"
                                         stroke-dasharray="439.82"
                                         :stroke-dashoffset="439.82 - (Math.min(100, caloriePercent) / 100) * 439.82"></circle>
-
-                                <!-- Ring 2: Protein (Middle, radius 58, circumference = 364.42) -->
                                 <circle class="text-slate-700 transition-all duration-700 ease-out"
                                         cx="80" cy="80" fill="none" r="58" stroke="currentColor" stroke-width="8"
                                         stroke-linecap="round"
                                         stroke-dasharray="364.42"
                                         :stroke-dashoffset="364.42 - (Math.min(100, proteinPercent) / 100) * 364.42"></circle>
-
-                                <!-- Ring 3: Water (Inner, radius 46, circumference = 289.03) -->
                                 <circle class="text-sky-500 transition-all duration-700 ease-out"
                                         cx="80" cy="80" fill="none" r="46" stroke="currentColor" stroke-width="7"
                                         stroke-linecap="round"
                                         stroke-dasharray="289.03"
                                         :stroke-dashoffset="289.03 - (Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100)) / 100) * 289.03"></circle>
                             </svg>
-
                             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                                <span class="text-2xl sm:text-3xl font-black text-slate-900 leading-none tracking-tight" x-text="summary.total_calories.toLocaleString()">0</span>
+                                <span class="text-2xl sm:text-3xl font-black text-slate-900 leading-none" x-text="summary.total_calories.toLocaleString()">0</span>
                                 <span class="text-[11px] text-slate-500 mt-1 font-semibold">יעד: <span x-text="summary.target_calories">1,800</span> קק״ל</span>
-                                <div x-show="summary.burned_calories > 0" class="mt-0.5 flex items-center gap-1">
-                                    <span class="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">
-                                        🔥 +<span x-text="summary.burned_calories"></span> נשרפו
-                                    </span>
-                                </div>
-                                <div class="flex items-center gap-1 mt-1 flex-wrap justify-center">
-                                    <span class="text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded" x-text="`${caloriePercent}% קל׳`"></span>
-                                    <span class="text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded" x-text="`${proteinPercent}% חלבון`"></span>
-                                    <span class="text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded" x-text="`💧 ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></span>
-                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- 4 Macro & Water Cards & AI Coach Summary (Col 7) -->
                     <div class="md:col-span-7 space-y-4">
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                            <!-- Card 1: Protein -->
-                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-between">
-                                <div>
-                                    <div class="flex items-center justify-center gap-1 text-xs font-extrabold text-slate-700 mb-0.5">
-                                        <svg class="w-3.5 h-3.5 text-slate-600"><use href="#icon-protein-shaker"></use></svg>
-                                        <span x-text="t('protein', 'חלבון')">חלבון</span>
-                                    </div>
-                                    <div class="text-base sm:text-lg font-black text-slate-900">
-                                        <span x-text="summary.total_protein.toFixed(0)">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="summary.target_protein">120</span>g</span>
-                                    </div>
-                                </div>
+                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80">
+                                <span class="text-xs font-extrabold text-slate-700 block mb-0.5">חלבון</span>
+                                <span class="text-base font-black text-slate-900" x-text="`${summary.total_protein.toFixed(0)}/${summary.target_protein}g`"></span>
                                 <div class="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
-                                    <div class="bg-emerald-600 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, proteinPercent)}%`"></div>
+                                    <div class="bg-emerald-600 h-full rounded-full" :style="`width: ${Math.min(100, proteinPercent)}%`"></div>
                                 </div>
                             </div>
-
-                            <!-- Card 2: Carbs -->
-                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-between">
-                                <div>
-                                    <div class="flex items-center justify-center gap-1 text-xs font-extrabold text-slate-700 mb-0.5">
-                                        <svg class="w-3.5 h-3.5 text-slate-600"><use href="#icon-target-goal"></use></svg>
-                                        <span x-text="t('carbs', 'פחמימות')">פחמימות</span>
-                                    </div>
-                                    <div class="text-base sm:text-lg font-black text-slate-900">
-                                        <span x-text="totalCarbs">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="targetCarbs">200</span>g</span>
-                                    </div>
-                                </div>
+                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80">
+                                <span class="text-xs font-extrabold text-slate-700 block mb-0.5">פחמימות</span>
+                                <span class="text-base font-black text-slate-900" x-text="`${totalCarbs}/${targetCarbs}g`"></span>
                                 <div class="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
-                                    <div class="bg-slate-400 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, carbsPercent)}%`"></div>
+                                    <div class="bg-slate-400 h-full rounded-full" :style="`width: ${Math.min(100, carbsPercent)}%`"></div>
                                 </div>
                             </div>
-
-                            <!-- Card 3: Fats -->
-                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-between">
-                                <div>
-                                    <div class="flex items-center justify-center gap-1 text-xs font-extrabold text-slate-700 mb-0.5">
-                                        <svg class="w-3.5 h-3.5 text-slate-600"><use href="#icon-scale-weight"></use></svg>
-                                        <span x-text="t('fats', 'שומנים')">שומנים</span>
-                                    </div>
-                                    <div class="text-base sm:text-lg font-black text-slate-900">
-                                        <span x-text="totalFats">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="targetFats">60</span>g</span>
-                                    </div>
-                                </div>
+                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80">
+                                <span class="text-xs font-extrabold text-slate-700 block mb-0.5">שומנים</span>
+                                <span class="text-base font-black text-slate-900" x-text="`${totalFats}/${targetFats}g`"></span>
                                 <div class="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
-                                    <div class="bg-slate-400 h-full rounded-full transition-all duration-700" :style="`width: ${Math.min(100, fatsPercent)}%`"></div>
+                                    <div class="bg-slate-400 h-full rounded-full" :style="`width: ${Math.min(100, fatsPercent)}%`"></div>
                                 </div>
                             </div>
-
-                            <!-- Card 4: Water (Directly in Metabolic Journal) -->
-                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-between">
-                                <div>
-                                    <div class="flex items-center justify-center gap-1 text-xs font-extrabold text-slate-700 mb-0.5">
-                                        <span>💧</span>
-                                        <span>מים</span>
-                                    </div>
-                                    <div class="text-base sm:text-lg font-black text-slate-900">
-                                        <span x-text="((summary.water_ml || 0) / 1000).toFixed(1)">0</span><span class="text-xs text-slate-400 font-normal">/<span x-text="((summary.water_target_ml || 2500) / 1000).toFixed(1)">2.5</span>L</span>
-                                    </div>
-                                </div>
+                            <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80">
+                                <span class="text-xs font-extrabold text-slate-700 block mb-0.5">מים</span>
+                                <span class="text-base font-black text-slate-900" x-text="`${((summary.water_ml || 0) / 1000).toFixed(1)}L`"></span>
                                 <div class="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
-                                    <div class="bg-sky-500 h-full rounded-full transition-all duration-700"
-                                         :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
+                                    <div class="bg-sky-500 h-full rounded-full" :style="`width: ${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Real-time AI Coach Status Line -->
-                        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-start gap-3">
-                            <div class="w-7 h-7 rounded-xl bg-slate-800 flex items-center justify-center text-white flex-shrink-0 mt-0.5 shadow-2xs">
-                                <span class="material-symbols-outlined text-[16px]">smart_toy</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center justify-between gap-2">
-                                    <span class="text-xs font-black text-slate-900">המלצת מאמן AI</span>
-                                    <button @click="analyzeDayWithCoach()" :disabled="coachLoading" class="text-[11px] font-bold text-slate-600 hover:text-slate-900 underline cursor-pointer">
-                                        <span x-show="!coachLoading">נתח יום</span>
-                                        <span x-show="coachLoading">מנתח...</span>
-                                    </button>
-                                </div>
-                                <p class="text-xs text-slate-600 mt-0.5 leading-relaxed"
-                                   x-text="coachInsight?.headline || (summary.target_protein - summary.total_protein > 0 ? `נדרשים עוד ${Math.max(0, Math.round(summary.target_protein - summary.total_protein))} גרם חלבון להגעה ליעד היומי והשגת קצב התאוששות אופטימלי.` : '🎉 הגעת ליעד החלבון היומי שלך בהצלחה!')">
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -6962,7 +7132,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=80').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=82').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -8953,6 +9123,9 @@
                 adminTelegramSaving: false,
                 appPartner: 'organic',
                 appMode: 'full', // 'coaching' (Itamar trainee 5-slot flow) or 'full' (legacy B2B / organic)
+                heroOption: localStorage.getItem('nutriagent_hero_option') || 'opt2',
+                heroExpanded: false,
+                showHeroSwitcher: false,
                 skippedSlots: {},
                 slotSuggestions: {},
                 slotShuffling: {},

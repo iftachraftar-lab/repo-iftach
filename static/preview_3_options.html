@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>השוואת 3 אפשרויות עיצוב - NutriAgent</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Assistant', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen pb-24"
+      x-data="{
+          heroOption: 'opt1',
+          heroExpanded: false,
+          calories: 1340,
+          targetCalories: 1800,
+          protein: 98,
+          targetProtein: 120,
+          carbs: 140,
+          targetCarbs: 200,
+          fats: 42,
+          targetFats: 60,
+          water: 1800,
+          targetWater: 2500,
+          inputText: '',
+          streak: 5,
+          get remainingCalories() { return this.targetCalories - this.calories; },
+          get caloriePercent() { return Math.min(100, Math.round((this.calories / this.targetCalories) * 100)); },
+          get proteinPercent() { return Math.min(100, Math.round((this.protein / this.targetProtein) * 100)); },
+          get carbsPercent() { return Math.min(100, Math.round((this.carbs / this.targetCarbs) * 100)); },
+          get fatsPercent() { return Math.min(100, Math.round((this.fats / this.targetFats) * 100)); },
+          get waterPercent() { return Math.min(100, Math.round((this.water / this.targetWater) * 100)); }
+      }">
+
+    <!-- Sticky Header: Live Option Switcher -->
+    <header class="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-white shadow-lg px-4 py-3">
+        <div class="max-w-md mx-auto space-y-2">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="font-extrabold text-sm">השוואת 3 תצוגות בלוקל</span>
+                </div>
+                <span class="text-[11px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-md font-mono" x-text="'מצב נבחר: ' + (heroOption === 'opt1' ? 'אופציה 1' : (heroOption === 'opt2' ? 'אופציה 2' : 'אופציה 3'))"></span>
+            </div>
+
+            <!-- Option Switcher Tabs -->
+            <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-800/90 rounded-2xl border border-slate-700/60 text-xs">
+                <button type="button" @click="heroOption = 'opt1'"
+                        :class="heroOption === 'opt1' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'"
+                        class="py-2 px-1 rounded-xl text-center transition cursor-pointer flex flex-col items-center">
+                    <span>1. קומפקטי צדדי</span>
+                    <span class="text-[9px] opacity-80">(כמו אפל)</span>
+                </button>
+                <button type="button" @click="heroOption = 'opt2'"
+                        :class="heroOption === 'opt2' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'"
+                        class="py-2 px-1 rounded-xl text-center transition cursor-pointer flex flex-col items-center">
+                    <span>2. פס מדדים דק</span>
+                    <span class="text-[9px] opacity-80">(מינימליסטי)</span>
+                </button>
+                <button type="button" @click="heroOption = 'opt3'"
+                        :class="heroOption === 'opt3' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'"
+                        class="py-2 px-1 rounded-xl text-center transition cursor-pointer flex flex-col items-center">
+                    <span>3. גרף מתקפל</span>
+                    <span class="text-[9px] opacity-80">(לפי דרישה)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- App Simulation Container -->
+    <main class="max-w-md mx-auto px-3.5 py-4 space-y-4">
+
+        <!-- ============================================================== -->
+        <!-- OPTION 1: COMPACT SIDE-BY-SIDE (APPLE HEALTH / PANGO STYLE)    -->
+        <!-- ============================================================== -->
+        <div x-show="heroOption === 'opt1'" x-cloak class="space-y-3 transition-all duration-300">
+            <!-- Information Pill for the User -->
+            <div class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-2.5 text-xs text-emerald-950 flex items-center justify-between">
+                <span>💡 <strong>אופציה 1:</strong> הגרף קומפקטי בצד (~135px), שורת ההזנה מופיעה מיד ללא גלילה.</span>
+                <span class="text-[10px] bg-emerald-200/60 text-emerald-900 font-bold px-1.5 py-0.5 rounded">מומלץ ⭐</span>
+            </div>
+
+            <!-- Compact Card -->
+            <div class="bg-white rounded-3xl p-4 sm:p-5 shadow-2xs border border-slate-200/90 relative overflow-hidden">
+                <!-- Top sub-row -->
+                <div class="flex items-center justify-between text-xs mb-3 border-b border-slate-100 pb-2">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-extrabold text-slate-800">היעד היומי שלך</span>
+                        <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">🔥 5 ימים ברצף</span>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200"
+                          x-text="`נותרו ${remainingCalories} קק״ל`"></span>
+                </div>
+
+                <!-- Side-by-side Layout: Rings on right, 4 macro rows on left -->
+                <div class="flex items-center justify-between gap-4">
+                    <!-- Right: Compact Triple Ring (w-28 h-28 = 112px) -->
+                    <div class="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                            <!-- Background tracks -->
+                            <circle class="text-slate-100" cx="60" cy="60" fill="none" r="50" stroke="currentColor" stroke-width="7"></circle>
+                            <circle class="text-slate-100" cx="60" cy="60" fill="none" r="40" stroke="currentColor" stroke-width="6"></circle>
+                            <circle class="text-slate-100" cx="60" cy="60" fill="none" r="30" stroke="currentColor" stroke-width="5"></circle>
+
+                            <!-- Calorie Ring (Outer r=50, circ=314.15) -->
+                            <circle class="text-emerald-600 transition-all duration-700"
+                                    cx="60" cy="60" fill="none" r="50" stroke="currentColor" stroke-width="7" stroke-linecap="round"
+                                    stroke-dasharray="314.15" :stroke-dashoffset="314.15 - (caloriePercent / 100) * 314.15"></circle>
+
+                            <!-- Protein Ring (Middle r=40, circ=251.32) -->
+                            <circle class="text-slate-700 transition-all duration-700"
+                                    cx="60" cy="60" fill="none" r="40" stroke="currentColor" stroke-width="6" stroke-linecap="round"
+                                    stroke-dasharray="251.32" :stroke-dashoffset="251.32 - (proteinPercent / 100) * 251.32"></circle>
+
+                            <!-- Water Ring (Inner r=30, circ=188.49) -->
+                            <circle class="text-sky-500 transition-all duration-700"
+                                    cx="60" cy="60" fill="none" r="30" stroke="currentColor" stroke-width="5" stroke-linecap="round"
+                                    stroke-dasharray="188.49" :stroke-dashoffset="188.49 - (waterPercent / 100) * 188.49"></circle>
+                        </svg>
+
+                        <!-- Ring Center Text -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                            <span class="text-lg font-black text-slate-900 leading-none" x-text="calories"></span>
+                            <span class="text-[9px] text-slate-400 font-semibold mt-0.5">/ 1,800</span>
+                            <span class="text-[8px] font-bold text-slate-600 bg-slate-100 px-1 rounded mt-0.5" x-text="`${caloriePercent}%`"></span>
+                        </div>
+                    </div>
+
+                    <!-- Left: 4 Thin Macro Progress Rows -->
+                    <div class="flex-1 space-y-2 text-xs">
+                        <!-- Protein -->
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5 text-[11px]">
+                                <span class="font-extrabold text-slate-700">💪 חלבון</span>
+                                <span class="font-black text-slate-900" x-text="`${protein} / ${targetProtein}g`"></span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-emerald-600 h-full rounded-full transition-all duration-500" :style="`width: ${proteinPercent}%`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Carbs -->
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5 text-[11px]">
+                                <span class="font-semibold text-slate-500">🌾 פחמימות</span>
+                                <span class="font-bold text-slate-700" x-text="`${carbs} / ${targetCarbs}g`"></span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-slate-400 h-full rounded-full transition-all duration-500" :style="`width: ${carbsPercent}%`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Fats -->
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5 text-[11px]">
+                                <span class="font-semibold text-slate-500">🥑 שומנים</span>
+                                <span class="font-bold text-slate-700" x-text="`${fats} / ${targetFats}g`"></span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-slate-400 h-full rounded-full transition-all duration-500" :style="`width: ${fatsPercent}%`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Water -->
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5 text-[11px]">
+                                <span class="font-semibold text-slate-500">💧 מים</span>
+                                <span class="font-bold text-sky-700" x-text="`${(water/1000).toFixed(1)} / ${(targetWater/1000).toFixed(1)}L`"></span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-sky-500 h-full rounded-full transition-all duration-500" :style="`width: ${waterPercent}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- OPTION 2: MINIMAL MACRO STRIP (SUPERHUMAN / NOTION STYLE)     -->
+        <!-- ============================================================== -->
+        <div x-show="heroOption === 'opt2'" x-cloak class="space-y-3 transition-all duration-300">
+            <!-- Information Pill for the User -->
+            <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5 text-xs text-slate-800 flex items-center justify-between">
+                <span>💡 <strong>אופציה 2:</strong> פס נקי ודק במיוחד (~85px). מקסימום שטח מסך לארוחות.</span>
+                <span class="text-[10px] bg-slate-200 text-slate-700 font-bold px-1.5 py-0.5 rounded">סופר-מינימלי</span>
+            </div>
+
+            <!-- Minimal Card -->
+            <div class="bg-white rounded-3xl p-4 shadow-2xs border border-slate-200/90 space-y-3">
+                <!-- Top Line: Calories Remaining In Bold Focus -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-xl font-black text-slate-900" x-text="`נותרו ${remainingCalories}`"></span>
+                            <span class="text-xs text-slate-500 font-bold">קק״ל להיום</span>
+                        </div>
+                        <span class="text-[11px] text-slate-400" x-text="`נאכלו ${calories} מתוך ${targetCalories} קק״ל (${caloriePercent}%)`"></span>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-xl">🔥 5 ימים</span>
+                        <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-700">⚖️</div>
+                    </div>
+                </div>
+
+                <!-- 4 Macro Pills Grid In 1 Row -->
+                <div class="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100">
+                    <!-- Protein -->
+                    <div class="text-center">
+                        <span class="block text-[10px] font-bold text-slate-500">חלבון</span>
+                        <span class="block text-xs font-black text-slate-900" x-text="`${protein}g`"></span>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                            <div class="bg-emerald-600 h-full rounded-full" :style="`width: ${proteinPercent}%`"></div>
+                        </div>
+                    </div>
+                    <!-- Carbs -->
+                    <div class="text-center">
+                        <span class="block text-[10px] font-bold text-slate-500">פחמימה</span>
+                        <span class="block text-xs font-black text-slate-900" x-text="`${carbs}g`"></span>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                            <div class="bg-slate-400 h-full rounded-full" :style="`width: ${carbsPercent}%`"></div>
+                        </div>
+                    </div>
+                    <!-- Fats -->
+                    <div class="text-center">
+                        <span class="block text-[10px] font-bold text-slate-500">שומן</span>
+                        <span class="block text-xs font-black text-slate-900" x-text="`${fats}g`"></span>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                            <div class="bg-slate-400 h-full rounded-full" :style="`width: ${fatsPercent}%`"></div>
+                        </div>
+                    </div>
+                    <!-- Water -->
+                    <div class="text-center">
+                        <span class="block text-[10px] font-bold text-slate-500">מים</span>
+                        <span class="block text-xs font-black text-sky-700" x-text="`${(water/1000).toFixed(1)}L`"></span>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                            <div class="bg-sky-500 h-full rounded-full" :style="`width: ${waterPercent}%`"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- OPTION 3: COLLAPSIBLE SMART GAUGE (EXPAND ON DEMAND)           -->
+        <!-- ============================================================== -->
+        <div x-show="heroOption === 'opt3'" x-cloak class="space-y-3 transition-all duration-300">
+            <!-- Information Pill for the User -->
+            <div class="bg-indigo-50 border border-indigo-200/80 rounded-2xl p-2.5 text-xs text-indigo-950 flex items-center justify-between">
+                <span>💡 <strong>אופציה 3:</strong> פס תמציתי (~50px), ונפתח בטאפ אחד לגרף מלא למי שרוצה.</span>
+                <span class="text-[10px] bg-indigo-200/70 text-indigo-900 font-bold px-1.5 py-0.5 rounded">דינמי חכם</span>
+            </div>
+
+            <!-- Collapsible Container -->
+            <div class="bg-white rounded-3xl p-3.5 sm:p-4 shadow-2xs border border-slate-200/90 transition-all">
+                <!-- Bar Header: Always Visible -->
+                <div class="flex items-center justify-between gap-2 cursor-pointer select-none" @click="heroExpanded = !heroExpanded">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-7 h-7 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black">🔥</span>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-black text-slate-900" x-text="`${calories} / ${targetCalories} קק״ל`"></span>
+                                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded" x-text="`נותרו ${remainingCalories}`"></span>
+                            </div>
+                            <span class="text-[10px] text-slate-500 font-medium" x-text="`חלבון: ${protein}/${targetProtein}g • מים: ${(water/1000).toFixed(1)}L`"></span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="py-1 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 transition">
+                        <span x-text="heroExpanded ? 'צמצם ▲' : 'פירוט ▼'"></span>
+                    </button>
+                </div>
+
+                <!-- Expanded View (When heroExpanded is true) -->
+                <div x-show="heroExpanded" x-cloak class="mt-4 pt-3 border-t border-slate-100 space-y-4">
+                    <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                        <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                            <span class="text-slate-500 font-semibold block text-[11px]">💪 חלבון</span>
+                            <span class="text-sm font-black text-slate-900" x-text="`${protein} / ${targetProtein}g`"></span>
+                            <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                                <div class="bg-emerald-600 h-full rounded-full" :style="`width: ${proteinPercent}%`"></div>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                            <span class="text-slate-500 font-semibold block text-[11px]">🌾 פחמימות</span>
+                            <span class="text-sm font-black text-slate-900" x-text="`${carbs} / ${targetCarbs}g`"></span>
+                            <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                                <div class="bg-slate-400 h-full rounded-full" :style="`width: ${carbsPercent}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Coach Tip Box -->
+                    <div class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                        🤖 <strong>מאמן AI:</strong> קצב ההתקדמות שלך מעולה! נותרו לך עוד 22 גרם חלבון להשגת היעד היומי.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SHARED FOOD LOGGER (NOW APPEARING IMMEDIATELY ABOVE THE FOLD!) -->
+        <!-- ============================================================== -->
+        <div class="bg-white rounded-3xl p-4 sm:p-5 shadow-2xs border border-slate-200/90 space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-sm font-bold">⚡</span>
+                    <span class="font-extrabold text-sm text-slate-900">הוספת ארוחה מהירה</span>
+                </div>
+                <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    מיידי במסך 1
+                </span>
+            </div>
+
+            <!-- Floor 1: 4 Fast Action Buttons (1-Tap Accessible) -->
+            <div class="grid grid-cols-4 gap-2">
+                <button type="button" class="h-13 py-2 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 flex flex-col items-center justify-center gap-1 font-bold text-xs shadow-2xs transition active:scale-95 cursor-pointer">
+                    <span class="text-base">🎙️</span>
+                    <span class="text-[10px]">קולי</span>
+                </button>
+                <button type="button" class="h-13 py-2 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 flex flex-col items-center justify-center gap-1 font-bold text-xs shadow-2xs transition active:scale-95 cursor-pointer">
+                    <span class="text-base">📸</span>
+                    <span class="text-[10px]">צלם צלחת</span>
+                </button>
+                <button type="button" class="h-13 py-2 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 flex flex-col items-center justify-center gap-1 font-bold text-xs shadow-2xs transition active:scale-95 cursor-pointer">
+                    <span class="text-base">📷</span>
+                    <span class="text-[10px]">ברקוד</span>
+                </button>
+                <button type="button" class="h-13 py-2 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 flex flex-col items-center justify-center gap-1 font-bold text-xs shadow-2xs transition active:scale-95 cursor-pointer">
+                    <span class="text-base">🖼️</span>
+                    <span class="text-[10px]">גלריה</span>
+                </button>
+            </div>
+
+            <!-- Floor 2: Search / Input Box -->
+            <div class="space-y-2">
+                <input type="text" x-model="inputText"
+                       placeholder="הקלד מה אכלת... (למשל: סלט יווני עם כף שמן זית)"
+                       class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 focus:bg-white focus:border-emerald-600 outline-none">
+                <button type="button"
+                        class="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs cursor-pointer">
+                    <span>נתח והוסף ב-AI ✨</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SHARED WATER & SHAKE BAR                                       -->
+        <!-- ============================================================== -->
+        <div class="bg-white rounded-2xl p-3 border border-slate-200/90 shadow-2xs flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+                <span>💧</span>
+                <span class="font-bold text-slate-800">שתיית מים:</span>
+                <span class="font-black text-slate-900" x-text="`${(water/1000).toFixed(1)} / ${(targetWater/1000).toFixed(1)}L`"></span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button type="button" @click="water = Math.max(0, water - 250)" class="h-7 w-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center">-</button>
+                <button type="button" @click="water = water + 250" class="h-7 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold flex items-center gap-1">+250 מ״ל</button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SAMPLE MEAL SLOTS (SHOWING HOW CLOSE AND ACCESSIBLE THEY ARE)   -->
+        <!-- ============================================================== -->
+        <div class="space-y-2 pt-1">
+            <h3 class="text-xs font-extrabold text-slate-500 px-1">הארוחות היומיות (במרחק נגיעה):</h3>
+
+            <!-- Breakfast Slot -->
+            <div class="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">🌅</span>
+                        <div>
+                            <span class="font-extrabold text-xs sm:text-sm text-slate-900 block">ארוחת בוקר</span>
+                            <span class="text-[10px] text-slate-400">יעד: 150–450 קק״ל • 28g חלבון</span>
+                        </div>
+                    </div>
+                    <span class="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">08:30</span>
+                </div>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                    <span class="text-slate-600 block mb-1">💡 2 ביצים, פרוסת לחם מלא וחצי קוטג׳</span>
+                    <button type="button" class="w-full py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs">⚡ אכלתי בדיוק את זה (רישום בטאפ)</button>
+                </div>
+            </div>
+
+            <!-- Lunch Slot -->
+            <div class="bg-white rounded-2xl p-3.5 border-2 border-slate-300 shadow-2xs space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">☀️</span>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-extrabold text-xs sm:text-sm text-slate-900">ארוחה עיקרית (צהריים)</span>
+                                <span class="text-[9px] bg-slate-900 text-white font-bold px-1.5 py-0.2 rounded">עיקרית</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400">יעד: 450–650 קק״ל • 48g חלבון</span>
+                        </div>
+                    </div>
+                    <span class="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">13:30</span>
+                </div>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                    <span class="text-slate-600 block mb-1">💡 180 גרם חזה עוף מתובל, כוס אורז בסמטי וסלט</span>
+                    <button type="button" class="w-full py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs">⚡ אכלתי בדיוק את זה (רישום בטאפ)</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
+
