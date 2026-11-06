@@ -1463,28 +1463,6 @@
                     </template>
                 </div>
             </div>
-
-            <!-- Studio Referral & Free Trial Workout Gift Card -->
-            <div x-show="appMode !== 'coaching'" @click="openTrialWorkoutModal()"
-                 class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-emerald-500/10 border-2 border-amber-300/80 hover:border-amber-400 shadow-sm transition active:scale-[0.99] cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative overflow-hidden">
-                <div class="flex items-center gap-3.5 min-w-0">
-                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-2xl shadow-md shadow-orange-500/25 flex-shrink-0">
-                        🎁
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-sm sm:text-base font-extrabold text-slate-900">מחפש סטודיו או חדר כושר באזורך?</span>
-                            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black border border-amber-300">הטבה בלעדית</span>
-                        </div>
-                        <p class="text-xs text-slate-600 mt-0.5">בדוק זכאות לאימון ניסיון במתנה / בהנחה לפילאטיס מכשירים, קרוספיט או חדר כושר קרוב</p>
-                    </div>
-                </div>
-                <button type="button" @click.stop="openTrialWorkoutModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition shadow-xs flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer">
-                    <span>בדוק זכאות לאימון</span>
-                    <span>←</span>
-                </button>
-            </div>
-
             
             <!-- ================= DAILY WATER TRACKER & QUICK SHAKE BAR (Itamar Coaching Platform) ================= -->
             <div class="space-y-2.5">
@@ -2018,6 +1996,27 @@
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Studio Referral & Free Trial Workout Gift Card -->
+            <div x-show="appMode !== 'coaching'" @click="openTrialWorkoutModal()"
+                 class="p-4 sm:p-5 rounded-3xl bg-white border border-slate-200/90 hover:border-slate-300 shadow-2xs transition active:scale-[0.99] cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative overflow-hidden">
+                <div class="flex items-center gap-3.5 min-w-0">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center text-xl flex-shrink-0">
+                        🎁
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm sm:text-base font-extrabold text-slate-900">מחפש סטודיו או חדר כושר באזורך?</span>
+                            <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">הטבת אימון ניסיון</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">בדוק זכאות לאימון ניסיון במתנה או בהנחה לפילאטיס מכשירים, קרוספיט או מכון כושר קרוב</p>
+                    </div>
+                </div>
+                <button type="button" @click.stop="openTrialWorkoutModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer">
+                    <span>בדוק זכאות לאימון</span>
+                    <span>←</span>
+                </button>
             </div>
 
 
@@ -6963,7 +6962,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=79').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=80').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
