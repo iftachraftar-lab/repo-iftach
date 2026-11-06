@@ -740,36 +740,6 @@
             <!-- REGULAR METABOLIC JOURNAL & SLOTS (Shown when in Summary sub-tab) -->
             <div x-show="coachingSubTab === 'summary'" class="space-y-6">
 
-            <!-- Interactive Switcher Bar: Switch Between 4 Layout Styles Live -->
-            <div class="p-2 sm:p-2.5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-2 shadow-sm text-xs">
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span class="font-bold text-slate-200">סגנון תצוגה עליון (שמורים 4 סגנונות):</span>
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 w-full sm:w-auto">
-                    <button type="button" @click="heroOption = 'opt2'; localStorage.setItem('nutriagent_hero_option', 'opt2')"
-                            :class="heroOption === 'opt2' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
-                            class="py-1.5 px-2 rounded-xl text-center transition cursor-pointer">
-                        ⭐ 2. פס מדדים דק
-                    </button>
-                    <button type="button" @click="heroOption = 'opt1'; localStorage.setItem('nutriagent_hero_option', 'opt1')"
-                            :class="heroOption === 'opt1' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
-                            class="py-1.5 px-2 rounded-xl text-center transition cursor-pointer">
-                        1. קומפקטי צדדי
-                    </button>
-                    <button type="button" @click="heroOption = 'opt3'; localStorage.setItem('nutriagent_hero_option', 'opt3')"
-                            :class="heroOption === 'opt3' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
-                            class="py-1.5 px-2 rounded-xl text-center transition cursor-pointer">
-                        3. גרף מתקפל
-                    </button>
-                    <button type="button" @click="heroOption = 'opt_classic'; localStorage.setItem('nutriagent_hero_option', 'opt_classic')"
-                            :class="heroOption === 'opt_classic' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
-                            class="py-1.5 px-2 rounded-xl text-center transition cursor-pointer">
-                        4. קלאסי מקורי
-                    </button>
-                </div>
-            </div>
-
             <!-- ============================================================== -->
             <!-- OPTION 1: COMPACT SIDE-BY-SIDE (APPLE HEALTH / PANGO)          -->
             <!-- ============================================================== -->
@@ -4900,19 +4870,25 @@
                 <button @click="openTargetModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold transition cursor-pointer">✕</button>
             </div>
 
-            <!-- Top Tab Switcher: Targets & Calculator vs Telegram Bot -->
-            <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-2xl text-xs font-black">
+            <!-- Top Tab Switcher: Targets vs Display Settings vs Telegram Bot -->
+            <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl text-xs font-black">
                 <button type="button" @click="settingsModalTab = 'targets'"
                         :class="settingsModalTab === 'targets' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
-                        class="py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        class="py-2.5 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer">
                     <span>🎯</span>
-                    <span>יעדים ומחשבון</span>
+                    <span>יעדים</span>
+                </button>
+                <button type="button" @click="settingsModalTab = 'display'"
+                        :class="settingsModalTab === 'display' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                        class="py-2.5 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer">
+                    <span>🎨</span>
+                    <span>תצוגה</span>
                 </button>
                 <button type="button" @click="settingsModalTab = 'telegram'"
                         :class="settingsModalTab === 'telegram' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
-                        class="py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer relative">
+                        class="py-2.5 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer relative">
                     <span>💬</span>
-                    <span>חיבור לטלגרם</span>
+                    <span>טלגרם</span>
                     <span x-show="telegramLinked" class="w-2 h-2 rounded-full bg-emerald-500 absolute top-2 left-2" title="מחובר ומסונכרן"></span>
                 </button>
             </div>
@@ -5068,6 +5044,65 @@
                             <span class="text-[9px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-extrabold">בקרוב מאוד</span>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: DISPLAY SETTINGS (הגדרות תצוגה) -->
+            <div x-show="settingsModalTab === 'display'" class="space-y-4">
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+                    <h4 class="text-xs font-black text-slate-900">סגנון תצוגת המדדים ביומן היומי</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">בחר את תצורת הגרף המועדפת עליך. השינוי מתעדכן מיד ונשמר אוטומטית:</p>
+                </div>
+
+                <div class="space-y-2">
+                    <!-- Option 2: Minimal Macro Strip (Active Default) -->
+                    <label class="p-3.5 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between gap-3"
+                           :class="heroOption === 'opt2' ? 'border-emerald-600 bg-emerald-50/30' : 'border-slate-200 hover:border-slate-300 bg-white'">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <input type="radio" name="hero_style" value="opt2" x-model="heroOption" @change="localStorage.setItem('nutriagent_hero_option', 'opt2')" class="text-emerald-600 focus:ring-emerald-500 h-4 w-4">
+                            <div class="min-w-0">
+                                <span class="font-black text-xs text-slate-900 block">פס מדדים דק (מומלץ)</span>
+                                <span class="text-[11px] text-slate-500 block truncate">כרטיס דק של 80px, שורת יעד בולטת ו-4 פסי מאקרו עדינים.</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md flex-shrink-0">ברירת מחדל</span>
+                    </label>
+
+                    <!-- Option 1: Compact Side-by-Side -->
+                    <label class="p-3.5 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between gap-3"
+                           :class="heroOption === 'opt1' ? 'border-emerald-600 bg-emerald-50/30' : 'border-slate-200 hover:border-slate-300 bg-white'">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <input type="radio" name="hero_style" value="opt1" x-model="heroOption" @change="localStorage.setItem('nutriagent_hero_option', 'opt1')" class="text-emerald-600 focus:ring-emerald-500 h-4 w-4">
+                            <div class="min-w-0">
+                                <span class="font-black text-xs text-slate-900 block">קומפקטי צדדי (Apple Health)</span>
+                                <span class="text-[11px] text-slate-500 block truncate">טבעת קלוריות עגולה קומפקטית בצד לצד 4 שורות התקדמות.</span>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Option 3: Collapsible Smart Gauge -->
+                    <label class="p-3.5 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between gap-3"
+                           :class="heroOption === 'opt3' ? 'border-emerald-600 bg-emerald-50/30' : 'border-slate-200 hover:border-slate-300 bg-white'">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <input type="radio" name="hero_style" value="opt3" x-model="heroOption" @change="localStorage.setItem('nutriagent_hero_option', 'opt3')" class="text-emerald-600 focus:ring-emerald-500 h-4 w-4">
+                            <div class="min-w-0">
+                                <span class="font-black text-xs text-slate-900 block">גרף מתקפל דינמי</span>
+                                <span class="text-[11px] text-slate-500 block truncate">פס מינימלי של 50px שנפתח לפרטים מלאים בלחיצה אחת.</span>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Option 4: Classic Original Big Rings -->
+                    <label class="p-3.5 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between gap-3"
+                           :class="heroOption === 'opt_classic' ? 'border-emerald-600 bg-emerald-50/30' : 'border-slate-200 hover:border-slate-300 bg-white'">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <input type="radio" name="hero_style" value="opt_classic" x-model="heroOption" @change="localStorage.setItem('nutriagent_hero_option', 'opt_classic')" class="text-emerald-600 focus:ring-emerald-500 h-4 w-4">
+                            <div class="min-w-0">
+                                <span class="font-black text-xs text-slate-900 block">קלאסי מקורי (טבעות גדולות)</span>
+                                <span class="text-[11px] text-slate-500 block truncate">העיצוב הקודם עם טבעות ה-SVG הגדולות והכרטיסים הרחבים.</span>
+                            </div>
+                        </div>
+                    </label>
                 </div>
             </div>
 
@@ -7132,7 +7167,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=82').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=83').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
