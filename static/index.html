@@ -1332,6 +1332,10 @@
                     </form>
 
                     <!-- Smart Visual Actions (Unified All-in-One Camera + Gallery) -->
+                    <!-- Native device camera & gallery fallbacks -->
+                    <input type="file" accept="image/*" capture="environment" x-ref="cameraDirectInput" @change="handleViewfinderCameraPick($event)" class="sr-only">
+                    <input type="file" accept="image/*" x-ref="cameraMealInput" @change="handleViewfinderGalleryPick($event)" class="sr-only">
+                    
                     <div class="grid grid-cols-2 gap-2">
                         <!-- All-in-One Smart Camera Button (Opens Viewfinder with Plate, Barcode & Label tabs) -->
                         <button type="button"
@@ -10623,36 +10627,106 @@
                     return Math.min(100, Math.round((this.totalFats / this.targetFats) * 100));
                 },
 
+                openSmartCameraViewfinder(mode = 'meal') {
+                    this.viewfinderScanMode = mode || 'meal';
+                    this.showLiveViewfinder = true;
+                    this.resetDetectedCandidate();
+                    this.startLiveViewfinderCamera();
+                    if (mode === 'barcode') {
+                        this.startViewfinderLiveBarcodeScanning();
+                    }
+                },
+
                 async startLiveViewfinderCamera() {
                     this.liveCameraActive = false;
                     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                        this.showToast('המכשיר או הדפדפן אינם תומכים בגישה ישירה למצלמה', 'error');
+                        this.showToast('המכשיר או הדפדפן אינם תומכים בווידאו ישיר — פותח מצלמת מכשיר', 'info');
+                        if (this.$refs.cameraDirectInput) this.$refs.cameraDirectInput.click();
+                        else if (this.$refs.cameraMealInput) this.$refs.cameraMealInput.click();
+                        else if (this.$refs.photoInput) this.$refs.photoInput.click();
+                        this.showLiveViewfinder = false;
                         return;
                     }
                     try {
                         if (this.liveViewfinderCameraStream) {
                             this.liveViewfinderCameraStream.getTracks().forEach(t => t.stop());
+                            this.liveViewfinderCameraStream = null;
                         }
-                        this.liveViewfinderCameraStream = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                facingMode: { ideal: this.liveCameraFacingMode || 'environment' },
-                                width: { ideal: 1920 },
-                                height: { ideal: 1080 }
-                            },
-                            audio: false
-                        });
+                        
+                        let stream = null;
+                        const preferredFacing = this.liveCameraFacingMode || 'environment';
+                        
+                        try {
+                            stream = await navigator.mediaDevices.getUserMedia({
+                                video: {
+                                    facingMode: { ideal: preferredFacing },
+                                    width: { ideal: 1280 },
+                                    height: { ideal: 720 }
+                                },
+                                audio: false
+                            });
+                        } catch (err1) {
+                            console.warn('Initial camera constraint failed, trying fallback:', err1);
+                            try {
+                                stream = await navigator.mediaDevices.getUserMedia({
+                                    video: { facingMode: preferredFacing },
+                                    audio: false
+                                });
+                            } catch (err2) {
+                                stream = await navigator.mediaDevices.getUserMedia({
+                                    video: true,
+                                    audio: false
+                                });
+                            }
+                        }
+
+                        this.liveViewfinderCameraStream = stream;
                         this.$nextTick(() => {
                             const video = this.$refs.liveViewfinderVideo;
                             if (video) {
                                 video.srcObject = this.liveViewfinderCameraStream;
-                                video.play().catch(e => console.warn('Video play error:', e));
-                                this.liveCameraActive = true;
+                                video.setAttribute('playsinline', 'true');
+                                video.setAttribute('webkit-playsinline', 'true');
+                                video.play().then(() => {
+                                    this.liveCameraActive = true;
+                                }).catch(e => {
+                                    console.warn('Video play catch:', e);
+                                    this.liveCameraActive = true;
+                                });
                             }
                         });
                     } catch (e) {
-                        console.warn('getUserMedia error:', e);
+                        console.warn('getUserMedia final error:', e);
                         this.liveCameraActive = false;
-                        this.showToast('לא ניתן לגשת למצלמה (אנא אשר הרשאת מצלמה בדפדפן)', 'error');
+                        this.showToast('לא ניתן לגשת למצלמת וידאו (בדוק הרשאות) — פותח מצלמת מכשיר', 'info');
+                        this.showLiveViewfinder = false;
+                        if (this.$refs.cameraDirectInput) this.$refs.cameraDirectInput.click();
+                        else if (this.$refs.cameraMealInput) this.$refs.cameraMealInput.click();
+                        else if (this.$refs.photoInput) this.$refs.photoInput.click();
+                    }
+                },
+
+                async handleViewfinderGalleryPick(event) {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    this.stopLiveViewfinderCamera();
+                    this.showLiveViewfinder = false;
+                    if (this.viewfinderScanMode === 'barcode') {
+                        await this.handleBarcodePhotoUpload(event);
+                    } else {
+                        await this.handlePhotoSelect(event, true);
+                    }
+                },
+
+                async handleViewfinderCameraPick(event) {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    this.stopLiveViewfinderCamera();
+                    this.showLiveViewfinder = false;
+                    if (this.viewfinderScanMode === 'barcode') {
+                        await this.handleBarcodePhotoUpload(event);
+                    } else {
+                        await this.handlePhotoSelect(event, true);
                     }
                 },
 
