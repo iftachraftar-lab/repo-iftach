@@ -746,8 +746,12 @@
             <div x-show="heroOption === 'opt1'" class="bg-white rounded-3xl p-4 sm:p-5 shadow-2xs border border-slate-200/90 relative overflow-hidden space-y-3">
                 <!-- Top sub-row -->
                 <div class="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                         <span class="font-extrabold text-slate-900">היעד היומי שלך</span>
+                        <button type="button" @click="openWorkoutLogger()" class="text-[10px] text-indigo-700 font-bold bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md hover:bg-indigo-100 transition cursor-pointer flex items-center gap-1" title="תעד אימון">
+                            <span>🏃‍♂️</span>
+                            <span x-text="summary.burned_calories > 0 ? `${summary.burned_calories} קק״ל` : '+ אימון'">+ אימון</span>
+                        </button>
                         <button type="button" @click="showAchievementsModal = true" class="text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-0.5 rounded-md hover:bg-slate-200 transition cursor-pointer">
                             🔥 <span x-text="`${currentStreak} ימים`"></span>
                         </button>
@@ -860,6 +864,10 @@
                     </div>
 
                     <div class="flex items-center gap-1.5">
+                        <button type="button" @click="openWorkoutLogger()" class="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 px-2.5 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-2xs" title="תעד אימון">
+                            <span>🏃‍♂️</span>
+                            <span x-text="summary.burned_calories > 0 ? `${summary.burned_calories} קק״ל נשרפו` : '+ תעד אימון'">+ תעד אימון</span>
+                        </button>
                         <button type="button" @click="showAchievementsModal = true" class="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-xl transition cursor-pointer">
                             🔥 <span x-text="`${currentStreak} ימים`"></span>
                         </button>
@@ -921,9 +929,15 @@
                         </div>
                     </div>
 
-                    <button type="button" class="py-1 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 transition flex-shrink-0">
-                        <span x-text="heroExpanded ? 'צמצם ▲' : 'פירוט ▼'"></span>
-                    </button>
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <button type="button" @click.stop="openWorkoutLogger()" class="py-1 px-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center gap-1 transition border border-indigo-200/80 cursor-pointer" title="תעד אימון">
+                            <span>🏃‍♂️</span>
+                            <span x-text="summary.burned_calories > 0 ? `${summary.burned_calories} קק״ל נשרפו` : '+ אימון'">+ אימון</span>
+                        </button>
+                        <button type="button" class="py-1 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 transition">
+                            <span x-text="heroExpanded ? 'צמצם ▲' : 'פירוט ▼'"></span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Expanded Content (Nested Rings & Breakdown) -->
@@ -976,8 +990,12 @@
             <div x-show="heroOption === 'opt_classic'" class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-slate-200/90 relative overflow-hidden">
                 <div class="space-y-3 mb-6">
                     <div class="flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">מבט על יומי (קלאסי מקורי)</span>
+                            <button type="button" @click="openWorkoutLogger()" class="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 px-2.5 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-2xs" title="תעד אימון">
+                                <span>🏃‍♂️</span>
+                                <span x-text="summary.burned_calories > 0 ? `${summary.burned_calories} קק״ל נשרפו` : '+ תעד אימון'">+ תעד אימון</span>
+                            </button>
                             <span class="text-xs text-slate-400 font-medium" x-text="`${todayMeals.length} ארוחות שתועדו`"></span>
                         </div>
                         <span class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs flex-shrink-0"
@@ -1203,169 +1221,146 @@
             </div>
 
             <!-- AI Smart Meal Logger Card -->
-            <div x-show="activeEntryMode === 'meal'" class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div x-show="activeEntryMode === 'meal'" class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-200/80 space-y-3.5">
+                <div class="flex items-center justify-between gap-3 mb-2">
                     <div class="flex items-center gap-2.5">
                         <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
                         </span>
                         <div>
                             <h2 class="text-base sm:text-lg font-bold text-slate-900 leading-tight" x-text="t('smartMealTitle', 'הוספת ארוחה חכמה')">הוספת ארוחה חכמה</h2>
-                            <p class="text-xs text-slate-500 mt-0.5" x-text="t('smartMealSub', 'טקסט חופשי, הקלטה קולית 🎙️ או צילום צלחת 📸')">טקסט חופשי, הקלטה קולית 🎙️ או צילום צלחת 📸</p>
+                            <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5" x-text="t('smartMealSub', 'טקסט, קול 🎙️ או מצלמה חכמה 📸')">טקסט, קול 🎙️ או מצלמה חכמה 📸</p>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
-                        <!-- Workout Logger Button -->
-                        <button type="button" @click="openWorkoutLogger()"
-                                class="h-9 px-3.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs w-full sm:w-auto">
-                            <svg class="w-4 h-4 text-indigo-600 flex-shrink-0"><use href="#icon-workout-dumbbell"></use></svg>
-                            <span x-text="t('logWorkoutBtn', 'תעד אימון')">תעד אימון</span>
-                        </button>
-                        <!-- Manual Entry Toggle Button -->
-                        <button type="button" @click="manualMode = !manualMode"
-                                class="h-9 px-3.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer border shadow-2xs w-full sm:w-auto"
-                                :class="manualMode ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'">
-                            <svg class="w-4 h-4 flex-shrink-0" :class="manualMode ? 'text-emerald-600' : 'text-slate-600'"><use :href="manualMode ? '#icon-ai-coach' : '#icon-edit-pencil'"></use></svg>
-                            <span x-text="manualMode ? t('switchToAi', 'מעבר ל-AI') : t('manualEntry', 'הזנה ידנית')">הזנה ידנית</span>
-                        </button>
-                    </div>
+                    <!-- Quick Manual Entry Toggle Button -->
+                    <button type="button" @click="manualMode = !manualMode"
+                            class="h-8.5 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border shadow-2xs"
+                            :class="manualMode ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" :class="manualMode ? 'text-emerald-600' : 'text-slate-500'"><use :href="manualMode ? '#icon-ai-coach' : '#icon-edit-pencil'"></use></svg>
+                        <span x-text="manualMode ? t('switchToAi', 'מעבר ל-AI') : t('manualEntry', 'הזנה ידנית')">הזנה ידנית</span>
+                    </button>
                 </div>
 
-                <!-- AI Free-Text + Voice + Photo Form -->
+                <!-- AI Free-Text + WhatsApp Voice + Smart Camera -->
                 <div x-show="!manualMode" class="space-y-3">
-                    <!-- Active Voice Recording Bar -->
-                    <div x-cloak x-show="isRecordingVoice"
-                         class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 animate-pulse">
-                        <div class="flex items-center gap-3">
-                            <span class="w-3.5 h-3.5 rounded-full bg-rose-600 animate-ping"></span>
-                            <div>
-                                <p class="text-xs sm:text-sm font-bold text-rose-950">
-                                    🎙️ מקליט דיווח קולי... (<span x-text="`${recordingSeconds} שניות`"></span>)
-                                </p>
-                                <p class="text-[11px] text-rose-700">ספר חופשי מה אכלת או שתית (למשל: "אכלתי חביתה משתי ביצים, סלט וכף טחינה")</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 flex-shrink-0">
-                            <button type="button"
-                                    @click="stopAndSubmitVoiceRecording()"
-                                    class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer transition">
-                                ⏹️ סיים ונתח ב-AI
-                            </button>
-                            <button type="button"
-                                    @click="cancelVoiceRecording()"
-                                    class="px-2.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 text-xs font-semibold border border-rose-200 cursor-pointer transition">
-                                ביטול
-                            </button>
-                        </div>
-                    </div>
-
+                    
                     <!-- Selected Photo Preview Bar -->
                     <div x-cloak x-show="selectedPhotoDataUrl"
-                         class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <img :src="selectedPhotoDataUrl" alt="תצוגה מקדימה" class="w-14 h-14 rounded-xl object-cover border border-emerald-300 shadow-xs flex-shrink-0">
+                         class="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <img :src="selectedPhotoDataUrl" alt="תצוגה מקדימה" class="w-12 h-12 rounded-xl object-cover border border-emerald-300 shadow-2xs flex-shrink-0">
                             <div class="min-w-0">
-                                <p class="text-xs sm:text-sm font-bold text-emerald-950"
-                                   x-text="aiAnalyzing ? '📸 מנתח את התמונה ב-Gemini Vision...' : '📸 תמונה מוכנה לניתוח ב-Gemini Vision'"></p>
+                                <p class="text-xs font-bold text-emerald-950"
+                                   x-text="aiAnalyzing ? '📸 מנתח ב-Gemini Vision...' : '📸 תמונה צורפה בהצלחה'"></p>
                                 <p class="text-[11px] text-emerald-700 truncate"
-                                   x-text="aiAnalyzing ? 'מזהה מרכיבים ומחשב קלוריות וחלבון...' : 'לחץ על נתח תמונה והוסף או הוסף הערה בשדה למטה'"></p>
+                                   x-text="aiAnalyzing ? 'מזהה מרכיבים ומחשב ערכים...' : 'הוסף הערה בתיבה או לחץ שלח'"></p>
                             </div>
                         </div>
                         <button type="button"
                                 x-show="!aiAnalyzing"
                                 @click="clearPhoto()"
-                                class="p-1.5 rounded-xl bg-white/80 hover:bg-white text-slate-500 hover:text-rose-600 transition flex-shrink-0"
+                                class="w-7 h-7 rounded-lg bg-white/90 hover:bg-white text-slate-400 hover:text-rose-600 transition flex items-center justify-center flex-shrink-0 cursor-pointer shadow-2xs"
                                 title="הסר תמונה">
                             ✕
                         </button>
                     </div>
 
-                    <!-- Floor 1: 4 Equal Fast-Action Buttons (Calm, Unified & Accessible) -->
-                    <div class="grid grid-cols-4 gap-2 sm:gap-2.5">
-                        <!-- 1. Voice Recording Button -->
-                        <button type="button"
-                                @click="isRecordingVoice ? stopAndSubmitVoiceRecording() : startVoiceRecording()"
-                                :disabled="aiAnalyzing"
-                                :class="isRecordingVoice ? 'bg-rose-50 border-rose-400 text-rose-700 animate-pulse font-black' : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-700'"
-                                class="h-14 sm:h-15 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
-                            <svg class="w-5 h-5 flex-shrink-0" :class="isRecordingVoice ? 'text-rose-600' : 'text-slate-600'" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-voice-mic"></use></svg>
-                            <span class="text-[11px] leading-none" x-text="isRecordingVoice ? (currentLang === 'en' ? 'Stop' : 'עצור') : (currentLang === 'en' ? 'Voice' : 'קולי')">קולי</span>
-                        </button>
-
-                        <!-- 2. Camera Button (Mobile opens native camera, Desktop opens Live Viewfinder / Webcam) -->
-                        <div class="h-14 sm:h-15">
-                            <label x-show="isMobileDevice"
-                                   :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-100/80 active:scale-95'"
-                                   class="h-full w-full rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
-                                <input type="file"
-                                       accept="image/*"
-                                       capture="environment"
-                                       x-ref="cameraInput"
-                                       @change="handlePhotoSelect($event, true)"
-                                       :disabled="aiAnalyzing"
-                                       class="sr-only">
-                                <svg class="w-5 h-5 flex-shrink-0 text-slate-600" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
-                                <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Camera' : 'צלם צלחת'">צלם צלחת</span>
-                            </label>
+                    <!-- WhatsApp-Style Active Voice Recording Bar (Transforms in-place) -->
+                    <div x-cloak x-show="isRecordingVoice"
+                         class="flex items-center justify-between gap-2 p-2 rounded-2xl bg-rose-50 border-2 border-rose-300 animate-pulse transition">
+                        <div class="flex items-center gap-2.5 pr-2 min-w-0">
+                            <span class="w-3 h-3 rounded-full bg-rose-600 animate-ping flex-shrink-0"></span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs sm:text-sm font-black text-rose-950">🎙️ מקליט...</span>
+                                <span class="text-xs font-mono font-bold text-rose-800 bg-white/90 px-2 py-0.5 rounded-md border border-rose-200" x-text="`${recordingSeconds} שניות`"></span>
+                            </div>
+                            <span class="text-[11px] text-rose-700 truncate hidden md:inline">ספר מה אכלת...</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
                             <button type="button"
-                                    x-show="!isMobileDevice"
-                                    @click="openLiveCamera()"
-                                    :disabled="aiAnalyzing"
-                                    class="h-full w-full rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
-                                <svg class="w-5 h-5 flex-shrink-0 text-slate-600" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-meal-camera"></use></svg>
-                                <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Camera' : 'צלם צלחת'">צלם צלחת</span>
+                                    @click="cancelVoiceRecording()"
+                                    class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-rose-100 text-slate-600 hover:text-rose-700 text-xs font-bold border border-rose-200 transition cursor-pointer">
+                                ✕ ביטול
+                            </button>
+                            <button type="button"
+                                    @click="stopAndSubmitVoiceRecording()"
+                                    class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-xs transition cursor-pointer flex items-center gap-1">
+                                <span>✓ שלח</span>
                             </button>
                         </div>
+                    </div>
 
-                        <!-- 3. Barcode Scanner Button -->
+                    <!-- WhatsApp-Style Text Input Form (When NOT recording) -->
+                    <form x-show="!isRecordingVoice" @submit.prevent="selectedPhotoDataUrl ? submitPhotoMeal() : submitAIMeal()" class="space-y-2.5">
+                        <div class="relative flex items-center gap-1.5 p-1 rounded-2xl bg-slate-50/90 border-2 border-slate-200 focus-within:border-emerald-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-600/10 transition shadow-2xs">
+                            
+                            <!-- WhatsApp-Style Mic Button -->
+                            <button type="button"
+                                    @click="startVoiceRecording()"
+                                    :disabled="aiAnalyzing"
+                                    title="הקלטה קולית (לחץ כדי לדבר)"
+                                    class="w-10 h-10 rounded-xl bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-slate-700 hover:text-rose-600 flex items-center justify-center transition flex-shrink-0 cursor-pointer shadow-2xs active:scale-95">
+                                <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-voice-mic"></use></svg>
+                            </button>
+
+                            <!-- Free Text Field -->
+                            <div class="flex-1 min-w-0">
+                                <input type="text"
+                                       x-model="aiInputText"
+                                       @focus="showAutocomplete = true"
+                                       @input="showAutocomplete = true"
+                                       @keydown.escape="showAutocomplete = false"
+                                       :disabled="aiAnalyzing"
+                                       :placeholder="selectedPhotoDataUrl ? 'הוסף הערה לתמונה (למשל: חצי מנה)...' : 'הקלד או דבר במיקרופון (למשל: 2 ביצים, סלט וטחינה)...'"
+                                       class="w-full h-10 px-2 bg-transparent text-sm sm:text-base font-medium text-slate-900 placeholder:text-slate-400 outline-none">
+                            </div>
+
+                            <!-- Send / Analyze Button -->
+                            <button type="submit"
+                                    :disabled="aiAnalyzing || (!aiInputText.trim() && !selectedPhotoDataUrl)"
+                                    class="h-10 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-30 disabled:hover:bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition flex-shrink-0 cursor-pointer shadow-xs active:scale-95">
+                                <span x-show="!aiAnalyzing" class="flex items-center gap-1">
+                                    <span class="hidden sm:inline" x-text="selectedPhotoDataUrl ? 'נתח תמונה' : 'הוסף'">הוסף</span>
+                                    <span class="material-symbols-outlined text-[17px] rotate-180">send</span>
+                                </span>
+                                <span x-show="aiAnalyzing" class="flex items-center gap-1">
+                                    <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                    <span class="text-[11px]">מנתח...</span>
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Smart Visual Actions (Unified All-in-One Camera + Gallery) -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <!-- All-in-One Smart Camera Button (Opens Viewfinder with Plate, Barcode & Label tabs) -->
                         <button type="button"
-                                @click="openBarcodeScannerModal()"
+                                @click="openSmartCameraViewfinder('meal')"
                                 :disabled="aiAnalyzing"
-                                class="h-14 sm:h-15 rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs">
-                            <svg class="w-5 h-5 text-slate-600 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-barcode-scanner"></use></svg>
-                            <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Barcode' : 'ברקוד'">ברקוד</span>
+                                class="h-12 px-3 rounded-2xl bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/90 text-emerald-900 font-bold text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer shadow-2xs">
+                            <span class="material-symbols-outlined text-[20px] text-emerald-700">photo_camera</span>
+                            <div class="text-right leading-tight">
+                                <span class="block font-black text-xs text-emerald-950">מצלמה חכמה</span>
+                                <span class="block text-[10px] text-emerald-700/90 font-medium">צלחת • ברקוד • תווית מאקרו</span>
+                            </div>
                         </button>
 
-                        <!-- 4. Gallery / File Upload Button -->
-                        <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-100/80 active:scale-95'"
-                               class="h-14 sm:h-15 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
+                        <!-- Gallery / Image File Upload -->
+                        <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-100/80 active:scale-98'"
+                               class="h-12 px-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition shadow-2xs">
                             <input type="file"
                                    accept="image/*"
                                    x-ref="photoInput"
                                    @change="handlePhotoSelect($event, true)"
                                    :disabled="aiAnalyzing"
                                    class="sr-only">
-                            <svg class="w-5 h-5 flex-shrink-0 text-slate-600" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-gallery-image"></use></svg>
-                            <span class="text-[11px] leading-none" x-text="currentLang === 'en' ? 'Gallery' : 'גלריה'">גלריה</span>
+                            <svg class="w-5 h-5 flex-shrink-0 text-slate-500" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-gallery-image"></use></svg>
+                            <div class="text-right leading-tight">
+                                <span class="block font-black text-xs text-slate-800">בחר מגלריה</span>
+                                <span class="block text-[10px] text-slate-500 font-medium">תמונה או צילום מסך</span>
+                            </div>
                         </label>
                     </div>
-
-                    <!-- Floor 2: Spacious Free-Text Box + Clean Solid Submit Button -->
-                    <form @submit.prevent="selectedPhotoDataUrl ? submitPhotoMeal() : submitAIMeal()" class="space-y-3">
-                        <div class="relative w-full">
-                            <input type="text"
-                                   x-model="aiInputText"
-                                   @focus="showAutocomplete = true"
-                                   @input="showAutocomplete = true"
-                                   @keydown.escape="showAutocomplete = false"
-                                   :disabled="aiAnalyzing || isRecordingVoice"
-                                   :placeholder="selectedPhotoDataUrl ? 'הערה לתמונה (אופציונלי: למשל חצי מנה, 2 פרוסות...)' : 'הקלד מה אכלת או שתית (למשל: 2 ביצים, סלט ירקות וכף טחינה)...'"
-                                   class="w-full min-h-[56px] sm:min-h-[60px] px-5 py-3.5 rounded-2xl bg-slate-50/70 hover:bg-white focus:bg-white border-2 border-slate-200 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 outline-none text-base font-medium text-slate-900 transition shadow-2xs">
-                        </div>
-
-                        <button type="submit"
-                                :disabled="aiAnalyzing || (!aiInputText.trim() && !selectedPhotoDataUrl)"
-                                class="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black text-sm shadow-xs flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer">
-                            <span x-show="!aiAnalyzing" x-text="selectedPhotoDataUrl ? 'נתח תמונה והוסף 📸' : 'נתח והוסף ב-AI ✨'"></span>
-                            <span x-show="aiAnalyzing" class="flex items-center gap-2">
-                                <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                                </svg>
-                                <span x-text="selectedPhotoDataUrl ? 'מנתח תמונה ב-AI...' : 'מנתח ב-AI...'"></span>
-                            </span>
-                        </button>
-                    </form>
 
                     <!-- Instant Smart Catalog Autocomplete Dropdown (with Calories & Protein Breakdown) -->
                     <div x-cloak x-show="showAutocomplete && autocompleteSuggestions.length > 0"
@@ -1525,22 +1520,28 @@
                     </div>
                 </div>
 
-                <!-- Manual Macro Form -->
-                <div x-show="manualMode" class="space-y-2.5 pt-1">
-                    <form @submit.prevent="submitManualMeal()" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                        <input type="text" x-model="newMeal.description"
-                               @focus="showManualAutocomplete = true"
-                               @input="showManualAutocomplete = true"
-                               placeholder="תיאור הארוחה (הקלד להשלמה אוטומטית...)" required
-                               class="sm:col-span-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
-                        <input type="number" x-model.number="newMeal.calories" placeholder="קלוריות (קק״ל)" required min="0"
-                               class="px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
-                        <div class="flex gap-2">
+                <!-- Compact Manual Number Entry Form -->
+                <div x-show="manualMode" class="space-y-2 pt-1">
+                    <form @submit.prevent="submitManualMeal()" class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                        <div class="sm:col-span-6 relative">
+                            <input type="text" x-model="newMeal.description"
+                                   @focus="showManualAutocomplete = true"
+                                   @input="showManualAutocomplete = true"
+                                   placeholder="שם המאכל (למשל: יוגורט דנונה פרו)..." required
+                                   class="w-full h-11 px-3.5 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-xs sm:text-sm font-medium">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <input type="number" x-model.number="newMeal.calories" placeholder="קק״ל" required min="0"
+                                   class="w-full h-11 px-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-xs sm:text-sm font-bold text-center">
+                        </div>
+                        <div class="sm:col-span-2">
                             <input type="number" step="0.1" x-model.number="newMeal.protein_g" placeholder="חלבון (ג׳)" required min="0"
-                                   class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-sm">
+                                   class="w-full h-11 px-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-xs sm:text-sm font-bold text-center">
+                        </div>
+                        <div class="sm:col-span-2">
                             <button type="submit"
-                                    class="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm flex-shrink-0 transition cursor-pointer">
-                                הוסף
+                                    class="w-full h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center transition cursor-pointer shadow-xs">
+                                + שמור
                             </button>
                         </div>
                     </form>
