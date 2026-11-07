@@ -1331,40 +1331,48 @@
                         </div>
                     </form>
 
-                    <!-- Smart Visual Actions (Unified All-in-One Camera + Gallery) -->
-                    <!-- Native device camera & gallery fallbacks -->
-                    <input type="file" accept="image/*" capture="environment" x-ref="cameraDirectInput" @change="handleViewfinderCameraPick($event)" class="sr-only">
-                    <input type="file" accept="image/*" x-ref="cameraMealInput" @change="handleViewfinderGalleryPick($event)" class="sr-only">
-                    
-                    <div class="grid grid-cols-2 gap-2">
-                        <!-- All-in-One Smart Camera Button (Opens Viewfinder with Plate, Barcode & Label tabs) -->
+                    <!-- Fast Visual Actions Row (Direct Plate Camera, Smart Scanner, and Gallery) -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <!-- 1. Direct Plate Camera (Snaps & logs immediately like before!) -->
+                        <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-emerald-100/80 active:scale-95'"
+                               class="h-13 px-2 rounded-2xl bg-emerald-50 border border-emerald-200/90 text-emerald-950 font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs text-center select-none">
+                            <input type="file"
+                                   accept="image/*"
+                                   capture="environment"
+                                   x-ref="cameraInput"
+                                   @change="handlePhotoSelect($event, true)"
+                                   :disabled="aiAnalyzing"
+                                   class="sr-only">
+                            <span class="material-symbols-outlined text-[21px] text-emerald-700">photo_camera</span>
+                            <span class="text-[11px] font-black leading-none">צלם צלחת</span>
+                        </label>
+
+                        <!-- 2. Smart Barcode & Label Scanner (Viewfinder) -->
                         <button type="button"
-                                @click="openSmartCameraViewfinder('meal')"
+                                @click="openSmartCameraViewfinder('barcode')"
                                 :disabled="aiAnalyzing"
-                                class="h-12 px-3 rounded-2xl bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/90 text-emerald-900 font-bold text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer shadow-2xs">
-                            <span class="material-symbols-outlined text-[20px] text-emerald-700">photo_camera</span>
-                            <div class="text-right leading-tight">
-                                <span class="block font-black text-xs text-emerald-950">מצלמה חכמה</span>
-                                <span class="block text-[10px] text-emerald-700/90 font-medium">צלחת • ברקוד • תווית מאקרו</span>
-                            </div>
+                                class="h-13 px-2 rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-800 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs text-center">
+                            <span class="material-symbols-outlined text-[21px] text-slate-600">qr_code_scanner</span>
+                            <span class="text-[11px] font-bold leading-none">ברקוד / תווית</span>
                         </button>
 
-                        <!-- Gallery / Image File Upload -->
+                        <!-- 3. Photo Gallery / Screenshot Upload -->
                         <label :class="aiAnalyzing ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-100/80 active:scale-98'"
-                               class="h-12 px-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition shadow-2xs">
+                               class="h-13 px-2 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-1 transition active:scale-95 shadow-2xs text-center select-none">
                             <input type="file"
                                    accept="image/*"
                                    x-ref="photoInput"
                                    @change="handlePhotoSelect($event, true)"
                                    :disabled="aiAnalyzing"
                                    class="sr-only">
-                            <svg class="w-5 h-5 flex-shrink-0 text-slate-500" width="20" height="20" viewBox="0 0 24 24"><use href="#icon-gallery-image"></use></svg>
-                            <div class="text-right leading-tight">
-                                <span class="block font-black text-xs text-slate-800">בחר מגלריה</span>
-                                <span class="block text-[10px] text-slate-500 font-medium">תמונה או צילום מסך</span>
-                            </div>
+                            <span class="material-symbols-outlined text-[21px] text-slate-500">photo_library</span>
+                            <span class="text-[11px] font-bold leading-none">גלריה</span>
                         </label>
                     </div>
+
+                    <!-- Hidden cameraMealInput & cameraDirectInput for viewfinder compatibility -->
+                    <input type="file" accept="image/*" capture="environment" x-ref="cameraDirectInput" @change="handleViewfinderCameraPick($event)" class="sr-only">
+                    <input type="file" accept="image/*" x-ref="cameraMealInput" @change="handleViewfinderGalleryPick($event)" class="sr-only">
 
                     <!-- Instant Smart Catalog Autocomplete Dropdown (with Calories & Protein Breakdown) -->
                     <div x-cloak x-show="showAutocomplete && autocompleteSuggestions.length > 0"
