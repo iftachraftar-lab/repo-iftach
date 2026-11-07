@@ -89,7 +89,7 @@ if _has_gcp_credentials():
 else:
     print("INFO: No local GCP credentials found; using fast in-memory storage for local preview.")
 
-ai_client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
+ai_client = genai.Client(api_key=GEMINI_KEY, http_options={"api_version": "v1beta"}) if GEMINI_KEY else None
 
 
 # ---------------------------------------------------------------------------
@@ -2134,7 +2134,7 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
         print(f"ERROR analyze_meal: {type(e).__name__} - {err_msg}")
         if "402" in err_msg or "prepayment" in err_msg.lower() or "RESOURCE_EXHAUSTED" in err_msg:
             return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API_ERROR: 402_PREPAYMENT_DEPLETED")
-        return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="Analysis error")
+        return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {err_msg[:120]}")
 
 
 def analyze_workout(text: str, user_weight_kg: float = 75.0) -> WorkoutExtraction:
@@ -5939,6 +5939,11 @@ def api_add_ai_meal(req: AIMealRequest, request: Request):
         raise HTTPException(
             status_code=402,
             detail="יתרת התשלום המוקדם (Prepayment Credits) בחשבון Google AI Studio אזלה. יש להיכנס ל-https://ai.studio/projects ולהטעין תקציב.",
+        )
+    if extraction.summary and extraction.summary.startswith("API_ERROR:"):
+        raise HTTPException(
+            status_code=502,
+            detail=f"שגיאת תקשורת עם שרת ה-AI: {extraction.summary.replace('API_ERROR:', '').strip()[:80]}",
         )
     if not extraction.is_meal:
         raise HTTPException(status_code=422, detail="לא זוהתה ארוחה או שתייה בטקסט שהוזן")
