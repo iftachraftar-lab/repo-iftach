@@ -6021,7 +6021,7 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
                 status_code=402,
                 detail="יתרת התשלום המוקדם (Prepayment Credits) ב-Google AI Studio אזלה. יש להיכנס ל-https://ai.studio/projects ולהטעין תקציב.",
             )
-        raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם Gemini Vision ({extraction.summary}). נסה שוב.")
+        raise HTTPException(status_code=502, detail=f"שגיאה בתקשורת עם סוכן ניתוח התמונה ({extraction.summary}). נסה שוב.")
     if not extraction.is_meal:
         try:
             save_vision_analysis_log_db(uid, extraction, forensics, source="web-photo", caption=req.caption or "", meal_id="")
@@ -8029,7 +8029,7 @@ def api_scan_barcode_from_image(req: BarcodeImageScanRequest, request: Request):
             rec = parsed.model_dump()
             rec["found"] = bool(rec.get("product_name"))
             rec["barcode"] = clean_digits or "PHOTO-SCAN"
-            rec["source_db"] = "קריאת ברקוד ותווית אופטית (Gemini Vision)"
+            rec["source_db"] = "קריאת ברקוד ותווית תזונתית חכמה"
             result_dict = _finalize_barcode_record(rec)
             if len(clean_digits) >= 8 and result_dict["found"]:
                 save_custom_barcode_product_db(result_dict)

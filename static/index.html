@@ -1251,7 +1251,7 @@
                             <img :src="selectedPhotoDataUrl" alt="תצוגה מקדימה" class="w-12 h-12 rounded-xl object-cover border border-emerald-300 shadow-2xs flex-shrink-0">
                             <div class="min-w-0">
                                 <p class="text-xs font-bold text-emerald-950"
-                                   x-text="aiAnalyzing ? '📸 מנתח ב-Gemini Vision...' : '📸 תמונה צורפה בהצלחה'"></p>
+                                   x-text="aiAnalyzing ? '📸 מנתח את התמונה ומחשב ערכים...' : '📸 תמונה צורפה בהצלחה'"></p>
                                 <p class="text-[11px] text-emerald-700 truncate"
                                    x-text="aiAnalyzing ? 'מזהה מרכיבים ומחשב ערכים...' : 'הוסף הערה בתיבה או לחץ שלח'"></p>
                             </div>
@@ -7355,12 +7355,12 @@
             scannerTitle: 'סורק חי NutriAgent AI',
             barcodeMode: 'סורק ברקוד',
             mealAiMode: 'זיהוי מנה',
-            labelOcrMode: 'סריקת תווית',
+            labelOcrMode: 'תווית מאקרו',
             cameraLiveFeed: 'מצלמת וידאו חיה פעילה (Live Feed)',
             switchCamera: 'החלף מצלמה',
             aimCameraNotice: 'כוון את המצלמה לצלחת או למוצר המזון',
             tapToScanNotice: 'לחץ על כפתור הצילום הירוק למטה וה-AI יזהה ויחשב את המרכיבים בזמן אמת',
-            geminiAnalyzing: 'Gemini Vision מנתח את הצלחת שלך...',
+            geminiAnalyzing: 'מנתח את המנה ומחשב קלוריות וחלבון...',
             confirmAndSave: 'אשר ושמור מנה זו ביומן',
             cancel: 'ביטול',
             save: 'שמור',
@@ -7469,7 +7469,7 @@
             switchCamera: 'Switch Camera',
             aimCameraNotice: 'Aim camera at plate or food item',
             tapToScanNotice: 'Tap the green shutter button below for instant AI recognition',
-            geminiAnalyzing: 'Gemini Vision is analyzing your plate...',
+            geminiAnalyzing: 'Analyzing plate and calculating macros...',
             confirmAndSave: 'Confirm & Save Meal to Journal',
             cancel: 'Cancel',
             save: 'Save',
@@ -7680,7 +7680,7 @@
   "החלף מצלמה": "Switch Camera",
   "כוון את המצלמה לצלחת או למוצר המזון": "Aim camera at your plate or food item",
   "לחץ על כפתור הצילום הירוק למטה וה-AI יזהה ויחשב את המרכיבים בזמן אמת": "Tap green shutter button below for instant AI recognition and calorie breakdown",
-  "Gemini Vision מנתח את הצלחת שלך...": "Gemini Vision is analyzing your plate...",
+  "מנתח את המנה ומחשב קלוריות וחלבון...": "Analyzing plate and calculating macros...",
   "אשר ושמור מנה זו ביומן": "Confirm & Save Meal to Journal",
   "שמור ביומן": "Save to Journal",
   "רכיבים זוהו בצלחת": "items detected on plate",
@@ -10231,7 +10231,9 @@
                 detectedMealCandidate: null,
                 viewfinderBarcodeDetectorTimer: null,
                 showMorningReminder: false,
+                currentViewfinderZoom: 1, // 0.5, 1, 2, 'macro'
                 liveViewfinderTorch: false,
+                viewfinderStrobeActive: false,
                 liveViewfinderFlashSupported: false,
                 viewfinderMode: 'plate',
                 viewfinderSimulatedBoxes: [
@@ -10636,11 +10638,16 @@
                 },
 
                 openSmartCameraViewfinder(mode = 'meal') {
-                    this.viewfinderScanMode = mode || 'meal';
+                    this.viewfinderScanMode = (mode === 'barcode' ? 'barcode' : (mode === 'label' || mode === 'macro' ? 'label' : 'meal'));
                     this.showLiveViewfinder = true;
                     this.resetDetectedCandidate();
+                    if (mode === 'macro' || mode === 'label') {
+                        this.setCameraZoom('macro');
+                    } else {
+                        this.setCameraZoom(1);
+                    }
                     this.startLiveViewfinderCamera();
-                    if (mode === 'barcode') {
+                    if (this.viewfinderScanMode === 'barcode') {
                         this.startViewfinderLiveBarcodeScanning();
                     }
                 },
@@ -10697,6 +10704,9 @@
                                 video.setAttribute('webkit-playsinline', 'true');
                                 video.play().then(() => {
                                     this.liveCameraActive = true;
+                                    if (this.currentViewfinderZoom && this.currentViewfinderZoom !== 1) {
+                                        this.setCameraZoom(this.currentViewfinderZoom);
+                                    }
                                 }).catch(e => {
                                     console.warn('Video play catch:', e);
                                     this.liveCameraActive = true;
@@ -10739,6 +10749,18 @@
                 },
 
                 stopLiveViewfinderCamera() {
+                    if (this.liveViewfinderTorch && this.liveViewfinderCameraStream) {
+                        try {
+                            const track = this.liveViewfinderCameraStream.getVideoTracks()[0];
+                            if (track) track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+                        } catch (e) {}
+                    }
+                    this.liveViewfinderTorch = false;
+                    this.viewfinderStrobeActive = false;
+                    if (this.viewfinderBarcodeDetectorTimer) {
+                        clearInterval(this.viewfinderBarcodeDetectorTimer);
+                        this.viewfinderBarcodeDetectorTimer = null;
+                    }
                     if (this.liveViewfinderCameraStream) {
                         this.liveViewfinderCameraStream.getTracks().forEach(t => t.stop());
                         this.liveViewfinderCameraStream = null;
@@ -10747,7 +10769,8 @@
                         this.$refs.liveViewfinderVideo.srcObject = null;
                     }
                     this.liveCameraActive = false;
-                    localStorage.setItem('nutri_scanner_used', 'true'); this.showLiveViewfinder = false;
+                    localStorage.setItem('nutri_scanner_used', 'true');
+                    this.showLiveViewfinder = false;
                 },
 
                 toggleCameraLens() {
@@ -10761,20 +10784,40 @@
                         if (this.$refs.cameraMealInput) this.$refs.cameraMealInput.click();
                         return;
                     }
+
+                    // Strobe flash animation if torch / flash is enabled
+                    if (this.liveViewfinderTorch) {
+                        this.viewfinderStrobeActive = true;
+                        setTimeout(() => { this.viewfinderStrobeActive = false; }, 140);
+                    }
+
                     const canvas = document.createElement('canvas');
-                    // Optimized dimensions for faster AI transmission and latency
-                    const maxDim = 1200;
                     let w = video.videoWidth;
                     let h = video.videoHeight;
-                    if (w > maxDim || h > maxDim) {
-                        if (w > h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
-                        else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+
+                    // Digital zoom & macro center crop
+                    const zoomScale = this.getZoomScale();
+                    let sx = 0, sy = 0, sWidth = w, sHeight = h;
+                    if (zoomScale > 1) {
+                        sWidth = Math.round(w / zoomScale);
+                        sHeight = Math.round(h / zoomScale);
+                        sx = Math.round((w - sWidth) / 2);
+                        sy = Math.round((h - sHeight) / 2);
                     }
-                    canvas.width = w;
-                    canvas.height = h;
+
+                    // Optimized dimensions for fast AI transmission
+                    const maxDim = 1200;
+                    let targetW = sWidth;
+                    let targetH = sHeight;
+                    if (targetW > maxDim || targetH > maxDim) {
+                        if (targetW > targetH) { targetH = Math.round(targetH * (maxDim / targetW)); targetW = maxDim; }
+                        else { targetW = Math.round(targetW * (maxDim / targetH)); targetH = maxDim; }
+                    }
+                    canvas.width = targetW;
+                    canvas.height = targetH;
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, w, h);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+                    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, targetW, targetH);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.84);
                     
                     this.liveViewfinderScanning = true;
                     
@@ -10837,7 +10880,7 @@
                     }
 
                     // Mode: 'meal' (Default) - IDENTIFY FIRST, DO NOT SAVE AUTOMATICALLY!
-                    this.showToast('🔍 Gemini Vision מזהה את המרכיבים בצלחת...');
+                    this.showToast('🔍 מזהה את המרכיבים בצלחת ומחשב ערכים...');
                     try {
                         const res = await fetch('/api/meals/photo', {
                             method: 'POST',
@@ -11005,14 +11048,18 @@
                     this.viewfinderScanMode = mode;
                     this.resetDetectedCandidate();
                     if (mode === 'barcode') {
-                        this.showToast('🏷️ מצב סורק ברקוד פעיל — כוון לברקוד על האריזה ולחץ צלם או המתן לזיהוי');
+                        this.showToast('🏷️ סורק ברקוד — כוון לברקוד על גבי המוצר');
                         this.startViewfinderLiveBarcodeScanning();
                     } else if (mode === 'label') {
-                        this.showToast('📋 מצב סורק תווית (OCR) פעיל — כוון לטבלת הסימון התזונתי ולחץ צלם');
+                        this.showToast('📋 סורק תווית מאקרו — כוון לטבלת הסימון התזונתי ולחץ צלם');
                         if (this.viewfinderBarcodeDetectorTimer) clearInterval(this.viewfinderBarcodeDetectorTimer);
+                        this.setCameraZoom('macro');
                     } else {
-                        this.showToast('🍽️ מצב סורק צלחת (Meal AI) פעיל — כוון לצלחת ולחץ זהה מנה');
+                        this.showToast('🍽️ סורק צלחת — כוון לצלחת ולחץ זהה מנה');
                         if (this.viewfinderBarcodeDetectorTimer) clearInterval(this.viewfinderBarcodeDetectorTimer);
+                        if (this.currentViewfinderZoom === 'macro') {
+                            this.setCameraZoom(1);
+                        }
                     }
                 },
 
@@ -11050,19 +11097,70 @@
                     }
                 },
 
-                toggleTorch() {
-                    if (!this.liveViewfinderCameraStream) return;
-                    const track = this.liveViewfinderCameraStream.getVideoTracks()[0];
-                    if (!track) return;
-                    const caps = track.getCapabilities ? track.getCapabilities() : {};
-                    if (caps.torch) {
-                        this.liveViewfinderTorch = !this.liveViewfinderTorch;
-                        track.applyConstraints({
-                            advanced: [{ torch: this.liveViewfinderTorch }]
-                        }).catch(e => console.warn('Torch error:', e));
-                    } else {
-                        this.showToast('מבזק תאורה (Flash) אינו זמין במצלמה זו');
+                async toggleTorch() {
+                    this.liveViewfinderTorch = !this.liveViewfinderTorch;
+                    let hardwareApplied = false;
+                    if (this.liveViewfinderCameraStream) {
+                        const track = this.liveViewfinderCameraStream.getVideoTracks()[0];
+                        if (track) {
+                            try {
+                                await track.applyConstraints({
+                                    advanced: [{ torch: this.liveViewfinderTorch }]
+                                });
+                                hardwareApplied = true;
+                            } catch (e) {
+                                console.warn('Hardware torch error, falling back to screen flash:', e);
+                            }
+                        }
                     }
+                    if (this.liveViewfinderTorch) {
+                        this.showToast(hardwareApplied ? '🔦 פלאש / מבזק תאורה הופעל' : '💡 תאורת מסך חכמה (Screen Flash) הופעלה');
+                    } else {
+                        this.showToast('🔦 מבזק תאורה כבוי');
+                    }
+                },
+
+                setCameraZoom(level) {
+                    this.currentViewfinderZoom = level;
+                    if (this.liveViewfinderCameraStream) {
+                        const track = this.liveViewfinderCameraStream.getVideoTracks()[0];
+                        if (track) {
+                            const caps = track.getCapabilities ? track.getCapabilities() : {};
+                            if (caps.zoom) {
+                                const minZ = caps.zoom.min || 1;
+                                const maxZ = caps.zoom.max || 5;
+                                let targetZoom = 1;
+                                if (level === 'macro') targetZoom = Math.min(maxZ, Math.max(minZ, 2.5));
+                                else if (typeof level === 'number') {
+                                    if (level < 1) targetZoom = minZ;
+                                    else targetZoom = Math.min(maxZ, Math.max(minZ, level));
+                                }
+                                track.applyConstraints({ advanced: [{ zoom: targetZoom }] }).catch(() => {});
+                            }
+                            if (caps.focusMode) {
+                                const desiredFocus = (level === 'macro' && caps.focusMode.includes('macro')) ? 'macro' : 'continuous';
+                                if (caps.focusMode.includes(desiredFocus)) {
+                                    track.applyConstraints({ advanced: [{ focusMode: desiredFocus }] }).catch(() => {});
+                                }
+                            }
+                        }
+                    }
+                    if (level === 'macro') {
+                        this.showToast('🌸 צילום מאקרו פעיל: תקריב חד מוגדל לזיהוי רכיבים ותוויות');
+                    } else if (level === 2) {
+                        this.showToast('🔍 זום 2x פעיל');
+                    } else if (level === 0.5) {
+                        this.showToast('📐 זווית רחבה (.5x) פעילה');
+                    } else {
+                        this.showToast('🎯 זום רגיל (1x)');
+                    }
+                },
+
+                getZoomScale() {
+                    if (this.currentViewfinderZoom === 'macro') return 2.2;
+                    if (this.currentViewfinderZoom === 2) return 2.0;
+                    if (this.currentViewfinderZoom === 0.5) return 0.85;
+                    return 1.0;
                 },
 
                 openWoltCustomizer(dish) {
@@ -15354,33 +15452,76 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 bg-black overflow-y-auto select-none"
          :dir="currentLang === 'en' ? 'ltr' : 'rtl'">
-        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-transform active:scale-95 cursor-pointer shadow-lg border border-white/20" @click="stopLiveViewfinderCamera()"><span class="material-symbols-outlined text-white text-[24px]">close</span></button><div class="flex flex-col"><span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span><h1 class="font-headline-sm text-headline-sm text-on-primary">Scanner</h1></div></div><div class="flex items-center gap-space-sm"><button @click="toggleTorch()" aria-label="Toggle Torch" class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-95 cursor-pointer"><span class="material-symbols-outlined text-[20px]">flash_on</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-12 px-margin flex items-center justify-center pb-2"><div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner"><button type="button" @click="setViewfinderMode('barcode')"
-        :class="viewfinderScanMode === 'barcode' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
-        class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
-    <svg class="w-4 h-4"><use href="#icon-barcode-scanner"></use></svg>
-    <span x-text="t('barcodeMode', 'Barcode')">Barcode</span>
-</button>
-<button type="button" @click="setViewfinderMode('meal')"
-        :class="viewfinderScanMode === 'meal' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
-        class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
-    <svg class="w-4 h-4"><use href="#icon-meal-camera"></use></svg>
-    <span x-text="t('mealAiMode', 'Meal AI')">Meal AI</span>
-</button>
-<button type="button" @click="setViewfinderMode('label')"
-        :class="viewfinderScanMode === 'label' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
-        class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
-    <svg class="w-4 h-4"><use href="#icon-target-goal"></use></svg>
-    <span x-text="t('labelOcrMode', 'Label OCR')">Label OCR</span>
-</button></div></div></header>
+        <header class="fixed top-0 w-full z-50 pt-safe bg-black/40 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+            <div class="h-16 px-margin flex items-center justify-between">
+                <div class="flex items-center gap-space-sm">
+                    <button aria-label="Dismiss" class="w-11 h-11 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-transform active:scale-95 cursor-pointer shadow-lg border border-white/20" @click="stopLiveViewfinderCamera()">
+                        <span class="material-symbols-outlined text-white text-[24px]">close</span>
+                    </button>
+                    <div class="flex flex-col">
+                        <span class="font-label-subtle text-label-subtle text-primary-fixed uppercase tracking-wider">NutriAgent AI</span>
+                        <h1 class="font-headline-sm text-headline-sm text-on-primary">מצלמה וסורק</h1>
+                    </div>
+                </div>
+                <div class="flex items-center gap-space-sm">
+                    <!-- Flash / Torch Button with Live State -->
+                    <button type="button"
+                            @click="toggleTorch()"
+                            :aria-label="liveViewfinderTorch ? 'כבה פלאש' : 'הפעל פלאש'"
+                            :class="liveViewfinderTorch ? 'bg-amber-400 text-slate-950 font-black shadow-lg shadow-amber-400/60 ring-2 ring-amber-300 scale-105' : 'bg-white/10 hover:bg-white/20 text-white'"
+                            class="w-11 h-11 rounded-full backdrop-blur-md flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                            title="הפעל/כבה פלאש ותאורה">
+                        <span class="material-symbols-outlined text-[20px]" x-text="liveViewfinderTorch ? 'flash_on' : 'flash_off'"></span>
+                    </button>
+                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                        <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Viewfinder Mode Tabs -->
+            <div class="h-12 px-margin flex items-center justify-center pb-2">
+                <div class="flex items-center bg-white/10 backdrop-blur-lg p-1 rounded-full shadow-inner gap-1">
+                    <button type="button" @click="setViewfinderMode('barcode')"
+                            :class="viewfinderScanMode === 'barcode' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
+                            class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
+                        <svg class="w-4 h-4"><use href="#icon-barcode-scanner"></use></svg>
+                        <span x-text="t('barcodeMode', 'ברקוד')">ברקוד</span>
+                    </button>
+                    <button type="button" @click="setViewfinderMode('meal')"
+                            :class="viewfinderScanMode === 'meal' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
+                            class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
+                        <svg class="w-4 h-4"><use href="#icon-meal-camera"></use></svg>
+                        <span x-text="t('mealAiMode', 'צלחת AI')">צלחת AI</span>
+                    </button>
+                    <button type="button" @click="setViewfinderMode('label')"
+                            :class="viewfinderScanMode === 'label' ? 'bg-emerald-600 text-white font-bold shadow-md' : 'text-white/80 hover:text-white'"
+                            class="px-3.5 py-1.5 rounded-full font-label-strong text-xs flex items-center gap-1.5 transition cursor-pointer">
+                        <svg class="w-4 h-4"><use href="#icon-target-goal"></use></svg>
+                        <span x-text="t('labelOcrMode', 'תווית מאקרו')">תווית מאקרו</span>
+                    </button>
+                </div>
+            </div>
+        </header>
 <main class="flex flex-col relative w-full pt-28 bg-transparent min-h-screen"><div class="flex flex-col w-full text-on-surface select-none pb-safe" :dir="currentLang === 'en' ? 'ltr' : 'rtl'">
 <!-- Viewfinder Frame Container -->
 <div class="relative w-full overflow-hidden rounded-b-xl shadow-2xl bg-black min-h-[460px] flex flex-col justify-between">
 <!-- Real Live Camera Feed Layer with Live <video> element -->
 <div class="absolute inset-0 z-0 bg-black overflow-hidden flex items-center justify-center">
-    <!-- 1. Real Camera Video Feed -->
+    <!-- 1. Real Camera Video Feed with dynamic hardware / CSS Zoom & brightness -->
     <video x-ref="liveViewfinderVideo" autoplay playsinline muted
-           class="w-full h-full object-cover"
+           class="w-full h-full object-cover transition-transform duration-300"
+           :style="`transform: scale(${getZoomScale()}); transform-origin: center center; ${liveViewfinderTorch ? 'filter: brightness(1.15) contrast(1.05);' : ''}`"
            :class="liveCameraActive ? 'opacity-100' : 'opacity-0'"></video>
+
+    <!-- Screen Flash / Torch Fill Light Ring Overlay -->
+    <div x-cloak x-show="liveViewfinderTorch"
+         class="absolute inset-0 pointer-events-none z-15 ring-[16px] sm:ring-[22px] ring-white/95 shadow-[inset_0_0_80px_rgba(255,255,255,0.85)] transition-opacity duration-300">
+    </div>
+
+    <!-- Rapid Flash Strobe on Capture Snap -->
+    <div x-cloak x-show="viewfinderStrobeActive"
+         class="absolute inset-0 pointer-events-none z-40 bg-white transition-opacity duration-150">
+    </div>
 
     <!-- 2. Clean Dark Camera Viewport while camera initializes -->
     <div x-show="!liveCameraActive" class="absolute inset-0 w-full h-full bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
@@ -15473,38 +15614,82 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
     <div x-show="liveViewfinderScanning"
          class="absolute inset-x-4 top-36 mx-auto max-w-xs pointer-events-auto bg-black/80 backdrop-blur-md border border-emerald-500/50 rounded-2xl p-4 text-center space-y-2 shadow-2xl">
         <div class="w-8 h-8 mx-auto border-3 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-        <div class="text-xs font-black text-white">Gemini Vision מנתח את הצלחת שלך...</div>
-        <div class="text-[10px] text-emerald-300">זיהוי מרובה פריטים, שקילה וערכים תזונתיים</div>
+        <div class="text-xs font-black text-white">מנתח את המנה בצלחת...</div>
+        <div class="text-[10px] text-emerald-300">זיהוי רכיבים, כמויות וערכים תזונתיים</div>
     </div>
 </div>
 <!-- Viewfinder Controls (HUD Top Controls) -->
 <div class="relative z-30 pt-3 px-space-md flex items-center justify-between">
-<!-- AI Engine Telemetry Chip -->
-<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md shadow-sm">
-<span class="material-symbols-outlined text-primary-fixed text-[18px] animate-pulse">psychology</span>
-<div class="flex flex-col">
-<span class="font-label-subtle text-label-subtle text-primary-fixed leading-tight">AI VISION 4.2</span>
-<span class="font-label-subtle text-label-subtle text-white/60">זיהוי מרובה פריטים פעיל</span>
+    <!-- Smart Scanner Status Chip -->
+    <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md shadow-sm border border-white/10">
+        <span class="material-symbols-outlined text-primary-fixed text-[18px] animate-pulse">psychology</span>
+        <div class="flex flex-col">
+            <span class="font-label-subtle text-label-subtle text-primary-fixed leading-tight font-black">סורק תזונה חכם</span>
+            <span class="font-label-subtle text-label-subtle text-white/70" x-text="currentViewfinderZoom === 'macro' ? 'צילום מאקרו תקריב פעיל' : 'זיהוי מנה וחישוב מאקרו'"></span>
+        </div>
+    </div>
+
+    <!-- Optical Zoom & Macro Lens Controls -->
+    <div class="flex items-center gap-1 p-1 rounded-full bg-black/60 backdrop-blur-md border border-white/15 shadow-lg">
+        <!-- Dedicated Macro Button -->
+        <button type="button"
+                @click="setCameraZoom(currentViewfinderZoom === 'macro' ? 1 : 'macro')"
+                :class="currentViewfinderZoom === 'macro' ? 'bg-emerald-500 text-white font-black shadow-md shadow-emerald-500/40 ring-1 ring-emerald-300' : 'text-white/80 hover:text-white hover:bg-white/10'"
+                class="px-2.5 h-7 rounded-full font-label-strong text-[11px] flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
+                title="צילום מאקרו: תקריב לפרטים קטנים, רכיבים ותוויות">
+            <span>🌸</span>
+            <span>מאקרו</span>
+        </button>
+
+        <!-- .5x Wide -->
+        <button type="button"
+                @click="setCameraZoom(0.5)"
+                :class="currentViewfinderZoom === 0.5 ? 'bg-primary text-on-primary font-black shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'"
+                class="w-7 h-7 rounded-full font-label-strong text-[11px] flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                title="זווית רחבה (.5x)">
+            .5x
+        </button>
+
+        <!-- 1x Normal -->
+        <button type="button"
+                @click="setCameraZoom(1)"
+                :class="currentViewfinderZoom === 1 ? 'bg-primary text-on-primary font-black shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'"
+                class="w-7 h-7 rounded-full font-label-strong text-[11px] flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                title="זום רגיל (1x)">
+            1x
+        </button>
+
+        <!-- 2x Zoom -->
+        <button type="button"
+                @click="setCameraZoom(2)"
+                :class="currentViewfinderZoom === 2 ? 'bg-primary text-on-primary font-black shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'"
+                class="w-7 h-7 rounded-full font-label-strong text-[11px] flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                title="זום תקריב (2x)">
+            2x
+        </button>
+    </div>
+
+    <!-- Quick Laser Barcode Overlay Toggle -->
+    <button aria-label="Toggle Barcode Mode" class="w-9 h-9 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-primary-fixed active:scale-95 transition-all shadow-sm border border-white/10" id="toggle-laser" onclick="toggleScanner()">
+        <span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+    </button>
 </div>
+
+<!-- Macro Mode Helper Banner when Macro is active -->
+<div x-cloak x-show="currentViewfinderZoom === 'macro'"
+     class="relative z-30 mx-auto w-fit mt-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-400/50 backdrop-blur-md flex items-center gap-1.5 shadow-md">
+    <span>🌸</span>
+    <span class="text-[11px] font-bold text-emerald-300">מצב מאקרו: תקריב חד מוגדל לתוויות ערכים ולרכיבים</span>
+    <button type="button" @click="setCameraZoom(1)" class="text-[10px] text-white/80 hover:text-white underline mr-1 font-bold">חזור ל-1x</button>
 </div>
-<!-- Optical Zoom & Camera Lens Controls -->
-<div class="flex items-center p-1 rounded-full bg-black/50 backdrop-blur-md shadow-sm">
-<button class="w-7 h-7 rounded-full text-white/70 hover:text-white font-label-strong text-label-strong flex items-center justify-center transition-colors" id="zoom-uw" onclick="setZoom(this)">.5x</button>
-<button class="w-7 h-7 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center justify-center shadow" id="zoom-1x" onclick="setZoom(this)">1x</button>
-<button class="w-7 h-7 rounded-full text-white/70 hover:text-white font-label-strong text-label-strong flex items-center justify-center transition-colors" id="zoom-2x" onclick="setZoom(this)">2x</button>
-</div>
-<!-- Quick Supermarket Barcode Toggle -->
-<button aria-label="Toggle Barcode Mode" class="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-primary-fixed active:scale-95 transition-all shadow-sm" id="toggle-laser" onclick="toggleScanner()">
-<span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
-</button>
-</div>
+
 <!-- Viewfinder Bottom Helper Tag -->
 <div class="relative z-30 pb-3 px-space-md flex items-center justify-between text-white/80">
-<div class="flex items-center gap-1.5">
-<span class="material-symbols-outlined text-emerald-400 text-[16px]">verified</span>
-<span class="text-xs font-bold" x-text="liveDetectedItems.length ? `${liveDetectedItems.length} רכיבים זוהו בצלחת` : 'מצלמה מוכנה לסריקה'"></span>
-</div>
-<span class="text-xs text-white/70 font-mono" x-text="liveDetectedItems.length ? `${liveDetectedItems.reduce((acc, i) => acc + (i.cals || 0), 0)} קק״ל סה״כ` : 'AI Vision Live'"></span>
+    <div class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-emerald-400 text-[16px]">verified</span>
+        <span class="text-xs font-bold" x-text="liveDetectedItems.length ? `${liveDetectedItems.length} רכיבים זוהו בצלחת` : 'מצלמה מוכנה לסריקה'"></span>
+    </div>
+    <span class="text-xs text-white/70 font-mono" x-text="liveDetectedItems.length ? `${liveDetectedItems.reduce((acc, i) => acc + (i.cals || 0), 0)} קק״ל סה״כ` : 'סריקה חיה'"></span>
 </div>
 </div>
 <!-- Bottom Nutrition Verdict Sheet (Appears when barcode is detected or product is scanned) -->
@@ -15689,18 +15874,24 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             <span class="material-symbols-outlined text-white text-[22px]" :class="{'animate-spin': liveViewfinderScanning}">
                 <span x-text="liveViewfinderScanning ? 'progress_activity' : 'camera'"></span>
             </span>
-            <span class="font-black text-white" x-text="liveViewfinderScanning ? 'מזהה ב-AI...' : (viewfinderScanMode === 'barcode' ? 'סרוק ברקוד' : (viewfinderScanMode === 'label' ? 'סרוק תווית' : 'זהה צלחת ב-AI 📸'))"></span>
+            <span class="font-black text-white" x-text="liveViewfinderScanning ? 'מזהה ב-AI...' : (viewfinderScanMode === 'barcode' ? 'סרוק ברקוד' : (viewfinderScanMode === 'label' ? 'סרוק תווית מאקרו' : 'זהה צלחת ב-AI 📸'))"></span>
         </button>
     </div>
 </div>
 </div>
 <script>
   function setZoom(button) {
-    const parent = button.parentElement;
-    parent.querySelectorAll('button').forEach(btn => {
-      btn.className = 'w-7 h-7 rounded-full text-white/70 hover:text-white font-label-strong text-label-strong flex items-center justify-center transition-colors';
-    });
-    button.className = 'w-7 h-7 rounded-full bg-primary text-on-primary font-label-strong text-label-strong flex items-center justify-center shadow';
+    try {
+      const alpineRoot = document.querySelector('[x-data]');
+      if (alpineRoot && window.Alpine) {
+        const d = Alpine.$data(alpineRoot);
+        const txt = (button.innerText || '').trim();
+        if (txt.includes('מאקרו')) d.setCameraZoom('macro');
+        else if (txt.includes('.5x')) d.setCameraZoom(0.5);
+        else if (txt.includes('2x')) d.setCameraZoom(2);
+        else d.setCameraZoom(1);
+      }
+    } catch (e) {}
   }
 
   function setPortion(button, amount) {
