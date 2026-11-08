@@ -9053,3 +9053,61 @@ def api_delete_account_self(req: DeleteAccountSelfRequest, request: Request):
         "details": res
     }
 
+
+class SupportContactRequest(BaseModel):
+    subject: str = "פנייה כללית"
+    message: str
+    user_email: Optional[str] = None
+    user_name: Optional[str] = None
+    category: Optional[str] = "תקלה טכנית"
+
+
+@app.post("/api/support/contact")
+def api_support_contact(req: SupportContactRequest, request: Request):
+    """
+    In-app support contact endpoint.
+    Receives user inquiries, saves them securely to Firestore,
+    and alerts the Admin via immediate Web Push notification.
+    The admin's personal email and phone number are NEVER exposed to the frontend.
+    """
+    uid = get_request_user_id(request)
+    clean_msg = (req.message or "").strip()
+    if not clean_msg:
+        raise HTTPException(status_code=400, detail="נא להקליד תוכן הודעה לפני השליחה")
+
+    now_iso = get_israel_now().isoformat()
+    inquiry = {
+        "user_id": uid,
+        "user_name": req.user_name or uid,
+        "user_email": req.user_email or "",
+        "subject": (req.subject or "פנייה מהאפליקציה").strip(),
+        "category": req.category or "תקלה טכנית",
+        "message": clean_msg,
+        "created_at": now_iso,
+        "status": "new"
+    }
+
+    if db:
+        try:
+            db.collection("support_inquiries").add(inquiry)
+        except Exception as e:
+            print(f"ERROR saving support inquiry to db: {e}")
+
+    # Broadcast notification to Admin
+    try:
+        send_push_notification(
+            user_id=None,
+            title=f"💬 פנייה חדשה: {req.subject}",
+            body=f"{req.user_name or uid} ({req.category}): {clean_msg[:100]}",
+            tag="nutriagent-support-inquiry",
+            url="/?tab=admin"
+        )
+    except Exception as e:
+        print(f"ERROR dispatching support push notification: {e}")
+
+    return {
+        "status": "ok",
+        "message": "פנייתך התקבלה בהצלחה! צוות התמיכה יטפל בה בהקדם."
+    }
+
+
