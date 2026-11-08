@@ -61,8 +61,11 @@
   - Weekly macro trends, weight progress chart, calorie compliance.
 - **Tab 4: B2B Partners, Leads & CRM (`activeTab === 'partners'`)** (Lines 3351 – 4080):
   - Gym / clinic partner demo, Telegram lead routing, trainer recruitment.
-- **Tab 5: Admin Console (`activeTab === 'admin'`)** (Lines 4081 – 4560):
+- **Tab 5: Admin Console (`activeTab === 'admin'`)** (Lines 3380 – 4750):
   - User management, user approvals, macro targets calibration, Telegram alerts test.
+  - **Unit Economics, Infrastructure Costs & Client Pricing Studio (`adminNavTab === 'costs'`)**:
+    Granular cost breakdown (Gemini Vision, Voice, Text, Cloud Run, Firestore), cost per active user, profit margin calculator, and per-user cost & pricing recommendations.
+  - Button to immediately test & trigger green admin health check push.
 
 ### F. Bottom Navigation Dock & FAB (Lines 4561 – 4630)
 - `4561-4630`: Fixed mobile bottom dock with Center Floating Action Button (`+` camera capture).
@@ -118,7 +121,10 @@
 - `4541-4589`: Static files mount (`/static`), `/sw.js`, `/manifest.json`.
 - `4590-4800`: **Auth Endpoints**:
   - `GET /api/auth/config`, `POST /api/auth/google`, `GET /api/auth/me`, `POST /api/auth/claim-legacy-data`.
-- `5220-5325`: **Admin Endpoints**:
+- `5220-5550`: **Admin Endpoints, Unit Economics & Health Push**:
+  - `GET /api/admin/billing-and-costs`: Full financial breakdown, AI usage, and unit economics per user.
+  - `POST /api/admin/daily-health-and-billing-check`: Executes health check diagnostics & sends green status push to admin.
+  - `_admin_daily_0800_scheduler`: Automated background task in `lifespan` executing daily at 08:00 AM Israel time.
   - `GET /api/admin/users`, `PUT /api/admin/users/{uid}/status`, `PUT /api/admin/users/{uid}/targets`.
 - `5326-5430`: **Lead Capture Endpoints**:
   - `POST /api/leads/workout`, `POST /api/leads/coach`, `GET /api/admin/leads`, `POST /api/admin/test-telegram-alert`.

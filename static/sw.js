@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutriagent-v90";
+const CACHE_NAME = "nutriagent-v91";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -65,16 +65,17 @@ self.addEventListener("push", (event) => {
     }
   }
 
+  const isAdminHealth = payload.tag === "nutriagent-admin-health" || payload.is_admin;
   const options = {
     body: payload.body,
-    icon: "/static/icon-192.png",
-    badge: "/static/icon-192.png",
+    icon: payload.icon || "/static/icon-192.png",
+    badge: payload.badge || "/static/icon-192.png",
     dir: "rtl",
     lang: "he",
     tag: payload.tag || "nutriagent-push",
     renotify: true,
-    requireInteraction: false,
-    vibrate: [200, 100, 200],
+    requireInteraction: !!isAdminHealth,
+    vibrate: isAdminHealth ? [300, 150, 300, 150, 300] : [200, 100, 200],
     data: {
       url: payload.url || "/?source=push",
     },

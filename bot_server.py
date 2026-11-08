@@ -1,4 +1,5 @@
 import os
+import asyncio
 import io
 import re
 import json
@@ -4441,7 +4442,17 @@ def _detect_device_label(user_agent: str) -> str:
     return "💻 מחשב PC"
 
 
-def send_web_push_to_all(title: str, body: str, tag: str = "nutriagent-push", url: str = "/", user_id: Optional[str] = None) -> dict:
+def send_web_push_to_all(
+    title: str,
+    body: str,
+    tag: str = "nutriagent-push",
+    url: str = "/",
+    user_id: Optional[str] = None,
+    icon: Optional[str] = None,
+    badge: Optional[str] = None,
+    is_admin: bool = False,
+    is_healthy: bool = True
+) -> dict:
     subs = get_push_subscriptions_db(user_id=user_id)
     if not subs:
         return {"sent": 0, "failed": 0, "mobile_sent": 0, "total_subscriptions": 0, "devices": []}
@@ -4452,6 +4463,10 @@ def send_web_push_to_all(title: str, body: str, tag: str = "nutriagent-push", ur
         "body": body,
         "tag": tag,
         "url": url,
+        "icon": icon or "/static/icon-192.png",
+        "badge": badge or "/static/icon-192.png",
+        "is_admin": is_admin,
+        "is_healthy": is_healthy
     }, ensure_ascii=False)
 
     sent = 0
@@ -4520,7 +4535,13 @@ async def lifespan(app: FastAPI):
                 print(f"INFO: Telegram webhook set to {WEBHOOK_URL.rstrip('/')}/webhook with secret_token")
             except Exception as e:
                 print(f"WARN: Failed to set Telegram webhook: {e}")
+    
+    # Start automated daily 08:00 Israel time health & billing check background scheduler
+    scheduler_task = asyncio.create_task(_admin_daily_0800_scheduler())
+
     yield
+
+    scheduler_task.cancel()
     if tg_app:
         await tg_app.stop()
         await tg_app.shutdown()
@@ -5216,6 +5237,317 @@ def delete_user_admin_db(target_uid: str, caller_uid: str = "") -> dict:
         print(f"ERROR delete_user_admin_db: {e}")
 
     return {"deleted_user_id": uid, "deleted_meals": deleted_meals, "deleted_weights": deleted_weights}
+
+
+# ---------------------------------------------------------------------------
+# Admin SaaS Unit Economics, Infrastructure Costs & Daily Health Engine
+# ---------------------------------------------------------------------------
+
+USD_TO_ILS_RATE = 3.65
+COST_PER_VISION_CALL_USD = 0.001315   # Gemini 1.5/2.0 Flash (~258 tokens + prompt)
+COST_PER_VOICE_CALL_USD = 0.002000    # Whisper / Gemini Voice Transcription
+COST_PER_TEXT_CALL_USD = 0.000150     # Text meal parsing & AI tips (~500in / 200out)
+CLOUD_BASE_MONTHLY_USD = 1.50         # Cloud Run baseline allocation
+FIRESTORE_OP_COST_USD = 0.0000018     # Firestore read/write operation estimate
+
+
+def calculate_infrastructure_costs_admin(days: int = 30) -> dict:
+    """Calculates granular infrastructure & AI costs, unit economics per user, and SaaS pricing recommendations."""
+    today_str = get_israel_today_str()
+    users_info = list_all_users_admin_db()
+    raw_users = users_info.get("users", [])
+
+    if not db:
+        all_meals = list(_LOCAL_MEALS)
+    else:
+        all_meals = []
+        try:
+            for doc in db.collection("meals").stream():
+                d = doc.to_dict() or {}
+                d["id"] = doc.id
+                all_meals.append(d)
+        except Exception as e:
+            print(f"ERROR reading meals for costs: {e}")
+
+    total_photos = 0
+    total_voice = 0
+    total_text = 0
+    total_barcode = 0
+
+    today_photos = 0
+    today_voice = 0
+    today_text = 0
+    today_barcode = 0
+    today_meals_count = 0
+
+    user_stats = {}
+    for u in raw_users:
+        uid = u["id"]
+        user_stats[uid] = {
+            "id": uid,
+            "name": u.get("name") or uid,
+            "email": u.get("email") or uid,
+            "total_meals": 0,
+            "photos": 0,
+            "voice": 0,
+            "text": 0,
+            "barcode": 0,
+            "cost_usd": 0.0,
+            "cost_ils": 0.0,
+            "recommended_charge_ils": 49.0,
+        }
+
+    for m in all_meals:
+        uid = _normalize_user_id(m.get("user_id"))
+        if uid not in user_stats:
+            user_stats[uid] = {
+                "id": uid,
+                "name": uid,
+                "email": uid,
+                "total_meals": 0,
+                "photos": 0,
+                "voice": 0,
+                "text": 0,
+                "barcode": 0,
+                "cost_usd": 0.0,
+                "cost_ils": 0.0,
+                "recommended_charge_ils": 49.0,
+            }
+
+        src = str(m.get("source") or m.get("input_type") or "").lower()
+        has_photo = bool(m.get("photo_url") or m.get("has_photo") or src == "photo")
+        is_today = str(m.get("log_date") or "") == today_str
+
+        user_stats[uid]["total_meals"] += 1
+        if is_today:
+            today_meals_count += 1
+
+        if has_photo:
+            total_photos += 1
+            user_stats[uid]["photos"] += 1
+            if is_today:
+                today_photos += 1
+        elif src == "voice":
+            total_voice += 1
+            user_stats[uid]["voice"] += 1
+            if is_today:
+                today_voice += 1
+        elif src == "barcode":
+            total_barcode += 1
+            user_stats[uid]["barcode"] += 1
+            if is_today:
+                today_barcode += 1
+        else:
+            total_text += 1
+            user_stats[uid]["text"] += 1
+            if is_today:
+                today_text += 1
+
+    for uid, s in user_stats.items():
+        v_c = s["photos"] * COST_PER_VISION_CALL_USD
+        vo_c = s["voice"] * COST_PER_VOICE_CALL_USD
+        t_c = s["text"] * COST_PER_TEXT_CALL_USD
+        cl_c = s["total_meals"] * 5 * FIRESTORE_OP_COST_USD
+        u_usd = v_c + vo_c + t_c + cl_c
+        u_ils = u_usd * USD_TO_ILS_RATE
+        s["cost_usd"] = round(u_usd, 4)
+        s["cost_ils"] = round(u_ils, 2)
+        if s["total_meals"] > 60:
+            s["recommended_charge_ils"] = 89.0
+        elif s["total_meals"] > 20:
+            s["recommended_charge_ils"] = 69.0
+        else:
+            s["recommended_charge_ils"] = 49.0
+
+    vision_cost_usd = total_photos * COST_PER_VISION_CALL_USD
+    voice_cost_usd = total_voice * COST_PER_VOICE_CALL_USD
+    text_cost_usd = total_text * COST_PER_TEXT_CALL_USD
+    cloud_ops_usd = len(all_meals) * 5 * FIRESTORE_OP_COST_USD
+    total_infra_usd = vision_cost_usd + voice_cost_usd + text_cost_usd + cloud_ops_usd + CLOUD_BASE_MONTHLY_USD
+    total_infra_ils = total_infra_usd * USD_TO_ILS_RATE
+
+    today_vision_usd = today_photos * COST_PER_VISION_CALL_USD
+    today_voice_usd = today_voice * COST_PER_VOICE_CALL_USD
+    today_text_usd = today_text * COST_PER_TEXT_CALL_USD
+    today_total_usd = today_vision_usd + today_voice_usd + today_text_usd + (today_meals_count * 5 * FIRESTORE_OP_COST_USD)
+    today_total_ils = today_total_usd * USD_TO_ILS_RATE
+
+    active_users_list = [u for u in user_stats.values() if u["total_meals"] > 0]
+    active_count = len(active_users_list)
+    avg_cost_per_active_user_ils = round(total_infra_ils / max(1, active_count), 2)
+
+    users_costs_sorted = sorted(user_stats.values(), key=lambda x: x["cost_ils"], reverse=True)
+
+    return {
+        "currency_usd_rate": USD_TO_ILS_RATE,
+        "total_cost_usd": round(total_infra_usd, 2),
+        "total_cost_ils": round(total_infra_ils, 2),
+        "today_cost_usd": round(today_total_usd, 3),
+        "today_cost_ils": round(today_total_ils, 2),
+        "components": {
+            "gemini_vision": {
+                "label": "Gemini Vision AI (סריקת צלחות ותמונות)",
+                "calls": total_photos,
+                "cost_usd": round(vision_cost_usd, 3),
+                "cost_ils": round(vision_cost_usd * USD_TO_ILS_RATE, 2),
+                "rate_desc": "$0.0013 / תמונה (~0.48 אגורות)",
+            },
+            "gemini_voice": {
+                "label": "תמלול קולי חכם (Gemini / Whisper)",
+                "calls": total_voice,
+                "cost_usd": round(voice_cost_usd, 3),
+                "cost_ils": round(voice_cost_usd * USD_TO_ILS_RATE, 2),
+                "rate_desc": "$0.0020 / הודעה (~0.73 אגורות)",
+            },
+            "gemini_text": {
+                "label": "מודל טקסט ושפה (ניתוח, סיווג והמלצות)",
+                "calls": total_text,
+                "cost_usd": round(text_cost_usd, 3),
+                "cost_ils": round(text_cost_usd * USD_TO_ILS_RATE, 2),
+                "rate_desc": "$0.00015 / שאילתה (~0.05 אגורות)",
+            },
+            "cloud_firestore": {
+                "label": "תשתית ענן ומסד נתונים (Cloud Run & Firestore)",
+                "calls": len(all_meals),
+                "cost_usd": round(cloud_ops_usd + CLOUD_BASE_MONTHLY_USD, 3),
+                "cost_ils": round((cloud_ops_usd + CLOUD_BASE_MONTHLY_USD) * USD_TO_ILS_RATE, 2),
+                "rate_desc": "שרת בסיס + קריאות/כתיבות נתונים",
+            },
+            "barcode_db": {
+                "label": "סורק ברקוד ומאגר סופרמרקטים ישראלי",
+                "calls": total_barcode,
+                "cost_usd": 0.0,
+                "cost_ils": 0.0,
+                "rate_desc": "חינם / קוד פתוח (0 ₪)",
+            },
+        },
+        "unit_economics": {
+            "total_users_count": len(raw_users),
+            "active_users_count": active_count,
+            "avg_cost_per_active_user_ils": avg_cost_per_active_user_ils,
+            "avg_cost_per_active_user_usd": round(avg_cost_per_active_user_ils / USD_TO_ILS_RATE, 3),
+            "recommended_subscription_price_ils": 69.0,
+            "recommended_coach_bundle_ils": 299.0,
+            "estimated_gross_margin_pct": round(max(0.0, 100.0 - (avg_cost_per_active_user_ils / 69.0 * 100.0)), 1),
+        },
+        "users": users_costs_sorted,
+    }
+
+
+def send_admin_health_and_billing_push(manual_trigger: bool = False) -> dict:
+    """Performs full system health check, calculates daily & month costs, and sends an exclusive green status push to Admin."""
+    costs_report = calculate_infrastructure_costs_admin()
+
+    db_ok = True
+    if db:
+        try:
+            _ = list(db.collection("users").limit(1).stream())
+        except Exception as e:
+            db_ok = False
+            print(f"WARN admin health DB check: {e}")
+
+    ai_ok = bool(GEMINI_KEY and len(GEMINI_KEY) > 10)
+    is_healthy = db_ok and ai_ok
+
+    today_cost_ils = costs_report.get("today_cost_ils", 0.0)
+    month_cost_ils = costs_report.get("total_cost_ils", 0.0)
+    avg_user_cost = costs_report.get("unit_economics", {}).get("avg_cost_per_active_user_ils", 0.0)
+    active_users = costs_report.get("unit_economics", {}).get("active_users_count", 0)
+
+    if is_healthy:
+        title = "🟢 [מערכת תקינה] סיכום יומי לאדמין"
+        body = (
+            f"כל המערכות תקינות 🚀 | עלות היום: ₪{today_cost_ils:.2f} (החודש: ₪{month_cost_ils:.0f}) | "
+            f"ממוצע ללקוח: ₪{avg_user_cost:.2f}/חודש | {active_users} לקוחות פעילים"
+        )
+    else:
+        title = "🔴 [התראה לאדמין] תקלה זוהתה במערכת"
+        body = f"תקלה בבדיקת תקינות: {'מסד נתונים לא מגיב' if not db_ok else 'מפתח Gemini חסר או לא תקין'}"
+
+    all_subs = get_push_subscriptions_db(user_id=None)
+    admin_subs = [
+        s for s in all_subs
+        if is_admin_user_id(s.get("user_id"))
+        or is_admin_email(s.get("user_id"))
+        or s.get("user_id") in SUPER_ADMIN_EMAILS
+        or s.get("user_id") == "admin"
+    ]
+    target_subs = admin_subs if admin_subs else all_subs
+
+    vapid = get_or_create_vapid_keys()
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+        "tag": "nutriagent-admin-health",
+        "url": "/?tab=admin&subtab=costs",
+        "icon": "/static/icon-192.png",
+        "badge": "/static/icon-192.png",
+        "is_admin": True,
+        "is_healthy": is_healthy,
+    }, ensure_ascii=False)
+
+    sent = 0
+    failed = 0
+    for sub in target_subs:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub["endpoint"],
+                    "keys": sub["keys"],
+                },
+                data=payload,
+                vapid_private_key=vapid["private_key"],
+                vapid_claims={"sub": "mailto:push@nutriagent.app"},
+                ttl=3600,
+                headers={"Urgency": "high"},
+            )
+            sent += 1
+        except Exception:
+            failed += 1
+
+    return {
+        "status": "healthy" if is_healthy else "degraded",
+        "db_ok": db_ok,
+        "ai_ok": ai_ok,
+        "sent_to_admins": sent,
+        "failed": failed,
+        "title": title,
+        "body": body,
+        "costs_report": costs_report,
+    }
+
+
+async def _admin_daily_0800_scheduler():
+    """Background task running in FastAPI lifespan that sends the daily 08:00 Israel time health & billing push to admin."""
+    while True:
+        try:
+            now_il = datetime.now(IL_TZ)
+            target = now_il.replace(hour=8, minute=0, second=0, microsecond=0)
+            if target <= now_il:
+                target += timedelta(days=1)
+            sleep_secs = max(5.0, (target - now_il).total_seconds())
+            print(f"INFO: Admin daily 08:00 scheduler sleeping for {sleep_secs:.1f}s until {target.isoformat()}")
+            await asyncio.sleep(sleep_secs)
+            print("INFO: Executing scheduled 08:00 Admin Health & Billing check...")
+            send_admin_health_and_billing_push(manual_trigger=False)
+        except asyncio.CancelledError:
+            print("INFO: Admin daily 08:00 scheduler cancelled.")
+            break
+        except Exception as ex:
+            print(f"WARN in _admin_daily_0800_scheduler: {ex}")
+            await asyncio.sleep(60)
+
+
+@app.get("/api/admin/billing-and-costs")
+def api_admin_billing_and_costs(request: Request):
+    require_admin_user(request)
+    return calculate_infrastructure_costs_admin()
+
+
+@app.post("/api/admin/daily-health-and-billing-check")
+def api_admin_daily_health_check(request: Request):
+    require_admin_user(request)
+    return send_admin_health_and_billing_push(manual_trigger=True)
 
 
 @app.get("/api/admin/users")
