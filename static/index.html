@@ -3369,15 +3369,30 @@
                     <h2 class="text-xl sm:text-2xl font-extrabold" x-text="isSuperAdmin() ? 'ניהול משתמשים ובקרת מערכת מלאה' : 'ניהול מתאמנים, לידים ודמו B2B'"></h2>
                     <p class="text-xs sm:text-sm text-indigo-200" x-text="isSuperAdmin() ? 'צפייה בכל המשתמשים, ניהול יעדים, שליטה בהרשאות אדמינים, ערוצים ו-OAuth' : 'צפייה במתאמנים, מעקב יעדים וצילומים, שיגור לידים והפעלת דמו בלייב'"></p>
                 </div>
-                <button @click="fetchAdminUsers()"
-                        :disabled="adminLoading"
-                        class="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold flex items-center gap-2 self-start sm:self-auto transition cursor-pointer">
-                    <span :class="{'animate-spin': adminLoading}">🔄</span>
-                    <span x-text="adminLoading ? 'טוען נתונים...' : 'רענן רשימת משתמשים'"></span>
-                </button>
+                <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                    <button type="button"
+                            @click="adminNavTab = 'costs'; fetchAdminCosts()"
+                            class="px-3.5 py-2 rounded-2xl bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-400/40 text-emerald-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
+                        <span>💰</span>
+                        <span>עלויות ותמחור</span>
+                    </button>
+                    <button type="button"
+                            @click="adminNavTab = 'errors'; fetchAdminPhotoErrors()"
+                            class="px-3.5 py-2 rounded-2xl bg-rose-500/25 hover:bg-rose-500/40 border border-rose-400/40 text-rose-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
+                        <span>🚨</span>
+                        <span>שגיאות צילום</span>
+                    </button>
+                    <button type="button"
+                            @click="fetchAdminUsers()"
+                            :disabled="adminLoading"
+                            class="px-3.5 py-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
+                        <span :class="{'animate-spin': adminLoading}">🔄</span>
+                        <span x-text="adminLoading ? 'טוען...' : 'רענן'"></span>
+                    </button>
+                </div>
             </div>
 
-            <!-- Admin Navigation Tabs: Clean, Organized Subtabs (Users, B2B Demo, Leads, Settings) -->
+            <!-- Admin Navigation Tabs: Clean, Organized Subtabs (Users, Costs, Errors, B2B Demo, Leads, Settings) -->
             <div class="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/90 shadow-2xs flex-wrap">
                 <button type="button" @click="adminNavTab = 'users'"
                         class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
@@ -3387,6 +3402,21 @@
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black"
                           :class="adminNavTab === 'users' ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-200 text-slate-700'"
                           x-text="adminData?.users?.length || 0"></span>
+                </button>
+                <button type="button" @click="adminNavTab = 'costs'; fetchAdminCosts()"
+                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                        :class="adminNavTab === 'costs' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+                    <span>💰</span>
+                    <span>עלויות ותמחור לקוח</span>
+                </button>
+                <button type="button" @click="adminNavTab = 'errors'; fetchAdminPhotoErrors()"
+                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                        :class="adminNavTab === 'errors' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+                    <span>🚨</span>
+                    <span>שגיאות צילום</span>
+                    <span x-show="adminPhotoErrors && adminPhotoErrors.length > 0"
+                          class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700"
+                          x-text="adminPhotoErrors?.length || 0"></span>
                 </button>
                 <button type="button" @click="adminNavTab = 'demo'"
                         class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
@@ -3403,17 +3433,11 @@
                           :class="adminNavTab === 'leads' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'"
                           x-text="adminLeads?.length || 0"></span>
                 </button>
-                <button type="button" x-show="isSuperAdmin()" @click="adminNavTab = 'settings'"
+                <button type="button" @click="adminNavTab = 'settings'"
                         class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
                         :class="adminNavTab === 'settings' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
                     <span>⚙️</span>
                     <span>הגדרות ערוצים ו-AI</span>
-                </button>
-                <button type="button" x-show="isSuperAdmin()" @click="adminNavTab = 'costs'; fetchAdminCosts()"
-                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
-                        :class="adminNavTab === 'costs' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
-                    <span>💰</span>
-                    <span>עלויות ותמחור לקוח</span>
                 </button>
             </div>
 
@@ -4548,7 +4572,7 @@
             <!-- =============================================================== -->
             <!-- UNIT ECONOMICS, INFRASTRUCTURE COSTS & CLIENT PRICING STUDIO   -->
             <!-- =============================================================== -->
-            <div x-show="adminNavTab === 'costs' && isSuperAdmin()" class="space-y-6">
+            <div x-show="adminNavTab === 'costs'" class="space-y-6">
                 <!-- Top Banner: Executive Overview & Action Controls -->
                 <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -4743,6 +4767,91 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- =============================================================== -->
+            <!-- USER PHOTO ERRORS & TELEMETRY WATCHDOG STUDIO                   -->
+            <!-- =============================================================== -->
+            <div x-show="adminNavTab === 'errors'" class="space-y-6">
+                <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-800 flex items-center justify-center text-2xl shadow-xs shrink-0">
+                                🚨
+                            </div>
+                            <div>
+                                <div class="inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 mb-0.5">
+                                    <span>🛡️</span> סוכן ניטור שגיאות צילום בלייב
+                                </div>
+                                <h3 class="text-base sm:text-lg font-black text-slate-900">דוח תקלות צילום וראייה ממוחשבת של משתמשים</h3>
+                                <p class="text-xs text-slate-500">מעקב אחר שגיאות בהעלאת תמונות (כגון שגיאות API, מודלים שאינם זמינים או בעיות קובץ) לטיפול מיידי</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button"
+                                    @click="fetchAdminPhotoErrors()"
+                                    :disabled="adminErrorsLoading"
+                                    class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                <span x-text="adminErrorsLoading ? 'טוען...' : '🔄 רענן שגיאות'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Errors Table / Empty State -->
+                    <template x-if="!adminPhotoErrors || adminPhotoErrors.length === 0">
+                        <div class="text-center py-10 space-y-2">
+                            <span class="text-4xl block">🎉</span>
+                            <h4 class="text-sm font-extrabold text-slate-800">אין שגיאות צילום פעילות!</h4>
+                            <p class="text-xs text-slate-500">כל תמונות המשתמשים מנותחות בהצלחה ע״י שרשרת המודלים הרציפה (2.5-flash / 3.8-flash / 1.5-flash).</p>
+                        </div>
+                    </template>
+
+                    <template x-if="adminPhotoErrors && adminPhotoErrors.length > 0">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-400 font-bold">
+                                        <th class="py-2.5 px-3">משתמש</th>
+                                        <th class="py-2.5 px-3">שגיאה שחזרה מהמודל</th>
+                                        <th class="py-2.5 px-3 text-center">זמן התקלה</th>
+                                        <th class="py-2.5 px-3 text-center">סטטוס</th>
+                                        <th class="py-2.5 px-3 text-center">פעולה</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <template x-for="err in adminPhotoErrors" :key="err.id">
+                                        <tr class="hover:bg-slate-50/70 transition">
+                                            <td class="py-3 px-3">
+                                                <div class="font-extrabold text-slate-900" x-text="err.user_name || err.user_id"></div>
+                                                <div class="text-[10px] text-slate-400 font-mono" x-text="err.user_email"></div>
+                                            </td>
+                                            <td class="py-3 px-3">
+                                                <div class="font-mono text-[11px] text-rose-700 bg-rose-50 p-2 rounded-xl border border-rose-200 max-w-md break-words" x-text="err.error_message"></div>
+                                                <div x-show="err.caption" class="text-[10px] text-slate-500 mt-1">
+                                                    הערת משתמש: <span class="font-bold" x-text="err.caption"></span>
+                                                </div>
+                                            </td>
+                                            <td class="py-3 px-3 text-center text-slate-500 font-mono text-[11px]" x-text="err.created_at?.slice(0, 16).replace('T', ' ')"></td>
+                                            <td class="py-3 px-3 text-center">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black"
+                                                      :class="err.status === 'resolved' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
+                                                      x-text="err.status === 'resolved' ? 'טופל ✅' : 'חדש 🚨'"></span>
+                                            </td>
+                                            <td class="py-3 px-3 text-center">
+                                                <button type="button"
+                                                        x-show="err.status !== 'resolved'"
+                                                        @click="resolveAdminPhotoError(err.id)"
+                                                        class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition cursor-pointer">
+                                                    סמן כטופל
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -8189,6 +8298,8 @@
                 adminCostsLoading: false,
                 adminHealthTesting: false,
                 simulatedClientPrice: 69,
+                adminPhotoErrors: [],
+                adminErrorsLoading: false,
                 newTraineeForm: {
                     name: '',
                     phone: '',
@@ -11440,6 +11551,8 @@
                         this.fetchAdminUsers();
                         this.fetchVisionLogs();
                         this.fetchAdminLeads();
+                        this.fetchAdminCosts();
+                        this.fetchAdminPhotoErrors();
                     } else if (tab === 'recipes' && (!this.woltDishes || !this.woltDishes.length)) {
                         this.fetchWoltDishes();
                     }
@@ -11498,6 +11611,34 @@
                         this.showToast(e.message || 'שגיאה בשליחת בדיקת תקינות', 'error');
                     } finally {
                         this.adminHealthTesting = false;
+                    }
+                },
+
+                async fetchAdminPhotoErrors() {
+                    if (!this.currentUser || !this.currentUser.is_admin) return;
+                    this.adminErrorsLoading = true;
+                    try {
+                        const res = await fetch('/api/admin/photo-errors');
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        this.adminPhotoErrors = data.errors || [];
+                    } catch (e) {
+                        console.error('fetchAdminPhotoErrors error:', e);
+                    } finally {
+                        this.adminErrorsLoading = false;
+                    }
+                },
+
+                async resolveAdminPhotoError(errId) {
+                    if (!this.currentUser || !this.currentUser.is_admin) return;
+                    try {
+                        const res = await fetch(`/api/admin/photo-errors/${errId}/resolve`, { method: 'POST' });
+                        if (!res.ok) throw new Error('שגיאה בעדכון סטטוס');
+                        const item = (this.adminPhotoErrors || []).find(e => e.id === errId);
+                        if (item) item.status = 'resolved';
+                        this.showToast('✅ תקלה סומנה כטופלה');
+                    } catch (e) {
+                        this.showToast('שגיאה בעדכון תקלה', 'error');
                     }
                 },
 
@@ -12893,7 +13034,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             },
             isSuperAdmin() {
                 if (!this.currentUser) return false;
-                if (this.currentUser.is_super_admin) return true;
+                if (this.currentUser.is_super_admin || this.currentUser.is_admin || this.currentUser.is_owner) return true;
                 const em = (this.currentUser.email || '').toLowerCase().trim();
                 return ['iftach.raftar@gmail.com', 'iftachraftar@gmail.com'].includes(em);
             },

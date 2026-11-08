@@ -92,6 +92,10 @@ else:
 
 ai_client = genai.Client(api_key=GEMINI_KEY, http_options={"api_version": "v1beta"}) if GEMINI_KEY else None
 
+# Resilient Gemini Model Failover Chain (gemini-2.0-flash is sunset/deprecated by Google; using 2.5-flash -> 3.8-flash -> 1.5-flash)
+GEMINI_FLASH_MODELS = ("gemini-2.5-flash", "gemini-3.8-flash", "gemini-1.5-flash")
+GEMINI_DEFAULT_MODEL = "gemini-2.5-flash"
+
 
 # ---------------------------------------------------------------------------
 # Pydantic Schemas
@@ -2241,7 +2245,7 @@ def analyze_workout_image(image_bytes: bytes, mime_type: str = "image/jpeg", cap
 4. החזר is_workout=True אם התמונה מציגה נתוני צעדים, אימון, שעון כושר או מכשיר כושר."""
 
     last_err = None
-    for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
+    for model_name in GEMINI_FLASH_MODELS:
         try:
             response = ai_client.models.generate_content(
                 model=model_name,
@@ -2766,7 +2770,7 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
   * applied_calibration_rules: רשימה קצרה של חוקי הכיול שהפעלת בתמונה זו (אם רלוונטי)."""
 
     last_err = None
-    for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
+    for model_name in GEMINI_FLASH_MODELS:
         try:
             response = ai_client.models.generate_content(
                 model=model_name,
@@ -3322,7 +3326,7 @@ def analyze_meal_audio(audio_bytes: bytes, mime_type: str = "audio/webm", captio
 5. אם בהקלטה מוזכר כל פריט אוכל או שתייה (כולל קפה, נשנוש, פרי או ארוחה) סמן תמיד is_meal=True. רק אם ההקלטה ריקה לחלוטין או אינה קשורה לאוכל/שתייה סמן is_meal=False."""
 
     last_err = None
-    for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
+    for model_name in GEMINI_FLASH_MODELS:
         try:
             response = ai_client.models.generate_content(
                 model=model_name,
@@ -5550,6 +5554,105 @@ def api_admin_daily_health_check(request: Request):
     return send_admin_health_and_billing_push(manual_trigger=True)
 
 
+# ---------------------------------------------------------------------------
+# User Photo Upload Error Watchdog & Telemetry Agent
+# ---------------------------------------------------------------------------
+
+_LOCAL_PHOTO_ERRORS = []
+
+def record_user_photo_error(user_id: str, error_msg: str, caption: str = "", model_attempted: str = "gemini-flash-chain", forensics: Optional[dict] = None) -> dict:
+    """Telemetry watchdog that captures failed photo uploads (e.g. Lynn Alfi) and immediately alerts Admin via Push."""
+    uid = _normalize_user_id(user_id)
+    now_il = datetime.now(IL_TZ).isoformat()
+    
+    user_name = uid
+    user_email = uid
+    try:
+        udoc = get_user_doc_db(uid)
+        if udoc:
+            user_name = udoc.get("name") or udoc.get("email") or uid
+            user_email = udoc.get("email") or uid
+    except Exception:
+        pass
+
+    err_record = {
+        "id": f"err_{int(time.time())}_{uuid.uuid4().hex[:6]}",
+        "user_id": uid,
+        "user_name": user_name,
+        "user_email": user_email,
+        "error_message": error_msg,
+        "caption": caption,
+        "model_attempted": model_attempted,
+        "created_at": now_il,
+        "status": "new",
+        "forensics": forensics or {}
+    }
+
+    if not db:
+        _LOCAL_PHOTO_ERRORS.insert(0, err_record)
+        if len(_LOCAL_PHOTO_ERRORS) > 100:
+            _LOCAL_PHOTO_ERRORS.pop()
+    else:
+        try:
+            db.collection("photo_upload_errors").document(err_record["id"]).set(err_record)
+        except Exception as e:
+            print(f"WARN saving photo_upload_errors: {e}")
+            _LOCAL_PHOTO_ERRORS.insert(0, err_record)
+
+    # Immediately notify Admin via Web Push!
+    try:
+        short_err = error_msg.replace("API_ERROR:", "").replace("ClientError:", "").strip()[:80]
+        send_web_push_to_all(
+            title=f"🔴 [שגיאת צילום] משתמש: {user_name}",
+            body=f"זוהתה שגיאה בהעלאת תמונה למשתמש {user_name}: {short_err}",
+            tag="nutriagent-photo-error",
+            url="/?tab=admin&subtab=errors",
+            is_admin=True,
+            is_healthy=False
+        )
+    except Exception as ex:
+        print(f"WARN send_web_push error alert: {ex}")
+
+    return err_record
+
+
+def list_photo_upload_errors_db(limit: int = 50) -> list:
+    """Retrieves recent photo upload errors for admin inspection."""
+    if not db:
+        return list(_LOCAL_PHOTO_ERRORS[:limit])
+    try:
+        docs = db.collection("photo_upload_errors").order_by("created_at", direction=firestore.Query.DESCENDING).limit(limit).stream()
+        results = []
+        for d in docs:
+            item = d.to_dict() or {}
+            item["id"] = d.id
+            results.append(item)
+        return results
+    except Exception as e:
+        print(f"WARN list_photo_upload_errors_db: {e}")
+        return list(_LOCAL_PHOTO_ERRORS[:limit])
+
+
+@app.get("/api/admin/photo-errors")
+def api_admin_photo_errors(request: Request, limit: int = 50):
+    require_admin_user(request)
+    return {"errors": list_photo_upload_errors_db(limit=limit)}
+
+
+@app.post("/api/admin/photo-errors/{err_id}/resolve")
+def api_admin_resolve_photo_error(err_id: str, request: Request):
+    require_admin_user(request)
+    if db:
+        try:
+            db.collection("photo_upload_errors").document(err_id).update({"status": "resolved"})
+        except Exception:
+            pass
+    for e in _LOCAL_PHOTO_ERRORS:
+        if e.get("id") == err_id:
+            e["status"] = "resolved"
+    return {"status": "ok", "id": err_id}
+
+
 @app.get("/api/admin/users")
 def api_admin_list_users(request: Request):
     require_admin_user(request)
@@ -6344,6 +6447,10 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
     forensics = compute_image_forensics_and_histogram(image_bytes)
     extraction = analyze_meal_image(image_bytes, mime_type=mime_type, caption=req.caption or "", forensics=forensics)
     if extraction.summary and extraction.summary.startswith("API_ERROR:"):
+        try:
+            record_user_photo_error(uid, extraction.summary, caption=req.caption or "", model_attempted="gemini-flash-chain", forensics=forensics)
+        except Exception as e:
+            print(f"WARN record_user_photo_error: {e}")
         try:
             save_vision_analysis_log_db(uid, extraction, forensics, source="web-photo", caption=req.caption or "", meal_id="")
         except Exception:

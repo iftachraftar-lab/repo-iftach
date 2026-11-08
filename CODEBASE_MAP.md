@@ -61,11 +61,13 @@
   - Weekly macro trends, weight progress chart, calorie compliance.
 - **Tab 4: B2B Partners, Leads & CRM (`activeTab === 'partners'`)** (Lines 3351 – 4080):
   - Gym / clinic partner demo, Telegram lead routing, trainer recruitment.
-- **Tab 5: Admin Console (`activeTab === 'admin'`)** (Lines 3380 – 4750):
+- **Tab 5: Admin Console (`activeTab === 'admin'`)** (Lines 3380 – 4850):
   - User management, user approvals, macro targets calibration, Telegram alerts test.
   - **Unit Economics, Infrastructure Costs & Client Pricing Studio (`adminNavTab === 'costs'`)**:
     Granular cost breakdown (Gemini Vision, Voice, Text, Cloud Run, Firestore), cost per active user, profit margin calculator, and per-user cost & pricing recommendations.
-  - Button to immediately test & trigger green admin health check push.
+  - **User Photo Errors & Telemetry Watchdog (`adminNavTab === 'errors'`)**:
+    Real-time monitoring of failed user photo uploads with telemetry, instant admin push alerts, and 1-click status resolve.
+  - Top header quick-access pills for direct navigation to Costs and Errors.
 
 ### F. Bottom Navigation Dock & FAB (Lines 4561 – 4630)
 - `4561-4630`: Fixed mobile bottom dock with Center Floating Action Button (`+` camera capture).
