@@ -4873,20 +4873,35 @@
             </div>
         </div>
 
-        <!-- App Global Footer with Legal Terms Link -->
-        <footer class="pt-8 pb-12 text-center text-xs text-slate-400 space-y-2 border-t border-slate-100/80 mt-10">
-            <div class="flex items-center justify-center gap-3">
+        <!-- App Global Footer with Legal Terms, Health Disclaimer & Fast Support -->
+        <footer class="pt-8 pb-16 text-center text-xs text-slate-400 space-y-3 border-t border-slate-100/80 mt-10 max-w-3xl mx-auto px-4">
+            <div class="flex items-center justify-center flex-wrap gap-x-3 gap-y-1.5 text-xs font-semibold">
                 <button type="button" @click="showTermsModal = true"
-                        class="hover:text-emerald-700 underline font-semibold transition cursor-pointer">
-                    תנאי שימוש
+                        class="hover:text-emerald-700 underline transition cursor-pointer">
+                    📜 תנאי שימוש והצהרת בריאות
                 </button>
                 <span>•</span>
                 <button type="button" @click="showTermsModal = true"
-                        class="hover:text-emerald-700 underline font-semibold transition cursor-pointer">
+                        class="hover:text-emerald-700 underline transition cursor-pointer">
                     מדיניות פרטיות
                 </button>
+                <span>•</span>
+                <button type="button" @click="shareNutriApp()"
+                        class="hover:text-teal-700 underline transition cursor-pointer flex items-center gap-1">
+                    <span>🎁</span> <span>שיתוף האפליקציה</span>
+                </button>
+                <span>•</span>
+                <button type="button" @click="openSupportWhatsApp()"
+                        class="hover:text-emerald-700 underline transition cursor-pointer flex items-center gap-1">
+                    <span>💬</span> <span>נתקלתם בבעיה? כתבו לנו</span>
+                </button>
             </div>
-            <p class="text-[11px] text-slate-400">NutriAgent AI • פלטפורמת ליווי תזונה חכמה • כל הזכויות שמורות</p>
+            <p class="text-[11px] text-slate-500 leading-relaxed text-center">
+                התכנים המופיעים באתר זה נועדו לספק אינפורמציה כללית בלבד. אינם מהווים המלצה, תחליף להתייעצות עם מומחה או קבלת ייעוץ רפואי.
+            </p>
+            <p class="text-[10px] text-slate-400">
+                NutriAgent AI • אין להעתיק, לשכפל או להדפיס לשם פירסום או הפצה בכל דרך שהיא, ללא קבלת אישור מפורש בכתב. כל הזכויות שמורות.
+            </p>
         </footer>
 
     </main>
@@ -7240,6 +7255,62 @@
                         </div>
                     </div>
 
+                    <!-- Coach Code Connection (Kaloria-inspired B2B trainer binding) -->
+                    <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2 text-right">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                                <span>🔑</span> <span>חיבור למאמן אישי באמצעות קוד</span>
+                            </span>
+                            <template x-if="currentUser.coach_id">
+                                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                    משויך למאמן ✓
+                                </span>
+                            </template>
+                        </div>
+                        <template x-if="currentUser.coach_id">
+                            <p class="text-[11px] text-indigo-900 font-semibold" x-text="'מאמן מלווה: ' + (currentUser.coach_name || 'Coach Itamar (איתמר)')"></p>
+                        </template>
+                        <div class="flex gap-2">
+                            <input type="text" x-model="coachCodeInput" placeholder="הזן קוד מאמן (לדוגמה: ITAMAR)"
+                                   @keyup.enter="submitCoachCode()"
+                                   class="flex-1 px-3 py-2 text-xs rounded-xl bg-white border border-indigo-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right">
+                            <button type="button" @click="submitCoachCode()" :disabled="coachCodeBinding"
+                                    class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer flex-shrink-0">
+                                <span x-text="coachCodeBinding ? 'מחבר...' : 'חבר למאמן'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Support & Sharing Tools (Kaloria-inspired) -->
+                    <div class="grid grid-cols-2 gap-2 text-right">
+                        <button type="button" @click="openSupportWhatsApp()"
+                                class="p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 text-emerald-950 text-right flex flex-col gap-1 transition cursor-pointer">
+                            <div class="flex items-center gap-1.5 text-xs font-black text-emerald-900">
+                                <span>💬</span>
+                                <span>נתקלתם בבעיה?</span>
+                            </div>
+                            <span class="text-[10px] text-emerald-700">כתבו לנו בוואטסאפ לתמיכה מהירה</span>
+                        </button>
+                        <button type="button" @click="shareNutriApp()"
+                                class="p-3 rounded-2xl bg-teal-50 hover:bg-teal-100/80 border border-teal-200 text-teal-950 text-right flex flex-col gap-1 transition cursor-pointer">
+                            <div class="flex items-center gap-1.5 text-xs font-black text-teal-900">
+                                <span>🎁</span>
+                                <span>שיתוף האפליקציה</span>
+                            </div>
+                            <span class="text-[10px] text-teal-700">שלח קישור הצטרפות לחברים</span>
+                        </button>
+                    </div>
+
+                    <!-- Medical Terms & Health Declaration Button -->
+                    <button type="button" @click="showTermsModal = true"
+                            class="w-full py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-between transition cursor-pointer">
+                        <span class="flex items-center gap-1.5">
+                            <span>📄</span>
+                            <span>הצהרת בריאות, תנאי שימוש והגבלת אחריות</span>
+                        </span>
+                        <span class="text-slate-400">←</span>
+                    </button>
+
                     <!-- Claim Legacy Data Button -->
                     <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
                         <p class="text-xs font-bold text-amber-950">📥 ייבוא היסטוריה קיימת</p>
@@ -7254,15 +7325,21 @@
                         </button>
                     </div>
 
-                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <!-- Account Actions: Logout & Delete Account (GDPR) -->
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                         <button type="button"
                                 @click="logoutUser()"
-                                class="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition cursor-pointer">
-                            התנתק / החלף משתמש
+                                class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                            התנתק
+                        </button>
+                        <button type="button"
+                                @click="showDeleteAccountModal = true; deleteAccountConfirmText = '';"
+                                class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition cursor-pointer">
+                            🗑️ מחיקת חשבון
                         </button>
                         <button type="button"
                                 @click="openAuthModal = false"
-                                class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer">
+                                class="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer">
                             סגור
                         </button>
                     </div>
@@ -7524,7 +7601,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=92').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=93').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -8298,6 +8375,13 @@
                 showHoldonAffiliateModal: false,
                 copiedHoldonCoupon: false,
                 showTermsModal: false,
+                showMandatoryTermsModal: false,
+                mandatoryTermsAccepted: false,
+                coachCodeInput: '',
+                coachCodeBinding: false,
+                showDeleteAccountModal: false,
+                deleteAccountConfirmText: '',
+                deletingAccount: false,
                 onboardingAcceptedTerms: false,
                 showOnboardingModal: false,
                 onboardingStep: 1,
@@ -10765,6 +10849,13 @@
                         } catch (e) {}
                     }
                     
+                    // Check Mandatory Health Declaration & Terms of Service (Nov 2026 update - All visitors must explicitly accept)
+                    const HEALTH_TERMS_VERSION = '2026-11-health-v1';
+                    const storedTermsV = localStorage.getItem('nutriagent_terms_version');
+                    if (storedTermsV !== HEALTH_TERMS_VERSION) {
+                        this.showMandatoryTermsModal = true;
+                    }
+
                     // Check if an authenticated user needs Onboarding (Stage 2) - Never show to unauthenticated guests!
                     if (this.currentUser && (this.currentUser.is_approved !== false || this.currentUser.is_admin)) {
                         if (!localStorage.getItem('nutri_onboarding_completed') && !this.currentUser.onboarding_completed) {
@@ -10955,6 +11046,13 @@
                     const verifiedUser = { ...user, verified_oauth: true };
                     this.currentUser = verifiedUser;
                     localStorage.setItem('nutri_user', JSON.stringify(verifiedUser));
+                    const HEALTH_TERMS_VERSION = '2026-11-health-v1';
+                    if (verifiedUser.terms_version === HEALTH_TERMS_VERSION) {
+                        localStorage.setItem('nutriagent_terms_version', HEALTH_TERMS_VERSION);
+                        this.showMandatoryTermsModal = false;
+                    } else if (localStorage.getItem('nutriagent_terms_version') !== HEALTH_TERMS_VERSION) {
+                        this.showMandatoryTermsModal = true;
+                    }
                     if (!verifiedUser.is_admin && this.activeTab === 'admin') {
                         this.activeTab = 'summary';
                     }
@@ -11041,6 +11139,128 @@
                     } catch (e) {}
                     this.$nextTick(() => this.renderGoogleSignInButton());
                     this.showToast('התנתקת מהמערכת');
+                },
+
+                async confirmMandatoryTerms() {
+                    if (!this.mandatoryTermsAccepted) {
+                        this.showToast('יש לסמן את תיבת האישור כדי להמשיך', 'error');
+                        return;
+                    }
+                    const version = '2026-11-health-v1';
+                    localStorage.setItem('nutriagent_terms_version', version);
+                    localStorage.setItem('nutriagent_terms_accepted_at', new Date().toISOString());
+                    this.showMandatoryTermsModal = false;
+                    this.onboardingAcceptedTerms = true;
+                    if (this.currentUser && this.currentUser.id) {
+                        try {
+                            await fetch('/api/user/accept-terms', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    version: version,
+                                    user_id: this.currentUser.id
+                                })
+                            });
+                        } catch (e) {
+                            console.warn('accept-terms backend sync warn:', e);
+                        }
+                    }
+                    this.showToast('✅ תנאי השימוש והצהרת הבריאות אושרו בהצלחה', 'success');
+                },
+
+                async shareNutriApp() {
+                    const text = 'היי! אני משתמש/ת באפליקציית NutriAgent AI למעקב תזונה חכם עם בינה מלאכותית וליווי מאמן אישי. שווה ממש לנסות:';
+                    const url = window.location.origin;
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({
+                                title: 'NutriAgent AI - מעקב תזונה חכם',
+                                text: text,
+                                url: url
+                            });
+                            this.showToast('🎉 תודה על השיתוף!');
+                            return;
+                        } catch (e) {
+                            if (e.name !== 'AbortError') console.warn('share error', e);
+                        }
+                    }
+                    const wa = `https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`;
+                    window.open(wa, '_blank', 'noopener');
+                },
+
+                openSupportWhatsApp() {
+                    const userMsg = 'שלום, אני פונה לגבי אפליקציית NutriAgent AI: נתקלתי בבעיה / שאלה: ';
+                    const waUrl = `https://wa.me/972506692880?text=${encodeURIComponent(userMsg)}`;
+                    window.open(waUrl, '_blank', 'noopener');
+                },
+
+                async submitCoachCode() {
+                    const code = (this.coachCodeInput || '').trim();
+                    if (!code) {
+                        this.showToast('אנא הזן קוד מאמן (לדוגמה: ITAMAR)', 'error');
+                        return;
+                    }
+                    if (!this.currentUser) {
+                        this.showToast('יש להתחבר לחשבון כדי לשייך קוד מאמן', 'error');
+                        this.openUserAuthModal();
+                        return;
+                    }
+                    this.coachCodeBinding = true;
+                    try {
+                        const res = await fetch('/api/user/bind-coach-code', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ coach_code: code, user_id: this.currentUser.id })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            this.currentUser.coach_id = data.coach_id;
+                            this.currentUser.coach_name = data.coach_name;
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                            this.coachCodeInput = '';
+                            this.showToast('🎉 חוברת בהצלחה למאמן: ' + data.coach_name, 'success');
+                        } else {
+                            this.showToast(data.detail || 'קוד מאמן שגוי', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('שגיאה בחיבור למאמן', 'error');
+                    } finally {
+                        this.coachCodeBinding = false;
+                    }
+                },
+
+                async confirmDeleteAccountSelf() {
+                    if (this.deleteAccountConfirmText.trim() !== 'מחק') {
+                        this.showToast('יש להקליד "מחק" במדויק כדי לאשר', 'error');
+                        return;
+                    }
+                    if (!this.currentUser) return;
+                    this.deletingAccount = true;
+                    try {
+                        const res = await fetch('/api/user/delete-account-self', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                confirmation: 'מחק',
+                                user_id: this.currentUser.id
+                            })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            this.showDeleteAccountModal = false;
+                            this.showToast('חשבונך וכל הנתונים נמחקו לצמיתות', 'success');
+                            setTimeout(() => {
+                                localStorage.clear();
+                                window.location.href = '/';
+                            }, 1200);
+                        } else {
+                            this.showToast(data.detail || 'שגיאה במחיקת החשבון', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('שגיאה במחיקת החשבון', 'error');
+                    } finally {
+                        this.deletingAccount = false;
+                    }
                 },
 
                 copyLinkCommand() {
@@ -15143,20 +15363,155 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             </div>
         </div>
 
-        <!-- ================= TERMS OF USE & PRIVACY POLICY MODAL ================= -->
+        <!-- =============================================================== -->
+        <!-- 1. MANDATORY HEALTH DECLARATION & TERMS MODAL (EVERY VISITOR MUST APPROVE) -->
+        <!-- =============================================================== -->
+        <div x-cloak x-show="showMandatoryTermsModal" style="display: none;"
+             class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-slate-950/90 backdrop-blur-md">
+            <div class="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-emerald-500/30 text-right space-y-4 max-h-[92vh] flex flex-col relative" @click.stop>
+                
+                <!-- Mandatory Banner Header -->
+                <div class="pb-3 border-b border-slate-100 flex-shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center justify-center text-2xl font-bold shadow-xs flex-shrink-0">
+                            ⚖️
+                        </div>
+                        <div>
+                            <div class="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black uppercase mb-1">
+                                חובת קריאה ואישור להמשך השימוש
+                            </div>
+                            <h2 class="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                                נספח תנאים רפואיים, הצהרת בריאות והגבלת אחריות
+                            </h2>
+                            <p class="text-xs text-slate-500">NutriAgent AI • גרסה מעודכנת מחייבת • נובמבר 2026</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scrollable Legal Terms Content -->
+                <div class="text-xs text-slate-700 leading-relaxed space-y-4 overflow-y-auto pr-1 flex-1">
+                    
+                    <!-- Prominent Notice Box -->
+                    <div class="p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 font-bold space-y-1">
+                        <div class="flex items-center gap-1.5 text-xs text-amber-900 font-black">
+                            <span>⚠️</span>
+                            <span>הסכמה מחייבת:</span>
+                        </div>
+                        <p class="text-[11px] font-semibold text-amber-950 leading-relaxed">
+                            יובהר בזאת כי <strong>שימוש או התחברות לאפליקציה (לרבות באמצעות חשבון Google, טלגרם או קישור ייעודי) מהווים הסכמה מלאה, מפורשת ובלתי חוזרת לתנאים, להצהרת הבריאות ולהגבלת האחריות המפורטים להלן</strong>. במידה ואינך מסכים/ה לאחד מתנאים אלו, אינך מורשה/ית להשתמש באפליקציה ועליך לחדול מכל שימוש בה באופן מיידי.
+                        </p>
+                    </div>
+
+                    <!-- 1. Medical Disclaimer -->
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1.5 text-emerald-800">
+                            <span>1.</span> <span>היעדר ייעוץ רפואי או תזונתי מקצועי (Medical Disclaimer)</span>
+                        </h4>
+                        <ul class="list-disc pr-4 space-y-1.5 text-[11px] text-slate-700 leading-relaxed">
+                            <li><strong>מהות השירות:</strong> המידע, התכנים, תוכניות האימונים, תפריטי התזונה, המדדים, המחשבונים וההמלצות הניתנים במסגרת האפליקציה (להלן: "התכנים") נועדו למטרות העשרה, כושר כללי, תזונה נכונה ואורח חיים בריא בלבד.</li>
+                            <li><strong>אינטראקציה דיגיטלית אינה אבחון:</strong> התכנים באפליקציה מופקים באופן ממוחשב/אוטומטי באמצעות מודלי בינה מלאכותית (AI) ואינם מהווים, בשום מקרה, ייעוץ רפואי, אבחון רפואי, חוות דעת מקצועית, או תחליף לייעוץ, בדיקה, מעקב או טיפול על ידי רופא מוסמך, תזונאי/דיאטן קליני מורשה או איש מקצוע מוסמך אחר בתחום הבריאות והספורט.</li>
+                            <li><strong>בדיקות מעבדה ומדדים משתנים:</strong> האפליקציה אינה מודעת להיסטוריה הרפואית המלאה של המשתמש, לבדיקות הדם שלו, לרגישויות סמויות, לנטילת תרופות או למצבים כרוניים. על כן, אין להסתמך על המידע באפליקציה לקבלת החלטות רפואיות או בריאותיות משמעותיות.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 2. Medical Consultation & User Health Declaration -->
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1.5 text-emerald-800">
+                            <span>2.</span> <span>חובת התייעצות עם רופא והצהרת המשתמש</span>
+                        </h4>
+                        <p class="text-[11px] font-bold text-slate-800">
+                            בעצם השימוש באפליקציה ובאישור תנאים אלו, המשתמש מצהיר, מתחייב ומאשר כי:
+                        </p>
+                        <ul class="list-disc pr-4 space-y-1.5 text-[11px] text-slate-700 leading-relaxed">
+                            <li><strong>בדיקה מקדימה:</strong> הוא נבדק על ידי רופא מוסמך טרם תחילת השימוש באפליקציה, והרופא אישר לו לבצע פעילות גופנית ברמות עצימות שונות ולשנות את משטר התזונה שלו בהתאם לתוכניות המוצעות באפליקציה.</li>
+                            <li><strong>כשירות רפואית:</strong> הוא כשיר לחלוטין מבחינה גופנית ונפשית לביצוע האימונים והתפריטים.</li>
+                            <li><strong>אי-תחולת מגבלות:</strong> הוא אינו סובל מאף אחת מהבעיות הבאות (ואם כן - קיבל אישור רפואי בכתב מהרופא המטפל המאשר לו להשתמש באפליקציה חרף המגבלה): בעיות לב וכלי דם, לחץ דם גבוה/נמוך חריג, כאבים בחזה, סחרחורות או אובדן הכרה, בעיות אורתופדיות (גב, ברכיים, מפרקים וכיו"ב) העלולות להחמיר עקב מאמץ, מחלות מטבוליות (כגון סוכרת לא מאוזנת), היסטוריה או קיום של הפרעות אכילה, או כל מצב רפואי כרוני או אקוטי אחר.</li>
+                            <li><strong>חובת עצירה:</strong> בכל מקרה של תחושת כאב, אי-נוחות, סחרחורת, קוצר נשימה או חולשה קיצונית במהלך ביצוע אימון או מעקב אחר תפריט, המשתמש מתחייב להפסיק את הפעילות לאלתר ולפנות לקבלת טיפול רפואי.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 3. Special Conditions: Pregnant Women & Minors -->
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1.5 text-emerald-800">
+                            <span>3.</span> <span>תנאים מיוחדים (נשים בהיריון וקטינים)</span>
+                        </h4>
+                        <ul class="list-disc pr-4 space-y-1.5 text-[11px] text-slate-700 leading-relaxed">
+                            <li><strong>היריון והנקה:</strong> התפריטים ותוכניות האימונים באפליקציה אינם מותאמים לנשים בהיריון, נשים מניקות או נשים בתהליכי טיפולי פוריות, אלא אם צוין אחרת במפורש במסלול ייעודי ומפוקח. נשים במצבים אלו נדרשות ליווי רפואי ותזונתי צמוד ואינן מורשות להסתמך על המלצות האפליקציה הכלליות.</li>
+                            <li><strong>הגבלת גיל:</strong> השירות באפליקציה מיועד למשתמשים בני 18 ומעלה בלבד. קטינים אינם מורשים להשתמש באפליקציה ללא הסכמה מפורשת, ליווי וחתימה אקטיבית של הורה או אפוטרופוס חוקי על מסמך תנאים זה.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 4. Limitation of Liability -->
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1.5 text-emerald-800">
+                            <span>4.</span> <span>פטור מלא מאחריות לחלוטין (Limitation of Liability)</span>
+                        </h4>
+                        <ul class="list-disc pr-4 space-y-1.5 text-[11px] text-slate-700 leading-relaxed">
+                            <li><strong>השימוש באחריות המשתמש בלבד:</strong> המשתמש מבין ומסכים כי כל פעולה, אימון, תרגיל, שינוי תזונתי, צריכת תוספים או שימוש במידע המוצג באפליקציה נעשים על פי שיקול דעתו הבלעדי ועל אחריותו המלאה והבלעדית (At his own risk).</li>
+                            <li><strong>ויתור על תביעות:</strong> המשתמש מוותר באופן מוחלט, סופי ובלתי חוזר על כל טענה, דרישה, תביעה או זכות תביעה נגד מפתחי האפליקציה, בעלי האפליקציה, החברה המפעילה, עובדיהם, מנהליהם או מי מטעמם (להלן: "החברה"), בגין כל נזק, הפסד, חבלה, פציעה, נכות, מוות, או נזק כספי/נפשי, ישיר או עקיף, שייגרמו לו או לצד שלישי כלשהו כתוצאה ישירה או עקיפה מהשימוש באפליקציה, מהסתמכות על תכניה, או מביצוע ההמלצות המופיעות בה.</li>
+                            <li><strong>אספקת השירות "כפי שהוא" (As-Is):</strong> החברה אינה מתחייבת כי התכנים באפליקציה יהיו מדויקים לחלוטין, מעודכנים בכל רגע נתון בהתאם למחקרים המדעיים האחרונים, או נטולי שגיאות. החברה לא תהיה אחראית לכל טעות או השמטה בתכנים.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 5. No Results Guarantee -->
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1.5 text-emerald-800">
+                            <span>5.</span> <span>היעדר הבטחה לתוצאות</span>
+                        </h4>
+                        <p class="text-[11px] text-slate-700 leading-relaxed">
+                            המשקל, קצב חילוף החומרים, גנטיקה, רמת ההתמדה ואורח החיים משתנים מאדם לאדם. החברה אינה מבטיחה, מתחייבת או ערבה לכך שהשימוש באפליקציה יוביל לתוצאות מסוימות (כגון ירידה במשקל, העלאת מסת שריר, שיפור מדדי בריאות וכדומה).
+                        </p>
+                    </div>
+
+                    <!-- 6. Privacy, Security & GDPR Deletion -->
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1.5 text-emerald-800">
+                            <span>6.</span> <span>שמירה על פרטיות, אבטחת מידע וזכות מחיקה</span>
+                        </h4>
+                        <p class="text-[11px] text-slate-700 leading-relaxed">
+                            המידע שתזין/י (לרבות תמונות ארוחות, הודעות קוליות, משקל גוף ומדדים) משמש אך ורק לצרכי הפעלת יומן התזונה האישי שלך ובקרה מול המאמן. המידע נשמר בתקני אבטחה מחמירים בענן של Google Cloud Platform ואינו מועבר, נמכר או מושכר לצדדים שלישיים. למשתמש הזכות המלאה למחוק את חשבונו וכלל נתוניו בכל עת דרך כפתור "מחיקת חשבון" בהגדרות המערכת.
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- Mandatory Checkbox & Approval Action -->
+                <div class="pt-3 border-t border-slate-100 flex-shrink-0 space-y-3">
+                    <label class="flex items-start gap-2.5 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-300 cursor-pointer select-none">
+                        <input type="checkbox" x-model="mandatoryTermsAccepted"
+                               class="mt-0.5 w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer flex-shrink-0">
+                        <span class="text-xs font-bold text-slate-900 leading-relaxed">
+                            קראתי בעיון, הבנתי ואני מצהיר/ה ומאשר/ת את כל סעיפי הצהרת הבריאות, תנאי השימוש והגבלת האחריות (חובה לאישור השימוש באפליקציה).
+                        </span>
+                    </label>
+
+                    <button type="button"
+                            @click="confirmMandatoryTerms()"
+                            :disabled="!mandatoryTermsAccepted"
+                            :class="!mandatoryTermsAccepted ? 'opacity-50 cursor-not-allowed bg-slate-300 text-slate-500' : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-lg shadow-emerald-600/30'"
+                            class="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+                        <span>אני מאשר/ת ומצהיר/ה ✓</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- 2. ON-DEMAND TERMS & HEALTH DECLARATION MODAL (ACCESSIBLE ANYTIME) -->
+        <!-- =============================================================== -->
         <div x-cloak x-show="showTermsModal" style="display: none;"
              class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs"
              @click.self="showTermsModal = false">
-            <div class="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 text-right space-y-4 max-h-[90vh] overflow-y-auto relative" @click.stop>
+            <div class="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 text-right space-y-4 max-h-[90vh] flex flex-col relative" @click.stop>
                 
                 <!-- Header -->
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
                     <div class="flex items-center gap-2.5">
                         <div class="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center text-xl font-bold shadow-2xs">
                             📜
                         </div>
                         <div>
-                            <h2 class="text-base sm:text-lg font-black text-slate-900">תנאי שימוש ומדיניות פרטיות</h2>
+                            <h2 class="text-base sm:text-lg font-black text-slate-900">הצהרת בריאות ותנאי שימוש</h2>
                             <p class="text-xs text-slate-500">NutriAgent AI • עודכן נובמבר 2026</p>
                         </div>
                     </div>
@@ -15164,85 +15519,137 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 </div>
 
                 <!-- Terms Content -->
-                <div class="text-xs text-slate-700 leading-relaxed space-y-3.5 pr-1">
+                <div class="text-xs text-slate-700 leading-relaxed space-y-3.5 overflow-y-auto pr-1 flex-1">
                     
-                    <!-- Prominent Legal Binding Notice -->
-                    <div class="p-3.5 rounded-2xl bg-emerald-50/90 border-2 border-emerald-300 text-emerald-950 font-bold space-y-1">
-                        <div class="flex items-center gap-1.5 text-xs text-emerald-900 font-black">
+                    <div class="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 font-bold space-y-1">
+                        <div class="flex items-center gap-1.5 text-xs text-amber-900 font-black">
                             <span>⚖️</span>
                             <span>הסכמה מחייבת לתנאי השימוש והפרטיות:</span>
                         </div>
-                        <p class="text-[11px] font-semibold text-emerald-950 leading-relaxed">
-                            יובהר בזאת כי <strong>שימוש או התחברות לאפליקציה (לרבות באמצעות חשבון Google, טלגרם או קישור ייעודי) מהווים הסכמה מלאה, מפורשת ובלתי חוזרת לתנאי השימוש ולמדיניות הפרטיות המפורטים להלן</strong>. במידה ואינך מסכים/ה לאחד מתנאים אלו, אינך מורשה/ית להשתמש באפליקציה ועליך לחדול מכל שימוש בה באופן מיידי.
+                        <p class="text-[11px] font-semibold text-amber-950 leading-relaxed">
+                            יובהר בזאת כי שימוש או התחברות לאפליקציה מהווים הסכמה מלאה, מפורשת ובלתי חוזרת לתנאי השימוש, להצהרת הבריאות ולהגבלת האחריות.
                         </p>
                     </div>
 
-                    <div class="p-3 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-950 font-bold space-y-1">
-                        <div class="flex items-center gap-1.5 text-xs text-amber-900 font-black">
-                            <span>⚠️</span>
-                            <span>הצהרת בריאות ואחריות רפואית:</span>
-                        </div>
-                        <p class="text-[11px] font-normal text-amber-900 leading-relaxed">
-                            אפליקציית NutriAgent הינה מערכת עזר טכנולוגית המבוססת על בינה מלאכותית (AI) למעקב, תיעוד וחישוב נתוני תזונה ואימונים. המידע, ההמלצות והחישובים המופיעים במערכת <strong>אינם מהווים ייעוץ רפואי, אבחון קליני או תחליף להיוועצות עם רופא או דיאטן קליני מוסמך</strong>. השימוש באפליקציה ובתוכניות התזונה הינו באחריותו המלאה והבלעדית של המשתמש.
-                        </p>
-                    </div>
-
-                    <div class="space-y-1.5">
-                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
-                            <span>1.</span> <span>הסכמה לתנאים:</span>
-                        </h4>
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs text-emerald-800">1. היעדר ייעוץ רפואי או תזונתי מקצועי (Medical Disclaimer)</h4>
                         <p class="text-slate-600 text-[11px] leading-relaxed">
-                            שימוש, כניסה או התחברות לאפליקציה מהווים הסכמה מלאה לכל תנאי השימוש ומדיניות הפרטיות. המערכת שומרת את אישור המשתמש והסכמתו לתנאים במסד הנתונים.
+                            התכנים נועדו למטרות העשרה, כושר כללי ואורח חיים בריא בלבד. התכנים מופקים באופן ממוחשב/אוטומטי ואינם מהווים ייעוץ רפואי, אבחון או תחליף להיוועצות עם רופא מוסמך או דיאטן קליני מורשה.
                         </p>
                     </div>
 
-                    <div class="space-y-1.5">
-                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
-                            <span>2.</span> <span>שמירה על פרטיות ואבטחת מידע:</span>
-                        </h4>
-                        <p class="text-slate-600 text-[11px]">
-                            אנו מייחסים חשיבות עליונה להגנה על פרטיותך. המידע שתזין/י (לרבות תמונות ארוחות, הודעות קוליות, משקל גוף ומדדים) משמש אך ורק לצרכי הפעלת יומן התזונה האישי שלך ובקרה מול המאמן המלווה שלך (Coach Itamar). המידע נשמר בתקני אבטחה מחמירים בענן של Google Cloud Platform ואינו מועבר, נמכר או מושכר לצדדים שלישיים לצרכי שיווק או פרסום.
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs text-emerald-800">2. חובת התייעצות עם רופא והצהרת המשתמש</h4>
+                        <p class="text-slate-600 text-[11px] leading-relaxed">
+                            המשתמש מצהיר כי נבדק על ידי רופא מוסמך טרם השימוש וקיבל אישור לפעילות גופנית ושינוי תזונתי, כי הוא כשיר גופנית ונפשית, וכי יפסיק לאלתר כל פעילות במקרה של כאב, סחרחורת או קוצר נשימה.
                         </p>
                     </div>
 
-                    <div class="space-y-1.5">
-                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
-                            <span>3.</span> <span>הרשאות מכשיר (מצלמה, קול והתראות):</span>
-                        </h4>
-                        <p class="text-slate-600 text-[11px]">
-                            האפליקציה מבקשת הרשאות גישה למצלמה (לצילום מנות ומזונות), למיקרופון (לתיאור קולי של ארוחות) ולהתראות Push (לתזכורות שתייה ותזונה). הרשאות אלו מופעלות אך ורק ביוזמתך ובפעולה ישירה שלך באפליקציה.
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs text-emerald-800">3. תנאים מיוחדים (נשים בהיריון וקטינים)</h4>
+                        <p class="text-slate-600 text-[11px] leading-relaxed">
+                            השירות מיועד לבני 18 ומעלה בלבד. התוכניות אינן מותאמות לנשים בהיריון או מניקות ללא ליווי רפואי צמוד ומסלול ייעודי.
                         </p>
                     </div>
 
-                    <div class="space-y-1.5">
-                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
-                            <span>4.</span> <span>זכויות המשתמש ומחיקת נתונים:</span>
-                        </h4>
-                        <p class="text-slate-600 text-[11px]">
-                            למשתמש הזכות המלאה לצפות בנתוניו, לערוך אותם, למחוק ארוחות או יומנים בכל רגע נתון, או לדרוש מחיקה מלאה של חשבונו וכלל נתוניו מהשרתים באמצעות פנייה למנהל המערכת.
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs text-emerald-800">4. פטור מלא מאחריות לחלוטין (Limitation of Liability)</h4>
+                        <p class="text-slate-600 text-[11px] leading-relaxed">
+                            השימוש באחריות המשתמש בלבד (At his own risk). המשתמש מוותר באופן סופי על כל תביעה כנגד מפתחי ומפעילי האפליקציה בגין נזק ישיר או עקיף. השירות מסופק "כפי שהוא" (As-Is).
                         </p>
                     </div>
 
-                    <div class="space-y-1.5">
-                        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1">
-                            <span>5.</span> <span>שינויים ועדכונים:</span>
-                        </h4>
-                        <p class="text-slate-600 text-[11px]">
-                            הנהלת המערכת רשאית לעדכן תנאים אלו מעת לעת. המשך שימושך באפליקציה לאחר עדכון התנאים מהווה הסכמתך לתנאים המעודכנים.
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs text-emerald-800">5. היעדר הבטחה לתוצאות</h4>
+                        <p class="text-slate-600 text-[11px] leading-relaxed">
+                            המשקל, חילוף החומרים וההתמדה משתנים מאדם לאדם. החברה אינה מבטיחה או מתחייבת לתוצאות מסוימות.
+                        </p>
+                    </div>
+
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                        <h4 class="font-black text-slate-900 text-xs text-emerald-800">6. פרטיות ומחיקת נתונים</h4>
+                        <p class="text-slate-600 text-[11px] leading-relaxed">
+                            הנתונים מאובטחים ב-Google Cloud Platform. למשתמש הזכות למחוק את חשבונו וכלל נתוניו בכל רגע דרך כפתור "מחיקת חשבון".
                         </p>
                     </div>
                 </div>
 
                 <!-- Footer Action -->
-                <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-shrink-0">
                     <span class="text-[11px] text-slate-400 font-medium">NutriAgent AI • בטוח ומאובטח</span>
-                    <button type="button" @click="showTermsModal = false; onboardingAcceptedTerms = true;"
+                    <button type="button" @click="showTermsModal = false;"
                             class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer">
-                        קראתי ואני מאשר/ת ✓
+                        סגור ✓
                     </button>
                 </div>
             </div>
         </div>
+
+        <!-- =============================================================== -->
+        <!-- 3. SELF-SERVICE ACCOUNT DELETION MODAL (GDPR COMPLIANT)         -->
+        <!-- =============================================================== -->
+        <div x-cloak x-show="showDeleteAccountModal" style="display: none;"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs"
+             @click.self="showDeleteAccountModal = false">
+            <div class="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-rose-200 text-right space-y-4" @click.stop>
+                <div class="flex items-center justify-between pb-2 border-b border-rose-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center text-xl font-bold">
+                            🗑️
+                        </div>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">מחיקת חשבון וכל הנתונים</h3>
+                            <p class="text-xs text-rose-600 font-semibold">פעולה בלתי הפיכה לצמיתות</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showDeleteAccountModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200 text-xs text-rose-950 space-y-2 leading-relaxed">
+                    <p class="font-bold">⚠️ שים לב: מחיקת החשבון תמחק באופן מיידי:</p>
+                    <ul class="list-disc pr-4 space-y-1 text-[11px] text-rose-900">
+                        <li>את כל היסטוריית הארוחות והתמונות שלך</li>
+                        <li>את כל מדידות המשקל והמדדים האישיים</li>
+                        <li>את היעדים וההגדרות המותאמות אישית</li>
+                        <li>את החיבור למאמן האישי שלך</li>
+                    </ul>
+                    <p class="text-[11px] font-bold pt-1">לא ניתן יהיה לשחזר נתונים אלו לאחר המחיקה.</p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700">
+                        כדי לאשר, הקלד את המילה <span class="text-rose-600 font-black">"מחק"</span> למטה:
+                    </label>
+                    <input type="text" x-model="deleteAccountConfirmText" placeholder='הקלד "מחק"'
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 text-center font-bold">
+                </div>
+
+                <div class="pt-2 flex items-center justify-between gap-2">
+                    <button type="button" @click="showDeleteAccountModal = false"
+                            class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                        ביטול
+                    </button>
+                    <button type="button" @click="confirmDeleteAccountSelf()"
+                            :disabled="deleteAccountConfirmText.trim() !== 'מחק' || deletingAccount"
+                            :class="deleteAccountConfirmText.trim() !== 'מחק' || deletingAccount ? 'opacity-50 cursor-not-allowed bg-slate-300 text-slate-500' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30'"
+                            class="flex-1 py-2.5 rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <span x-text="deletingAccount ? 'מוחק חשבון...' : '🗑️ מחק את החשבון שלי לצמיתות'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- 4. FLOATING SUPPORT BUTTON ("נתקלתם בבעיה? כתבו לנו")             -->
+        <!-- =============================================================== -->
+        <a href="https://wa.me/972506692880?text=%D7%A9%D7%9C%D7%95%D7%9D,%20%D7%A0%D7%AA%D7%A7%D7%9C%D7%AA%D7%99%20%D7%91%D7%91%D7%A2%D7%99%D7%94%20%D7%91%D7%90%D7%A4%D7%9C%D7%99%D7%A7%D7%A6%D7%99%D7%99%D7%AA%20NutriAgent"
+           target="_blank" rel="noopener"
+           class="fixed bottom-20 md:bottom-6 left-4 z-40 px-3.5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer border border-emerald-400/40"
+           title="פתיחת שיחת וואטסאפ לתמיכה מהירה">
+            <span class="text-sm">💬</span>
+            <span class="hidden sm:inline">נתקלתם בבעיה? כתבו לנו</span>
+            <span class="sm:hidden">תמיכה</span>
+        </a>
 
 </body>
 </html>

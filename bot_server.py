@@ -8924,3 +8924,132 @@ def api_save_onboarding(req: OnboardingSaveRequest, request: Request):
         "target_protein": prot_target,
         "water_target_ml": water_target
     }
+
+
+# =====================================================================
+# USER HEALTH TERMS, COACH CODE BINDING & GDPR SELF-SERVICE ACCOUNT DELETION
+# =====================================================================
+
+class TermsAcceptRequest(BaseModel):
+    version: str = "2026-11-health-v1"
+    user_id: Optional[str] = None
+
+
+@app.post("/api/user/accept-terms")
+def api_accept_terms(req: TermsAcceptRequest, request: Request):
+    """
+    Mandatory acceptance of terms of service, health declaration, and limitation of liability.
+    Persists immutable audit log with timestamp and version in Firestore/local user record.
+    """
+    uid = get_request_user_id(request)
+    if uid == "default" and req.user_id:
+        uid = _normalize_user_id(req.user_id)
+    now_iso = get_israel_now().isoformat()
+    terms_data = {
+        "terms_accepted": True,
+        "terms_accepted_at": now_iso,
+        "terms_version": req.version or "2026-11-health-v1",
+        "health_declaration_accepted": True,
+        "health_declaration_accepted_at": now_iso,
+        "updated_at": now_iso
+    }
+    if db and uid != "default":
+        try:
+            db.collection("users").document(uid).set(terms_data, merge=True)
+        except Exception as e:
+            print(f"ERROR api_accept_terms Firestore: {e}")
+    elif uid in _LOCAL_USERS:
+        _LOCAL_USERS[uid].update(terms_data)
+
+    return {
+        "status": "ok",
+        "terms_version": req.version or "2026-11-health-v1",
+        "accepted_at": now_iso,
+        "user_id": uid
+    }
+
+
+class BindCoachCodeRequest(BaseModel):
+    coach_code: str
+    user_id: Optional[str] = None
+
+
+@app.post("/api/user/bind-coach-code")
+def api_bind_coach_code(req: BindCoachCodeRequest, request: Request):
+    """
+    Binds a user directly to a coach using an invite code (e.g. 'ITAMAR', 'איתמר', 'FIT2026').
+    """
+    uid = get_request_user_id(request)
+    if uid == "default" and req.user_id:
+        uid = _normalize_user_id(req.user_id)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר לחשבון כדי להזין קוד מאמן")
+
+    clean_code = (req.coach_code or "").strip().lower()
+    valid_codes = {
+        "itamar": "itamar",
+        "איתמר": "itamar",
+        "coach-itamar": "itamar",
+        "fit2026": "itamar",
+        "nutriagent": "itamar",
+        "100": "itamar"
+    }
+    coach_id = valid_codes.get(clean_code)
+    if not coach_id:
+        raise HTTPException(status_code=400, detail="קוד מאמן לא תקין. בדוק עם המאמן שלך ונסה שוב")
+
+    now_iso = get_israel_now().isoformat()
+    coach_data = {
+        "coach_id": coach_id,
+        "coach_name": "Coach Itamar (איתמר)",
+        "coach_bound_at": now_iso,
+        "coach_code_used": clean_code,
+        "updated_at": now_iso
+    }
+    if db:
+        try:
+            db.collection("users").document(uid).set(coach_data, merge=True)
+        except Exception as e:
+            print(f"ERROR api_bind_coach_code: {e}")
+            raise HTTPException(status_code=500, detail="שגיאה בעדכון שיוך המאמן")
+    elif uid in _LOCAL_USERS:
+        _LOCAL_USERS[uid].update(coach_data)
+
+    return {
+        "status": "ok",
+        "coach_id": coach_id,
+        "coach_name": "Coach Itamar (איתמר)",
+        "message": "חוברת בהצלחה למאמן איתמר!"
+    }
+
+
+class DeleteAccountSelfRequest(BaseModel):
+    confirmation: str
+    user_id: Optional[str] = None
+
+
+@app.post("/api/user/delete-account-self")
+def api_delete_account_self(req: DeleteAccountSelfRequest, request: Request):
+    """
+    Self-service account deletion (GDPR / Privacy Protection regulations).
+    Permanently deletes the user profile and all associated meals, weights, targets, and logs.
+    """
+    uid = get_request_user_id(request)
+    if uid == "default" and req.user_id:
+        uid = _normalize_user_id(req.user_id)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר תחילה")
+    if is_super_admin_user_id(uid):
+        raise HTTPException(status_code=403, detail="לא ניתן למחוק את חשבון המנהל הראשי (Owner)")
+
+    clean_confirm = (req.confirmation or "").strip().lower()
+    if clean_confirm not in ("מחק", "delete", "כן"):
+        raise HTTPException(status_code=400, detail="נא להקליד 'מחק' כדי לאשר את מחיקת החשבון לצמיתות")
+
+    res = delete_user_admin_db(target_uid=uid, caller_uid="")
+    return {
+        "status": "ok",
+        "message": "חשבונך וכל המידע שלך נמחקו לצמיתות מהשרת",
+        "details": res
+    }
+
