@@ -32,8 +32,9 @@
 
 ### D. Top Header & Navigation Bar (Lines 371 – 550)
 - `371-400`: Logo, date display, daily streak status.
-- `401-455`: Desktop segmented navigation tabs (Summary, Recipes, Analytics, Wolt, Coach Hub, Admin).
+- `401-455`: Desktop segmented navigation tabs (Summary, History, Recipes, Coach Hub, **💰 ניהול כספים**, Admin).
 - `456-548`: Uniform Action Toolbar:
+  - **Direct Financial Management Pill (`goToAdminCosts()`)** — visible for all Admin users.
   - Language toggle (`toggleLanguage()`).
   - PWA install button.
   - Push notifications toggle.
