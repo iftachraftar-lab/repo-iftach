@@ -1148,19 +1148,34 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
         except Exception as e:
             print(f"ERROR upsert_user_profile: {e}")
 
-    # Notify admin via Web Push when a new unapproved user requests access
-    if not is_approved and not was_already_known:
-        try:
-            for owner_em in OWNER_ADMIN_EMAILS:
-                admin_uid = _make_user_id_from_email(owner_em)
-                send_web_push_to_all(
-                    title="🔔 בקשת הצטרפות חדשה ל-NutriAgent",
-                    body=f"{profile['name']} ({clean_email}) מבקש גישה לאפליקציה. היכנס ללשונית אדמין לאישור.",
-                    tag="nutriagent-new-user",
-                    user_id=admin_uid,
+    # Notify admin via Web Push when an unapproved user joins or signs in
+    if not is_approved:
+        last_notified = existing_doc_data.get("last_admin_signup_notified_at")
+        needs_notify = True
+        if last_notified:
+            try:
+                diff = (get_israel_now() - datetime.fromisoformat(last_notified)).total_seconds()
+                if diff < 300:  # 5 minutes debounce
+                    needs_notify = False
+            except Exception:
+                pass
+        if needs_notify:
+            now_iso = get_israel_now().isoformat()
+            profile["last_admin_signup_notified_at"] = now_iso
+            if db:
+                try:
+                    db.collection("users").document(uid).set({"last_admin_signup_notified_at": now_iso}, merge=True)
+                except Exception as e:
+                    print(f"ERROR updating last_admin_signup_notified_at: {e}")
+            try:
+                dispatch_push_to_admins(
+                    title="🔔 משתמש חדש ממתין לאישורך!",
+                    body=f"{profile['name']} ({clean_email}) הצטרף כעת וממתין לאישור גישה. היכנס ללשונית אדמין לאישור.",
+                    tag=f"nutriagent-new-user-{uid}",
+                    url="/?tab=admin"
                 )
-        except Exception as e:
-            print(f"WARN admin push on signup: {e}")
+            except Exception as e:
+                print(f"WARN admin push on signup: {e}")
 
     # Automatically claim unowned legacy data for the very first user or owner so nothing disappears
     claimed = {"claimed_meals": 0, "claimed_weights": 0, "claimed_favorites": 0}
@@ -4517,6 +4532,84 @@ def send_web_push_to_all(
         "total_subscriptions": len(subs),
         "devices": devices_report,
     }
+
+
+def dispatch_push_to_admins(
+    title: str,
+    body: str,
+    tag: str = "nutriagent-admin-alert",
+    url: str = "/?tab=admin",
+    is_healthy: bool = True
+) -> dict:
+    """
+    Guaranteed delivery of high-priority push notifications to system admins (Iftach, Itamar).
+    Searches all active push subscriptions and matches by user ID, email, or admin keywords.
+    Falls back to all active subscriptions if no admin-tagged subscription is found.
+    """
+    all_subs = get_push_subscriptions_db(user_id=None)
+    if not all_subs:
+        print("WARN dispatch_push_to_admins: No push subscriptions found in database.")
+        return {"sent": 0, "failed": 0, "total": 0}
+
+    # Match subscriptions belonging to admins
+    admin_subs = []
+    for s in all_subs:
+        s_uid = (s.get("user_id") or "").strip().lower()
+        if (
+            is_admin_user_id(s_uid)
+            or is_admin_email(s_uid)
+            or s_uid in SUPER_ADMIN_EMAILS
+            or s_uid in ADMIN_EMAILS
+            or any(kw in s_uid for kw in ("iftach", "itamar", "admin"))
+            or s.get("is_admin") is True
+        ):
+            admin_subs.append(s)
+
+    # Fallback to all subscriptions if no admin-specific match was found
+    target_subs = admin_subs if admin_subs else all_subs
+
+    vapid = get_or_create_vapid_keys()
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+        "tag": tag,
+        "url": url,
+        "icon": "/static/icon-192.png",
+        "badge": "/static/icon-192.png",
+        "is_admin": True,
+        "is_healthy": is_healthy
+    }, ensure_ascii=False)
+
+    sent = 0
+    failed = 0
+    for sub in target_subs:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub["endpoint"],
+                    "keys": sub["keys"],
+                },
+                data=payload,
+                vapid_private_key=vapid["private_key"],
+                vapid_claims={"sub": "mailto:push@nutriagent.app"},
+                ttl=86400,
+                headers={"Urgency": "high"},
+            )
+            sent += 1
+        except WebPushException as ex:
+            failed += 1
+            status_code = getattr(getattr(ex, "response", None), "status_code", None)
+            if status_code in (400, 401, 403, 404, 410):
+                remove_push_subscription_db(sub["endpoint"])
+            else:
+                print(f"WARN WebPushException ({status_code}): {ex}")
+        except Exception as e:
+            failed += 1
+            print(f"ERROR dispatch_push_to_admins: {e}")
+
+    print(f"INFO dispatch_push_to_admins: Sent {sent}/{len(target_subs)} notifications (failed: {failed})")
+    return {"sent": sent, "failed": failed, "total": len(target_subs)}
+
 
 
 # ---------------------------------------------------------------------------
@@ -9095,8 +9188,7 @@ def api_support_contact(req: SupportContactRequest, request: Request):
 
     # Broadcast notification to Admin
     try:
-        send_push_notification(
-            user_id=None,
+        dispatch_push_to_admins(
             title=f"💬 פנייה חדשה: {req.subject}",
             body=f"{req.user_name or uid} ({req.category}): {clean_msg[:100]}",
             tag="nutriagent-support-inquiry",
@@ -9109,5 +9201,37 @@ def api_support_contact(req: SupportContactRequest, request: Request):
         "status": "ok",
         "message": "פנייתך התקבלה בהצלחה! צוות התמיכה יטפל בה בהקדם."
     }
+
+
+class PingAdminApprovalRequest(BaseModel):
+    user_id: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+
+
+@app.post("/api/user/ping-admin-approval")
+def api_ping_admin_approval(req: PingAdminApprovalRequest, request: Request):
+    """
+    Called by an unapproved user on the waiting screen to remind the admin to approve their account.
+    """
+    uid = get_request_user_id(request)
+    if uid == "default" and req.user_id:
+        uid = _normalize_user_id(req.user_id)
+    udoc = get_user_doc_db(uid) if uid != "default" else {}
+    u_email = req.email or udoc.get("email") or uid
+    u_name = req.name or udoc.get("name") or u_email.split("@")[0]
+
+    push_res = dispatch_push_to_admins(
+        title="🔔 תזכורת: משתמש ממתין לאישורך!",
+        body=f"{u_name} ({u_email}) שלח תזכורת וממתין לאישורך. היכנס ללשונית אדמין לאישור.",
+        tag=f"nutriagent-ping-approval-{uid}",
+        url="/?tab=admin"
+    )
+    return {
+        "status": "ok",
+        "message": "תזכורת נשלחה למנהל המערכת בהצלחה!",
+        "push_result": push_res
+    }
+
 
 

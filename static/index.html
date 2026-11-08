@@ -363,6 +363,13 @@
                     <span>בדוק האם החשבון אושר</span>
                 </button>
                 <button type="button"
+                        @click="pingAdminApproval()"
+                        :disabled="pingingAdmin"
+                        class="w-full py-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2">
+                    <span>🔔</span>
+                    <span x-text="pingingAdmin ? 'שולח תזכורת למנהל...' : 'שלח תזכורת מיידית למנהל המערכת'"></span>
+                </button>
+                <button type="button"
                         @click="logoutUser()"
                         class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer">
                     התנתק / החלף חשבון Google
@@ -7626,7 +7633,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=94').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=95').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -8410,6 +8417,7 @@
                     email: ''
                 },
                 supportSubmitting: false,
+                pingingAdmin: false,
                 showAttachMenu: false,
                 coachCodeInput: '',
                 coachCodeBinding: false,
@@ -10915,6 +10923,37 @@
                         ]);
                     } else {
                         this.showToast('⏳ החשבון עדיין ממתין לאישור מנהל המערכת');
+                    }
+                },
+
+                async pingAdminApproval() {
+                    this.pingingAdmin = true;
+                    try {
+                        const token = this.currentUser?.session_token || '';
+                        const headers = { 'Content-Type': 'application/json' };
+                        if (token) {
+                            headers['Authorization'] = 'Bearer ' + token;
+                            headers['X-Session-Token'] = token;
+                        }
+                        const res = await fetch('/api/user/ping-admin-approval', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify({
+                                user_id: this.currentUser?.id,
+                                email: this.currentUser?.email,
+                                name: this.currentUser?.name
+                            })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            this.showToast('🔔 התזכורת נשלחה למנהל המערכת בהצלחה!', 'success');
+                        } else {
+                            this.showToast(data.detail || 'שגיאה בשליחת התזכורת', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('שגיאה בשליחת התזכורת', 'error');
+                    } finally {
+                        this.pingingAdmin = false;
                     }
                 },
 
