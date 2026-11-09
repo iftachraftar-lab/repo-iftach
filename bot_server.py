@@ -5624,11 +5624,47 @@ def send_admin_health_and_billing_push(manual_trigger: bool = False) -> dict:
     sent = push_res.get("sent", 0)
     failed = push_res.get("failed", 0)
 
+    # Also send directly to Admin Telegram so notification arrives on mobile even if browser push is closed
+    tg_sent = False
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    admin_chat_id = get_telegram_admin_chat_id()
+    if bot_token and admin_chat_id:
+        try:
+            tg_msg = (
+                f"<b>{title}</b>\n\n"
+                f"📊 {body}\n"
+                f"🕒 שעה: {get_israel_now().strftime('%d/%m/%Y %H:%M')}\n"
+                f"🔗 <a href='https://nutrition-service-313955139672.me-west1.run.app/?tab=admin'>פתח דשבורד אדמין</a>"
+            )
+            tg_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            req_data = urllib.parse.urlencode({
+                "chat_id": admin_chat_id,
+                "text": tg_msg,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": "true"
+            }).encode("utf-8")
+            tg_req = urllib.request.Request(tg_url, data=req_data, method="POST")
+            with urllib.request.urlopen(tg_req, timeout=8) as resp:
+                if resp.status == 200:
+                    tg_sent = True
+        except Exception as tg_err:
+            print(f"WARN admin health telegram push: {tg_err}")
+
+    if db and not manual_trigger:
+        try:
+            db.collection("app_config").document("daily_health_cron").set({
+                "last_sent_date": get_israel_today_str(),
+                "updated_at": get_israel_now().isoformat()
+            }, merge=True)
+        except Exception:
+            pass
+
     return {
         "status": "healthy" if is_healthy else "degraded",
         "db_ok": db_ok,
         "ai_ok": ai_ok,
         "sent_to_admins": sent,
+        "telegram_sent": tg_sent,
         "failed": failed,
         "title": title,
         "body": body,
@@ -5636,8 +5672,29 @@ def send_admin_health_and_billing_push(manual_trigger: bool = False) -> dict:
     }
 
 
+def _has_daily_health_been_sent_today() -> bool:
+    today_s = get_israel_today_str()
+    if db:
+        try:
+            doc = db.collection("app_config").document("daily_health_cron").get()
+            if doc.exists and (doc.to_dict() or {}).get("last_sent_date") == today_s:
+                return True
+        except Exception:
+            pass
+    return False
+
+
 async def _admin_daily_0800_scheduler():
-    """Background task running in FastAPI lifespan that sends the daily 08:00 Israel time health & billing push to admin."""
+    """Background task running in FastAPI lifespan + startup catch-up if container woke up after 08:00 Israel time."""
+    await asyncio.sleep(5)
+    try:
+        now_il = datetime.now(IL_TZ)
+        if now_il.hour >= 8 and not _has_daily_health_been_sent_today():
+            print("INFO: Catch-up executing today's 08:00 Admin Health & Billing check...")
+            send_admin_health_and_billing_push(manual_trigger=False)
+    except Exception as e:
+        print(f"WARN startup catch-up daily health check: {e}")
+
     while True:
         try:
             now_il = datetime.now(IL_TZ)
@@ -5647,14 +5704,24 @@ async def _admin_daily_0800_scheduler():
             sleep_secs = max(5.0, (target - now_il).total_seconds())
             print(f"INFO: Admin daily 08:00 scheduler sleeping for {sleep_secs:.1f}s until {target.isoformat()}")
             await asyncio.sleep(sleep_secs)
-            print("INFO: Executing scheduled 08:00 Admin Health & Billing check...")
-            send_admin_health_and_billing_push(manual_trigger=False)
+            if not _has_daily_health_been_sent_today():
+                print("INFO: Executing scheduled 08:00 Admin Health & Billing check...")
+                send_admin_health_and_billing_push(manual_trigger=False)
         except asyncio.CancelledError:
             print("INFO: Admin daily 08:00 scheduler cancelled.")
             break
         except Exception as ex:
             print(f"WARN in _admin_daily_0800_scheduler: {ex}")
             await asyncio.sleep(60)
+
+
+@app.get("/api/cron/daily-health-check")
+@app.post("/api/cron/daily-health-check")
+def api_cron_daily_health_check(force: bool = False):
+    """Cloud Scheduler endpoint to wake up Cloud Run at 08:00 Asia/Jerusalem and dispatch the daily report."""
+    if not force and _has_daily_health_been_sent_today():
+        return {"status": "already_sent_today", "date": get_israel_today_str()}
+    return send_admin_health_and_billing_push(manual_trigger=False)
 
 
 @app.get("/api/admin/billing-and-costs")
