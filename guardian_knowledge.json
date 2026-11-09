@@ -1,13 +1,16 @@
 {
-  "last_audit_at": "2026-11-09T18:44:41.667799+02:00",
-  "total_runs": 18,
-  "sw_version": "112",
+  "last_audit_at": "2026-11-09T19:04:32.703069+02:00",
+  "total_runs": 20,
+  "sw_version": "113",
   "counts": {
-    "api_routes": 110,
+    "api_routes": 112,
     "pydantic_models": 65,
-    "alpine_methods": 185
+    "alpine_methods": 187
   },
-  "newly_learned_routes_last_run": [],
+  "newly_learned_routes_last_run": [
+    "GET /api/admin/llmops/stats",
+    "POST /api/admin/llmops/run-evals"
+  ],
   "removed_routes_last_run": [],
   "routes": [
     "DELETE /api/admin/users/{target_uid}",
@@ -24,6 +27,7 @@
     "GET /.well-known/openid-configuration",
     "GET /api/admin/billing-and-costs",
     "GET /api/admin/leads",
+    "GET /api/admin/llmops/stats",
     "GET /api/admin/photo-errors",
     "GET /api/admin/qa-guardian",
     "GET /api/admin/users",
@@ -60,6 +64,7 @@
     "POST /api/admin/analytics/config",
     "POST /api/admin/daily-health-and-billing-check",
     "POST /api/admin/leads/{lead_id}/experts-access",
+    "POST /api/admin/llmops/run-evals",
     "POST /api/admin/photo-errors/{err_id}/resolve",
     "POST /api/admin/telegram-target",
     "POST /api/admin/test-telegram-alert",
@@ -234,6 +239,7 @@
     "exportVisionLogsCSV",
     "exportVisionLogsJSON",
     "fetchAdminCosts",
+    "fetchAdminLlmops",
     "fetchAdminPhotoErrors",
     "fetchAdminUsers",
     "fetchFavorites",
@@ -310,6 +316,7 @@
     "resolveMealType",
     "resyncPushSubscription",
     "runAdminDailyHealthCheck",
+    "runAdminEvals",
     "runAdminVisionTest",
     "runTrialScanning",
     "saveAdminUserTargets",

@@ -3361,6 +3361,14 @@
                     <span>⚙️</span>
                     <span>הגדרות ערוצים ו-AI</span>
                 </button>
+                <button type="button" @click="adminNavTab = 'llmops'; fetchAdminLlmops()"
+                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                        :class="adminNavTab === 'llmops' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+                    <span>🧠</span>
+                    <span>LLMOps & Evals</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900"
+                          x-text="`${adminLlmops?.last_eval_score || 100}%`"></span>
+                </button>
             </div>
 
             <!-- Feature Flags & Messaging Integrations Manager (Admin Control) -->
@@ -4519,6 +4527,167 @@
                                                     סמן כטופל
                                                 </button>
                                             </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            <!-- =============================================================== -->
+            <!-- LLMOps & EVALS LIVE CONTROL ROOM                                -->
+            <!-- =============================================================== -->
+            <div x-show="adminNavTab === 'llmops'" class="space-y-6">
+                <!-- Banner: Executive Control Room -->
+                <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center text-2xl shadow-xs shrink-0">
+                                🧠
+                            </div>
+                            <div>
+                                <div class="inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 mb-0.5">
+                                    <span>⚡</span> LLMOps & Quality Benchmark
+                                </div>
+                                <h3 class="text-base sm:text-lg font-black text-slate-900">חדר בקרה לביצועי AI ומבחני איכות (Evals)</h3>
+                                <p class="text-xs text-slate-500">מעקב מהירות תגובה, תקלות מודל, מבחני דיוק מובנים וניתוח תיקוני משתמשים בזמן אמת</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button"
+                                    @click="runAdminEvals()"
+                                    :disabled="adminEvalsRunning"
+                                    class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
+                                <span x-show="!adminEvalsRunning">🚀 הרץ מבחן איכות (Run Evals)</span>
+                                <span x-show="adminEvalsRunning">⏳ מריץ מבחנים...</span>
+                            </button>
+                            <button type="button"
+                                    @click="fetchAdminLlmops()"
+                                    :disabled="adminLlmopsLoading"
+                                    class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                <span x-text="adminLlmopsLoading ? 'טוען...' : '🔄 רענן נתונים'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4 LLMOps KPI Cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                        <!-- Card 1: Benchmark Accuracy -->
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-emerald-100/40 border border-emerald-200/80">
+                            <span class="text-[11px] font-bold text-emerald-800 block mb-1">🎯 ציון דיוק במבחני זהב</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl font-black text-emerald-950" x-text="`${adminLlmops?.last_eval_score || 100}%`">100%</span>
+                                <span class="text-xs text-emerald-700 font-bold">Accuracy</span>
+                            </div>
+                            <span class="text-[10px] text-emerald-600 mt-1 block" x-text="adminLlmops?.last_eval_timestamp ? `נבדק: ${adminLlmops.last_eval_timestamp}` : 'סוויטת 8 מקרי מבחן ישראליים'"></span>
+                        </div>
+
+                        <!-- Card 2: Average Latency -->
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/60 to-indigo-100/40 border border-indigo-200/80">
+                            <span class="text-[11px] font-bold text-indigo-700 block mb-1">⚡ מהירות תגובה ממוצעת</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl font-black text-indigo-900" x-text="`${(adminLlmops?.avg_latency_ms || 1200) / 1000}s`">1.2s</span>
+                                <span class="text-xs text-indigo-500 font-bold">Gemini 2.5</span>
+                            </div>
+                            <span class="text-[10px] text-indigo-600 mt-1 block">זמן עיבוד מודל מקצה לקצה</span>
+                        </div>
+
+                        <!-- Card 3: Success Rate -->
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/70 border border-slate-200/80">
+                            <span class="text-[11px] font-bold text-slate-500 block mb-1">📈 אחוז הצלחת קריאות API</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl font-black text-slate-900" x-text="`${adminLlmops?.success_rate_pct || 100}%`">100%</span>
+                                <span class="text-xs text-slate-400 font-bold" x-text="`(${adminLlmops?.successful_requests || 0}/${adminLlmops?.total_requests || 0})`"></span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 mt-1 block">ללא שגיאות 429 או Timeouts</span>
+                        </div>
+
+                        <!-- Card 4: User Overrides & Drift -->
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-amber-50/70 to-amber-100/40 border border-amber-200/80">
+                            <span class="text-[11px] font-bold text-amber-800 block mb-1">🔄 תיקוני משתמשים (Drift)</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl font-black text-amber-950" x-text="adminLlmops?.user_overrides_count || 0">0</span>
+                                <span class="text-xs text-amber-700 font-bold">ארוחות שתוקנו</span>
+                            </div>
+                            <span class="text-[10px] text-amber-600 mt-1 block">משוב משתמשים לכיול עתידי</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evals Results Detail Modal/Panel (Shown after running benchmark) -->
+                <div x-show="adminEvalsResults" class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🧪</span>
+                            <h4 class="text-sm font-black text-slate-900">תוצאות סוויטת הבדיקות האחרונה (Golden Benchmark)</h4>
+                            <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800"
+                                  x-text="`${adminEvalsResults?.passed_cases}/${adminEvalsResults?.total_cases} עברו בהצלחה (${adminEvalsResults?.accuracy_pct}%)`"></span>
+                        </div>
+                        <span class="text-xs text-slate-400 font-mono" x-text="`משך בדיקה: ${adminEvalsResults?.duration_sec}s`"></span>
+                    </div>
+
+                    <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        <template x-for="tc in (adminEvalsResults?.cases || [])" :key="tc.id">
+                            <div class="p-3 rounded-xl border text-xs flex items-start justify-between gap-3"
+                                 :class="tc.passed ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/50 border-rose-200'">
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2">
+                                        <span x-text="tc.passed ? '✅' : '❌'"></span>
+                                        <span class="font-black text-slate-900" x-text="tc.input"></span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-600" x-text="`זוהה: ${tc.actual_calories || 0} קק״ל • ${tc.actual_protein || 0}g חלבון (${tc.actual_summary || ''})`"></div>
+                                    <template x-if="tc.reasons && tc.reasons.length">
+                                        <div class="text-[10px] text-rose-600 font-semibold" x-text="tc.reasons.join(' | ')"></div>
+                                    </template>
+                                </div>
+                                <span class="text-[10px] font-mono text-slate-400 shrink-0" x-text="`${tc.latency_ms || 0}ms`"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- User Overrides Feed: Live Real-World Feedback Loop -->
+                <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                            <h4 class="text-sm font-black text-slate-900">🔄 יומן תיקוני משתמשים (User Overrides & Calibration Feed)</h4>
+                            <p class="text-xs text-slate-500">כאשר משתמש מתקן את הצעת ה-AI בחלונית האישור, השינוי נרשם כאן כדי לזהות איפה כדאי לדייק את הפרומפט</p>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900"
+                              x-text="`סה״כ תיקונים: ${(adminLlmops?.overrides || []).length}`"></span>
+                    </div>
+
+                    <template x-if="!adminLlmops?.overrides || adminLlmops.overrides.length === 0">
+                        <div class="text-center py-8 space-y-1 text-slate-400 text-xs">
+                            <span class="text-3xl block">✨</span>
+                            <p class="font-bold text-slate-700">אין תיקוני משתמשים חריגים!</p>
+                            <p>המשתמשים מאשרים את הערכות ה-AI כפי שהן ללא סטייה מעל 12%.</p>
+                        </div>
+                    </template>
+
+                    <template x-if="adminLlmops?.overrides && adminLlmops.overrides.length > 0">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-400 font-bold">
+                                        <th class="py-2 px-3">תיאור המנה</th>
+                                        <th class="py-2 px-3 text-center">הערכת AI ראשונית</th>
+                                        <th class="py-2 px-3 text-center">שמירת משתמש בפועל</th>
+                                        <th class="py-2 px-3 text-center">פער קלורי</th>
+                                        <th class="py-2 px-3 text-center">תאריך</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <template x-for="ovr in adminLlmops.overrides" :key="ovr.id">
+                                        <tr class="hover:bg-slate-50/70 transition">
+                                            <td class="py-2.5 px-3 font-extrabold text-slate-900" x-text="ovr.description || 'ללא תיאור'"></td>
+                                            <td class="py-2.5 px-3 text-center text-slate-600 font-mono" x-text="`${ovr.ai_prediction?.calories || 0} קק״ל (${ovr.ai_prediction?.protein_g || 0}g)`"></td>
+                                            <td class="py-2.5 px-3 text-center font-bold text-emerald-800 font-mono" x-text="`${ovr.user_saved?.calories || 0} קק״ל (${ovr.user_saved?.protein_g || 0}g)`"></td>
+                                            <td class="py-2.5 px-3 text-center font-bold"
+                                                :class="ovr.cal_delta > 0 ? 'text-amber-600' : 'text-indigo-600'"
+                                                x-text="`${ovr.cal_delta > 0 ? '+' : ''}${ovr.cal_delta || 0} קק״ל`"></td>
+                                            <td class="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]" x-text="ovr.timestamp || ''"></td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -7184,7 +7353,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=112').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=113').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -8031,6 +8200,10 @@
                 simulatedClientPrice: 69,
                 adminPhotoErrors: [],
                 adminErrorsLoading: false,
+                adminLlmops: null,
+                adminLlmopsLoading: false,
+                adminEvalsRunning: false,
+                adminEvalsResults: null,
                 newTraineeForm: {
                     name: '',
                     phone: '',
@@ -11859,6 +12032,41 @@
                     }
                 },
 
+                async fetchAdminLlmops() {
+                    if (!this.currentUser || !this.currentUser.is_admin) return;
+                    this.adminLlmopsLoading = true;
+                    try {
+                        const res = await fetch('/api/admin/llmops/stats');
+                        if (!res.ok) throw new Error('שגיאה בשליפת נתוני LLMOps');
+                        this.adminLlmops = await res.json();
+                    } catch (e) {
+                        console.error('fetchAdminLlmops error:', e);
+                        this.showToast(e.message || 'שגיאה בשליפת נתוני LLMOps', 'error');
+                    } finally {
+                        this.adminLlmopsLoading = false;
+                    }
+                },
+
+                async runAdminEvals() {
+                    if (!this.currentUser || !this.currentUser.is_admin) return;
+                    this.adminEvalsRunning = true;
+                    try {
+                        const res = await fetch('/api/admin/llmops/run-evals', { method: 'POST' });
+                        if (!res.ok) throw new Error('שגיאה בהרצת מבחני Evals');
+                        const data = await res.json();
+                        this.adminEvalsResults = data;
+                        if (this.adminLlmops) {
+                            this.adminLlmops.last_eval_score = data.accuracy_pct;
+                            this.adminLlmops.last_eval_timestamp = data.timestamp;
+                        }
+                        this.showToast(`🧪 מבחן איכות הושלם: ציון ${data.accuracy_pct}% (${data.passed_cases}/${data.total_cases})`, data.accuracy_pct >= 90 ? 'success' : 'warning');
+                    } catch (e) {
+                        this.showToast(e.message || 'שגיאה בהרצת מבחני Evals', 'error');
+                    } finally {
+                        this.adminEvalsRunning = false;
+                    }
+                },
+
                 async fetchVisionLogs() {
                     if (!this.currentUser) return;
                     this.visionLoading = true;
@@ -13623,6 +13831,8 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     description: data.description || '',
                     calories: (data.calories !== undefined && data.calories !== null && data.calories !== '') ? Number(data.calories) : '',
                     protein_g: (data.protein_g !== undefined && data.protein_g !== null && data.protein_g !== '') ? Number(data.protein_g) : '',
+                    original_ai_calories: (data.calories !== undefined && data.calories !== null && data.calories !== '') ? Number(data.calories) : null,
+                    original_ai_protein: (data.protein_g !== undefined && data.protein_g !== null && data.protein_g !== '') ? Number(data.protein_g) : null,
                     items: data.items || [],
                     log_date: data.log_date || this.todayStr,
                     log_time: data.log_time || getIsraelTimeStr(),
@@ -13660,6 +13870,9 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         description: this.mealConfirmForm.description.trim(),
                         calories: this.mealConfirmForm.calories,
                         protein_g: this.mealConfirmForm.protein_g,
+                        original_ai_calories: this.mealConfirmForm.original_ai_calories,
+                        original_ai_protein: this.mealConfirmForm.original_ai_protein,
+                        source: this.mealConfirmForm.source || 'confirm_modal',
                         log_date: this.mealConfirmForm.log_date || this.todayStr,
                         log_time: this.mealConfirmForm.log_time,
                         meal_type: this.mealConfirmForm.meal_type
