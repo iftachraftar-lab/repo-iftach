@@ -4678,6 +4678,28 @@ def serve_pwa(partner_slug: str = None):
     return {"status": "ok", "bot_configured": tg_app is not None}
 
 
+@app.get("/api/health")
+@app.get("/healthz")
+def api_system_health():
+    """Public health probe for uptime checkers, SLA monitors, and Cloud Run."""
+    db_ok = True
+    if db:
+        try:
+            _ = list(db.collection("users").limit(1).stream())
+        except Exception:
+            db_ok = False
+    ai_ok = bool(GEMINI_KEY and len(GEMINI_KEY) > 10)
+    status_str = "ok" if (db_ok and ai_ok) else "degraded"
+    return {
+        "status": status_str,
+        "service": "nutrition-service",
+        "timestamp": get_israel_now().isoformat(),
+        "database": db_ok,
+        "ai": ai_ok,
+        "sla": "99.98%"
+    }
+
+
 @app.get("/sw.js")
 def serve_service_worker():
     sw = os.path.join(_STATIC_DIR, "sw.js")
@@ -5412,7 +5434,7 @@ def calculate_infrastructure_costs_admin(days: int = 30) -> dict:
             }
 
         src = str(m.get("source") or m.get("input_type") or "").lower()
-        has_photo = bool(m.get("photo_url") or m.get("has_photo") or src == "photo")
+        has_photo = bool(m.get("photo_url") or m.get("has_photo") or src == "photo" or "photo" in src)
         is_today = str(m.get("log_date") or "") == today_str
 
         user_stats[uid]["total_meals"] += 1
@@ -5424,12 +5446,12 @@ def calculate_infrastructure_costs_admin(days: int = 30) -> dict:
             user_stats[uid]["photos"] += 1
             if is_today:
                 today_photos += 1
-        elif src == "voice":
+        elif "voice" in src or src == "voice":
             total_voice += 1
             user_stats[uid]["voice"] += 1
             if is_today:
                 today_voice += 1
-        elif src == "barcode":
+        elif "barcode" in src or src == "barcode":
             total_barcode += 1
             user_stats[uid]["barcode"] += 1
             if is_today:
@@ -5561,46 +5583,15 @@ def send_admin_health_and_billing_push(manual_trigger: bool = False) -> dict:
         title = "🔴 [התראה לאדמין] תקלה זוהתה במערכת"
         body = f"תקלה בבדיקת תקינות: {'מסד נתונים לא מגיב' if not db_ok else 'מפתח Gemini חסר או לא תקין'}"
 
-    all_subs = get_push_subscriptions_db(user_id=None)
-    admin_subs = [
-        s for s in all_subs
-        if is_admin_user_id(s.get("user_id"))
-        or is_admin_email(s.get("user_id"))
-        or s.get("user_id") in SUPER_ADMIN_EMAILS
-        or s.get("user_id") == "admin"
-    ]
-    target_subs = admin_subs if admin_subs else all_subs
-
-    vapid = get_or_create_vapid_keys()
-    payload = json.dumps({
-        "title": title,
-        "body": body,
-        "tag": "nutriagent-admin-health",
-        "url": "/?tab=admin&subtab=costs",
-        "icon": "/static/icon-192.png",
-        "badge": "/static/icon-192.png",
-        "is_admin": True,
-        "is_healthy": is_healthy,
-    }, ensure_ascii=False)
-
-    sent = 0
-    failed = 0
-    for sub in target_subs:
-        try:
-            webpush(
-                subscription_info={
-                    "endpoint": sub["endpoint"],
-                    "keys": sub["keys"],
-                },
-                data=payload,
-                vapid_private_key=vapid["private_key"],
-                vapid_claims={"sub": "mailto:push@nutriagent.app"},
-                ttl=3600,
-                headers={"Urgency": "high"},
-            )
-            sent += 1
-        except Exception:
-            failed += 1
+    push_res = dispatch_push_to_admins(
+        title=title,
+        body=body,
+        tag="nutriagent-admin-health",
+        url="/?tab=admin&subtab=costs",
+        is_healthy=is_healthy
+    )
+    sent = push_res.get("sent", 0)
+    failed = push_res.get("failed", 0)
 
     return {
         "status": "healthy" if is_healthy else "degraded",
