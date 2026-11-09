@@ -408,6 +408,7 @@ class FavoriteMealRequest(BaseModel):
     calories: int = Field(ge=0, le=10000)
     protein_g: float = Field(ge=0.0, le=500.0)
     icon: Optional[str] = "⭐"
+    meal_type: Optional[str] = "lunch"
 
 
 class WeightLogRequest(BaseModel):
@@ -531,11 +532,22 @@ DEFAULT_VISION_CALIBRATION_RULES = [
 # ---------------------------------------------------------------------------
 
 DEFAULT_FAVORITES = [
-    {"id": "fav-coffee", "icon": "☕", "label": "הפוך קטן", "calories": 80, "protein_g": 4.0},
-    {"id": "fav-eggs", "icon": "🥚", "label": "2 ביצים וקוטג׳", "calories": 260, "protein_g": 26.0},
-    {"id": "fav-chicken", "icon": "🍗", "label": "חזה עוף ואורז", "calories": 480, "protein_g": 45.0},
-    {"id": "fav-tuna", "icon": "🐟", "label": "סלט טונה וביצה", "calories": 350, "protein_g": 36.0},
-    {"id": "fav-pro", "icon": "🥤", "label": "יוגורט PRO / שייק", "calories": 160, "protein_g": 20.0},
+    # בוקר
+    {"id": "fav-coffee", "icon": "☕", "label": "הפוך קטן", "calories": 80, "protein_g": 4.0, "meal_type": "breakfast"},
+    {"id": "fav-eggs", "icon": "🍳", "label": "2 ביצים, טוסט וקוטג׳", "calories": 310, "protein_g": 26.0, "meal_type": "breakfast"},
+    {"id": "fav-oats", "icon": "🥣", "label": "שיבולת שועל ובננה", "calories": 280, "protein_g": 11.0, "meal_type": "breakfast"},
+    {"id": "fav-pro", "icon": "🥤", "label": "יוגורט PRO / שייק", "calories": 160, "protein_g": 20.0, "meal_type": "breakfast"},
+    # צהריים
+    {"id": "fav-chicken", "icon": "🍗", "label": "חזה עוף ואורז", "calories": 480, "protein_g": 45.0, "meal_type": "lunch"},
+    {"id": "fav-tuna", "icon": "🥗", "label": "סלט טונה וביצה", "calories": 350, "protein_g": 36.0, "meal_type": "lunch"},
+    {"id": "fav-pargeet", "icon": "🥩", "label": "פרגית ותפוח אדמה", "calories": 510, "protein_g": 42.0, "meal_type": "lunch"},
+    # ערב
+    {"id": "fav-shakshuka", "icon": "🍳", "label": "שקשוקה ולחם", "calories": 360, "protein_g": 18.0, "meal_type": "dinner"},
+    {"id": "fav-toast", "icon": "🥪", "label": "טוסט צהובה וסלט", "calories": 340, "protein_g": 17.0, "meal_type": "dinner"},
+    {"id": "fav-omelet", "icon": "🥚", "label": "חביתת ירק וסלט ישראלי", "calories": 290, "protein_g": 20.0, "meal_type": "dinner"},
+    # ביניים
+    {"id": "fav-fruit", "icon": "🍎", "label": "תפוח / פרי עונתי", "calories": 80, "protein_g": 1.0, "meal_type": "snack"},
+    {"id": "fav-nuts", "icon": "🥜", "label": "חופן שקדים ואגוזים", "calories": 160, "protein_g": 5.0, "meal_type": "snack"},
 ]
 
 # Local fallback state when running locally without GCP credentials
@@ -4164,6 +4176,7 @@ def get_favorites_db(user_id: str = "default") -> List[dict]:
                     "label": f["label"],
                     "calories": int(f["calories"]),
                     "protein_g": float(f["protein_g"]),
+                    "meal_type": f.get("meal_type", "lunch"),
                     "created_at": firestore.SERVER_TIMESTAMP,
                 })
                 seeded.append({**f, "id": doc_id})
@@ -4177,6 +4190,7 @@ def get_favorites_db(user_id: str = "default") -> List[dict]:
                 "label": d.get("label", ""),
                 "calories": int(d.get("calories", 0)),
                 "protein_g": round(float(d.get("protein_g", 0.0)), 1),
+                "meal_type": d.get("meal_type", "lunch"),
             })
         return result
     except Exception as e:
@@ -4184,7 +4198,7 @@ def get_favorites_db(user_id: str = "default") -> List[dict]:
         return list(DEFAULT_FAVORITES)
 
 
-def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "⭐", user_id: str = "default") -> dict:
+def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "⭐", user_id: str = "default", meal_type: str = "lunch") -> dict:
     uid = _normalize_user_id(user_id)
     clean_icon = (icon or "⭐").strip() or "⭐"
     if not db:
@@ -4195,6 +4209,7 @@ def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "�
             "label": label.strip(),
             "calories": int(calories),
             "protein_g": round(float(protein_g), 1),
+            "meal_type": meal_type or "lunch",
         }
         _LOCAL_FAVORITES.append(entry)
         return entry
@@ -4204,6 +4219,7 @@ def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "�
         "label": label.strip(),
         "calories": int(calories),
         "protein_g": round(float(protein_g), 1),
+        "meal_type": meal_type or "lunch",
         "created_at": firestore.SERVER_TIMESTAMP,
     }
     _, doc_ref = db.collection("favorites").add(doc_data)
@@ -4213,6 +4229,7 @@ def add_favorite_db(label: str, calories: int, protein_g: float, icon: str = "�
         "label": label.strip(),
         "calories": int(calories),
         "protein_g": round(float(protein_g), 1),
+        "meal_type": meal_type or "lunch",
     }
 
 
@@ -7575,7 +7592,7 @@ def api_add_favorite(req: FavoriteMealRequest, request: Request):
     uid = require_approved_user(request)
     if not req.label or not req.label.strip():
         raise HTTPException(status_code=400, detail="נא להזין שם לפריט המועדף")
-    return add_favorite_db(req.label, req.calories, req.protein_g, req.icon or "⭐", user_id=uid)
+    return add_favorite_db(req.label, req.calories, req.protein_g, req.icon or "⭐", user_id=uid, meal_type=req.meal_type or "lunch")
 
 
 @app.delete("/api/favorites/{fav_id}")

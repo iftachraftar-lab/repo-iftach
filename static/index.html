@@ -393,9 +393,6 @@
                 <div class="leading-tight">
                     <div class="flex items-center gap-1.5">
                         <span class="text-sm sm:text-base font-extrabold tracking-tight text-slate-900">NutriAgent</span>
-                        <span class="hidden sm:inline-flex items-center text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/70">
-                            AI 2.5
-                        </span>
                         <span class="hidden lg:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             SLA 99.98% פעיל
@@ -1246,29 +1243,26 @@
                 </form>
             </div>
 
-            <!-- AI Smart Meal Logger Card -->
+            <!-- Smart Meal Logger Card -->
             <div x-show="activeEntryMode === 'meal'" class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-200/80 space-y-3.5">
-                <div class="flex items-center justify-between gap-3 mb-2">
+                <div class="flex items-center justify-between gap-3 mb-1">
                     <div class="flex items-center gap-2.5">
                         <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0">
-                            <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                            <span class="material-symbols-outlined text-[20px]">restaurant</span>
                         </span>
                         <div>
-                            <h2 class="text-base sm:text-lg font-bold text-slate-900 leading-tight" x-text="t('smartMealTitle', 'הוספת ארוחה חכמה')">הוספת ארוחה חכמה</h2>
-                            <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5" x-text="t('smartMealSub', 'טקסט, קול 🎙️ או מצלמה חכמה 📸')">טקסט, קול 🎙️ או מצלמה חכמה 📸</p>
+                            <h2 class="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">הוספת ארוחה</h2>
                         </div>
                     </div>
-                    <!-- Quick Manual Entry Toggle Button -->
-                    <button type="button" @click="manualMode = !manualMode"
-                            class="h-8.5 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border shadow-2xs"
-                            :class="manualMode ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'">
-                        <svg class="w-3.5 h-3.5 flex-shrink-0" :class="manualMode ? 'text-emerald-600' : 'text-slate-500'"><use :href="manualMode ? '#icon-ai-coach' : '#icon-edit-pencil'"></use></svg>
-                        <span x-text="manualMode ? t('switchToAi', 'מעבר ל-AI') : t('manualEntry', 'הזנה ידנית')">הזנה ידנית</span>
-                    </button>
+                    <!-- Active Slot Pill (if user specifically clicked a slot) -->
+                    <div x-show="targetMealSlot && targetMealSlot !== 'auto'" class="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl">
+                        <span class="text-xs font-bold text-emerald-800" x-text="`יעד: ${targetMealSlot === 'breakfast' ? 'בוקר 🌅' : (targetMealSlot === 'lunch' ? 'צהריים ☀️' : (targetMealSlot === 'dinner' ? 'ערב 🌙' : 'ביניים 🍎'))}`"></span>
+                        <button type="button" @click="targetMealSlot = 'auto'" class="text-emerald-600 hover:text-rose-600 text-xs font-bold mr-1 cursor-pointer" title="אוטומטי לפי שעה">✕</button>
+                    </div>
                 </div>
 
-                <!-- AI Free-Text + WhatsApp Voice + Smart Camera -->
-                <div x-show="!manualMode" class="space-y-3">
+                <!-- Meal Input Form -->
+                <div class="space-y-3">
                     
                     <!-- Selected Photo Preview Bar -->
                     <div x-cloak x-show="selectedPhotoDataUrl"
@@ -1364,16 +1358,6 @@
                                         </div>
                                     </button>
 
-                                    <!-- 3. Voice Recording -->
-                                    <button type="button"
-                                            @click="showAttachMenu = false; startVoiceRecording()"
-                                            class="w-full px-3 py-2.5 rounded-xl hover:bg-rose-50 text-slate-800 hover:text-rose-900 text-xs font-bold flex items-center gap-2.5 transition text-right cursor-pointer">
-                                        <span class="w-8 h-8 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center text-base flex-shrink-0">🎙️</span>
-                                        <div>
-                                            <div class="font-extrabold text-slate-900">הקלטה קולית</div>
-                                            <div class="text-[10px] text-slate-500 font-normal">תאר את הארוחה בקולך</div>
-                                        </div>
-                                    </button>
 
                                     <!-- 4. Barcode Scanner -->
                                     <button type="button"
@@ -1396,7 +1380,7 @@
                                        @input="showAutocomplete = true"
                                        @keydown.escape="showAutocomplete = false"
                                        :disabled="aiAnalyzing"
-                                       :placeholder="selectedPhotoDataUrl ? 'הוסף הערה לתמונה (למשל: חצי מנה)...' : 'הקלד מה אכלת, או לחץ + לצירוף...'"
+                                       :placeholder="selectedPhotoDataUrl ? 'הוסף הערה לתמונה (למשל: חצי מנה)...' : 'מה אכלת עכשיו? (למשל: 2 ביצים, סלט וחצי פיתה)...'"
                                        class="w-full h-10 px-2 bg-transparent text-sm sm:text-base font-medium text-slate-900 placeholder:text-slate-400 outline-none">
                             </div>
 
@@ -1472,37 +1456,6 @@
                                             <span x-text="currentLang === 'en' ? '⚡ Log Now' : '⚡ הוסף מיד'">⚡ הוסף מיד</span>
                                         </button>
                                     </div>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-
-                    <!-- Quick Preset / Custom Favorites Chips (High Visibility Strip) -->
-                    <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-amber-500 text-[18px]">star</span>
-                                <span x-text="t('quickFavorites', 'מנות מועדפות מהירות (לחץ להוספה בטאפ אחד):')">מנות מועדפות ומהירות (לחץ להוספה בטאפ אחד):</span>
-                            </span>
-                            <span class="text-[11px] text-slate-400" x-text="currentLang === 'en' ? `${(quickChips || []).length} saved meals` : `${(quickChips || []).length} מנות שמורות`"></span>
-                        </div>
-                        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                            <template x-for="chip in quickChips" :key="chip.id || chip.label">
-                                <div class="flex-shrink-0 inline-flex items-center bg-white hover:bg-emerald-50 border border-slate-200/90 hover:border-emerald-300 rounded-2xl shadow-2xs transition">
-                                    <button type="button"
-                                            @click="quickLogPreset(chip)"
-                                            class="text-xs font-bold text-slate-800 hover:text-emerald-800 px-3 py-2 flex items-center gap-1.5 cursor-pointer">
-                                        <span x-text="chip.icon || '⭐'"></span>
-                                        <span x-text="tr(chip.label)"></span>
-                                        <span class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded" x-text="currentLang === 'en' ? `${chip.calories} kcal` : `${chip.calories} קק״ל`"></span>
-                                    </button>
-                                    <button type="button"
-                                            x-show="chip.id"
-                                            @click.stop="removeFavoriteChip(chip)"
-                                            class="pl-2 pr-1 py-1.5 text-xs text-slate-400 hover:text-rose-600 transition cursor-pointer"
-                                            title="הסר מהמועדפים">
-                                        ✕
-                                    </button>
                                 </div>
                             </template>
                         </div>
@@ -1591,50 +1544,7 @@
                     </div>
                 </div>
 
-                <!-- Compact Manual Number Entry Form -->
-                <div x-show="manualMode" class="space-y-2 pt-1">
-                    <form @submit.prevent="submitManualMeal()" class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                        <div class="sm:col-span-6 relative">
-                            <input type="text" x-model="newMeal.description"
-                                   @focus="showManualAutocomplete = true"
-                                   @input="showManualAutocomplete = true"
-                                   placeholder="שם המאכל (למשל: יוגורט דנונה פרו)..." required
-                                   class="w-full h-11 px-3.5 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-xs sm:text-sm font-medium">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <input type="number" x-model.number="newMeal.calories" placeholder="קק״ל" required min="0"
-                                   class="w-full h-11 px-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-xs sm:text-sm font-bold text-center">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <input type="number" step="0.1" x-model.number="newMeal.protein_g" placeholder="חלבון (ג׳)" required min="0"
-                                   class="w-full h-11 px-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none text-xs sm:text-sm font-bold text-center">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <button type="submit"
-                                    class="w-full h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center transition cursor-pointer shadow-xs">
-                                + שמור
-                            </button>
-                        </div>
-                    </form>
-                    <div x-cloak x-show="showManualAutocomplete && manualAutocompleteSuggestions.length > 0"
-                         @click.outside="showManualAutocomplete = false"
-                         class="rounded-2xl bg-white border border-emerald-200 shadow-md overflow-hidden max-h-56 overflow-y-auto divide-y divide-slate-100">
-                        <template x-for="item in manualAutocompleteSuggestions" :key="'man-' + item.label">
-                            <button type="button"
-                                    @click="selectManualAutocomplete(item)"
-                                    class="w-full px-3.5 py-2.5 hover:bg-emerald-50/50 transition flex items-center justify-between gap-2 text-right cursor-pointer">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <span class="text-base" x-text="item.icon || '🍽️'"></span>
-                                    <span class="text-xs sm:text-sm font-bold text-slate-900 truncate" x-text="tr(item.label)"></span>
-                                </div>
-                                <div class="flex items-center gap-1.5 flex-shrink-0">
-                                    <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-extrabold" x-text="currentLang === 'en' ? `${item.calories} kcal` : `${item.calories} קק״ל`"></span>
-                                    <span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-[11px] font-extrabold" x-text="currentLang === 'en' ? `${item.protein_g}g protein` : `${item.protein_g}g חלבון`"></span>
-                                </div>
-                            </button>
-                        </template>
-                    </div>
-                </div>
+
             </div>
 
             <!-- Today's Workouts List (shown when workouts exist) -->
@@ -1943,132 +1853,164 @@
 <!-- Big banner removed to prevent marketing spam -->
             </div>
 
-            <!-- FULL MODE: Legacy Logged Meals List (Kept 100% Intact) -->
-            <div x-show="appMode !== 'coaching'" class="space-y-3">
+            <!-- Option A: Daily Journal by 4 Meals with Integrated Favorites -->
+            <div x-show="appMode !== 'coaching'" class="space-y-4">
                 
                 <div class="flex items-center justify-between px-1">
-                    <h2 class="text-lg font-bold text-slate-900" x-text="t('todayMealsTitle', 'הארוחות שלי היום')">הארוחות שלי היום</h2>
-                    <span class="text-xs text-slate-500" x-text="`${todayMeals.length} רשומות`"></span>
+                    <h2 class="text-lg font-extrabold text-slate-900">היומן היומי שלי</h2>
+                    <span class="text-xs text-slate-500 font-medium" x-text="`${todayMeals.length} מנות שתועדו היום`"></span>
                 </div>
 
-                <!-- Crafted Human-Grade Empty State -->
-                <div x-show="!loading && todayMeals.length === 0"
-                     class="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/90 shadow-sm text-center flex flex-col items-center relative overflow-hidden">
-                    <div class="absolute -top-12 -right-12 w-36 h-36 bg-emerald-50/70 rounded-full blur-2xl pointer-events-none"></div>
-                    <div class="w-16 h-16 rounded-2xl bg-emerald-50/90 border border-emerald-200/80 flex items-center justify-center text-emerald-700 shadow-2xs mb-4">
-                        <svg class="w-8 h-8 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">היומן שלך עדיין ריק היום</h3>
-                    <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
-                        טרם נרשמו ארוחות להיום. צלם את הצלחת או ספר מה אכלת וה-AI יחשב קלוריות וחלבון אוטומטית.
-                    </p>
-                    <!-- Comfortable Tactile Action Cards (Thumb-friendly & High-Affordance) -->
-                    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md">
-                        <button type="button"
-                                @click="$refs.cameraInput ? $refs.cameraInput.click() : $refs.photoInput?.click()"
-                                class="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md shadow-emerald-600/20 flex items-center gap-3.5 transition active:scale-[0.98] cursor-pointer text-right">
-                            <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-6 h-6"><use href="#icon-meal-camera"></use></svg>
-                            </div>
-                            <div class="min-w-0">
-                                <span class="block font-black text-sm">צלם ארוחה ראשונה</span>
-                                <span class="block text-[11px] text-emerald-100 font-medium">זיהוי מנה וחישוב מאקרו אוטומטי</span>
-                            </div>
-                        </button>
-
-                        <button type="button"
-                                @click="document.querySelector('input[x-model=aiInputText]')?.focus()"
-                                class="w-full p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200/90 shadow-2xs flex items-center gap-3.5 transition active:scale-[0.98] cursor-pointer text-right">
-                            <div class="w-11 h-11 rounded-xl bg-slate-200/80 text-slate-700 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-5 h-5"><use href="#icon-edit-pencil"></use></svg>
-                            </div>
-                            <div class="min-w-0">
-                                <span class="block font-bold text-sm">רשום בטקסט חופשי</span>
-                                <span class="block text-[11px] text-slate-500 font-medium">למשל: סלט יווני עם כף שמן זית</span>
-                            </div>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Meal Cards -->
-                <div class="space-y-2.5">
-                    <template x-for="meal in todayMeals" :key="meal.id">
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/70 hover:border-slate-300 transition space-y-2">
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-3.5 min-w-0">
-                                    <template x-if="meal.thumbnail_data_url">
-                                        <img :src="meal.thumbnail_data_url" alt="צילום מנה" class="w-12 h-12 rounded-2xl object-cover border border-emerald-200 shadow-2xs flex-shrink-0 cursor-pointer" @click="openMealPhotoAnalysis(meal)" title="לחץ לצפייה בניתוח התמונה וההיסטוגרמה">
-                                    </template>
-                                    <div class="w-11 h-11 rounded-2xl bg-slate-100 flex flex-col items-center justify-center flex-shrink-0 text-slate-700">
-                                        <span class="text-xs font-bold leading-none" x-text="meal.calories"></span>
-                                        <span class="text-[9px] text-slate-400 mt-0.5">קק"ל</span>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <p class="font-semibold text-slate-900 text-sm sm:text-base truncate" x-text="tr(meal.description)"></p>
-                                        <div class="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
-                                            <span class="inline-flex items-center gap-1 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                                                💪 <span x-text="`${Number(meal.protein_g).toFixed(1)}g חלבון`"></span>
-                                            </span>
-                                            <span x-show="meal.log_time" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-medium border border-slate-200 text-xs flex items-center gap-1">
-                                                <span>🕒</span>
-                                                <span x-text="meal.log_time"></span>
-                                            </span>
-                                            <span x-show="meal.meal_type" class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200"
-                                                  x-text="meal.meal_type === 'breakfast' ? '🌅 בוקר' : (meal.meal_type === 'lunch' ? '☀️ צהריים' : (meal.meal_type === 'dinner' ? '🌙 ערב' : (meal.meal_type === 'snack' ? '🍎 ביניים' : '🍽️ ארוחה')))">
-                                            </span>
-                                            <span class="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-500"
-                                                  x-text="mealSourceLabel(meal.source)"></span>
-                                            <button type="button"
-                                                    x-show="meal.source === 'web-photo' || meal.source === 'telegram-photo' || meal.vision_log_id"
-                                                    @click="openMealPhotoAnalysis(meal)"
-                                                    class="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition cursor-pointer">
-                                                🔬 ניתוח צילום
-                                            </button>
+                <!-- 4 Permanent Meal Blocks (Breakfast, Lunch, Dinner, Snack) -->
+                <div class="space-y-4">
+                    <template x-for="section in mealSections" :key="section.slot">
+                        <div class="bg-white rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-200/80 space-y-3.5">
+                            
+                            <!-- Meal Section Header -->
+                            <div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-2xl leading-none flex-shrink-0" x-text="section.icon"></span>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <h3 class="text-sm sm:text-base font-extrabold text-slate-900 leading-tight" x-text="section.title"></h3>
+                                            <span class="text-[11px] text-slate-400 font-medium" x-show="section.items.length > 0" x-text="`(${section.items.length} ${section.items.length === 1 ? 'מנה' : 'מנות'})`"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2 mt-0.5">
+                                            <span class="text-xs font-bold text-emerald-700" x-text="`${section.totalCalories} קק״ל`"></span>
+                                            <span class="text-xs text-slate-300">•</span>
+                                            <span class="text-xs font-semibold text-indigo-600" x-text="`${section.totalProtein}g חלבון`"></span>
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="flex items-center gap-1 flex-shrink-0">
-                                    <button @click="saveMealAsFavorite(meal)"
-                                            class="p-2 rounded-xl transition cursor-pointer"
-                                            :class="isMealFavorite(meal) ? 'text-amber-400 bg-amber-50/80 hover:bg-amber-100' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50'" class="p-2 rounded-xl transition cursor-pointer" :title="isMealFavorite(meal) ? 'הסר מהמועדפים' : 'שמור במועדפים להוספה מהירה'">
-                                        <svg class="w-5 h-5" :fill="isMealFavorite(meal) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
-                                    </button>
-                                    <button @click="duplicateMealToToday(meal)"
-                                            class="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition cursor-pointer"
-                                            title="שכפל והוסף שוב להיום">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round"></rect><path stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
-                                    </button>
-                                    <button @click="openEditMeal(meal)"
-                                            class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition cursor-pointer"
-                                            title="ערוך ארוחה">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
-                                    </button>
-                                    <button @click="confirmDelete(meal)"
-                                            class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                                            title="מחק ארוחה">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                        </svg>
-                                    </button>
-                                </div>
+                                <button type="button"
+                                        @click="addMealToSpecificSlot(section.slot)"
+                                        class="h-8.5 px-3 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs">
+                                    <span>+</span>
+                                    <span class="hidden sm:inline" x-text="`הוסף ל${section.title}`"></span>
+                                    <span class="sm:hidden">הוסף</span>
+                                </button>
                             </div>
 
-                            <!-- Itemized Breakdown (shown when meal has multiple or detailed items) -->
-                            <div x-show="meal.items && meal.items.length > 1" class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
-                                <template x-for="item in meal.items" :key="item.name">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-700">
-                                        <span class="font-bold text-slate-900" x-text="tr(item.name)"></span>
-                                        <span class="text-emerald-700 font-extrabold" x-text="`${item.calories} קק״ל`"></span>
-                                        <span x-show="item.protein_g > 0" class="text-indigo-600 font-semibold" x-text="`(${Number(item.protein_g).toFixed(0)}g חלבון)`"></span>
-                                    </span>
+                            <!-- Logged Meals in this Section -->
+                            <div x-show="section.items.length > 0" class="space-y-2">
+                                <template x-for="meal in section.items" :key="meal.id">
+                                    <div class="bg-slate-50/70 hover:bg-white rounded-2xl p-3.5 border border-slate-200/70 hover:border-slate-300 transition space-y-2">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div class="flex items-center gap-3 min-w-0">
+                                                <template x-if="meal.thumbnail_data_url">
+                                                    <img :src="meal.thumbnail_data_url" alt="צילום מנה" class="w-11 h-11 rounded-xl object-cover border border-emerald-200 shadow-2xs flex-shrink-0 cursor-pointer" @click="openMealPhotoAnalysis(meal)" title="לחץ לצפייה בניתוח התמונה וההיסטוגרמה">
+                                                </template>
+                                                <div class="w-10 h-10 rounded-xl bg-white border border-slate-200/80 flex flex-col items-center justify-center flex-shrink-0 text-slate-700 shadow-2xs">
+                                                    <span class="text-xs font-black leading-none" x-text="meal.calories"></span>
+                                                    <span class="text-[9px] text-slate-400 mt-0.5">קק"ל</span>
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <p class="font-bold text-slate-900 text-sm truncate" x-text="tr(meal.description)"></p>
+                                                    <div class="flex flex-wrap items-center gap-1.5 mt-1 text-xs text-slate-500">
+                                                        <span class="inline-flex items-center gap-1 font-bold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200 text-[11px]">
+                                                            💪 <span x-text="`${Number(meal.protein_g).toFixed(1)}g חלבון`"></span>
+                                                        </span>
+                                                        <span x-show="meal.log_time" class="px-1.5 py-0.5 rounded-md bg-white text-slate-600 font-mono font-medium border border-slate-200 text-[11px] flex items-center gap-1">
+                                                            <span>🕒</span>
+                                                            <span x-text="meal.log_time"></span>
+                                                        </span>
+                                                        <span class="text-[10px] px-1.5 py-0.5 rounded-md bg-white text-slate-500 border border-slate-200/60"
+                                                              x-text="mealSourceLabel(meal.source)"></span>
+                                                        <button type="button"
+                                                                x-show="meal.source === 'web-photo' || meal.source === 'telegram-photo' || meal.vision_log_id"
+                                                                @click="openMealPhotoAnalysis(meal)"
+                                                                class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition cursor-pointer">
+                                                            🔬 ניתוח צילום
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex items-center gap-1 flex-shrink-0">
+                                                <button @click="saveMealAsFavorite(meal)"
+                                                        class="p-1.5 rounded-lg transition cursor-pointer"
+                                                        :class="isMealFavorite(meal) ? 'text-amber-500 bg-amber-50 border border-amber-200' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50'"
+                                                        :title="isMealFavorite(meal) ? 'הסר מהמועדפים' : 'שמור במועדפים להוספה מהירה'">
+                                                    <svg class="w-4 h-4" :fill="isMealFavorite(meal) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
+                                                </button>
+                                                <button @click="duplicateMealToToday(meal)"
+                                                        class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                                                        title="שכפל והוסף שוב להיום">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round"></rect><path stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+                                                </button>
+                                                <button @click="openEditMeal(meal)"
+                                                        class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
+                                                        title="ערוך ארוחה">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                                                </button>
+                                                <button @click="confirmDelete(meal)"
+                                                        class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                                        title="מחק ארוחה">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Itemized Breakdown (shown when meal has multiple or detailed items) -->
+                                        <div x-show="meal.items && meal.items.length > 1" class="pt-2 border-t border-slate-200/60 flex flex-wrap gap-1.5">
+                                            <template x-for="item in meal.items" :key="item.name">
+                                                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-[10px] text-slate-700">
+                                                    <span class="font-bold text-slate-900" x-text="tr(item.name)"></span>
+                                                    <span class="text-emerald-700 font-extrabold" x-text="`${item.calories} קק״ל`"></span>
+                                                    <span x-show="item.protein_g > 0" class="text-indigo-600 font-semibold" x-text="`(${Number(item.protein_g).toFixed(0)}g חלבון)`"></span>
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </div>
                                 </template>
+                            </div>
+
+                            <!-- Subtle note when empty -->
+                            <div x-show="section.items.length === 0" class="py-1 text-center">
+                                <p class="text-xs text-slate-400 font-medium" x-text="`טרם נרשמו מנות ל${section.title}`"></p>
+                            </div>
+
+                            <!-- Integrated Favorites for THIS specific meal (Option A) -->
+                            <div class="pt-2.5 border-t border-slate-100">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[11px] font-extrabold text-slate-600 flex items-center gap-1.5">
+                                        <span class="text-amber-500">⭐</span>
+                                        <span x-text="`מועדפים ל${section.title} (הוספה בטאפ אחד):`"></span>
+                                    </span>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    <template x-for="chip in getFavoritesForSlot(section.slot)" :key="chip.id || chip.label">
+                                        <div class="group relative bg-slate-50/80 hover:bg-emerald-50/80 border border-slate-200/80 hover:border-emerald-300 rounded-2xl p-2 shadow-2xs transition flex flex-col justify-between cursor-pointer active:scale-95"
+                                             @click="quickLogPreset(chip, section.slot)">
+                                            <div class="flex items-start justify-between gap-1">
+                                                <span class="text-lg leading-none flex-shrink-0" x-text="chip.icon || '⭐'"></span>
+                                                <button type="button"
+                                                        x-show="chip.id && String(chip.id).startsWith('fav-') && !chip.id.includes('coffee') && !chip.id.includes('chicken') && !chip.id.includes('eggs') && !chip.id.includes('tuna') && !chip.id.includes('oats') && !chip.id.includes('shakshuka') && !chip.id.includes('toast') && !chip.id.includes('fruit')"
+                                                        @click.stop="removeFavoriteChip(chip)"
+                                                        class="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-600 transition cursor-pointer rounded"
+                                                        title="הסר מהמועדפים">
+                                                    ✕
+                                                </button>
+                                            </div>
+                                            <div class="mt-1 min-w-0">
+                                                <p class="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-950" x-text="tr(chip.label)"></p>
+                                                <div class="flex items-center gap-1 mt-0.5">
+                                                    <span class="text-[10px] font-extrabold text-emerald-800 bg-white border border-emerald-200/60 px-1.5 py-0.2 rounded" x-text="`${chip.calories} קק״ל`"></span>
+                                                    <span class="text-[10px] font-semibold text-slate-500" x-text="`${chip.protein_g}g`"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
                         </div>
                     </template>
                 </div>
+            </div>
+
             </div><!-- AI Daily Coach & Nutrition Score Card -->
             <div class="bg-gradient-to-l from-indigo-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-lg border border-indigo-500/20 relative overflow-hidden">
                 <div class="absolute -right-12 -top-12 w-40 h-40 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none"></div>
@@ -2081,7 +2023,7 @@
                             <div class="flex items-center gap-2">
                                 <h2 class="text-base sm:text-lg font-bold text-white" x-text="t('aiCoachTitle', 'המאמן היומי שלי (AI Coach)')">המאמן היומי שלי (AI Coach)</h2>
                                 <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
-                                    Gemini 2.5
+                                    NutriAgent AI
                                 </span>
                             </div>
                             <p class="text-xs text-indigo-200/80 mt-0.5">
@@ -7633,7 +7575,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=95').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=97').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -7904,6 +7846,8 @@
                 loading: true,
                 refreshing: false,
                 manualMode: false,
+                targetMealSlot: 'auto',
+                activeFavoritesTab: 'auto',
                 aiInputText: '',
                 aiAnalyzing: false,
                 selectedPhotoDataUrl: null,
@@ -9574,11 +9518,22 @@
                 ],
 
                 quickChips: [
-                    { id: 'fav-coffee', icon: '☕', label: 'הפוך קטן', calories: 80, protein_g: 4 },
-                    { id: 'fav-eggs', icon: '🥚', label: '2 ביצים וקוטג׳', calories: 260, protein_g: 26 },
-                    { id: 'fav-chicken', icon: '🍗', label: 'חזה עוף ואורז', calories: 480, protein_g: 45 },
-                    { id: 'fav-tuna', icon: '🐟', label: 'סלט טונה וביצה', calories: 350, protein_g: 36 },
-                    { id: 'fav-pro', icon: '🥤', label: 'יוגורט PRO / שייק', calories: 160, protein_g: 20 }
+                    // בוקר
+                    { id: 'fav-coffee', icon: '☕', label: 'הפוך קטן', calories: 80, protein_g: 4, meal_type: 'breakfast' },
+                    { id: 'fav-eggs', icon: '🍳', label: '2 ביצים, טוסט וקוטג׳', calories: 310, protein_g: 26, meal_type: 'breakfast' },
+                    { id: 'fav-oats', icon: '🥣', label: 'שיבולת שועל ובננה', calories: 280, protein_g: 11, meal_type: 'breakfast' },
+                    { id: 'fav-pro', icon: '🥤', label: 'יוגורט PRO / שייק', calories: 160, protein_g: 20, meal_type: 'breakfast' },
+                    // צהריים
+                    { id: 'fav-chicken', icon: '🍗', label: 'חזה עוף ואורז', calories: 480, protein_g: 45, meal_type: 'lunch' },
+                    { id: 'fav-tuna', icon: '🥗', label: 'סלט טונה וביצה', calories: 350, protein_g: 36, meal_type: 'lunch' },
+                    { id: 'fav-pargeet', icon: '🥩', label: 'פרגית ותפוח אדמה', calories: 510, protein_g: 42, meal_type: 'lunch' },
+                    // ערב
+                    { id: 'fav-shakshuka', icon: '🍳', label: 'שקשוקה ולחם', calories: 360, protein_g: 18, meal_type: 'dinner' },
+                    { id: 'fav-toast', icon: '🥪', label: 'טוסט צהובה וסלט', calories: 340, protein_g: 17, meal_type: 'dinner' },
+                    { id: 'fav-omelet', icon: '🥚', label: 'חביתת ירק וסלט ישראלי', calories: 290, protein_g: 20, meal_type: 'dinner' },
+                    // ביניים
+                    { id: 'fav-fruit', icon: '🍎', label: 'תפוח / פרי עונתי', calories: 80, protein_g: 1, meal_type: 'snack' },
+                    { id: 'fav-nuts', icon: '🥜', label: 'חופן שקדים ואגוזים', calories: 160, protein_g: 5, meal_type: 'snack' }
                 ],
 
                 recipeCategories: [
@@ -10365,6 +10320,142 @@
                     this.submitManualMeal();
                     localStorage.setItem('nutri_scanner_used', 'true'); this.showLiveViewfinder = false;
                     this.showToast(`✨ ארוחה מלאה זוהתה ונשמרה: ${totalC} קק״ל ו-${totalP}g חלבון!`);
+                },
+
+                get currentMealSlot() {
+                    const hour = new Date().getHours() + (new Date().getMinutes() / 60);
+                    if (hour >= 5.0 && hour < 11.5) return 'breakfast';
+                    if (hour >= 11.5 && hour < 16.5) return 'lunch';
+                    if (hour >= 16.5 && hour < 22.5) return 'dinner';
+                    return 'snack';
+                },
+
+                get effectiveFavoritesSlot() {
+                    return this.activeFavoritesTab === 'auto' ? this.currentMealSlot : this.activeFavoritesTab;
+                },
+
+                getFavoritesForSlot(slot) {
+                    const all = this.quickChips || [];
+                    const filtered = all.filter(c => {
+                        if (c.meal_type) {
+                            return c.meal_type === slot;
+                        }
+                        const lbl = (c.label || '').toLowerCase();
+                        if (slot === 'breakfast') {
+                            return lbl.includes('קפה') || lbl.includes('ביצ') || lbl.includes('יוגורט') || lbl.includes('שייק') || lbl.includes('שיבולת') || lbl.includes('טוסט');
+                        }
+                        if (slot === 'lunch') {
+                            return lbl.includes('עוף') || lbl.includes('טונה') || lbl.includes('פרג') || lbl.includes('סלמון') || lbl.includes('אורז') || lbl.includes('בשר') || lbl.includes('פסטה');
+                        }
+                        if (slot === 'dinner') {
+                            return lbl.includes('שקשוקה') || lbl.includes('חביתה') || lbl.includes('סלט') || lbl.includes('טוסט') || lbl.includes('גבינה') || lbl.includes('קוטג');
+                        }
+                        if (slot === 'snack') {
+                            return lbl.includes('פרי') || lbl.includes('תפוח') || lbl.includes('בננה') || lbl.includes('שקד') || lbl.includes('אגוז') || lbl.includes('תמר') || lbl.includes('חטיף');
+                        }
+                        return false;
+                    });
+                    return filtered.length > 0 ? filtered : all.slice(0, 4);
+                },
+
+                get filteredQuickChips() {
+                    const slot = this.effectiveFavoritesSlot;
+                    if (slot === 'all') return this.quickChips || [];
+                    return (this.quickChips || []).filter(c => !c.meal_type || c.meal_type === slot);
+                },
+
+                resolveMealType(meal) {
+                    if (!meal) return 'lunch';
+                    const mt = String(meal.meal_type || '').toLowerCase();
+                    if (mt === 'breakfast' || mt.includes('בוקר')) return 'breakfast';
+                    if (mt === 'lunch' || mt.includes('צהר')) return 'lunch';
+                    if (mt === 'dinner' || mt.includes('ערב')) return 'dinner';
+                    if (mt === 'snack' || mt.includes('ביניים') || mt.includes('נשנוש')) return 'snack';
+
+                    const timeStr = meal.log_time || (meal.created_at ? meal.created_at.slice(11, 16) : '');
+                    if (timeStr && timeStr.includes(':')) {
+                        const parts = timeStr.split(':');
+                        const h = parseFloat(parts[0]) + (parseFloat(parts[1] || '0') / 60);
+                        if (h >= 5.0 && h < 11.5) return 'breakfast';
+                        if (h >= 11.5 && h < 16.5) return 'lunch';
+                        if (h >= 16.5 && h < 22.5) return 'dinner';
+                        return 'snack';
+                    }
+                    return 'lunch';
+                },
+
+                mealGroupCalories(meals) {
+                    return (meals || []).reduce((sum, m) => sum + (Number(m.calories) || 0), 0);
+                },
+
+                mealGroupProtein(meals) {
+                    const p = (meals || []).reduce((sum, m) => sum + (Number(m.protein_g) || 0), 0);
+                    return Math.round(p * 10) / 10;
+                },
+
+                get breakfastMeals() {
+                    return this.todayMeals.filter(m => this.resolveMealType(m) === 'breakfast');
+                },
+
+                get lunchMeals() {
+                    return this.todayMeals.filter(m => this.resolveMealType(m) === 'lunch');
+                },
+
+                get dinnerMeals() {
+                    return this.todayMeals.filter(m => this.resolveMealType(m) === 'dinner');
+                },
+
+                get snackMeals() {
+                    return this.todayMeals.filter(m => this.resolveMealType(m) === 'snack');
+                },
+
+                get mealSections() {
+                    return [
+                        {
+                            slot: 'breakfast',
+                            title: 'ארוחת בוקר',
+                            icon: '🌅',
+                            items: this.breakfastMeals,
+                            totalCalories: this.mealGroupCalories(this.breakfastMeals),
+                            totalProtein: this.mealGroupProtein(this.breakfastMeals)
+                        },
+                        {
+                            slot: 'lunch',
+                            title: 'ארוחת צהריים',
+                            icon: '☀️',
+                            items: this.lunchMeals,
+                            totalCalories: this.mealGroupCalories(this.lunchMeals),
+                            totalProtein: this.mealGroupProtein(this.lunchMeals)
+                        },
+                        {
+                            slot: 'dinner',
+                            title: 'ארוחת ערב',
+                            icon: '🌙',
+                            items: this.dinnerMeals,
+                            totalCalories: this.mealGroupCalories(this.dinnerMeals),
+                            totalProtein: this.mealGroupProtein(this.dinnerMeals)
+                        },
+                        {
+                            slot: 'snack',
+                            title: 'ארוחות ביניים',
+                            icon: '🍎',
+                            items: this.snackMeals,
+                            totalCalories: this.mealGroupCalories(this.snackMeals),
+                            totalProtein: this.mealGroupProtein(this.snackMeals)
+                        }
+                    ];
+                },
+
+                addMealToSpecificSlot(slot) {
+                    this.targetMealSlot = slot;
+                    this.activeFavoritesTab = slot;
+                    const input = document.querySelector('input[x-model=aiInputText]');
+                    if (input) {
+                        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        input.focus();
+                    }
+                    const slotNames = { breakfast: 'ארוחת בוקר', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב', snack: 'ארוחת ביניים' };
+                    this.showToast(`נבחר: הוספה ל${slotNames[slot] || 'ארוחה'} ✍️`);
                 },
 
                 get todayMeals() {
@@ -12553,6 +12644,8 @@
                     const existing = (this.quickChips || []).find(c => (c.label || '').trim() === meal.description.trim());
                     if (existing && existing.id) { await this.removeFavoriteChip(existing); return; }
                     try {
+                        const slot = this.resolveMealType(meal);
+                        const iconsBySlot = { breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍎' };
                         const res = await fetch('/api/favorites', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -12560,13 +12653,15 @@
                                 label: meal.description,
                                 calories: meal.calories,
                                 protein_g: meal.protein_g,
-                                icon: '⭐'
+                                icon: iconsBySlot[slot] || '⭐',
+                                meal_type: slot
                             })
                         });
                         if (!res.ok) throw new Error('Failed favorite');
                         await this.fetchFavorites();
                     setTimeout(() => { this.checkMorningReminder(); }, 1500);
-                        this.showToast(`⭐ "${meal.description}" נשמר במועדפים להוספה מהירה!`);
+                        const slotNames = { breakfast: 'בוקר', lunch: 'צהריים', dinner: 'ערב', snack: 'ביניים' };
+                        this.showToast(`⭐ "${meal.description}" נשמר במועדפי ${slotNames[slot] || ''}!`);
                     } catch (e) {
                         this.showToast('שגיאה בשמירה למועדפים', 'error');
                     }
@@ -14099,10 +14194,14 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     if (!this.aiInputText.trim()) return;
                     this.aiAnalyzing = true;
                     try {
+                        const payload = { text: this.aiInputText.trim() };
+                        if (this.targetMealSlot && this.targetMealSlot !== 'auto') {
+                            payload.meal_type = this.targetMealSlot;
+                        }
                         const res = await fetch('/api/meals/ai', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text: this.aiInputText.trim() })
+                            body: JSON.stringify(payload)
                         });
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
@@ -14110,6 +14209,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         }
                         const added = await res.json();
                         this.aiInputText = '';
+                        this.targetMealSlot = 'auto';
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast(`✅ נוסף: ${added.description} (${added.calories} קק"ל, ${added.protein_g}g חלבון)`);
                     } catch (e) {
@@ -14119,15 +14219,17 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     }
                 },
 
-                async quickLogPreset(chip) {
+                async quickLogPreset(chip, slot = null) {
                     try {
+                        const targetSlot = slot || chip.meal_type || (this.effectiveFavoritesSlot !== 'all' ? this.effectiveFavoritesSlot : this.currentMealSlot);
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 description: chip.label,
                                 calories: chip.calories,
-                                protein_g: chip.protein_g
+                                protein_g: chip.protein_g,
+                                meal_type: targetSlot
                             })
                         });
                         if (!res.ok) throw new Error('שגיאה בהוספה מהירה');
