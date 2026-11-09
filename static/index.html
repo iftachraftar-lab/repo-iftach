@@ -3718,13 +3718,23 @@
                                         </div>
                                     </div>
 
-                                    <!-- WhatsApp 1-Tap Action Button -->
-                                    <a :href="`https://wa.me/${(lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(lead.type === 'workout_trial' ? `היי ${lead.full_name}, קיבלתי את בקשתך לאימון ניסיון ב-${lead.studio_name || lead.activity_type} באזור ${lead.city} דרך NutriAgent. מתי נוח לתאם שיחה קצרה?` : `היי ${lead.full_name}, ראיתי שהגשת מועמדות לתוכנית המאמנים של NutriAgent (${lead.role}). נשמח לדבר!`)}`"
-                                       target="_blank"
-                                       class="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs flex-shrink-0 cursor-pointer">
-                                        <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
-                                        <span>פתח שיחת וואטסאפ</span>
-                                    </a>
+                                    <!-- Actions: Super Admin Expert Access Approval + WhatsApp 1-Tap -->
+                                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                                        <button type="button"
+                                                x-show="lead.type === 'expert_referral' && isSuperAdmin()"
+                                                @click="toggleLeadExpertsAccess(lead, lead.status !== 'approved')"
+                                                :class="lead.status === 'approved' ? 'bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs'"
+                                                class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95">
+                                            <span x-text="lead.status === 'approved' ? '🔓 גישה מאושרת (לחץ לנעילה)' : '✅ אשר גישה למאמנים/תזונאים'"></span>
+                                        </button>
+
+                                        <a :href="`https://wa.me/${(lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(lead.type === 'workout_trial' ? `היי ${lead.full_name}, קיבלתי את בקשתך לאימון ניסיון ב-${lead.studio_name || lead.activity_type} באזור ${lead.city} דרך NutriAgent. מתי נוח לתאם שיחה קצרה?` : `היי ${lead.full_name}, ראיתי שביקשת גישה ל-${lead.role || 'תזונאי/מאמן כושר'} באפליקציית NutriAgent. נשמח לדבר!`)}`"
+                                           target="_blank"
+                                           class="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs flex-shrink-0 cursor-pointer">
+                                            <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
+                                            <span>פתח שיחת וואטסאפ</span>
+                                        </a>
+                                    </div>
                                 </div>
                             </template>
                         </div>
@@ -6166,7 +6176,7 @@
     </div>
 
     <!-- =============================================================== -->
-    <!-- 3. EXPERTS LEAD CAPTURE FORM MODAL (DIETITIANS & TRAINERS)      -->
+    <!-- 3. EXPERTS LEAD CAPTURE FORM & GATED DIRECTORY MODAL            -->
     <!-- =============================================================== -->
     <div x-cloak x-show="showExpertsDirectoryModal"
          x-transition:enter="transition ease-out duration-200"
@@ -6177,7 +6187,8 @@
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
          @click.self="showExpertsDirectoryModal = false">
-        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-100 relative text-right" @click.stop>
+        <div :class="currentUser?.experts_access_status === 'approved' ? 'max-w-2xl' : 'max-w-md'"
+             class="bg-white rounded-3xl shadow-2xl w-full p-6 space-y-4 border border-slate-100 relative text-right max-h-[92vh] overflow-y-auto" @click.stop>
             <!-- Header -->
             <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3.5">
                 <div class="flex items-center gap-3">
@@ -6200,13 +6211,13 @@
 
             <!-- Tab Switcher (Dietitian vs Trainer) -->
             <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
-                <button type="button" @click="selectedExpertTab = 'dietitian'; expertLeadSubmitted = false"
+                <button type="button" @click="selectedExpertTab = 'dietitian'"
                         :class="selectedExpertTab === 'dietitian' ? 'bg-white text-emerald-800 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900 font-semibold'"
                         class="flex-1 py-2 px-3 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
                     <span>🥗</span>
                     <span>תזונאי/ת קליני/ת</span>
                 </button>
-                <button type="button" @click="selectedExpertTab = 'trainer'; expertLeadSubmitted = false"
+                <button type="button" @click="selectedExpertTab = 'trainer'"
                         :class="selectedExpertTab === 'trainer' ? 'bg-white text-indigo-800 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900 font-semibold'"
                         class="flex-1 py-2 px-3 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
                     <span>🏋️‍♂️</span>
@@ -6214,8 +6225,8 @@
                 </button>
             </div>
 
-            <!-- Form View -->
-            <div x-show="!expertLeadSubmitted" class="space-y-3.5 pt-1">
+            <!-- STATE 1: Form View (When NOT approved and NOT yet pending) -->
+            <div x-show="currentUser?.experts_access_status !== 'approved' && currentUser?.experts_access_status !== 'pending' && !expertLeadSubmitted" class="space-y-3.5 pt-1">
                 <div>
                     <label class="block text-xs font-extrabold text-slate-700 mb-1">שם מלא</label>
                     <input type="text"
@@ -6244,24 +6255,78 @@
                 </button>
 
                 <p class="text-[11px] text-center text-slate-400">
-                    🔒 הפרטים שמורים במערכת לצורך יצירת קשר והתאמה אישית בלבד.
+                    🔒 הגישה לרשימת התזונאים ומאמני הכושר תיפתח לאחר אישור מנהל המערכת.
                 </p>
             </div>
 
-            <!-- Confirmation View -->
-            <div x-show="expertLeadSubmitted" class="py-5 text-center space-y-3">
-                <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-3xl mx-auto">
-                    🎉
+            <!-- STATE 2: Locked / Pending Super Admin Approval View -->
+            <div x-show="currentUser?.experts_access_status !== 'approved' && (currentUser?.experts_access_status === 'pending' || expertLeadSubmitted)" class="py-5 text-center space-y-3">
+                <div class="w-14 h-14 rounded-full bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center text-3xl mx-auto">
+                    🔒
                 </div>
-                <h4 class="text-base font-black text-slate-900">הבקשה שלך נקלטה בהצלחה!</h4>
+                <h4 class="text-base font-black text-slate-900">הבקשה התקבלה וממתינה לאישור מנהל המערכת</h4>
                 <p class="text-xs text-slate-600 leading-relaxed">
-                    שמרנו את הפרטים שלך עבור <strong class="text-slate-900" x-text="selectedExpertTab === 'dietitian' ? 'תזונאי/ת קליני/ת' : 'מאמן/ת כושר אישי/ת'"></strong> ונחזור אליך בהקדם לתיאום.
+                    הפרטים שלך עבור <strong class="text-slate-900" x-text="selectedExpertTab === 'dietitian' ? 'תזונאי/ת קליני/ת' : 'מאמן/ת כושר אישי/ת'"></strong> נשמרו בהצלחה.<br>
+                    הגישה למאגר התזונאים ומאמני הכושר חסומה כעת ותיפתח עבורך מיד לאחר אישור סופר-אדמין.
                 </p>
                 <button type="button"
                         @click="showExpertsDirectoryModal = false"
                         class="mt-2 px-6 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold transition cursor-pointer">
-                    מעולה, תודה!
+                    הבנתי, תודה!
                 </button>
+            </div>
+
+            <!-- STATE 3: Approved by Super Admin -> Full Directory View -->
+            <div x-show="currentUser?.experts_access_status === 'approved'" class="space-y-3">
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                    <template x-for="reg in ['הכל (כולל אונליין)', 'תל אביב והמרכז', 'השרון', 'ירושלים והשפלה', 'חיפה והצפון']" :key="reg">
+                        <button type="button" @click="selectedExpertRegion = reg"
+                                :class="selectedExpertRegion === reg ? 'bg-slate-900 text-white font-bold' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 font-medium'"
+                                class="px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer">
+                            <span x-text="reg"></span>
+                        </button>
+                    </template>
+                </div>
+
+                <div class="space-y-3">
+                    <template x-for="exp in filteredExperts" :key="exp.id">
+                        <div class="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-slate-300 shadow-2xs hover:shadow-sm transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
+                            <div class="flex items-start gap-3.5 min-w-0">
+                                <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+                                     :class="exp.type === 'dietitian' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'">
+                                    <span x-text="exp.avatar"></span>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-extrabold text-sm text-slate-900" x-text="exp.name"></span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                              :class="exp.type === 'dietitian' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'"
+                                              x-text="exp.title"></span>
+                                        <span class="text-[11px] text-amber-600 font-bold flex items-center gap-0.5">
+                                            <span>⭐</span>
+                                            <span x-text="exp.rating"></span>
+                                            <span class="text-slate-400 font-normal" x-text="`(${exp.reviews})`"></span>
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-slate-600 mt-0.5" x-text="exp.specialty"></p>
+                                    <div class="flex items-center gap-2 text-[11px] text-slate-500 mt-1 flex-wrap">
+                                        <span>📍 <strong class="text-slate-700" x-text="exp.location"></strong></span>
+                                        <span class="text-slate-300">•</span>
+                                        <span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 font-bold" x-text="exp.perk"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <a :href="`https://api.whatsapp.com/send?text=${encodeURIComponent(`היי ${exp.name}, הגעתי דרך אפליקציית NutriAgent (${exp.title}). אשמח לתאם שיחת אבחון והתאמה קצרה!`)}`"
+                               target="_blank"
+                               :class="exp.type === 'dietitian' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'"
+                               class="w-full sm:w-auto px-4 py-2.5 rounded-xl active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs flex-shrink-0 cursor-pointer">
+                                <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
+                                <span>שיחת היכרות חינם</span>
+                            </a>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
     </div>
@@ -7565,7 +7630,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=100').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=101').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -13715,11 +13780,19 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     return;
                 }
                 this.selectedExpertTab = tab;
-                this.expertLeadSubmitted = false;
+                this.selectedExpertRegion = 'הכל (כולל אונליין)';
                 if (!this.expertLeadForm.full_name && this.currentUser?.name) {
                     this.expertLeadForm.full_name = this.currentUser.name;
                 }
                 this.showExpertsDirectoryModal = true;
+            },
+
+            get filteredExperts() {
+                let list = (this.expertsList || []).filter(e => e.type === this.selectedExpertTab);
+                if (this.selectedExpertRegion && this.selectedExpertRegion !== 'הכל (כולל אונליין)') {
+                    list = list.filter(e => e.region === this.selectedExpertRegion || (e.location && e.location.includes(this.selectedExpertRegion)));
+                }
+                return list;
             },
 
             async submitExpertMarketingLead() {
@@ -13750,7 +13823,11 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     const data = await res.json().catch(() => ({}));
                     if (res.ok && data.ok) {
                         this.expertLeadSubmitted = true;
-                        this.showToast('🎉 פנייתך נשמרה בהצלחה!');
+                        if (this.currentUser) {
+                            this.currentUser.experts_access_status = data.experts_access_status || 'pending';
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        }
+                        this.showToast('🔒 בקשתך נשמרה וממתינה לאישור מנהל המערכת!');
                         if (this.isUserAdmin && this.isUserAdmin()) {
                             this.fetchAdminLeads();
                         }
@@ -13762,6 +13839,30 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     this.showToast('שגיאת תקשורת מול השרת', 'error');
                 } finally {
                     this.expertLeadSaving = false;
+                }
+            },
+
+            async toggleLeadExpertsAccess(lead, approve = true) {
+                if (!lead || !lead.id) return;
+                try {
+                    const res = await fetch(`/api/admin/leads/${lead.id}/experts-access`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ approved: approve })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok && data.ok) {
+                        lead.status = data.status;
+                        if (this.currentUser && (this.currentUser.id === data.user_id || this.currentUser.email === lead.email)) {
+                            this.currentUser.experts_access_status = data.status;
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        }
+                        this.showToast(approve ? `✅ אושרה גישה למאמנים/תזונאים עבור ${lead.full_name}!` : `🔒 הגישה של ${lead.full_name} ננעלה מחדש`);
+                    } else {
+                        this.showToast(data.detail || 'שגיאה בעדכון הרשאת גישה', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאת תקשורת מול השרת', 'error');
                 }
             },
 

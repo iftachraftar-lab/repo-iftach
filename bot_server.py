@@ -1148,6 +1148,7 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
         "ai_quota_date": today_str,
         "ai_calls_today": ai_calls_today,
         "last_login_date": today_str,
+        "experts_access_status": existing_doc_data.get("experts_access_status", "none"),
     }
 
     if not db:
@@ -4920,6 +4921,7 @@ def api_auth_me(request: Request, response: Response):
         "activity_level": user_doc.get("activity_level"),
         "sleep_hours": user_doc.get("sleep_hours"),
         "goal": user_doc.get("goal"),
+        "experts_access_status": user_doc.get("experts_access_status", "none"),
         "telegram_linked": is_telegram_linked_for_user(uid),
         "features": get_feature_flags(),
     }
@@ -5910,11 +5912,24 @@ async def api_submit_expert_lead(req: ExpertLeadRequest, request: Request):
     payload["email"] = u_email
     record = save_expert_lead_db(payload)
 
+    current_exp_status = udoc.get("experts_access_status", "none")
+    new_exp_status = "approved" if current_exp_status == "approved" else "pending"
+    target_uid = uid if uid != "default" else (_make_user_id_from_email(u_email) if u_email else "")
+    if target_uid:
+        if not db:
+            if target_uid in _LOCAL_USERS:
+                _LOCAL_USERS[target_uid]["experts_access_status"] = new_exp_status
+        else:
+            try:
+                db.collection("users").document(target_uid).set({"experts_access_status": new_exp_status}, merge=True)
+            except Exception as e:
+                print(f"WARN updating experts_access_status: {e}")
+
     exp_title = "תזונאי/ת קליני/ת" if req.expert_type == "dietitian" else "מאמן/ת כושר אישי/ת"
     try:
         dispatch_push_to_admins(
-            title=f"🎯 ליד חדש: {req.full_name} רוצה {exp_title}!",
-            body=f"טלפון: {req.phone} • משתמש: {u_email or uid}",
+            title=f"🎯 בקשת גישה חדשה: {req.full_name} רוצה {exp_title}!",
+            body=f"טלפון: {req.phone} • ממתין לאישור סופר-אדמין בלשונית לידים",
             tag=f"nutriagent-expert-lead-{record['id']}",
             url="/?tab=admin"
         )
@@ -5922,10 +5937,11 @@ async def api_submit_expert_lead(req: ExpertLeadRequest, request: Request):
         print(f"WARN dispatch_push_to_admins on expert lead: {e}")
 
     details = (
-        f"🎯 <b>בקשה חדשה ממשתמש רשום:</b> {exp_title}\n"
+        f"🎯 <b>בקשת גישה חדשה ממשתמש רשום:</b> {exp_title}\n"
         f"👤 <b>שם מלא:</b> {req.full_name}\n"
         f"📱 <b>טלפון:</b> <code>{req.phone}</code>\n"
-        f"📧 <b>אימייל משתמש:</b> {u_email or 'לא צוין'}"
+        f"📧 <b>אימייל משתמש:</b> {u_email or 'לא צוין'}\n"
+        f"🔒 <b>סטטוס גישה:</b> ממתין לאישור סופר-אדמין"
     )
     wa_msg = f"היי {req.full_name}, ראיתי שביקשת התאמה ל{exp_title} באפליקציית NutriAgent! מתי נוח שנדבר קצרות לתיאום?"
     await send_lead_telegram_alert(
@@ -5934,7 +5950,50 @@ async def api_submit_expert_lead(req: ExpertLeadRequest, request: Request):
         phone=req.phone,
         wa_text=wa_msg
     )
-    return {"ok": True, "lead_id": record["id"], "message": "הפרטים נשמרו בהצלחה!"}
+    return {"ok": True, "lead_id": record["id"], "experts_access_status": new_exp_status, "message": "הפרטים נשלחו וממתינים לאישור מנהל המערכת!"}
+
+
+class ApproveExpertAccessRequest(BaseModel):
+    approved: bool = True
+
+
+@app.post("/api/admin/leads/{lead_id}/experts-access")
+def api_admin_approve_expert_lead_access(lead_id: str, req: ApproveExpertAccessRequest, request: Request):
+    require_super_admin(request)
+    new_status = "approved" if req.approved else "pending"
+    target_uid = ""
+    target_email = ""
+
+    if db:
+        try:
+            snap = db.collection("leads").document(lead_id).get()
+            if snap.exists:
+                ld = snap.to_dict() or {}
+                target_uid = ld.get("user_id", "")
+                target_email = ld.get("email", "")
+                db.collection("leads").document(lead_id).set({"status": new_status}, merge=True)
+        except Exception as e:
+            print(f"ERROR updating lead status in firestore: {e}")
+    for ld in _LOCAL_LEADS:
+        if ld.get("id") == lead_id:
+            target_uid = target_uid or ld.get("user_id", "")
+            target_email = target_email or ld.get("email", "")
+            ld["status"] = new_status
+
+    if (not target_uid or target_uid == "default") and target_email:
+        target_uid = _make_user_id_from_email(target_email)
+
+    if target_uid and target_uid != "default":
+        if not db:
+            if target_uid in _LOCAL_USERS:
+                _LOCAL_USERS[target_uid]["experts_access_status"] = new_status
+        else:
+            try:
+                db.collection("users").document(target_uid).set({"experts_access_status": new_status}, merge=True)
+            except Exception as e:
+                print(f"ERROR updating user experts_access_status: {e}")
+
+    return {"ok": True, "lead_id": lead_id, "status": new_status, "user_id": target_uid}
 
 
 @app.post("/api/leads/coach")
