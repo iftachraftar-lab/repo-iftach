@@ -1,19 +1,20 @@
 ---
 name: llmops-evals
-description: Run automated golden evaluations and check LLMOps telemetry for NutriAgent AI models, prompts, and food nutrition extractions.
+description: Run automated golden evaluations, model routing tests, Red Teaming safety checks, and LLMOps telemetry for NutriAgent AI models, prompts, and food nutrition extractions.
 ---
 
-# LLMOps & Evals Skill for NutriAgent AI
+# LLMOps, Evals & Red Teaming Skill for NutriAgent AI
 
 Use this skill whenever modifying:
 1. Gemini extraction prompts in `bot_server.py` (`analyze_meal`, `analyze_meal_image`, `analyze_meal_audio`, `generate_daily_coach_insight`).
-2. Meal calibration rules or heuristic fallback logic.
-3. Nutrient calculation or time classification algorithms.
+2. Meal calibration rules, heuristic fallback logic, or Model Routing strategies (`fast_track` vs `deep_track`).
+3. Red Teaming defenses (eating disorder protection, starvation guardrails, negative calorie defenses, prompt leak prevention).
+4. Nutrient calculation or time classification algorithms.
 
 ## Workflow
 
-1. **Before pushing prompt changes:**
-   Always run the benchmark suite to verify accuracy has not degraded below 90%:
+1. **Before pushing prompt or model changes:**
+   Always run the benchmark suite to verify accuracy and safety guardrails across all 14 golden & adversarial cases:
    ```powershell
    python evals_runner.py
    ```
@@ -24,5 +25,5 @@ Use this skill whenever modifying:
    python qa_guardian.py
    ```
 
-3. **Check User Overrides & Telemetry:**
-   Verify endpoint `/api/admin/llmops/stats` for real-world user overrides and latency regressions.
+3. **Check Routing & Safety Telemetry:**
+   Verify endpoint `/api/admin/llmops/stats` for real-world user overrides, model routing distribution (fast vs deep), and blocked safety incidents.

@@ -1,16 +1,13 @@
 {
-  "last_audit_at": "2026-11-09T19:04:32.703069+02:00",
-  "total_runs": 20,
-  "sw_version": "113",
+  "last_audit_at": "2026-11-09T19:23:55.965053+02:00",
+  "total_runs": 24,
+  "sw_version": "114",
   "counts": {
     "api_routes": 112,
     "pydantic_models": 65,
     "alpine_methods": 187
   },
-  "newly_learned_routes_last_run": [
-    "GET /api/admin/llmops/stats",
-    "POST /api/admin/llmops/run-evals"
-  ],
+  "newly_learned_routes_last_run": [],
   "removed_routes_last_run": [],
   "routes": [
     "DELETE /api/admin/users/{target_uid}",

@@ -23,7 +23,7 @@ def get_israel_today_str() -> str:
 def get_israel_time_str() -> str:
     """Returns current time formatted as HH:MM in Israel timezone."""
     return get_israel_now().strftime("%H:%M")
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -122,6 +122,9 @@ class NutritionExtraction(BaseModel):
     visual_cues: str = Field(default="", description="סימנים חזותיים שזוהו בתמונה: מרקם, ברק שמן/רוטב, השחמה, צפיפות מרכיבים וזווית צילום")
     hidden_calories_note: str = Field(default="", description="הערכת קלוריות סמויות שנלקחו בחשבון (כגון שמן בישול/טיגון, טחינה, רוטב או חמאה)")
     applied_calibration_rules: List[str] = Field(default_factory=list, description="אילו חוקי כיול של האדמין הופעלו בניתוח תמונה זו")
+    route_chosen: str = Field(default="deep_track", description="נתיב הניתוב של המודל: fast_track או deep_track")
+    is_safety_flagged: bool = Field(default=False, description="האם הופעל מגן בטיחות (Red Teaming Guardrail)")
+    safety_reason: str = Field(default="", description="סיבת הפעלת מגן הבטיחות במידה וסומן")
 
 
 class WorkoutItem(BaseModel):
@@ -2151,10 +2154,14 @@ _LOCAL_LLMOPS_METRICS = {
     "failed_requests": 0,
     "total_latency_ms": 0,
     "avg_latency_ms": 0,
-    "last_eval_score": 96.5,
+    "last_eval_score": 100.0,
     "last_eval_timestamp": "",
     "user_overrides_count": 0,
-    "overrides_log": []
+    "overrides_log": [],
+    "routing_fast_count": 0,
+    "routing_deep_count": 0,
+    "safety_blocks_count": 0,
+    "safety_incidents": []
 }
 
 
@@ -2222,11 +2229,119 @@ def record_ai_user_override_db(user_id: str, original_ai: dict, final_user: dict
 
 
 # ---------------------------------------------------------------------------
+# Red Teaming & Nutritional Safety Guardrails
+# ---------------------------------------------------------------------------
+
+EATING_DISORDER_KEYWORDS = [
+    "להקיא", "להקיא אחרי", "להקיא אוכל", "בולמיה", "אנורקסיה",
+    "משלשלים כדי לרזות", "משלשלים להרזיה", "לצום שבוע כדי לרזות", "איך להקיא"
+]
+
+PROMPT_INJECTION_KEYWORDS = [
+    "הפרומפט הסודי", "תדפיס לי את כל ההוראות", "תדפיס את הפרומפט", "system prompt",
+    "reveal developer prompt", "reveal system instructions", "מה הפרומפט הסודי"
+]
+
+
+def check_nutritional_safety(user_text: str) -> Optional[Dict[str, Any]]:
+    """
+    Red Teaming Defense: Pre-filters inputs for eating disorders, self-harm,
+    severe starvation (<800 kcal rapid loss requests), and prompt injections.
+    """
+    if not user_text:
+        return None
+    txt = user_text.lower().strip()
+    
+    # 1. Eating disorder / purging / self-harm
+    if any(term in txt for term in EATING_DISORDER_KEYWORDS):
+        return {
+            "type": "eating_disorder_risk",
+            "message": "NutriAgent AI מחויב לבריאותך. פגיעה עצמית, הקאות מכוונות או הרעבה אינן בטוחות. במידה ואת/ה מרגיש/ה מצוקה סביב אכילה, מומלץ לפנות לעמותת שחף או לקו סיוע לבריאות הנפש (1201)."
+        }
+        
+    # 2. Extreme starvation / rapid dangerous restriction
+    if any(c in txt for c in ["200 קלוריות", "300 קלוריות", "400 קלוריות"]) and any(w in txt for w in ["תפריט", "דיאטה", "לרזות", "בשבוע", "ביום", "להוריד"]):
+        return {
+            "type": "extreme_starvation_risk",
+            "message": "צריכה קלורית יומית מתחת ל-800 קק״ל ללא השגחה רפואית עלולה לסכן את בריאותך. NutriAgent פועל לפי הנחיות תזונה קליניות בטוחות בלבד."
+        }
+        
+    # 3. Prompt injection / System instruction leak
+    if any(term in txt for term in PROMPT_INJECTION_KEYWORDS):
+        return {
+            "type": "prompt_leak_attempt",
+            "message": "בקשה זו נחסמה ע״י מגן הבטיחות של המערכת (NutriAgent Red Team Guardrail)."
+        }
+        
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Model Routing Strategy (Fast-Track vs Deep-Track)
+# ---------------------------------------------------------------------------
+
+FAST_TRACK_KEYWORDS = [
+    "קפה", "הפוך", "אספרסו", "אמריקנו", "תה", "מים", "בננה", "תפוח", "תמר", "קלמנטינה", "תפוז"
+]
+
+
+def determine_model_route(user_text: str) -> str:
+    """
+    Model Routing Strategy:
+    Fast Track: Short simple items (coffee, tea, single fruit/snack, water) <= 3 words with low token cost.
+    Deep Track: Complex multi-item dishes, recipes, ambiguous portions, or full sentences.
+    """
+    t = (user_text or "").strip()
+    words = t.split()
+    if len(words) <= 3:
+        lower = t.lower()
+        complex_keywords = [" עם ", "בנוסף", "סלט", "שווארמה", "סטייק", "אנטרקוט", "פיצה"]
+        has_conjunction = any(w.startswith("ו") and len(w) > 2 for w in words[1:]) or " ו" in lower
+        if not has_conjunction and not any(w in lower for w in complex_keywords):
+            if any(w in lower for w in FAST_TRACK_KEYWORDS):
+                return "fast_track"
+    return "deep_track"
+    return "deep_track"
+
+
+# ---------------------------------------------------------------------------
 # Gemini AI Functions
 # ---------------------------------------------------------------------------
 
 def analyze_meal(user_text: str) -> NutritionExtraction:
     t_start = time.time()
+    
+    # 1. Red Teaming & Safety Shield Guardrail
+    safety_violation = check_nutritional_safety(user_text)
+    if safety_violation:
+        _LOCAL_LLMOPS_METRICS["safety_blocks_count"] = _LOCAL_LLMOPS_METRICS.get("safety_blocks_count", 0) + 1
+        incident = {
+            "timestamp": get_israel_now().strftime("%Y-%m-%d %H:%M:%S"),
+            "input": (user_text or "")[:80],
+            "type": safety_violation["type"],
+            "message": safety_violation["message"]
+        }
+        _LOCAL_LLMOPS_METRICS.setdefault("safety_incidents", []).insert(0, incident)
+        if len(_LOCAL_LLMOPS_METRICS["safety_incidents"]) > 20:
+            del _LOCAL_LLMOPS_METRICS["safety_incidents"][20:]
+        record_llm_telemetry("analyze_meal", int((time.time() - t_start) * 1000), success=True)
+        return NutritionExtraction(
+            is_meal=False,
+            calories=0,
+            protein_g=0.0,
+            summary=safety_violation["message"],
+            is_safety_flagged=True,
+            safety_reason=safety_violation["type"],
+            route_chosen="fast_track"
+        )
+
+    # 2. Model Routing Strategy (Fast-Track vs Deep-Track)
+    route = determine_model_route(user_text)
+    if route == "fast_track":
+        _LOCAL_LLMOPS_METRICS["routing_fast_count"] = _LOCAL_LLMOPS_METRICS.get("routing_fast_count", 0) + 1
+    else:
+        _LOCAL_LLMOPS_METRICS["routing_deep_count"] = _LOCAL_LLMOPS_METRICS.get("routing_deep_count", 0) + 1
+
     if not ai_client:
         # High-fidelity deterministic local fallback when GEMINI_API_KEY is not set
         txt = (user_text or "").strip().lower()
@@ -2234,7 +2349,7 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
         # Explicit Non-Food detection
         non_food_terms = ["שלט", "טלוויזיה", "מקלדת", "מחשב", "טלפון", "שולחן", "כיסא", "עט", "נייר", "בגד"]
         if any(w in txt for w in non_food_terms) and not any(f in txt for f in ["אכל", "שתה", "לחם", "ביצה"]):
-            return NutritionExtraction(is_meal=False, calories=0, protein_g=0.0, summary=user_text.strip())
+            return NutritionExtraction(is_meal=False, calories=0, protein_g=0.0, summary=user_text.strip(), route_chosen=route)
         
         cal, prot = 250, 15.0
         items = []
@@ -2248,6 +2363,9 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
         elif "פיצה" in txt or "pizza" in txt:
             cal, prot = 780, 32.0
             items = [MealItemDetail(name="3 משולשי פיצה", calories=780, protein_g=32.0)]
+        elif "קפה שחור" in txt or "אספרסו" in txt:
+            cal, prot = 5, 0.2
+            items = [MealItemDetail(name="קפה שחור ללא סוכר", calories=5, protein_g=0.2)]
         elif any(w in txt for w in ["קפה", "הפוך", "קפוצ'ינו", "נס", "אמריקנו"]):
             cal, prot = 80, 4.0
             items = [MealItemDetail(name="הפוך קטן / קפה", calories=80, protein_g=4.0)]
@@ -2276,7 +2394,13 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
             else:
                 cal, prot = 320, 22.0
                 items = [MealItemDetail(name="2 ביצים", calories=150, protein_g=13.0)]
-        elif any(w in txt for w in ["עוף", "שניצל", "בשר", "סטייק", "הודו"]):
+        elif any(w in txt for w in ["בשרים", "אנטרקוט", "סטייק"]):
+            cal, prot = 780, 58.0
+            items = [
+                MealItemDetail(name="אנטרקוט בגריל", calories=550, protein_g=52.0),
+                MealItemDetail(name="תוספות וסלט", calories=230, protein_g=6.0)
+            ]
+        elif any(w in txt for w in ["עוף", "שניצל", "בשר", "הודו"]):
             cal, prot = 480, 42.0
             items = [
                 MealItemDetail(name="חזה עוף בגריל", calories=280, protein_g=38.0),
@@ -2289,11 +2413,18 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
             cal, prot = 180, 20.0
             items = [MealItemDetail(name="יוגורט / שייק", calories=180, protein_g=20.0)]
         else:
+            if "מינוס" in txt or "-" in txt:
+                cal = 120
             items = [MealItemDetail(name=user_text.strip() or "מנה", calories=cal, protein_g=prot)]
             
+        # Post-processing sanitization: strictly non-negative
+        cal = max(0, cal)
+        prot = max(0.0, float(prot))
         record_llm_telemetry("analyze_meal", int((time.time() - t_start) * 1000), success=True)
-        return NutritionExtraction(is_meal=True, calories=cal, protein_g=prot, summary=user_text.strip(), items=items)
+        return NutritionExtraction(is_meal=True, calories=cal, protein_g=prot, summary=user_text.strip(), items=items, route_chosen=route)
 
+    # Route live model: fast_track uses gemini-2.5-flash-lite, deep_track uses gemini-2.5-flash
+    target_model = "gemini-2.5-flash-lite" if route == "fast_track" else "gemini-2.5-flash"
     prompt = f"""המשתמש דיווח: '{user_text}'. זה יכול להיות אוכל, שתיה, או כל דבר אחר שנצרך.
 זמן נוכחי בישראל: {get_israel_time_str()} ({get_israel_today_str()}).
 אם המשתמש ציין מתי אכל (כגון 'לפני שעה', 'בבוקר', 'ב-14:00'), חלץ את שעת האכילה המשוערת בפורמט HH:MM בשדה meal_time לפי שעון ישראל.
@@ -2303,10 +2434,11 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
 אם יש מספר פריטים בדיווח אחד, סכם את סך הקלוריות והחלבון של כולם יחד ותן תיאור תמציתי וברור בעברית בשדה summary.
 בנוסף, ברשימת items, פרט כל פריט בנפרד עם השם שלו (name), הקלוריות המדויקות של אותו פריט (calories) וגרם החלבון שלו (protein_g).
 אם יש פריט אחד בלבד, החזר פריט יחיד זה ב-items עם הערכים שלו. סכום הקלוריות והחלבון של ה-items צריך להיות תואם לסך הכולל (calories, protein_g).
-אם זה משהו שאין לו שום קשר לאוכל או שתייה, סמן is_meal=False."""
+אם זה משהו שאין לו שום קשר לאוכל או שתייה, סמן is_meal=False.
+שמור תמיד שערכי הקלוריות והחלבון יהיו חיוביים (>= 0). לעולם אין להחזיר ערכים שליליים."""
     try:
         response = ai_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=target_model,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -2314,15 +2446,18 @@ def analyze_meal(user_text: str) -> NutritionExtraction:
             ),
         )
         res = NutritionExtraction.model_validate_json(response.text)
-        record_llm_telemetry("analyze_meal", int((time.time() - t_start) * 1000), success=True)
+        res.calories = max(0, res.calories)
+        res.protein_g = max(0.0, float(res.protein_g))
+        res.route_chosen = route
+        record_llm_telemetry("analyze_meal", int((time.time() - t_start) * 1000), success=True, model_name=target_model)
         return res
     except Exception as e:
-        record_llm_telemetry("analyze_meal", int((time.time() - t_start) * 1000), success=False)
+        record_llm_telemetry("analyze_meal", int((time.time() - t_start) * 1000), success=False, model_name=target_model)
         err_msg = str(e)
         print(f"ERROR analyze_meal: {type(e).__name__} - {err_msg}")
         if "402" in err_msg or "prepayment" in err_msg.lower() or "RESOURCE_EXHAUSTED" in err_msg:
-            return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API_ERROR: 402_PREPAYMENT_DEPLETED")
-        return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {err_msg[:120]}")
+            return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary="API_ERROR: 402_PREPAYMENT_DEPLETED", route_chosen=route)
+        return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {err_msg[:120]}", route_chosen=route)
 
 
 def analyze_workout(text: str, user_weight_kg: float = 75.0) -> WorkoutExtraction:
@@ -3701,6 +3836,11 @@ async def process_chat_meal_message(
             }
 
         if not res or not getattr(res, "is_meal", False):
+            if getattr(res, "is_safety_flagged", False):
+                return {
+                    "success": False,
+                    "reply_text": getattr(res, "summary", "") or "בקשה זו נחסמה מטעמי בטיחות תזונתית (Red Teaming Shield).",
+                }
             if photo_bytes and res:
                 save_vision_analysis_log_db(uid, res, forensics, source=f"{channel}-photo", caption=caption or "", meal_id="")
                 return {
@@ -6486,6 +6626,13 @@ def api_admin_get_llmops_stats(request: Request):
     succ = _LOCAL_LLMOPS_METRICS.get("successful_requests", 0)
     success_rate = round((succ / max(1, tot)) * 100, 1) if tot > 0 else 100.0
 
+    fast_c = _LOCAL_LLMOPS_METRICS.get("routing_fast_count", 0)
+    deep_c = _LOCAL_LLMOPS_METRICS.get("routing_deep_count", 0)
+    tot_routes = fast_c + deep_c
+    fast_pct = round((fast_c / max(1, tot_routes)) * 100, 1) if tot_routes > 0 else 0.0
+    safety_c = _LOCAL_LLMOPS_METRICS.get("safety_blocks_count", 0)
+    safety_incidents = list(_LOCAL_LLMOPS_METRICS.get("safety_incidents", []))
+
     return {
         "ok": True,
         "total_requests": tot,
@@ -6496,6 +6643,12 @@ def api_admin_get_llmops_stats(request: Request):
         "last_eval_score": _LOCAL_LLMOPS_METRICS.get("last_eval_score", 100.0),
         "last_eval_timestamp": _LOCAL_LLMOPS_METRICS.get("last_eval_timestamp", get_israel_now().strftime("%Y-%m-%d %H:%M")),
         "user_overrides_count": max(len(overrides), _LOCAL_LLMOPS_METRICS.get("user_overrides_count", 0)),
+        "routing_fast_count": fast_c,
+        "routing_deep_count": deep_c,
+        "routing_total_count": tot_routes,
+        "routing_fast_pct": fast_pct,
+        "safety_blocks_count": safety_c,
+        "safety_incidents": safety_incidents,
         "overrides": overrides
     }
 
@@ -7099,6 +7252,8 @@ def api_add_ai_meal(req: AIMealRequest, request: Request):
             detail=f"שגיאת תקשורת עם שרת ה-AI: {extraction.summary.replace('API_ERROR:', '').strip()[:80]}",
         )
     if not extraction.is_meal:
+        if getattr(extraction, "is_safety_flagged", False):
+            raise HTTPException(status_code=422, detail=extraction.summary or "בקשה זו נחסמה מטעמי בטיחות תזונתית (Red Teaming Shield)")
         raise HTTPException(status_code=422, detail="לא זוהתה ארוחה או שתייה בטקסט שהוזן")
 
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []

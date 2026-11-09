@@ -4613,6 +4613,53 @@
                             <span class="text-[10px] text-amber-600 mt-1 block">משוב משתמשים לכיול עתידי</span>
                         </div>
                     </div>
+
+                    <!-- Row 2: Model Routing & Red Teaming Safety Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                        <!-- Model Routing Optimization Card -->
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-sky-50/70 to-blue-100/50 border border-blue-200/80 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
+                                    <span>🧭</span> ניתוב מודלים חכם (Model Routing)
+                                </span>
+                                <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-800"
+                                      x-text="`${adminLlmops?.routing_fast_pct || 0}% Fast Track`"></span>
+                            </div>
+                            <div class="flex items-baseline gap-2">
+                                <div class="text-xs text-slate-700">
+                                    <span class="font-extrabold text-blue-950 text-lg" x-text="adminLlmops?.routing_fast_count || 0">0</span>
+                                    <span class="text-[11px] text-slate-500 font-semibold">מהיר/קל (שתייה/נשנוש)</span>
+                                </div>
+                                <span class="text-slate-300">|</span>
+                                <div class="text-xs text-slate-700">
+                                    <span class="font-extrabold text-indigo-950 text-lg" x-text="adminLlmops?.routing_deep_count || 0">0</span>
+                                    <span class="text-[11px] text-slate-500 font-semibold">מעמיק (מנות מורכבות)</span>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-blue-700/90 leading-relaxed">
+                                חיסכון בעלויות וזמן תגובה: פניות פשוטות נותבות אוטומטית למסלול קל ומהיר, ומנות מורכבות מנותחות לעומק.
+                            </p>
+                        </div>
+
+                        <!-- Red Teaming & Safety Shield Card -->
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-rose-50/70 to-orange-100/50 border border-rose-200/80 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold text-rose-900 flex items-center gap-1.5">
+                                    <span>🛡️</span> מגן בטיחות תזונתית (Red Teaming Shield)
+                                </span>
+                                <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                                    הגנה פעילה ✅
+                                </span>
+                            </div>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-2xl font-black text-rose-950" x-text="adminLlmops?.safety_blocks_count || 0">0</span>
+                                <span class="text-xs text-rose-700 font-bold">חסימות בטיחות והזרקות</span>
+                            </div>
+                            <p class="text-[10px] text-rose-700/90 leading-relaxed">
+                                חסימת הפרעות אכילה (הקאות/צומות קיצוניים), הזרקות פרומפט ודליפת הוראות מערכת עם הפניה לגורמי סיוע.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Evals Results Detail Modal/Panel (Shown after running benchmark) -->
@@ -7353,7 +7400,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=113').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=114').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
