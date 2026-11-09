@@ -149,6 +149,7 @@ class WorkoutLeadRequest(BaseModel):
     studio_name: Optional[str] = ""
     studio_perk: Optional[str] = ""
     voucher_code: Optional[str] = ""
+    email: Optional[str] = ""
     notes: Optional[str] = ""
 
 
@@ -1149,6 +1150,7 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
         "ai_calls_today": ai_calls_today,
         "last_login_date": today_str,
         "experts_access_status": existing_doc_data.get("experts_access_status", "none"),
+        "trial_workout_access_status": existing_doc_data.get("trial_workout_access_status", "none"),
     }
 
     if not db:
@@ -4922,6 +4924,7 @@ def api_auth_me(request: Request, response: Response):
         "sleep_hours": user_doc.get("sleep_hours"),
         "goal": user_doc.get("goal"),
         "experts_access_status": user_doc.get("experts_access_status", "none"),
+        "trial_workout_access_status": user_doc.get("trial_workout_access_status", "none"),
         "telegram_linked": is_telegram_linked_for_user(uid),
         "features": get_feature_flags(),
     }
@@ -5189,6 +5192,8 @@ def save_workout_lead_db(lead_dict: dict) -> dict:
         "type": "workout_trial",
         "full_name": lead_dict.get("full_name", "").strip(),
         "phone": lead_dict.get("phone", "").strip(),
+        "email": lead_dict.get("email", "").strip(),
+        "user_id": lead_dict.get("user_id", "").strip(),
         "city": lead_dict.get("city", "").strip(),
         "activity_type": lead_dict.get("activity_type", "").strip(),
         "preferred_time": lead_dict.get("preferred_time", "גמיש"),
@@ -5198,7 +5203,7 @@ def save_workout_lead_db(lead_dict: dict) -> dict:
         "voucher_code": lead_dict.get("voucher_code", ""),
         "notes": lead_dict.get("notes", ""),
         "created_at": datetime.now().isoformat(),
-        "status": "new"
+        "status": "pending"
     }
     if db:
         try:
@@ -5870,31 +5875,61 @@ def api_admin_delete_user(target_uid: str, request: Request):
 
 
 @app.post("/api/leads/workout")
-async def api_submit_workout_lead(req: WorkoutLeadRequest):
+async def api_submit_workout_lead(req: WorkoutLeadRequest, request: Request):
     if not req.full_name.strip() or not req.phone.strip():
         raise HTTPException(status_code=400, detail="שם ומספר טלפון הם שדות חובה")
-    record = save_workout_lead_db(req.model_dump())
-    
-    # Send Telegram alert
+    uid = get_request_user_id(request)
+    udoc = get_user_doc_db(uid) if uid != "default" else {}
+    u_email = (req.email or udoc.get("email") or "").strip()
+    if uid == "default" and not u_email:
+        raise HTTPException(status_code=401, detail="שירות זה מיועד למשתמשים רשומים בלבד. נא להתחבר לחשבון תחילה.")
+
+    payload = req.model_dump()
+    payload["user_id"] = uid
+    payload["email"] = u_email
+    record = save_workout_lead_db(payload)
+
+    current_trial_status = udoc.get("trial_workout_access_status", "none")
+    new_trial_status = "approved" if current_trial_status == "approved" else "pending"
+    target_uid = uid if uid != "default" else (_make_user_id_from_email(u_email) if u_email else "")
+    if target_uid:
+        if not db:
+            if target_uid in _LOCAL_USERS:
+                _LOCAL_USERS[target_uid]["trial_workout_access_status"] = new_trial_status
+        else:
+            try:
+                db.collection("users").document(target_uid).set({"trial_workout_access_status": new_trial_status}, merge=True)
+            except Exception as e:
+                print(f"WARN updating trial_workout_access_status: {e}")
+
+    try:
+        dispatch_push_to_admins(
+            title=f"🎁 בקשת זכאות לאימון: {req.full_name} ({req.activity_type})",
+            body=f"טלפון: {req.phone} • אזור: {req.city} • ממתין לאישור סופר-אדמין",
+            tag=f"nutriagent-workout-lead-{record['id']}",
+            url="/?tab=admin"
+        )
+    except Exception as e:
+        print(f"WARN dispatch_push_to_admins on workout lead: {e}")
+
     details = (
         f"👤 <b>שם הלקוח:</b> {req.full_name}\n"
         f"📱 <b>טלפון:</b> <code>{req.phone}</code>\n"
-        f"🎟️ <b>קוד שובר:</b> <code>{req.voucher_code or 'לא הונפק'}</code>\n"
-        f"🏢 <b>סטודיו שנבחר:</b> {req.studio_name or 'כללי'}\n"
-        f"🎁 <b>הטבה:</b> {req.studio_perk or 'אימון ניסיון מתנה'}\n"
+        f"📧 <b>אימייל משתמש:</b> {u_email or 'לא צוין'}\n"
         f"🎯 <b>מטרה:</b> {getattr(req, 'goal', 'חיטוב')}\n"
         f"📍 <b>אזור/עיר:</b> {req.city}\n"
         f"🏋️ <b>ענף:</b> {req.activity_type}\n"
-        f"⏰ <b>שעות:</b> {req.preferred_time or 'גמיש'}"
+        f"⏰ <b>שעות:</b> {req.preferred_time or 'גמיש'}\n"
+        f"🔒 <b>סטטוס גישה:</b> ממתין לאישור סופר-אדמין"
     )
-    wa_msg = f"היי {req.full_name}, ראיתי שהנפקת שובר הטבה לאימון ניסיון ב-{req.studio_name or req.activity_type} (קוד {req.voucher_code}). מתי נוח שנדבר קצרות לוודא שקיבלת את הפרטים לתיאום?" 
+    wa_msg = f"היי {req.full_name}, ראיתי שביקשת בדיקת זכאות לאימון ניסיון ב-{req.activity_type} באזור {req.city} דרך NutriAgent. מתי נוח שנדבר קצרות לתיאום?"
     await send_lead_telegram_alert(
-        title="🎁 ליד חדש לאימון ניסיון / סטודיו!",
+        title="🎁 ליד חדש לבדיקת זכאות לאימון / סטודיו!",
         details_html=details,
         phone=req.phone,
         wa_text=wa_msg
     )
-    return {"ok": True, "lead_id": record["id"], "message": "הפרטים התקבלו בהצלחה!"}
+    return {"ok": True, "lead_id": record["id"], "trial_workout_access_status": new_trial_status, "message": "הפרטים התקבלו וממתינים לאישור מנהל המערכת!"}
 
 
 @app.post("/api/leads/expert")
@@ -5963,6 +5998,7 @@ def api_admin_approve_expert_lead_access(lead_id: str, req: ApproveExpertAccessR
     new_status = "approved" if req.approved else "pending"
     target_uid = ""
     target_email = ""
+    lead_type = "expert_referral"
 
     if db:
         try:
@@ -5971,6 +6007,7 @@ def api_admin_approve_expert_lead_access(lead_id: str, req: ApproveExpertAccessR
                 ld = snap.to_dict() or {}
                 target_uid = ld.get("user_id", "")
                 target_email = ld.get("email", "")
+                lead_type = ld.get("type", "expert_referral")
                 db.collection("leads").document(lead_id).set({"status": new_status}, merge=True)
         except Exception as e:
             print(f"ERROR updating lead status in firestore: {e}")
@@ -5978,22 +6015,24 @@ def api_admin_approve_expert_lead_access(lead_id: str, req: ApproveExpertAccessR
         if ld.get("id") == lead_id:
             target_uid = target_uid or ld.get("user_id", "")
             target_email = target_email or ld.get("email", "")
+            lead_type = ld.get("type", lead_type)
             ld["status"] = new_status
 
     if (not target_uid or target_uid == "default") and target_email:
         target_uid = _make_user_id_from_email(target_email)
 
+    status_field = "trial_workout_access_status" if lead_type == "workout_trial" else "experts_access_status"
     if target_uid and target_uid != "default":
         if not db:
             if target_uid in _LOCAL_USERS:
-                _LOCAL_USERS[target_uid]["experts_access_status"] = new_status
+                _LOCAL_USERS[target_uid][status_field] = new_status
         else:
             try:
-                db.collection("users").document(target_uid).set({"experts_access_status": new_status}, merge=True)
+                db.collection("users").document(target_uid).set({status_field: new_status}, merge=True)
             except Exception as e:
-                print(f"ERROR updating user experts_access_status: {e}")
+                print(f"ERROR updating user {status_field}: {e}")
 
-    return {"ok": True, "lead_id": lead_id, "status": new_status, "user_id": target_uid}
+    return {"ok": True, "lead_id": lead_id, "lead_type": lead_type, "status": new_status, "user_id": target_uid}
 
 
 @app.post("/api/leads/coach")
