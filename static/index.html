@@ -465,33 +465,17 @@
                 <span class="text-[10px]">מתאמנים</span>
             </button>
             <button x-cloak x-show="isUserAdmin()"
-                    @click="goToAdminCosts()"
-                    :class="(activeTab === 'admin' && adminNavTab === 'costs') ? 'bg-emerald-600 text-white shadow-2xs font-black' : 'text-emerald-800 hover:bg-emerald-100 font-black bg-emerald-50 border border-emerald-300'"
-                    class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                    title="ניהול כספים, עלויות ענן ותמחור לקוח">
-                    <span>💰</span>
-                    <span>ניהול כספים</span>
-                </button>
-            <button x-cloak x-show="isUserAdmin()"
                     @click="switchTab('admin')"
-                    :class="activeTab === 'admin' && adminNavTab !== 'costs' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-indigo-700 hover:bg-indigo-50 font-semibold'"
-                    class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer">
-                    <svg class="w-4 h-4 text-white flex-shrink-0"><use href="#icon-admin-shield"></use></svg>
-                    <span x-text="t('tabAdmin', 'ניהול משתמשים')">ניהול משתמשים</span>
+                    :class="activeTab === 'admin' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-indigo-700 hover:bg-indigo-50 font-semibold'"
+                    class="h-8 px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="ניהול משתמשים, כספים ובקרת מערכת">
+                    <svg class="w-4 h-4 flex-shrink-0" :class="activeTab === 'admin' ? 'text-white' : 'text-indigo-600'"><use href="#icon-admin-shield"></use></svg>
+                    <span x-text="t('tabAdmin', 'אדמין')">אדמין</span>
                 </button>
             </nav>
 
             <!-- Uniform Action Toolbar (Clean, Spaced & Uncluttered) -->
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-nowrap">
-                <!-- Direct Financial Management Pill (Always visible for Admin) -->
-                <button x-cloak x-show="isUserAdmin()"
-                    type="button"
-                    @click="goToAdminCosts()"
-                    class="h-8 px-2.5 sm:px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-95 flex-shrink-0"
-                    title="מעבר ישיר למסך ניהול כספים, עלויות ענן ותמחור לקוח">
-                    <span>💰</span>
-                    <span class="font-extrabold">ניהול כספים</span>
-                </button>
                 <!-- Fast Trainee Link Generation for Coach/Admin -->
                 <button x-cloak x-show="appMode === 'coaching' && isCoachOrAdmin()"
                     type="button"
@@ -3418,7 +3402,7 @@
                         <span>שגיאות צילום</span>
                     </button>
                     <button type="button"
-                            @click="fetchAdminUsers()"
+                            @click="fetchAdminUsers(true)"
                             :disabled="adminLoading"
                             class="px-3.5 py-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
                         <span :class="{'animate-spin': adminLoading}">🔄</span>
@@ -5039,18 +5023,10 @@
             </button>
 
             <button x-cloak x-show="isUserAdmin()"
-                    @click="goToAdminCosts()"
-                    :class="(activeTab === 'admin' && adminNavTab === 'costs') ? 'text-emerald-700 font-black' : 'text-slate-500 hover:text-slate-800'"
-                    class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer"
-                    title="ניהול כספים ועלויות">
-                <span class="text-lg leading-none mb-0.5">💰</span>
-                <span class="text-[10px] font-bold">כספים</span>
-            </button>
-
-            <button x-cloak x-show="isUserAdmin()"
                     @click="switchTab('admin')"
-                    :class="(activeTab === 'admin' && adminNavTab !== 'costs') ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'"
-                    class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer">
+                    :class="activeTab === 'admin' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'"
+                    class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer"
+                    title="ניהול מערכת, משתמשים וכספים">
                 <svg class="w-5 h-5 mb-0.5"><use href="#icon-admin-shield"></use></svg>
                 <span class="text-[10px]" x-text="t('bottomAdmin', 'אדמין')">אדמין</span>
             </button>
@@ -7641,7 +7617,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=109').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=110').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -7963,15 +7939,24 @@
                 // Admin User Management State (Owner Only)
                 adminLoading: false,
                 adminSearchQuery: '',
-                adminData: {
-                    stats: {
-                        total_users: 0,
-                        active_today_users: 0,
-                        total_meals_logged: 0,
-                        total_push_devices: 0
-                    },
-                    users: []
-                },
+                adminData: (() => {
+                    try {
+                        const cached = localStorage.getItem('nutri_admin_users_cache_v1');
+                        if (cached) {
+                            const parsed = JSON.parse(cached);
+                            if (parsed && Array.isArray(parsed.users)) return parsed;
+                        }
+                    } catch (e) {}
+                    return {
+                        stats: {
+                            total_users: 0,
+                            active_today_users: 0,
+                            total_meals_logged: 0,
+                            total_push_devices: 0
+                        },
+                        users: []
+                    };
+                })(),
                 adminNewUser: {
                     email: '',
                     name: '',
@@ -11272,6 +11257,8 @@
                             localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
                             if (!this.currentUser.is_admin && this.activeTab === 'admin') {
                                 this.activeTab = 'summary';
+                            } else if (this.currentUser.is_admin) {
+                                this.fetchAdminUsers(false);
                             }
                         }
                     } catch (e) {
@@ -12202,26 +12189,35 @@
                         this.fetchHistory();
                         this.fetchWeight();
                     } else if (tab === 'admin') {
-                        this.fetchAdminUsers();
-                        this.fetchVisionLogs();
-                        this.fetchAdminLeads();
-                        this.fetchAdminCosts();
-                        this.fetchAdminPhotoErrors();
+                        this.fetchAdminUsers(false);
+                        setTimeout(() => {
+                            this.fetchAdminLeads();
+                            this.fetchAdminCosts();
+                            this.fetchAdminPhotoErrors();
+                            this.fetchVisionLogs();
+                        }, 120);
                     } else if (tab === 'recipes' && (!this.woltDishes || !this.woltDishes.length)) {
                         this.fetchWoltDishes();
                     }
                 },
 
-                async fetchAdminUsers() {
+                async fetchAdminUsers(forceRefresh = false) {
                     if (!this.currentUser || !this.currentUser.is_admin) return;
-                    this.adminLoading = true;
+                    const hasCachedUsers = this.adminData && Array.isArray(this.adminData.users) && this.adminData.users.length > 0;
+                    if (forceRefresh || !hasCachedUsers) {
+                        this.adminLoading = true;
+                    }
                     try {
-                        const res = await fetch('/api/admin/users');
+                        const url = forceRefresh ? '/api/admin/users?refresh=1' : '/api/admin/users';
+                        const res = await fetch(url);
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
                             throw new Error(err.detail || 'שגיאה בטעינת משתמשים');
                         }
                         this.adminData = await res.json();
+                        try {
+                            localStorage.setItem('nutri_admin_users_cache_v1', JSON.stringify(this.adminData));
+                        } catch (e) {}
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בטעינת נתוני אדמין', 'error');
                     } finally {

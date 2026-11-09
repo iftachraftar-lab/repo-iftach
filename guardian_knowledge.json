@@ -1,16 +1,13 @@
 {
-  "last_audit_at": "2026-11-09T15:51:47.047913+02:00",
-  "total_runs": 11,
-  "sw_version": "109",
+  "last_audit_at": "2026-11-09T17:55:51.341802+02:00",
+  "total_runs": 14,
+  "sw_version": "110",
   "counts": {
     "api_routes": 110,
     "pydantic_models": 65,
     "alpine_methods": 185
   },
-  "newly_learned_routes_last_run": [
-    "GET /api/admin/ux-telemetry",
-    "POST /api/ux-telemetry"
-  ],
+  "newly_learned_routes_last_run": [],
   "removed_routes_last_run": [],
   "routes": [
     "DELETE /api/admin/users/{target_uid}",

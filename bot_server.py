@@ -5103,9 +5103,36 @@ def api_claim_legacy_data(request: Request):
 # Admin User Management Helpers & Routes (Owner Only)
 # ---------------------------------------------------------------------------
 
-def list_all_users_admin_db() -> dict:
+import concurrent.futures
+
+_ADMIN_USERS_SNAPSHOT_CACHE = {
+    "ts": 0.0,
+    "date": "",
+    "result": None,
+    "all_meals": None,
+}
+_ADMIN_USERS_CACHE_TTL_SEC = 20.0
+
+
+def invalidate_admin_users_cache():
+    _ADMIN_USERS_SNAPSHOT_CACHE["ts"] = 0.0
+    _ADMIN_USERS_SNAPSHOT_CACHE["result"] = None
+    _ADMIN_USERS_SNAPSHOT_CACHE["all_meals"] = None
+
+
+def list_all_users_admin_db(force_refresh: bool = False) -> dict:
     today_str = get_israel_today_str()
+    now_ts = time.time()
+    if (
+        not force_refresh
+        and _ADMIN_USERS_SNAPSHOT_CACHE["result"] is not None
+        and _ADMIN_USERS_SNAPSHOT_CACHE["date"] == today_str
+        and (now_ts - _ADMIN_USERS_SNAPSHOT_CACHE["ts"]) < _ADMIN_USERS_CACHE_TTL_SEC
+    ):
+        return _ADMIN_USERS_SNAPSHOT_CACHE["result"]
+
     users_map = {}
+    targets_docs_map = {}
 
     if not db:
         for uid, u in _LOCAL_USERS.items():
@@ -5114,46 +5141,110 @@ def list_all_users_admin_db() -> dict:
         all_weights = list(_LOCAL_WEIGHTS)
         all_subs = list(_LOCAL_PUSH_SUBS)
     else:
-        try:
-            for doc in db.collection("users").stream():
-                d = doc.to_dict() or {}
-                d["id"] = doc.id
-                users_map[doc.id] = d
-        except Exception as e:
-            print(f"ERROR reading users in admin: {e}")
+        def _fetch_users():
+            res = {}
+            try:
+                for doc in db.collection("users").stream():
+                    d = doc.to_dict() or {}
+                    d["id"] = doc.id
+                    res[doc.id] = d
+            except Exception as e:
+                print(f"ERROR reading users in admin: {e}")
+            return res
 
-        all_meals = []
-        try:
-            for doc in db.collection("meals").stream():
-                d = doc.to_dict() or {}
-                d["id"] = doc.id
-                all_meals.append(d)
-        except Exception as e:
-            print(f"ERROR reading meals in admin: {e}")
+        def _fetch_meals():
+            res = []
+            try:
+                # Project only lightweight metadata fields; skip heavy base64 thumbnails & items arrays
+                q = db.collection("meals").select([
+                    "user_id", "log_date", "calories", "protein_g",
+                    "source", "input_type", "has_photo", "vision_log_id"
+                ])
+                for doc in q.stream():
+                    d = doc.to_dict() or {}
+                    d["id"] = doc.id
+                    res.append(d)
+            except Exception:
+                try:
+                    for doc in db.collection("meals").stream():
+                        d = doc.to_dict() or {}
+                        d["id"] = doc.id
+                        res.append(d)
+                except Exception as e2:
+                    print(f"ERROR reading meals in admin: {e2}")
+            return res
 
-        all_weights = []
-        try:
-            for doc in db.collection("weight_logs").stream():
-                d = doc.to_dict() or {}
-                d["id"] = doc.id
-                all_weights.append(d)
-        except Exception as e:
-            print(f"ERROR reading weights in admin: {e}")
+        def _fetch_weights():
+            res = []
+            try:
+                q = db.collection("weight_logs").select(["user_id", "log_date", "weight_kg"])
+                for doc in q.stream():
+                    d = doc.to_dict() or {}
+                    d["id"] = doc.id
+                    res.append(d)
+            except Exception:
+                try:
+                    for doc in db.collection("weight_logs").stream():
+                        d = doc.to_dict() or {}
+                        d["id"] = doc.id
+                        res.append(d)
+                except Exception as e2:
+                    print(f"ERROR reading weights in admin: {e2}")
+            return res
 
-        all_subs = get_push_subscriptions_db(user_id=None)
+        def _fetch_subs():
+            return get_push_subscriptions_db(user_id=None)
 
-    # Ensure any user_id seen in meals/weights also appears in users_map
+        def _fetch_targets():
+            res = {}
+            try:
+                for doc in db.collection("daily_targets").stream():
+                    res[doc.id] = doc.to_dict() or {}
+            except Exception as e:
+                print(f"ERROR reading daily_targets in admin: {e}")
+            return res
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+            f_u = pool.submit(_fetch_users)
+            f_m = pool.submit(_fetch_meals)
+            f_w = pool.submit(_fetch_weights)
+            f_s = pool.submit(_fetch_subs)
+            f_t = pool.submit(_fetch_targets)
+            users_map = f_u.result()
+            all_meals = f_m.result()
+            all_weights = f_w.result()
+            all_subs = f_s.result()
+            targets_docs_map = f_t.result()
+
+    admin_uid_set = {_make_user_id_from_email(a_em) for a_em in ADMIN_EMAILS}
+
+    # Pre-index meals, weights, and push subscriptions by normalized user_id in O(N)
+    meals_by_uid = {}
     for m in all_meals:
         muid = _normalize_user_id(m.get("user_id"))
+        meals_by_uid.setdefault(muid, []).append(m)
         if muid != "default" and muid not in users_map:
             users_map[muid] = {
                 "id": muid,
                 "email": muid,
                 "name": muid,
                 "picture": "",
-                "is_admin": is_admin_user_id(muid),
+                "is_admin": is_super_admin_user_id(muid) or (muid in admin_uid_set),
                 "is_blocked": False,
             }
+
+    weights_by_uid = {}
+    for w in all_weights:
+        if w.get("weight_kg") is not None:
+            wuid = _normalize_user_id(w.get("user_id"))
+            weights_by_uid.setdefault(wuid, []).append(w)
+
+    subs_by_uid = {}
+    for s in all_subs:
+        suid = _normalize_user_id(s.get("user_id"))
+        subs_by_uid.setdefault(suid, []).append(s)
+
+    default_global_t = targets_docs_map.get("default") or _LOCAL_TARGETS_BY_USER.get("default") or {"target_calories": 1800, "target_protein": 120}
 
     users_list = []
     active_today_count = 0
@@ -5163,16 +5254,26 @@ def list_all_users_admin_db() -> dict:
         email = (u.get("email") or "").strip().lower()
         revoked = bool(u.get("admin_revoked", False))
         owner_flag = is_owner_email(email) and not revoked
-        is_admin = False if revoked else bool(owner_flag or u.get("admin_granted_by_owner", False))
+        is_admin = False if revoked else bool(owner_flag or u.get("admin_granted_by_owner", False) or (uid in admin_uid_set))
         is_blocked = bool(u.get("is_blocked", False)) and not is_admin
         is_approved = bool(is_admin or u.get("approved_by_owner", False))
         if not is_approved and not is_blocked:
             pending_approval_count += 1
         daily_ai_limit = int(u.get("daily_ai_limit") if u.get("daily_ai_limit") is not None else DEFAULT_DAILY_AI_LIMIT)
         ai_calls_today = int(u.get("ai_calls_today") or 0) if u.get("ai_quota_date") == today_str else 0
-        targets = get_targets(user_id=uid)
 
-        u_meals = [m for m in all_meals if _doc_matches_user(m, uid)]
+        # Resolve targets in O(1) memory without N+1 Firestore roundtrips
+        if not db:
+            targets = _LOCAL_TARGETS_BY_USER.get(uid) or default_global_t
+        else:
+            u_global_doc = targets_docs_map.get("default" if uid == "default" else f"user_{uid}") or default_global_t
+            u_date_doc = targets_docs_map.get(today_str if uid == "default" else f"{uid}_{today_str}") or {}
+            targets = {
+                "target_calories": u_date_doc.get("target_calories") or u_global_doc.get("target_calories") or u.get("target_calories") or 1800,
+                "target_protein": u_date_doc.get("target_protein") or u_global_doc.get("target_protein") or u.get("target_protein") or 120,
+            }
+
+        u_meals = meals_by_uid.get(uid, [])
         today_meals = [m for m in u_meals if str(m.get("log_date") or "") == today_str]
         today_cal = sum(int(m.get("calories") or 0) for m in today_meals)
         today_prot = round(sum(float(m.get("protein_g") or 0.0) for m in today_meals), 1)
@@ -5183,11 +5284,11 @@ def list_all_users_admin_db() -> dict:
         meal_dates = [str(m.get("log_date")) for m in u_meals if m.get("log_date")]
         last_active = max(meal_dates) if meal_dates else str(u.get("last_login_date") or "—")
 
-        u_weights = [w for w in all_weights if _doc_matches_user(w, uid) and w.get("weight_kg") is not None]
+        u_weights = weights_by_uid.get(uid, [])
         u_weights.sort(key=lambda x: str(x.get("log_date") or ""))
         latest_weight = round(float(u_weights[-1]["weight_kg"]), 1) if u_weights else None
 
-        u_subs = [s for s in all_subs if _doc_matches_user(s, uid)]
+        u_subs = subs_by_uid.get(uid, [])
 
         users_list.append({
             "id": uid,
@@ -5222,7 +5323,7 @@ def list_all_users_admin_db() -> dict:
     # Sort pending approval users first so the admin sees them immediately, then owner/admin
     users_list.sort(key=lambda x: (x["is_approved"] and not x["is_owner"], not x["is_owner"], not x["is_admin"], -x["total_meals_count"], str(x["email"] or "")))
 
-    return {
+    result = {
         "stats": {
             "total_users": len(users_list),
             "pending_approval_users": pending_approval_count,
@@ -5232,6 +5333,11 @@ def list_all_users_admin_db() -> dict:
         },
         "users": users_list,
     }
+    _ADMIN_USERS_SNAPSHOT_CACHE["ts"] = time.time()
+    _ADMIN_USERS_SNAPSHOT_CACHE["date"] = today_str
+    _ADMIN_USERS_SNAPSHOT_CACHE["result"] = result
+    _ADMIN_USERS_SNAPSHOT_CACHE["all_meals"] = all_meals
+    return result
 
 
 def admin_create_user_db(email: str, name: str = "", target_calories: int = 1800, target_protein: int = 120, daily_ai_limit: int = DEFAULT_DAILY_AI_LIMIT) -> dict:
@@ -5265,6 +5371,7 @@ def admin_create_user_db(email: str, name: str = "", target_calories: int = 1800
         }, merge=True)
 
     set_targets(target_calories, target_protein, user_id=uid)
+    invalidate_admin_users_cache()
     return profile
 
 
@@ -5334,12 +5441,14 @@ def update_user_status_admin_db(
     if not db:
         if uid in _LOCAL_USERS:
             _LOCAL_USERS[uid].update(updates)
+        invalidate_admin_users_cache()
         return _LOCAL_USERS.get(uid, {"id": uid, **updates})
 
     db.collection("users").document(uid).set({
         **updates,
         "updated_at": firestore.SERVER_TIMESTAMP,
     }, merge=True)
+    invalidate_admin_users_cache()
     snap = db.collection("users").document(uid).get()
     return snap.to_dict() if snap.exists else {"id": uid, **updates}
 
@@ -5575,6 +5684,7 @@ def delete_user_admin_db(target_uid: str, caller_uid: str = "") -> dict:
     except Exception as e:
         print(f"ERROR delete_user_admin_db: {e}")
 
+    invalidate_admin_users_cache()
     return {"deleted_user_id": uid, "deleted_meals": deleted_meals, "deleted_weights": deleted_weights}
 
 
@@ -5598,10 +5708,12 @@ def calculate_infrastructure_costs_admin(days: int = 30) -> dict:
 
     if not db:
         all_meals = list(_LOCAL_MEALS)
+    elif _ADMIN_USERS_SNAPSHOT_CACHE["all_meals"] is not None:
+        all_meals = _ADMIN_USERS_SNAPSHOT_CACHE["all_meals"]
     else:
         all_meals = []
         try:
-            for doc in db.collection("meals").stream():
+            for doc in db.collection("meals").select(["user_id", "log_date", "source", "input_type", "has_photo", "vision_log_id"]).stream():
                 d = doc.to_dict() or {}
                 d["id"] = doc.id
                 all_meals.append(d)
@@ -6085,9 +6197,9 @@ def api_admin_resolve_photo_error(err_id: str, request: Request):
 
 
 @app.get("/api/admin/users")
-def api_admin_list_users(request: Request):
+def api_admin_list_users(request: Request, refresh: bool = False):
     require_admin_user(request)
-    return list_all_users_admin_db()
+    return list_all_users_admin_db(force_refresh=bool(refresh))
 
 
 @app.post("/api/admin/users")
