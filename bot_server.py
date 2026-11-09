@@ -165,9 +165,10 @@ class ExpertLeadRequest(BaseModel):
     full_name: str
     phone: str
     expert_type: str  # 'dietitian' or 'trainer'
-    expert_name: str
+    expert_name: Optional[str] = ""
     expert_specialty: Optional[str] = ""
     expert_location: Optional[str] = ""
+    email: Optional[str] = ""
     notes: Optional[str] = ""
 
 
@@ -5209,13 +5210,18 @@ def save_workout_lead_db(lead_dict: dict) -> dict:
 
 def save_expert_lead_db(lead_dict: dict) -> dict:
     lead_id = f"expert_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    exp_type = lead_dict.get("expert_type", "dietitian").strip()
+    exp_role = "🥗 תזונאי/ת קליני/ת" if exp_type == "dietitian" else "🏋️‍♂️ מאמן/ת כושר אישי/ת"
     record = {
         "id": lead_id,
         "type": "expert_referral",
+        "role": exp_role,
         "full_name": lead_dict.get("full_name", "").strip(),
         "phone": lead_dict.get("phone", "").strip(),
-        "expert_type": lead_dict.get("expert_type", "").strip(),
-        "expert_name": lead_dict.get("expert_name", "").strip(),
+        "email": lead_dict.get("email", "").strip(),
+        "user_id": lead_dict.get("user_id", "").strip(),
+        "expert_type": exp_type,
+        "expert_name": (lead_dict.get("expert_name") or exp_role).strip(),
         "expert_specialty": lead_dict.get("expert_specialty", "").strip(),
         "expert_location": lead_dict.get("expert_location", "").strip(),
         "notes": lead_dict.get("notes", "").strip(),
@@ -5890,27 +5896,45 @@ async def api_submit_workout_lead(req: WorkoutLeadRequest):
 
 
 @app.post("/api/leads/expert")
-async def api_submit_expert_lead(req: ExpertLeadRequest):
+async def api_submit_expert_lead(req: ExpertLeadRequest, request: Request):
     if not req.full_name.strip() or not req.phone.strip():
-        raise HTTPException(status_code=400, detail="שם ומספר טלפון הם שדות חובה")
-    record = save_expert_lead_db(req.model_dump())
-    
-    exp_title = "דיאטנית קלינית" if req.expert_type == "dietitian" else "מאמן/ת כושר"
+        raise HTTPException(status_code=400, detail="נא להזין שם מלא ומספר טלפון")
+    uid = get_request_user_id(request)
+    udoc = get_user_doc_db(uid) if uid != "default" else {}
+    u_email = (req.email or udoc.get("email") or "").strip()
+    if uid == "default" and not u_email:
+        raise HTTPException(status_code=401, detail="שירות זה מיועד למשתמשים רשומים בלבד. נא להתחבר לחשבון תחילה.")
+
+    payload = req.model_dump()
+    payload["user_id"] = uid
+    payload["email"] = u_email
+    record = save_expert_lead_db(payload)
+
+    exp_title = "תזונאי/ת קליני/ת" if req.expert_type == "dietitian" else "מאמן/ת כושר אישי/ת"
+    try:
+        dispatch_push_to_admins(
+            title=f"🎯 ליד חדש: {req.full_name} רוצה {exp_title}!",
+            body=f"טלפון: {req.phone} • משתמש: {u_email or uid}",
+            tag=f"nutriagent-expert-lead-{record['id']}",
+            url="/?tab=admin"
+        )
+    except Exception as e:
+        print(f"WARN dispatch_push_to_admins on expert lead: {e}")
+
     details = (
-        f"🌟 <b>מומחה מבוקש:</b> {req.expert_name} ({exp_title})\n"
-        f"🎯 <b>התמחות:</b> {req.expert_specialty or 'כללי'}\n"
-        f"📍 <b>מיקום/קליניקה:</b> {req.expert_location or 'אונליין / זום'}\n"
-        f"👤 <b>שם הפונה:</b> {req.full_name}\n"
-        f"📱 <b>טלפון:</b> <code>{req.phone}</code>"
+        f"🎯 <b>בקשה חדשה ממשתמש רשום:</b> {exp_title}\n"
+        f"👤 <b>שם מלא:</b> {req.full_name}\n"
+        f"📱 <b>טלפון:</b> <code>{req.phone}</code>\n"
+        f"📧 <b>אימייל משתמש:</b> {u_email or 'לא צוין'}"
     )
-    wa_msg = f"היי {req.full_name}, ראיתי שביקשת שיחת היכרות והתאמה ללא עלות עם {req.expert_name} ({exp_title}) דרך NutriAgent. מתי נוח שנדבר קצרות לתיאום?"
+    wa_msg = f"היי {req.full_name}, ראיתי שביקשת התאמה ל{exp_title} באפליקציית NutriAgent! מתי נוח שנדבר קצרות לתיאום?"
     await send_lead_telegram_alert(
-        title=f"🌟 ליד חדש ל{exp_title} — {req.expert_name}!",
+        title=f"🎯 ליד חדש — משתמש לחץ 'אני רוצה!' ל{exp_title}",
         details_html=details,
         phone=req.phone,
         wa_text=wa_msg
     )
-    return {"ok": True, "lead_id": record["id"], "message": "הפנייה למומחה התקבלה בהצלחה!"}
+    return {"ok": True, "lead_id": record["id"], "message": "הפרטים נשמרו בהצלחה!"}
 
 
 @app.post("/api/leads/coach")
