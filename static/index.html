@@ -1461,6 +1461,37 @@
                         </div>
                     </div>
 
+                    <!-- Compact Favorites Bar (Tap opens "לאן להוסיף?" popup) -->
+                    <div class="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-amber-500 text-[18px]">star</span>
+                                <span>מועדפים מהירים (לחץ לבחירת ארוחה):</span>
+                            </span>
+                            <span class="text-[11px] text-slate-400" x-text="`${(quickChips || []).length} מנות שמורות`"></span>
+                        </div>
+                        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                            <template x-for="chip in quickChips" :key="chip.id || chip.label">
+                                <div class="flex-shrink-0 inline-flex items-center bg-white hover:bg-emerald-50 border border-slate-200/90 hover:border-emerald-300 rounded-2xl shadow-2xs transition">
+                                    <button type="button"
+                                            @click="openSlotPickerModal(chip)"
+                                            class="text-xs font-bold text-slate-800 hover:text-emerald-800 px-3 py-2 flex items-center gap-1.5 cursor-pointer">
+                                        <span x-text="chip.icon || '⭐'"></span>
+                                        <span x-text="tr(chip.label)"></span>
+                                        <span class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded" x-text="`${chip.calories} קק״ל`"></span>
+                                    </button>
+                                    <button type="button"
+                                            x-show="chip.id && String(chip.id).startsWith('fav-') && !chip.id.includes('coffee') && !chip.id.includes('chicken') && !chip.id.includes('eggs') && !chip.id.includes('tuna') && !chip.id.includes('oats') && !chip.id.includes('shakshuka') && !chip.id.includes('toast') && !chip.id.includes('fruit')"
+                                            @click.stop="removeFavoriteChip(chip)"
+                                            class="pl-2 pr-1 py-1.5 text-xs text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                                            title="הסר מהמועדפים">
+                                        ✕
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
                     <!-- Inline Photo History & Analysis Drawer (accessible directly from the main logger) -->
                     <div x-cloak x-show="showInlinePhotoHistory" x-transition class="mt-3 p-4 rounded-2xl bg-slate-50 border border-indigo-200/80 space-y-3">
                         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
@@ -1972,14 +2003,6 @@
                                 <p class="text-xs text-slate-400 font-medium" x-text="`טרם נרשמו מנות ל${section.title}`"></p>
                             </div>
 
-                            <!-- Integrated Favorites for THIS specific meal (Option A) -->
-                            <div class="pt-2.5 border-t border-slate-100">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-[11px] font-extrabold text-slate-600 flex items-center gap-1.5">
-                                        <span class="text-amber-500">⭐</span>
-                                        <span x-text="`מועדפים ל${section.title} (הוספה בטאפ אחד):`"></span>
-                                    </span>
-                                </div>
                                 
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     <template x-for="chip in getFavoritesForSlot(section.slot)" :key="chip.id || chip.label">
@@ -7575,7 +7598,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=97').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=98').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -7847,6 +7870,8 @@
                 refreshing: false,
                 manualMode: false,
                 targetMealSlot: 'auto',
+                showSlotPickerModal: false,
+                selectedSlotChip: null,
                 activeFavoritesTab: 'auto',
                 aiInputText: '',
                 aiAnalyzing: false,
@@ -15704,6 +15729,80 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         <span>אני מאשר/ת ומצהיר/ה ✓</span>
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Modal: לאיזו ארוחה להוסיף? (Quick Slot Picker) -->
+        <div x-cloak x-show="showSlotPickerModal"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+             @keydown.escape.window="showSlotPickerModal = false">
+            <div @click.outside="showSlotPickerModal = false"
+                 class="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-slate-200 space-y-4 text-right animate-in fade-in zoom-in-95 duration-150">
+                
+                <div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-2xl flex-shrink-0" x-text="selectedSlotChip?.icon || '⭐'"></span>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-extrabold text-slate-900 truncate" x-text="selectedSlotChip?.label"></h3>
+                            <p class="text-[11px] font-bold text-emerald-700" x-text="`${selectedSlotChip?.calories} קק״ל • ${selectedSlotChip?.protein_g}g חלבון`"></p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showSlotPickerModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 cursor-pointer">✕</button>
+                </div>
+
+                <p class="text-xs font-extrabold text-slate-800">לאיזו ארוחה תרצה להוסיף?</p>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <!-- 1. בוקר -->
+                    <button type="button"
+                            @click="confirmLogFavoriteToSlot('breakfast')"
+                            class="p-3.5 rounded-2xl bg-amber-50/80 hover:bg-amber-100 border border-amber-200/90 text-right transition cursor-pointer active:scale-95 flex items-center gap-2.5">
+                        <span class="text-2xl">🌅</span>
+                        <div>
+                            <span class="block font-black text-xs text-amber-950">בוקר</span>
+                            <span class="block text-[10px] text-amber-700">ארוחת בוקר</span>
+                        </div>
+                    </button>
+
+                    <!-- 2. צהריים -->
+                    <button type="button"
+                            @click="confirmLogFavoriteToSlot('lunch')"
+                            class="p-3.5 rounded-2xl bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200/90 text-right transition cursor-pointer active:scale-95 flex items-center gap-2.5">
+                        <span class="text-2xl">☀️</span>
+                        <div>
+                            <span class="block font-black text-xs text-emerald-950">צהריים</span>
+                            <span class="block text-[10px] text-emerald-700">ארוחת צהריים</span>
+                        </div>
+                    </button>
+
+                    <!-- 3. ערב -->
+                    <button type="button"
+                            @click="confirmLogFavoriteToSlot('dinner')"
+                            class="p-3.5 rounded-2xl bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/90 text-right transition cursor-pointer active:scale-95 flex items-center gap-2.5">
+                        <span class="text-2xl">🌙</span>
+                        <div>
+                            <span class="block font-black text-xs text-indigo-950">ערב</span>
+                            <span class="block text-[10px] text-indigo-700">ארוחת ערב</span>
+                        </div>
+                    </button>
+
+                    <!-- 4. ביניים -->
+                    <button type="button"
+                            @click="confirmLogFavoriteToSlot('snack')"
+                            class="p-3.5 rounded-2xl bg-rose-50/80 hover:bg-rose-100 border border-rose-200/90 text-right transition cursor-pointer active:scale-95 flex items-center gap-2.5">
+                        <span class="text-2xl">🍎</span>
+                        <div>
+                            <span class="block font-black text-xs text-rose-950">ביניים</span>
+                            <span class="block text-[10px] text-rose-700">נשנוש / פרי</span>
+                        </div>
+                    </button>
+                </div>
+
+                <button type="button"
+                        @click="showSlotPickerModal = false"
+                        class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                    ביטול
+                </button>
             </div>
         </div>
 
