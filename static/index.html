@@ -1312,6 +1312,21 @@
 
                     <!-- Gemini-Style Input Form with [+] Attachment Menu -->
                     <form x-show="!isRecordingVoice" @submit.prevent="selectedPhotoDataUrl ? submitPhotoMeal() : submitAIMeal()" class="space-y-2.5">
+                        <!-- Active Meal Slot Target Badge -->
+                        <div x-cloak x-show="targetMealSlot && targetMealSlot !== 'auto'"
+                             class="flex items-center justify-between px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold">
+                            <span class="flex items-center gap-1.5">
+                                <span>🎯</span>
+                                <span>מוסיף ישירות ל:</span>
+                                <span class="font-black underline"
+                                      x-text="({ breakfast: '🌅 ארוחת בוקר', lunch: '☀️ ארוחת צהריים', dinner: '🌙 ארוחת ערב', snack: '🍎 ארוחות ביניים' })[targetMealSlot] || 'ארוחה'"></span>
+                            </span>
+                            <button type="button"
+                                    @click="targetMealSlot = 'auto'"
+                                    class="px-2 py-0.5 rounded-lg bg-white hover:bg-emerald-100 text-emerald-800 text-[11px] font-black border border-emerald-200 transition cursor-pointer">
+                                ✕ החזר לאוטומטי לפי שעה
+                            </button>
+                        </div>
                         <div class="relative flex items-center gap-1.5 p-1 rounded-2xl bg-slate-50/90 border-2 border-slate-200 focus-within:border-emerald-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-600/10 transition shadow-2xs">
                             
                             <!-- Gemini-Style [+] Attach Button & Floating Popover -->
@@ -7583,7 +7598,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=103').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=104').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -10382,11 +10397,11 @@
 
                 resolveMealType(meal) {
                     if (!meal) return 'lunch';
-                    const mt = String(meal.meal_type || '').toLowerCase();
+                    const mt = String(meal.meal_type || '').toLowerCase().trim();
+                    if (mt === 'snack' || mt === 'morning_snack' || mt === 'afternoon_snack' || mt.includes('ביניים') || mt.includes('נשנוש')) return 'snack';
                     if (mt === 'breakfast' || mt.includes('בוקר')) return 'breakfast';
                     if (mt === 'lunch' || mt.includes('צהר')) return 'lunch';
                     if (mt === 'dinner' || mt.includes('ערב')) return 'dinner';
-                    if (mt === 'snack' || mt.includes('ביניים') || mt.includes('נשנוש')) return 'snack';
 
                     const timeStr = meal.log_time || (meal.created_at ? meal.created_at.slice(11, 16) : '');
                     if (timeStr && timeStr.includes(':')) {
@@ -11976,14 +11991,18 @@
                     this.trackUsageEvent('meal_log_photo');
                     this.aiAnalyzing = true;
                     try {
+                        const payload = {
+                            image_base64: this.selectedPhotoDataUrl,
+                            mime_type: this.selectedPhotoMimeType || 'image/jpeg',
+                            caption: this.aiInputText.trim()
+                        };
+                        if (this.targetMealSlot && this.targetMealSlot !== 'auto') {
+                            payload.meal_type = this.targetMealSlot;
+                        }
                         const res = await fetch('/api/meals/photo', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                image_base64: this.selectedPhotoDataUrl,
-                                mime_type: this.selectedPhotoMimeType || 'image/jpeg',
-                                caption: this.aiInputText.trim()
-                            })
+                            body: JSON.stringify(payload)
                         });
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
@@ -11992,6 +12011,7 @@
                         }
                         const added = await res.json();
                         this.aiInputText = '';
+                        this.targetMealSlot = 'auto';
                         this.clearPhoto();
                         await Promise.all([this.fetchSummary(), this.fetchHistory(), this.fetchVisionLogs()]);
                         this.showToast(`📸 נוסף מתמונה: ${added.description} (${added.calories} קק"ל, ${added.protein_g}g חלבון)`);
@@ -13740,6 +13760,9 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             },
 
             openMealConfirmModal(data) {
+                const chosenType = (this.targetMealSlot && this.targetMealSlot !== 'auto')
+                    ? this.targetMealSlot
+                    : (data.meal_type || this.currentMealSlot || 'lunch');
                 this.mealConfirmForm = {
                     description: data.description || '',
                     calories: (data.calories !== undefined && data.calories !== null && data.calories !== '') ? Number(data.calories) : '',
@@ -13747,7 +13770,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     items: data.items || [],
                     log_date: data.log_date || this.todayStr,
                     log_time: data.log_time || getIsraelTimeStr(),
-                    meal_type: data.meal_type || 'lunch',
+                    meal_type: chosenType,
                     source: data.source || 'web-voice'
                 };
                 this.showMealConfirmModal = true;
@@ -13794,6 +13817,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         throw new Error(err.detail || 'שגיאה בשמירת הארוחה');
                     }
                     const saved = await res.json();
+                    this.targetMealSlot = 'auto';
                     this.showMealConfirmModal = false;
                     await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                     
@@ -15043,6 +15067,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     const cal = this.calculatedBarcodeCalories;
                     const prot = this.calculatedBarcodeProtein;
                     const desc = `${this.barcodeResult.product_name} (${grams} גרם)`;
+                    const targetSlot = (this.targetMealSlot && this.targetMealSlot !== 'auto') ? this.targetMealSlot : this.currentMealSlot;
                     try {
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
@@ -15050,10 +15075,12 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                             body: JSON.stringify({
                                 description: desc,
                                 calories: cal,
-                                protein_g: prot
+                                protein_g: prot,
+                                meal_type: targetSlot
                             })
                         });
                         if (!res.ok) throw new Error('שגיאה בשמירת הארוחה');
+                        this.targetMealSlot = 'auto';
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast(`✅ "${desc}" נוסף בהצלחה ליומן!`);
                         this.closeBarcodeScannerModal();

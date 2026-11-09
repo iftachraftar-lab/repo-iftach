@@ -2027,6 +2027,7 @@ def get_day_summary(target_date: Optional[str] = None, user_id: str = "default")
                     "items": data.get("items") or [],
                     "log_date": data.get("log_date", d_str),
                     "log_time": data.get("log_time", ""),
+                    "meal_type": data.get("meal_type", ""),
                     "source": data.get("source", "telegram"),
                     "vision_log_id": data.get("vision_log_id", ""),
                     "thumbnail_data_url": data.get("thumbnail_data_url", ""),
@@ -6323,6 +6324,7 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
                     "items": data.get("items") or [],
                     "log_date": data.get("log_date", ""),
                     "log_time": data.get("log_time", ""),
+                    "meal_type": data.get("meal_type", ""),
                     "source": data.get("source", "telegram"),
                     "vision_log_id": data.get("vision_log_id", ""),
                     "thumbnail_data_url": data.get("thumbnail_data_url", ""),
@@ -6708,7 +6710,7 @@ def api_add_ai_meal(req: AIMealRequest, request: Request):
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
     cal_time, cal_type = resolve_eating_time_and_type(
         explicit_time=req.log_time or getattr(extraction, "meal_time", ""),
-        explicit_type=req.meal_type or getattr(extraction, "meal_type", ""),
+        explicit_type=req.meal_type,
         text_context=f"{req.text} {extraction.summary or ''}",
     )
     if req.preview_only:
@@ -6804,7 +6806,7 @@ def api_add_photo_meal(req: PhotoMealRequest, request: Request):
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
     cal_time, cal_type = resolve_eating_time_and_type(
         explicit_time=req.log_time or getattr(extraction, "meal_time", ""),
-        explicit_type=req.meal_type or getattr(extraction, "meal_type", ""),
+        explicit_type=req.meal_type,
         text_context=f"{req.caption or ''} {extraction.summary or ''}",
     )
     if req.preview_only:
@@ -6886,7 +6888,7 @@ def api_add_voice_meal(req: VoiceMealRequest, request: Request):
     items_data = [item.model_dump() for item in extraction.items] if extraction.items else []
     cal_time, cal_type = resolve_eating_time_and_type(
         explicit_time=req.log_time or getattr(extraction, "meal_time", ""),
-        explicit_type=req.meal_type or getattr(extraction, "meal_type", ""),
+        explicit_type=req.meal_type,
         text_context=f"{req.caption or ''} {extraction.summary or ''}",
     )
     if req.preview_only:
@@ -7101,6 +7103,8 @@ def api_update_meal(meal_id: str, req: MealUpdateRequest, request: Request):
             update_payload["log_date"] = req.log_date
         if req.log_time:
             update_payload["log_time"] = req.log_time
+        if req.meal_type:
+            update_payload["meal_type"] = req.meal_type
         doc_ref.update(update_payload)
         updated = dict(doc_data)
         updated.update(update_payload)
