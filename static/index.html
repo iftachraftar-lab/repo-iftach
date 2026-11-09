@@ -1476,30 +1476,46 @@
                         </div>
                     </div>
 
-                    <!-- Small Compact Favorites Strip (Auto-logs to current meal by time of day) -->
-                    <div class="pt-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                        <span class="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 pl-1">
+                    <!-- Small Compact Favorites Strip (Auto-logs to current meal by time of day) with Right/Left Scroll Controls -->
+                    <div class="pt-1 flex items-center gap-1">
+                        <span class="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 pl-0.5">
                             <span>⭐</span>
                             <span>מועדפים:</span>
                         </span>
-                        <template x-for="chip in quickChips" :key="chip.id || chip.label">
-                            <div class="flex-shrink-0 inline-flex items-center bg-slate-50 hover:bg-emerald-50 border border-slate-200/80 hover:border-emerald-300 rounded-xl transition">
-                                <button type="button"
-                                        @click="quickLogPreset(chip)"
-                                        class="text-[11px] font-bold text-slate-700 hover:text-emerald-800 px-2.5 py-1 flex items-center gap-1 cursor-pointer active:scale-95">
-                                    <span x-text="chip.icon || '⭐'"></span>
-                                    <span x-text="tr(chip.label)"></span>
-                                    <span class="text-[10px] font-semibold text-slate-400" x-text="`${chip.calories}`"></span>
-                                </button>
-                                <button type="button"
-                                        x-show="chip.id && String(chip.id).startsWith('fav-') && !chip.id.includes('coffee') && !chip.id.includes('chicken') && !chip.id.includes('eggs') && !chip.id.includes('tuna') && !chip.id.includes('oats') && !chip.id.includes('shakshuka') && !chip.id.includes('toast') && !chip.id.includes('fruit')"
-                                        @click.stop="removeFavoriteChip(chip)"
-                                        class="pl-1.5 pr-0.5 py-1 text-[10px] text-slate-400 hover:text-rose-600 transition cursor-pointer"
-                                        title="הסר מהמועדפים">
-                                    ✕
-                                </button>
-                            </div>
-                        </template>
+                        <button type="button"
+                                @click="$refs.favoritesStrip.scrollBy({ left: 160, behavior: 'smooth' })"
+                                title="גלול ימינה במועדפים"
+                                aria-label="גלול ימינה"
+                                class="w-6 h-6 rounded-full bg-slate-100/90 hover:bg-emerald-50 border border-slate-200/90 hover:border-emerald-300 text-slate-500 hover:text-emerald-700 flex items-center justify-center flex-shrink-0 cursor-pointer transition active:scale-90 shadow-2xs">
+                            <span class="text-xs font-black leading-none select-none">›</span>
+                        </button>
+                        <div x-ref="favoritesStrip" class="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
+                            <template x-for="chip in quickChips" :key="chip.id || chip.label">
+                                <div class="flex-shrink-0 inline-flex items-center bg-slate-50 hover:bg-emerald-50 border border-slate-200/80 hover:border-emerald-300 rounded-xl transition">
+                                    <button type="button"
+                                            @click="quickLogPreset(chip)"
+                                            class="text-[11px] font-bold text-slate-700 hover:text-emerald-800 px-2.5 py-1 flex items-center gap-1 cursor-pointer active:scale-95">
+                                        <span x-text="chip.icon || '⭐'"></span>
+                                        <span x-text="tr(chip.label)"></span>
+                                        <span class="text-[10px] font-semibold text-slate-400" x-text="`${chip.calories}`"></span>
+                                    </button>
+                                    <button type="button"
+                                            x-show="chip.id && String(chip.id).startsWith('fav-') && !chip.id.includes('coffee') && !chip.id.includes('chicken') && !chip.id.includes('eggs') && !chip.id.includes('tuna') && !chip.id.includes('oats') && !chip.id.includes('shakshuka') && !chip.id.includes('toast') && !chip.id.includes('fruit')"
+                                            @click.stop="removeFavoriteChip(chip)"
+                                            class="pl-1.5 pr-0.5 py-1 text-[10px] text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                                            title="הסר מהמועדפים">
+                                        ✕
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                        <button type="button"
+                                @click="$refs.favoritesStrip.scrollBy({ left: -160, behavior: 'smooth' })"
+                                title="גלול שמאלה במועדפים"
+                                aria-label="גלול שמאלה"
+                                class="w-6 h-6 rounded-full bg-slate-100/90 hover:bg-emerald-50 border border-slate-200/90 hover:border-emerald-300 text-slate-500 hover:text-emerald-700 flex items-center justify-center flex-shrink-0 cursor-pointer transition active:scale-90 shadow-2xs">
+                            <span class="text-xs font-black leading-none select-none">‹</span>
+                        </button>
                     </div>
 
                     <!-- Inline Photo History & Analysis Drawer (accessible directly from the main logger) -->
@@ -1671,27 +1687,6 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- Clean Quick Protein Shake Bar (Neutral, Calm & Functional) -->
-                <div class="px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="text-base select-none">🥤</span>
-                        <span class="font-bold text-slate-800">שייק חלבון יומי</span>
-                        <span class="text-slate-400 text-[11px]">(180 קק״ל • 25g חלבון)</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" @click="logHoldonShake('afternoon_snack')"
-                                :disabled="isLoggingShake"
-                                class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-800 border border-slate-200/80 font-bold text-xs transition cursor-pointer flex items-center gap-1 shadow-2xs">
-                            <span>⚡</span>
-                            <span x-text="isLoggingShake ? 'רושם...' : 'רשום שייק'">רשום שייק</span>
-                        </button>
-                        <button type="button" @click="showHoldonAffiliateModal = true"
-                                class="text-[10px] text-slate-500 hover:text-slate-800 hover:underline px-1 cursor-pointer" title="פרטי קופון">
-                            הטבה
-                        </button>
-                    </div>
-                </div>
             </div>
 
 
@@ -1836,18 +1831,18 @@
                                     </div>
                                 </div>
 
-                                <!-- Clean Quick Shake Option (Afternoon Snack only) -->
+                                <!-- Clean Quick Shake & Supplements Option (Afternoon Snack only - Admin Gated) -->
                                 <div x-show="slot.key === 'afternoon_snack'"
                                      class="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/90 flex items-center justify-between gap-2 text-xs">
-                                    <button type="button" @click="logHoldonShake(slot.key)"
+                                    <button type="button" @click="openSupplementsModal()"
                                             :disabled="isLoggingShake"
                                             class="py-1 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5">
                                         <span>🥤</span>
-                                        <span>שילבתי שייק חלבון (180 קק״ל • 25g)</span>
+                                        <span>שייק חלבון ותוספי תזונה</span>
                                     </button>
-                                    <button type="button" @click="showHoldonAffiliateModal = true"
+                                    <button type="button" @click="openSupplementsModal()"
                                             class="text-[10px] text-slate-500 hover:text-slate-800 hover:underline cursor-pointer">
-                                        קוד הנחה
+                                        בדוק זכאות והטבה
                                     </button>
                                 </div>
 
@@ -2175,6 +2170,27 @@
                 </div>
                 <button type="button" @click.stop="openTrialWorkoutModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer">
                     <span>בדוק זכאות לאימון</span>
+                    <span>←</span>
+                </button>
+            </div>
+
+            <!-- Protein Shake & Nutritional Supplements Card (Placed directly below Studio Card, Admin Gated Lead) -->
+            <div x-show="appMode !== 'coaching'" @click="openSupplementsModal()"
+                 class="p-4 sm:p-5 rounded-3xl bg-white border border-slate-200/90 hover:border-emerald-300 shadow-2xs transition active:scale-[0.99] cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative overflow-hidden">
+                <div class="flex items-center gap-3.5 min-w-0">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-600 flex items-center justify-center text-xl flex-shrink-0">
+                        🥤
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm sm:text-base font-extrabold text-slate-900">שייק חלבון ותוספי תזונה מותאמים</span>
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">שייקים • קריאטין • ויטמינים</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">התאמת אבקות חלבון, קריאטין, חטיפי חלבון ותוספים להשלמת היעד היומי + הטבה בלעדית</p>
+                    </div>
+                </div>
+                <button type="button" @click.stop="openSupplementsModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer">
+                    <span>בדוק זכאות לתוספים</span>
                     <span>←</span>
                 </button>
             </div>
@@ -3790,16 +3806,16 @@
                                 <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 transition">
                                     <div class="flex items-center gap-3 min-w-0">
                                         <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                                             :class="lead.type === 'workout_trial' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'">
-                                            <span x-text="lead.type === 'workout_trial' ? '🎁' : '🤝'"></span>
+                                             :class="lead.type === 'workout_trial' ? 'bg-amber-100 text-amber-800' : (lead.type === 'supplements_lead' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800')">
+                                            <span x-text="lead.type === 'workout_trial' ? '🎁' : (lead.type === 'supplements_lead' ? '🥤' : '🤝')"></span>
                                         </div>
                                         <div class="min-w-0">
                                             <div class="flex items-center gap-2 flex-wrap">
                                                 <span class="font-extrabold text-sm text-slate-900" x-text="lead.full_name"></span>
                                                 <span class="px-2 py-0.5 rounded-md text-[10px] font-bold"
-                                                      :class="lead.type === 'workout_trial' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-indigo-50 text-indigo-800 border border-indigo-200'"
-                                                      x-text="lead.type === 'workout_trial' ? (lead.studio_name || lead.activity_type) : lead.role"></span>
-                                                <span class="text-[11px] text-slate-400" x-text="lead.city || lead.email"></span>
+                                                      :class="lead.type === 'workout_trial' ? 'bg-amber-50 text-amber-800 border border-amber-200' : (lead.type === 'supplements_lead' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-indigo-50 text-indigo-800 border border-indigo-200')"
+                                                      x-text="lead.type === 'workout_trial' ? (lead.studio_name || lead.activity_type) : (lead.type === 'supplements_lead' ? (lead.supplement_type || lead.role) : lead.role)"></span>
+                                                <span class="text-[11px] text-slate-400" x-text="lead.city || lead.goal || lead.email"></span>
                                                 <span x-show="lead.voucher_code" class="text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-bold" x-text="lead.voucher_code"></span>
                                             </div>
                                             <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
@@ -3810,17 +3826,17 @@
                                         </div>
                                     </div>
 
-                                    <!-- Actions: Super Admin Expert Access Approval + WhatsApp 1-Tap -->
+                                    <!-- Actions: Super Admin Expert/Workout/Supplements Access Approval + WhatsApp 1-Tap -->
                                     <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                         <button type="button"
-                                                x-show="(lead.type === 'expert_referral' || lead.type === 'workout_trial') && isSuperAdmin()"
+                                                x-show="(lead.type === 'expert_referral' || lead.type === 'workout_trial' || lead.type === 'supplements_lead') && isSuperAdmin()"
                                                 @click="toggleLeadExpertsAccess(lead, lead.status !== 'approved')"
                                                 :class="lead.status === 'approved' ? 'bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs'"
                                                 class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95">
-                                            <span x-text="lead.status === 'approved' ? '🔓 גישה מאושרת (לחץ לנעילה)' : (lead.type === 'workout_trial' ? '✅ אשר גישה להטבת אימון' : '✅ אשר גישה למאמנים/תזונאים')"></span>
+                                            <span x-text="lead.status === 'approved' ? '🔓 גישה מאושרת (לחץ לנעילה)' : (lead.type === 'workout_trial' ? '✅ אשר גישה להטבת אימון' : (lead.type === 'supplements_lead' ? '✅ אשר גישה לשייקים ותוספים' : '✅ אשר גישה למאמנים/תזונאים'))"></span>
                                         </button>
 
-                                        <a :href="`https://wa.me/${(lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(lead.type === 'workout_trial' ? `היי ${lead.full_name}, קיבלתי את בקשתך לאימון ניסיון ב-${lead.studio_name || lead.activity_type} באזור ${lead.city} דרך NutriAgent. מתי נוח לתאם שיחה קצרה?` : `היי ${lead.full_name}, ראיתי שביקשת גישה ל-${lead.role || 'תזונאי/מאמן כושר'} באפליקציית NutriAgent. נשמח לדבר!`)}`"
+                                        <a :href="`https://wa.me/${(lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(lead.type === 'workout_trial' ? `היי ${lead.full_name}, קיבלתי את בקשתך לאימון ניסיון ב-${lead.studio_name || lead.activity_type} באזור ${lead.city} דרך NutriAgent. מתי נוח לתאם שיחה קצרה?` : (lead.type === 'supplements_lead' ? `היי ${lead.full_name}, קיבלתי את בקשתך להטבת שייק חלבון ותוספי תזונה (${lead.supplement_type || 'תוספים'}) דרך NutriAgent. נשמח לעזור בהתאמה!` : `היי ${lead.full_name}, ראיתי שביקשת גישה ל-${lead.role || 'תזונאי/מאמן כושר'} באפליקציית NutriAgent. נשמח לדבר!`))}`"
                                            target="_blank"
                                            class="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs flex-shrink-0 cursor-pointer">
                                             <svg class="w-4 h-4"><use href="#icon-whatsapp-share"></use></svg>
@@ -7611,7 +7627,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=106').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=107').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -8395,6 +8411,14 @@
                 showMealConfirmModal: false,
                 showHoldonAffiliateModal: false,
                 copiedHoldonCoupon: false,
+                supplementsLeadForm: {
+                    supplement_type: 'אבקת חלבון / שייק',
+                    goal: 'השלמת חלבון יומית',
+                    full_name: '',
+                    phone: ''
+                },
+                supplementsLeadSending: false,
+                supplementsLeadSuccess: false,
                 showTermsModal: false,
                 showMandatoryTermsModal: false,
                 mandatoryTermsAccepted: false,
@@ -13461,11 +13485,116 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 }
             },
 
-            async logHoldonShake(slotKey = 'afternoon_snack') {
+            openSupplementsModal() {
+                this.trackUsageEvent('open_supplements_modal');
+                if (!this.currentUser) {
+                    this.openUserAuthModal();
+                    this.showToast('שירות זה מיועד למשתמשים רשומים — התחבר עם Google ונמשיך מיד!', 'warning');
+                    return;
+                }
+                this.verifyCurrentUserSession();
+                if (!this.supplementsLeadForm.full_name && this.currentUser?.name) {
+                    this.supplementsLeadForm.full_name = this.currentUser.name;
+                }
+                this.showHoldonAffiliateModal = true;
+            },
+
+            async submitSupplementsLead() {
+                if (this.supplementsLeadSending) return;
+                const uName = (this.supplementsLeadForm.full_name || '').trim();
+                const uPhone = (this.supplementsLeadForm.phone || '').trim();
+                if (!uName) {
+                    this.showToast('נא להזין שם מלא', 'warning');
+                    return;
+                }
+                if (!uPhone || uPhone.replace(/\D/g, '').length < 9) {
+                    this.showToast('נא להזין מספר טלפון תקין', 'warning');
+                    return;
+                }
+                this.supplementsLeadSending = true;
+                try {
+                    const payload = {
+                        full_name: uName,
+                        phone: uPhone,
+                        email: this.currentUser?.email || '',
+                        supplement_type: this.supplementsLeadForm.supplement_type || 'אבקת חלבון / שייק',
+                        goal: this.supplementsLeadForm.goal || 'השלמת חלבון יומית'
+                    };
+                    const res = await fetch('/api/leads/supplements', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok && data.ok) {
+                        this.supplementsLeadSuccess = true;
+                        if (this.currentUser) {
+                            this.currentUser.supplements_access_status = data.supplements_access_status || 'pending';
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        }
+                        this.showToast('🔒 בקשתך נשמרה וממתינה לאישור מנהל המערכת!');
+                        if (this.isUserAdmin && this.isUserAdmin()) {
+                            this.fetchAdminLeads();
+                        }
+                    } else {
+                        this.showToast(data.detail || 'שגיאה בשליחת הבקשה', 'error');
+                    }
+                } catch (err) {
+                    console.error('Error submitting supplements lead:', err);
+                    this.showToast('שגיאת תקשורת, נסה שוב מאוחר יותר', 'error');
+                } finally {
+                    this.supplementsLeadSending = false;
+                }
+            },
+
+            async logSupplementItem(desc, calories, protein_g) {
+                if (this.currentUser?.supplements_access_status !== 'approved') {
+                    this.openSupplementsModal();
+                    return;
+                }
                 if (this.isLoggingShake) return;
                 this.isLoggingShake = true;
                 try {
+                    const targetDate = (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr;
                     const currTime = getIsraelTimeStr();
+                    const res = await fetch('/api/meals/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            description: desc,
+                            calories: calories,
+                            protein_g: protein_g,
+                            items: [{ name: desc, calories: calories, protein_g: protein_g }],
+                            log_date: targetDate,
+                            log_time: currTime,
+                            meal_type: 'snack',
+                            source: 'web-supplement'
+                        })
+                    });
+                    if (res.ok) {
+                        await Promise.all([this.fetchSummary(), this.fetchHistory()]);
+                        this.showToast(`✅ ${desc} נרשם ביומן בהצלחה!`);
+                    } else {
+                        throw new Error('שגיאה ברישום התוסף בשרת');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה ברישום התוסף', 'error');
+                } finally {
+                    this.isLoggingShake = false;
+                }
+            },
+
+            async logHoldonShake(slotKey = 'snack') {
+                if (this.currentUser?.supplements_access_status !== 'approved') {
+                    this.openSupplementsModal();
+                    return;
+                }
+                if (this.isLoggingShake) return;
+                this.isLoggingShake = true;
+                try {
+                    const targetDate = (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr;
+                    const currTime = getIsraelTimeStr();
+                    const normSlot = (slotKey === 'morning_snack' || slotKey === 'afternoon_snack') ? 'snack' : (slotKey || 'snack');
                     const payload = {
                         description: 'שייק חלבון HoldOn (הולד-און) איכותי על בסיס מים',
                         calories: 180,
@@ -13474,9 +13603,9 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                             { name: 'סקופ שייק חלבון HoldOn', calories: 140, protein_g: 24.0 },
                             { name: 'נוזל ומים קרים', calories: 40, protein_g: 1.0 }
                         ],
-                        log_date: this.selectedDate || this.todayStr,
+                        log_date: targetDate,
                         log_time: currTime,
-                        meal_type: slotKey,
+                        meal_type: normSlot,
                         source: 'web-holdon-shake'
                     };
                     const res = await fetch('/api/meals/', {
@@ -13957,6 +14086,8 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         if (this.currentUser && (this.currentUser.id === data.user_id || this.currentUser.email === lead.email)) {
                             if (lead.type === 'workout_trial') {
                                 this.currentUser.trial_workout_access_status = data.status;
+                            } else if (lead.type === 'supplements_lead') {
+                                this.currentUser.supplements_access_status = data.status;
                             } else {
                                 this.currentUser.experts_access_status = data.status;
                             }
@@ -15530,57 +15661,186 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             </div>
         </div>
 
-        <!-- ================= HOLDON AFFILIATE PROMOTION MODAL ================= -->
+        <!-- ================= SUPPLEMENTS & PROTEIN SHAKE MODAL (ADMIN GATED LEAD + LOGGER) ================= -->
         <div x-show="showHoldonAffiliateModal" style="display: none;"
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs">
-            <div @click.away="showHoldonAffiliateModal = false"
-                 class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-amber-200 text-right space-y-4 relative overflow-hidden">
-                <div class="absolute -top-12 -left-12 w-36 h-36 bg-amber-100/70 rounded-full blur-2xl pointer-events-none"></div>
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+             @click.self="showHoldonAffiliateModal = false">
+            <div @click.stop
+                 class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-emerald-200 text-right space-y-4 relative max-h-[92vh] overflow-y-auto">
                 
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full">
-                        ⭐ הטבת מתאמנים בלעדית
-                    </span>
-                    <button type="button" @click="showHoldonAffiliateModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                <!-- Header -->
+                <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3.5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-2xl shadow-md shadow-emerald-500/20 flex-shrink-0">
+                            🥤
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-base font-black text-slate-900">שייק חלבון ותוספי תזונה</span>
+                                <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-black border border-emerald-300">למשתמשים רשומים</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">התאמת אבקות חלבון, קריאטין, חטיפי חלבון וויטמינים + הטבה בלעדית</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showHoldonAffiliateModal = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
                 </div>
 
-                <div class="text-center space-y-2 pt-1">
-                    <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-300 flex items-center justify-center text-3xl shadow-xs">
-                        🥤
+                <!-- STATE 1: Lead Capture Form (When NOT approved and NOT yet pending) -->
+                <div x-show="currentUser?.supplements_access_status !== 'approved' && currentUser?.supplements_access_status !== 'pending' && !supplementsLeadSuccess" class="space-y-3.5 pt-1">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-extrabold text-slate-700">איזה שייק או תוסף תזונה מעניין אותך?</label>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <template x-for="supp in ['אבקת חלבון / שייק', 'קריאטין (Creatine)', 'חטיפי חלבון', 'קדם-אימון (Pre-Workout)', 'ויטמינים ומגנזיום', 'חבילת חיטוב / מסה מלאה']" :key="supp">
+                                <button type="button" @click="supplementsLeadForm.supplement_type = supp"
+                                        :class="supplementsLeadForm.supplement_type === supp ? 'bg-emerald-600 text-white font-black border-emerald-700 shadow-2xs' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200 font-semibold'"
+                                        class="py-2 px-2.5 rounded-xl text-[11px] transition border cursor-pointer text-center">
+                                    <span x-text="supp"></span>
+                                </button>
+                            </template>
+                        </div>
                     </div>
-                    <h3 class="text-lg font-black text-slate-900">שייק החלבון נרשם בהצלחה!</h3>
-                    <p class="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
-                        רוצה להצטייד בשייקים, אבקות חלבון וחטיפים איכותיים? השגנו עבורך <span class="font-bold text-amber-950">10% הנחה על כל ההזמנה</span> באתר הרשמי של <strong>HoldOn (הולד-און)</strong>!
+
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 mb-1">מטרה עיקרית</label>
+                        <select x-model="supplementsLeadForm.goal"
+                                class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500">
+                            <option value="השלמת חלבון יומית">השלמת יעד חלבון יומי ושובע</option>
+                            <option value="חיטוב וירידה באחוזי שומן">חיטוב וירידה באחוזי שומן</option>
+                            <option value="עלייה במסת שריר וכוח">עלייה במסת שריר וכוח</option>
+                            <option value="התאוששות ואנרגיה לאימון">התאוששות מהירה ואנרגיה לאימון</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 mb-1">שם מלא</label>
+                        <input type="text"
+                               x-model="supplementsLeadForm.full_name"
+                               placeholder="איך קוראים לך?"
+                               class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-none text-sm font-bold text-slate-900 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 mb-1">מספר טלפון לחזרה</label>
+                        <input type="tel"
+                               dir="ltr"
+                               x-model="supplementsLeadForm.phone"
+                               @keydown.enter="submitSupplementsLead()"
+                               placeholder="050-0000000"
+                               class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-none text-sm font-bold text-slate-900 text-right transition">
+                    </div>
+
+                    <button type="button"
+                            @click="submitSupplementsLead()"
+                            :disabled="supplementsLeadSending"
+                            class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-base shadow-lg shadow-emerald-600/25 transition active:scale-95 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60">
+                        <span x-show="!supplementsLeadSending">אני רוצה! בדוק זכאות לתוספים 🚀</span>
+                        <span x-show="supplementsLeadSending">שולח בקשה...</span>
+                    </button>
+
+                    <p class="text-[11px] text-center text-slate-400">
+                        🔒 הגישה להטבת התוספים ולכפתורי הרישום המהיר תיפתח לאחר אישור מנהל המערכת.
                     </p>
                 </div>
 
-                <!-- Coupon Box -->
-                <div class="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-dashed border-amber-300 text-center space-y-2">
-                    <span class="text-[11px] font-bold text-amber-900 block">קוד הקופון שלך להעתקה בקופה:</span>
-                    <div class="flex items-center justify-center gap-2">
-                        <span class="text-2xl font-black font-mono tracking-widest text-amber-950 bg-white px-4 py-1.5 rounded-xl border border-amber-200 shadow-2xs">
-                            HOLDON10
-                        </span>
-                        <button type="button" @click="copyHoldonCoupon()"
-                                class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-extrabold transition cursor-pointer shadow-xs">
-                            <span x-text="copiedHoldonCoupon ? '✓ הועתק!' : 'העתק'">העתק</span>
-                        </button>
+                <!-- STATE 2: Locked / Pending Super Admin Approval View -->
+                <div x-show="currentUser?.supplements_access_status !== 'approved' && (currentUser?.supplements_access_status === 'pending' || supplementsLeadSuccess)" class="py-5 text-center space-y-3">
+                    <div class="w-14 h-14 rounded-full bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center text-3xl mx-auto">
+                        🔒
                     </div>
-                    <span class="text-[10px] text-amber-700 font-semibold block">10% הנחה לכל מוצרי השייקים והתוספים</span>
+                    <h4 class="text-base font-black text-slate-900">הבקשה לשייקים ותוספי תזונה ממתינה לאישור מנהל המערכת</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        הפרטים שלך עבור <strong class="text-slate-900" x-text="supplementsLeadForm.supplement_type || 'שייק חלבון ותוספי תזונה'"></strong> נשמרו בהצלחה.<br>
+                        הגישה להטבה ולכפתורי הרישום המהיר חסומה כעת ותיפתח עבורך רק לאחר אישור סופר-אדמין.
+                    </p>
+                    <button type="button"
+                            @click="showHoldonAffiliateModal = false"
+                            class="mt-2 px-6 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold transition cursor-pointer">
+                        הבנתי, תודה!
+                    </button>
                 </div>
 
-                <!-- Actions -->
-                <div class="pt-2 flex items-center gap-2">
-                    <button type="button" @click="showHoldonAffiliateModal = false"
-                            class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition">
-                        סגור
-                    </button>
-                    <a href="https://www.holdon.co.il/" target="_blank" rel="noopener noreferrer"
-                       @click="showHoldonAffiliateModal = false"
-                       class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs text-center flex items-center justify-center gap-2 shadow-md shadow-amber-500/25 transition cursor-pointer">
-                        <span>עבור לאתר HoldOn עכשיו</span>
-                        <span>➔</span>
-                    </a>
+                <!-- STATE 3: Approved by Super Admin -> Quick Supplement Loggers & Coupon -->
+                <div x-show="currentUser?.supplements_access_status === 'approved'" class="space-y-4">
+                    <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-900">
+                        ✅ הגישה שלך אושרה על ידי מנהל המערכת! באפשרותך לרשום שייק או תוסף תזונה ביומן בלחיצה וליהנות מקופון ההנחה:
+                    </div>
+
+                    <!-- Quick 1-Tap Supplement & Shake Loggers -->
+                    <div class="space-y-2">
+                        <span class="text-xs font-extrabold text-slate-800 block">⚡ רישום מהיר ליומן היומי:</span>
+                        <div class="grid grid-cols-1 gap-2">
+                            <button type="button"
+                                    @click="logHoldonShake('snack')"
+                                    :disabled="isLoggingShake"
+                                    class="w-full p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 flex items-center justify-between transition cursor-pointer">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-lg">🥤</span>
+                                    <div class="text-right">
+                                        <div class="text-xs font-extrabold text-slate-900">שייק חלבון יומי (סקופ + מים)</div>
+                                        <div class="text-[11px] text-slate-500">180 קק״ל • 25g חלבון</div>
+                                    </div>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-[11px] font-bold">+ הוסף ליומן</span>
+                            </button>
+
+                            <button type="button"
+                                    @click="logSupplementItem('חטיף חלבון איכותי', 200, 20)"
+                                    :disabled="isLoggingShake"
+                                    class="w-full p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 flex items-center justify-between transition cursor-pointer">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-lg">🍫</span>
+                                    <div class="text-right">
+                                        <div class="text-xs font-extrabold text-slate-900">חטיף חלבון עשיר</div>
+                                        <div class="text-[11px] text-slate-500">200 קק״ל • 20g חלבון</div>
+                                    </div>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-[11px] font-bold">+ הוסף ליומן</span>
+                            </button>
+
+                            <button type="button"
+                                    @click="logSupplementItem('מנת קריאטין / תוסף תזונה יומי (5g)', 0, 0)"
+                                    :disabled="isLoggingShake"
+                                    class="w-full p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 flex items-center justify-between transition cursor-pointer">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-lg">💊</span>
+                                    <div class="text-right">
+                                        <div class="text-xs font-extrabold text-slate-900">קריאטין (5g) / תוסף תזונה יומי</div>
+                                        <div class="text-[11px] text-slate-500">0 קק״ל • מעקב נטילה יומי</div>
+                                    </div>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-[11px] font-bold">+ סמן ביומן</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Coupon Box -->
+                    <div class="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-dashed border-amber-300 text-center space-y-2">
+                        <span class="text-[11px] font-bold text-amber-900 block">קוד קופון VIP לרכישת שייקים ותוספי תזונה:</span>
+                        <div class="flex items-center justify-center gap-2">
+                            <span class="text-2xl font-black font-mono tracking-widest text-amber-950 bg-white px-4 py-1.5 rounded-xl border border-amber-200 shadow-2xs">
+                                HOLDON10
+                            </span>
+                            <button type="button" @click="copyHoldonCoupon()"
+                                    class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-extrabold transition cursor-pointer shadow-xs">
+                                <span x-text="copiedHoldonCoupon ? '✓ הועתק!' : 'העתק'">העתק</span>
+                            </button>
+                        </div>
+                        <span class="text-[10px] text-amber-700 font-semibold block">10% הנחה על אבקות חלבון, קריאטין, חטיפים ותוספים</span>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="pt-1 flex items-center gap-2">
+                        <button type="button" @click="showHoldonAffiliateModal = false"
+                                class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition">
+                            סגור
+                        </button>
+                        <a href="https://www.holdon.co.il/" target="_blank" rel="noopener noreferrer"
+                           @click="showHoldonAffiliateModal = false"
+                           class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs text-center flex items-center justify-center gap-2 shadow-md shadow-amber-500/25 transition cursor-pointer">
+                            <span>עבור לחנות התוספים (HoldOn)</span>
+                            <span>➔</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

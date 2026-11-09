@@ -173,6 +173,15 @@ class ExpertLeadRequest(BaseModel):
     notes: Optional[str] = ""
 
 
+class SupplementLeadRequest(BaseModel):
+    full_name: str
+    phone: str
+    supplement_type: str = "אבקת חלבון / שייק"
+    goal: Optional[str] = "השלמת חלבון יומית"
+    email: Optional[str] = ""
+    notes: Optional[str] = ""
+
+
 class AdminSetTelegramConfigRequest(BaseModel):
     admin_chat_id: str
 
@@ -1151,6 +1160,7 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
         "last_login_date": today_str,
         "experts_access_status": existing_doc_data.get("experts_access_status", "none"),
         "trial_workout_access_status": existing_doc_data.get("trial_workout_access_status", "none"),
+        "supplements_access_status": existing_doc_data.get("supplements_access_status", "none"),
     }
 
     if not db:
@@ -4926,6 +4936,7 @@ def api_auth_me(request: Request, response: Response):
         "goal": user_doc.get("goal"),
         "experts_access_status": user_doc.get("experts_access_status", "none"),
         "trial_workout_access_status": user_doc.get("trial_workout_access_status", "none"),
+        "supplements_access_status": user_doc.get("supplements_access_status", "none"),
         "telegram_linked": is_telegram_linked_for_user(uid),
         "features": get_feature_flags(),
     }
@@ -5241,6 +5252,33 @@ def save_expert_lead_db(lead_dict: dict) -> dict:
             db.collection("leads").document(lead_id).set(record)
         except Exception as e:
             print(f"ERROR saving expert lead to firestore: {e}")
+    else:
+        _LOCAL_LEADS.insert(0, record)
+    return record
+
+
+def save_supplement_lead_db(lead_dict: dict) -> dict:
+    lead_id = f"supp_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    supp_type = (lead_dict.get("supplement_type") or "אבקת חלבון / שייק").strip()
+    record = {
+        "id": lead_id,
+        "type": "supplements_lead",
+        "role": f"🥤 שייקים ותוספים ({supp_type})",
+        "full_name": lead_dict.get("full_name", "").strip(),
+        "phone": lead_dict.get("phone", "").strip(),
+        "email": lead_dict.get("email", "").strip(),
+        "user_id": lead_dict.get("user_id", "").strip(),
+        "supplement_type": supp_type,
+        "goal": (lead_dict.get("goal") or "השלמת חלבון יומית").strip(),
+        "notes": lead_dict.get("notes", "").strip(),
+        "created_at": get_israel_now().isoformat(),
+        "status": "pending"
+    }
+    if db:
+        try:
+            db.collection("leads").document(lead_id).set(record)
+        except Exception as e:
+            print(f"ERROR saving supplement lead to firestore: {e}")
     else:
         _LOCAL_LEADS.insert(0, record)
     return record
@@ -6009,6 +6047,63 @@ async def api_submit_workout_lead(req: WorkoutLeadRequest, request: Request):
     return {"ok": True, "lead_id": record["id"], "trial_workout_access_status": new_trial_status, "message": "הפרטים התקבלו וממתינים לאישור מנהל המערכת!"}
 
 
+@app.post("/api/leads/supplements")
+async def api_submit_supplement_lead(req: SupplementLeadRequest, request: Request):
+    if not req.full_name.strip() or not req.phone.strip():
+        raise HTTPException(status_code=400, detail="שם ומספר טלפון הם שדות חובה")
+    uid = get_request_user_id(request)
+    udoc = get_user_doc_db(uid) if uid != "default" else {}
+    u_email = (req.email or udoc.get("email") or "").strip()
+    if uid == "default" and not u_email:
+        raise HTTPException(status_code=401, detail="שירות זה מיועד למשתמשים רשומים בלבד. נא להתחבר לחשבון תחילה.")
+
+    payload = req.model_dump()
+    payload["user_id"] = uid
+    payload["email"] = u_email
+    record = save_supplement_lead_db(payload)
+    record_analytics_event_db("submit_supplements_lead")
+
+    current_supp_status = udoc.get("supplements_access_status", "none")
+    new_supp_status = "approved" if current_supp_status == "approved" else "pending"
+    target_uid = uid if uid != "default" else (_make_user_id_from_email(u_email) if u_email else "")
+    if target_uid:
+        if not db:
+            if target_uid in _LOCAL_USERS:
+                _LOCAL_USERS[target_uid]["supplements_access_status"] = new_supp_status
+        else:
+            try:
+                db.collection("users").document(target_uid).set({"supplements_access_status": new_supp_status}, merge=True)
+            except Exception as e:
+                print(f"WARN updating supplements_access_status: {e}")
+
+    try:
+        dispatch_push_to_admins(
+            title=f"🥤 בקשת שייקים/תוספים: {req.full_name} ({req.supplement_type})",
+            body=f"טלפון: {req.phone} • מטרה: {req.goal} • ממתין לאישור סופר-אדמין",
+            tag=f"nutriagent-supp-lead-{record['id']}",
+            url="/?tab=admin"
+        )
+    except Exception as e:
+        print(f"WARN dispatch_push_to_admins on supplement lead: {e}")
+
+    details = (
+        f"👤 <b>שם הלקוח:</b> {req.full_name}\n"
+        f"📱 <b>טלפון:</b> <code>{req.phone}</code>\n"
+        f"📧 <b>אימייל משתמש:</b> {u_email or 'לא צוין'}\n"
+        f"🥤 <b>מוצר/תוסף מבוקש:</b> {req.supplement_type}\n"
+        f"🎯 <b>מטרה:</b> {req.goal or 'השלמת חלבון יומית'}\n"
+        f"🔒 <b>סטטוס גישה:</b> ממתין לאישור סופר-אדמין"
+    )
+    wa_msg = f"היי {req.full_name}, ראיתי שביקשת בדיקת זכאות והטבה ל-{req.supplement_type} דרך NutriAgent. מתי נוח שנדבר קצרות להתאמה?"
+    await send_lead_telegram_alert(
+        title="🥤 ליד חדש לשייק חלבון / תוספי תזונה!",
+        details_html=details,
+        phone=req.phone,
+        wa_text=wa_msg
+    )
+    return {"ok": True, "lead_id": record["id"], "supplements_access_status": new_supp_status, "message": "הפרטים התקבלו וממתינים לאישור מנהל המערכת!"}
+
+
 @app.post("/api/leads/expert")
 async def api_submit_expert_lead(req: ExpertLeadRequest, request: Request):
     if not req.full_name.strip() or not req.phone.strip():
@@ -6099,7 +6194,12 @@ def api_admin_approve_expert_lead_access(lead_id: str, req: ApproveExpertAccessR
     if (not target_uid or target_uid == "default") and target_email:
         target_uid = _make_user_id_from_email(target_email)
 
-    status_field = "trial_workout_access_status" if lead_type == "workout_trial" else "experts_access_status"
+    if lead_type == "workout_trial":
+        status_field = "trial_workout_access_status"
+    elif lead_type == "supplements_lead":
+        status_field = "supplements_access_status"
+    else:
+        status_field = "experts_access_status"
     if target_uid and target_uid != "default":
         if not db:
             if target_uid in _LOCAL_USERS:

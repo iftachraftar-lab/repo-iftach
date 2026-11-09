@@ -1,14 +1,14 @@
 {
-  "last_audit_at": "2026-11-09T13:25:12.534420+02:00",
-  "total_runs": 5,
-  "sw_version": "106",
+  "last_audit_at": "2026-11-09T13:41:21.155395+02:00",
+  "total_runs": 7,
+  "sw_version": "107",
   "counts": {
-    "api_routes": 103,
-    "pydantic_models": 63,
+    "api_routes": 104,
+    "pydantic_models": 64,
     "alpine_methods": 185
   },
   "newly_learned_routes_last_run": [
-    "GET /api/admin/qa-guardian"
+    "POST /api/leads/supplements"
   ],
   "removed_routes_last_run": [],
   "routes": [
@@ -78,6 +78,7 @@
     "POST /api/grocery/generate",
     "POST /api/leads/coach",
     "POST /api/leads/expert",
+    "POST /api/leads/supplements",
     "POST /api/leads/workout",
     "POST /api/meals/",
     "POST /api/meals/ai",
@@ -164,6 +165,7 @@
     "SlotSuggestRequest",
     "SupermarketScanRequest",
     "SupermarketScanResult",
+    "SupplementLeadRequest",
     "SupportContactRequest",
     "TargetUpdateRequest",
     "TermsAcceptRequest",

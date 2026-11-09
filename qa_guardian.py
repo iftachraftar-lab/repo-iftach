@@ -119,14 +119,18 @@ def run_suite_1_roundtrip(py_src: str, tree: ast.AST) -> List[GuardianCheckResul
         "api_update_meal updates meal_type in Firestore & local state" if update_ok else "api_update_meal drops meal_type"
     ))
 
-    # 1.5 Check api_auth_me returns both lead access statuses
+    # 1.5 Check api_auth_me returns all 3 lead access statuses
     auth_me_src = _extract_func_source(py_src, tree, "api_auth_me")
-    auth_ok = '"experts_access_status"' in auth_me_src and '"trial_workout_access_status"' in auth_me_src
+    auth_ok = (
+        '"experts_access_status"' in auth_me_src
+        and '"trial_workout_access_status"' in auth_me_src
+        and '"supplements_access_status"' in auth_me_src
+    )
     results.append(GuardianCheckResult(
         cat_id, cat_name,
-        "api_auth_me returns experts_access_status & trial_workout_access_status",
+        "api_auth_me returns experts, trial_workout & supplements access statuses",
         auth_ok,
-        "Both lead gate fields returned in /api/auth/me" if auth_ok else "Missing lead access fields in api_auth_me"
+        "All 3 lead gate fields returned in /api/auth/me" if auth_ok else "Missing lead access fields in api_auth_me"
     ))
 
     return results
@@ -198,13 +202,14 @@ def run_suite_2_state_machines(html_src: str, sw_src: str) -> List[GuardianCheck
     lead_sync_ok = (
         "openExpertsDirectory(" in html_src
         and "openTrialWorkoutModal(" in html_src
-        and html_src.count("this.verifyCurrentUserSession();") >= 2
+        and "openSupplementsModal(" in html_src
+        and html_src.count("this.verifyCurrentUserSession();") >= 3
     )
     results.append(GuardianCheckResult(
         cat_id, cat_name,
-        "Lead gating modals (Experts & Trial Workout) sync live approval status on open",
+        "Lead gating modals (Experts, Trial Workout & Supplements) sync live approval status on open",
         lead_sync_ok,
-        "Both modals call verifyCurrentUserSession() on open" if lead_sync_ok else "Lead modals missing live status refresh"
+        "All 3 lead modals call verifyCurrentUserSession() on open" if lead_sync_ok else "Lead modals missing live status refresh"
     ))
 
     return results
@@ -367,6 +372,7 @@ def run_suite_5_race_conditions(html_src: str) -> List[GuardianCheckResult]:
         ("quickLogPreset", "if (this.quickLoggingMeal) return;"),
         ("submitExpertMarketingLead", "this.expertLeadSaving = true;"),
         ("submitTrialWorkoutLead", "this.trialWorkoutSending = true;"),
+        ("submitSupplementsLead", "if (this.supplementsLeadSending) return;"),
         ("saveConfirmedMeal", "if (this.mealConfirmSaving) return;"),
     ]
 
@@ -465,6 +471,7 @@ def run_suite_6_discovery_and_syntax(
         "GET /api/auth/me",
         "POST /api/leads/expert",
         "POST /api/leads/workout",
+        "POST /api/leads/supplements",
         "POST /api/cron/daily-health-check",
     }
     missing_critical = sorted(critical_endpoints - curr_routes)
