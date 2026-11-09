@@ -1391,8 +1391,8 @@
                             <div class="flex-1 min-w-0">
                                 <input type="text"
                                        x-model="aiInputText"
-                                       @focus="showAutocomplete = true"
-                                       @input="showAutocomplete = true"
+                                       @focus="if (!selectedPhotoDataUrl) showAutocomplete = true"
+                                       @input="if (!selectedPhotoDataUrl) showAutocomplete = true"
                                        @keydown.escape="showAutocomplete = false"
                                        :disabled="aiAnalyzing"
                                        :placeholder="selectedPhotoDataUrl ? 'הוסף הערה לתמונה (למשל: חצי מנה)...' : 'מה אכלת עכשיו? (למשל: 2 ביצים, סלט וחצי פיתה)...'"
@@ -1401,7 +1401,7 @@
 
                             <!-- Quick 1-Tap Mic shortcut (right next to Send) -->
                             <button type="button"
-                                    @click="startVoiceRecording()"
+                                    @click="showAutocomplete = false; showAttachMenu = false; startVoiceRecording()"
                                     :disabled="aiAnalyzing"
                                     title="הקלטה קולית מהירה"
                                     class="w-10 h-10 rounded-xl bg-transparent hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center transition flex-shrink-0 cursor-pointer active:scale-95">
@@ -1433,7 +1433,7 @@
                     <input type="file" accept="image/*" x-ref="cameraMealInput" @change="handleViewfinderGalleryPick($event)" class="sr-only">
 
                     <!-- Instant Smart Catalog Autocomplete Dropdown (with Calories & Protein Breakdown) -->
-                    <div x-cloak x-show="showAutocomplete && autocompleteSuggestions.length > 0"
+                    <div x-cloak x-show="showAutocomplete && !selectedPhotoDataUrl && autocompleteSuggestions.length > 0"
                          @click.outside="showAutocomplete = false"
                          class="rounded-2xl bg-white border border-emerald-200 shadow-lg overflow-hidden divide-y divide-slate-100">
                         <div class="px-3.5 py-2 bg-emerald-50/70 flex items-center justify-between text-[11px] font-bold text-emerald-900">
@@ -6516,6 +6516,19 @@
                     <input type="text" x-model="editForm.description" required
                            class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-emerald-500 outline-none">
                 </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">שיוך לארוחה ביומן</label>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <template x-for="opt in [{k:'breakfast', l:'🌅 בוקר'}, {k:'lunch', l:'☀️ צהריים'}, {k:'dinner', l:'🌙 ערב'}, {k:'snack', l:'🍎 ביניים'}]" :key="opt.k">
+                            <button type="button"
+                                    @click="editForm.meal_type = opt.k"
+                                    :class="editForm.meal_type === opt.k ? 'bg-emerald-600 text-white font-black border-emerald-700 shadow-2xs' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200 font-semibold'"
+                                    class="py-2 px-1.5 rounded-xl text-[11px] border transition cursor-pointer text-center">
+                                <span x-text="opt.l"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">תאריך</label>
@@ -7598,7 +7611,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=104').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=105').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -11611,15 +11624,19 @@
                             reader.onerror = reject;
                             reader.readAsDataURL(blob);
                         });
+                        const payload = {
+                            audio_base64: dataUrl,
+                            mime_type: mimeType || 'audio/webm',
+                            caption: this.aiInputText.trim(),
+                            preview_only: true
+                        };
+                        if (this.targetMealSlot && this.targetMealSlot !== 'auto') {
+                            payload.meal_type = this.targetMealSlot;
+                        }
                         const res = await fetch('/api/meals/voice', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                audio_base64: dataUrl,
-                                mime_type: mimeType || 'audio/webm',
-                                caption: this.aiInputText.trim(),
-                                preview_only: true
-                            })
+                            body: JSON.stringify(payload)
                         });
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
@@ -12815,6 +12832,7 @@
                     this.showToast('שירות זה מיועד למשתמשים רשומים — התחבר עם Google ונמשיך מיד!', 'warning');
                     return;
                 }
+                this.verifyCurrentUserSession();
                 if (!this.trialWorkoutForm.full_name && this.currentUser?.name) {
                     this.trialWorkoutForm.full_name = this.currentUser.name;
                 }
@@ -13312,14 +13330,16 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
 
             async logSlotSuggestion(slot) {
                 const sug = this.getSlotSuggestion(slot);
+                const normType = (slot.key === 'morning_snack' || slot.key === 'afternoon_snack') ? 'snack' : slot.key;
+                this.targetMealSlot = normType;
                 this.openMealConfirmModal({
                     description: sug.description,
                     calories: sug.calories,
                     protein_g: sug.protein_g,
                     items: sug.items || [],
-                    log_date: this.selectedDate || this.todayStr,
+                    log_date: (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr,
                     log_time: getIsraelTimeStr(),
-                    meal_type: slot.key,
+                    meal_type: normType,
                     source: 'web-slot-preset'
                 });
             },
@@ -13345,47 +13365,56 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             },
 
             openSlotVoiceLogger(slot) {
+                const normType = (slot.key === 'morning_snack' || slot.key === 'afternoon_snack') ? 'snack' : slot.key;
                 this.activeTargetSlot = slot;
-                this.mealConfirmForm.meal_type = slot.key;
+                this.targetMealSlot = normType;
+                this.mealConfirmForm.meal_type = normType;
                 this.mealConfirmForm.log_time = getIsraelTimeStr();
                 this.startVoiceRecording();
             },
 
             openSlotPhotoLogger(slot) {
+                const normType = (slot.key === 'morning_snack' || slot.key === 'afternoon_snack') ? 'snack' : slot.key;
                 this.activeTargetSlot = slot;
-                this.mealConfirmForm.meal_type = slot.key;
+                this.targetMealSlot = normType;
+                this.mealConfirmForm.meal_type = normType;
                 this.mealConfirmForm.log_time = getIsraelTimeStr();
                 document.getElementById('photoMealFileInput')?.click();
             },
 
             openSlotManualLogger(slot) {
+                const normType = (slot.key === 'morning_snack' || slot.key === 'afternoon_snack') ? 'snack' : slot.key;
                 this.activeTargetSlot = slot;
+                this.targetMealSlot = normType;
                 this.openMealConfirmModal({
                     description: '',
                     calories: '',
                     protein_g: '',
                     items: [],
-                    log_date: this.selectedDate || this.todayStr,
+                    log_date: (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr,
                     log_time: getIsraelTimeStr(),
-                    meal_type: slot.key,
+                    meal_type: normType,
                     source: 'web-manual'
                 });
             },
 
             async addWater(amountMl) {
                 try {
+                    const targetDate = (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr;
                     const res = await fetch('/api/water/add', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             amount_ml: amountMl,
-                            log_date: this.selectedDate || this.todayStr
+                            log_date: targetDate
                         })
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        this.summary.water_ml = data.water_ml;
-                        this.showToast(`💧 נוספו ${amountMl} מ״ל מים! סה״כ להיום: ${data.water_ml.toLocaleString()} מ״ל`);
+                        if (targetDate === this.todayStr) {
+                            this.summary.water_ml = data.water_ml;
+                        }
+                        this.showToast(`💧 נוספו ${amountMl} מ״ל מים! סה״כ: ${data.water_ml.toLocaleString()} מ״ל`);
                     }
                 } catch (e) {
                     console.error('Error adding water:', e);
@@ -13395,17 +13424,20 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             async decreaseWater(amountMl = 250) {
                 if ((this.summary.water_ml || 0) <= 0) return;
                 try {
+                    const targetDate = (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr;
                     const res = await fetch('/api/water/add', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             amount_ml: -amountMl,
-                            log_date: this.selectedDate || this.todayStr
+                            log_date: targetDate
                         })
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        this.summary.water_ml = data.water_ml;
+                        if (targetDate === this.todayStr) {
+                            this.summary.water_ml = data.water_ml;
+                        }
                         this.showToast(`הופחתו ${amountMl} מ״ל`);
                     }
                 } catch (e) {
@@ -13630,18 +13662,21 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 const currentMl = this.summary.water_ml || 0;
                 const diff = targetMl - currentMl;
                 if (diff === 0) return;
+                const targetDate = (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr;
                 try {
                     const res = await fetch('/api/water/add', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             amount_ml: diff,
-                            log_date: this.selectedDate || this.todayStr
+                            log_date: targetDate
                         })
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        this.summary.water_ml = data.water_ml;
+                        if (targetDate === this.todayStr) {
+                            this.summary.water_ml = data.water_ml;
+                        }
                         this.showToast(`💧 עודכן ל-${glassNum} כוסות (${data.water_ml.toLocaleString()} מ״ל)`);
                     }
                 } catch (e) {
@@ -13760,9 +13795,12 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             },
 
             openMealConfirmModal(data) {
-                const chosenType = (this.targetMealSlot && this.targetMealSlot !== 'auto')
+                let rawType = (this.targetMealSlot && this.targetMealSlot !== 'auto')
                     ? this.targetMealSlot
                     : (data.meal_type || this.currentMealSlot || 'lunch');
+                if (rawType === 'morning_snack' || rawType === 'afternoon_snack') {
+                    rawType = 'snack';
+                }
                 this.mealConfirmForm = {
                     description: data.description || '',
                     calories: (data.calories !== undefined && data.calories !== null && data.calories !== '') ? Number(data.calories) : '',
@@ -13770,7 +13808,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     items: data.items || [],
                     log_date: data.log_date || this.todayStr,
                     log_time: data.log_time || getIsraelTimeStr(),
-                    meal_type: chosenType,
+                    meal_type: rawType,
                     source: data.source || 'web-voice'
                 };
                 this.showMealConfirmModal = true;
@@ -13838,6 +13876,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     this.showToast('שירות זה מיועד למשתמשים רשומים — התחבר עם Google ונמשיך מיד!', 'warning');
                     return;
                 }
+                this.verifyCurrentUserSession();
                 this.selectedExpertTab = tab;
                 this.selectedExpertRegion = 'הכל (כולל אונליין)';
                 if (!this.expertLeadForm.full_name && this.currentUser?.name) {
@@ -14168,6 +14207,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         protein_g: meal.protein_g,
                         log_date: meal.log_date || this.todayStr,
                         log_time: meal.log_time || '',
+                        meal_type: this.resolveMealType(meal),
                         items: (meal.items && meal.items.length > 0) ? JSON.parse(JSON.stringify(meal.items)) : []
                     };
                 },
@@ -14640,16 +14680,20 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 async logWoltMeal(dish) {
                     try {
                         const label = `${dish.dish_name} (${dish.live_venue_name || dish.restaurant_name} - Wolt)`;
+                        const targetSlot = (this.targetMealSlot && this.targetMealSlot !== 'auto') ? this.targetMealSlot : this.currentMealSlot;
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 description: label,
                                 calories: dish.calories,
-                                protein_g: dish.protein_g
+                                protein_g: dish.protein_g,
+                                meal_type: targetSlot,
+                                log_date: this.todayStr
                             })
                         });
                         if (!res.ok) throw new Error('Failed logging Wolt meal');
+                        this.targetMealSlot = 'auto';
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast(`🛵 "${dish.dish_name}" נוסף ליומן היום! (+${dish.calories} קק"ל)`);
                     } catch (e) {
@@ -14706,6 +14750,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     try {
                         const cal = Math.max(0, parseInt(this.supermarketManualForm.calories) || 0);
                         const prot = Math.max(0, parseFloat(this.supermarketManualForm.protein_g) || 0);
+                        const targetSlot = (this.targetMealSlot && this.targetMealSlot !== 'auto') ? this.targetMealSlot : this.currentMealSlot;
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -14713,10 +14758,12 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                                 description: desc,
                                 calories: cal,
                                 protein_g: prot,
-                                log_date: this.selectedDate || new Date().toISOString().slice(0, 10)
+                                meal_type: targetSlot,
+                                log_date: (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr
                             })
                         });
                         if (!res.ok) throw new Error('שגיאה בשמירת המנה');
+                        this.targetMealSlot = 'auto';
                         this.supermarketResult = null;
                         this.showSupermarketManualOverride = false;
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
@@ -14735,6 +14782,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     try {
                         const cal = Math.max(0, parseInt(this.viewfinderManualForm.calories) || 0);
                         const prot = Math.max(0, parseFloat(this.viewfinderManualForm.protein_g) || 0);
+                        const targetSlot = (this.targetMealSlot && this.targetMealSlot !== 'auto') ? this.targetMealSlot : this.currentMealSlot;
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -14742,10 +14790,12 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                                 description: desc,
                                 calories: cal,
                                 protein_g: prot,
-                                log_date: this.selectedDate || new Date().toISOString().slice(0, 10)
+                                meal_type: targetSlot,
+                                log_date: (this.activeTab === 'history' && this.selectedDate) ? this.selectedDate : this.todayStr
                             })
                         });
                         if (!res.ok) throw new Error('שגיאה בשמירת המנה');
+                        this.targetMealSlot = 'auto';
                         this.resetDetectedCandidate();
                         this.showLiveViewfinder = false;
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
