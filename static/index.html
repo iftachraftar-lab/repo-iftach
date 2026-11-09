@@ -1516,82 +1516,34 @@
                         </button>
                     </div>
 
-                    <!-- Inline Photo History & Analysis Drawer (accessible directly from the main logger) -->
-                    <div x-cloak x-show="showInlinePhotoHistory" x-transition class="mt-3 p-4 rounded-2xl bg-slate-50 border border-indigo-200/80 space-y-3">
-                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
-                            <div>
-                                <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-                                    <span>📸</span> ארכיון צילומים, היסטוגרמות וניתוחי AI שמורים (<span x-text="(visionLogs || []).length"></span>)
-                                </h3>
-                                <p class="text-[11px] text-slate-500">כל צילום נשמר אוטומטית עם התמונה, היסטוגרמת 16 ערוצים, שיפורי Pre-Processor ואימות סכומים</p>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <button type="button"
-                                        @click="exportVisionLogsCSV()"
-                                        x-show="visionLogs && visionLogs.length > 0"
-                                        class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 text-emerald-700 text-[11px] font-bold transition cursor-pointer">
-                                    📥 ייצוא CSV לניתוח
-                                </button>
-                                <button type="button"
-                                        x-show="currentUser && currentUser.is_admin"
-                                        @click="switchTab('admin')"
-                                        class="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-extrabold transition cursor-pointer">
-                                    🔬 פתח מעבדת Vision מלאה
-                                </button>
-                                <button type="button" @click="showInlinePhotoHistory = false" class="text-slate-400 hover:text-slate-600 text-xs font-bold px-1.5 cursor-pointer">✕</button>
-                            </div>
+                    <!-- Inline Photo History & Analysis Drawer (Minimal Diagnostic View) -->
+                    <div x-cloak x-show="showInlinePhotoHistory" x-transition class="mt-3 p-3.5 rounded-2xl bg-slate-50 border border-indigo-200/80 space-y-2.5">
+                        <div class="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+                            <h3 class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                                <span>📸</span> צילומים אחרונים (<span x-text="(visionLogs || []).length"></span>)
+                            </h3>
+                            <button type="button" @click="showInlinePhotoHistory = false" class="text-slate-400 hover:text-slate-600 text-xs font-bold px-1.5 cursor-pointer">✕</button>
                         </div>
 
-                        <div x-show="!visionLogs || visionLogs.length === 0" class="text-center py-4 text-xs text-slate-500">
-                            טרם נשמרו צילומים בארכיון. צלם ארוחה כדי לראות כאן את הניתוח המלא!
+                        <div x-show="!visionLogs || visionLogs.length === 0" class="text-center py-3 text-xs text-slate-500">
+                            טרם נשמרו צילומים בארכיון.
                         </div>
 
-                        <div class="space-y-3 max-h-96 overflow-y-auto pr-1">
-                            <template x-for="vlog in (visionLogs || []).slice(0, 15)" :key="'inline-' + vlog.id">
-                                <div class="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-2xs space-y-2.5">
-                                    <div class="flex flex-col sm:flex-row gap-3">
+                        <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                            <template x-for="vlog in (visionLogs || []).slice(0, 10)" :key="'inline-' + vlog.id">
+                                <div class="bg-white rounded-xl p-2.5 border border-slate-200/80 flex items-center justify-between gap-2.5">
+                                    <div class="flex items-center gap-2.5 min-w-0">
                                         <template x-if="vlog.forensics && vlog.forensics.thumbnail_data_url">
-                                            <img :src="vlog.forensics.thumbnail_data_url" alt="צילום מנה" class="w-20 h-20 rounded-xl object-cover border border-slate-200 flex-shrink-0">
+                                            <img :src="vlog.forensics.thumbnail_data_url" alt="" class="w-12 h-12 rounded-lg object-cover border border-slate-200 flex-shrink-0">
                                         </template>
-                                        <div class="flex-1 min-w-0 space-y-1">
-                                            <div class="flex flex-wrap items-center justify-between gap-1.5">
-                                                <span class="text-xs sm:text-sm font-extrabold text-slate-900" x-text="vlog.ai_analysis?.summary || 'צילום ארוחה'"></span>
-                                                <div class="flex items-center gap-1.5">
-                                                    <span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-extrabold"
-                                                          x-text="`🔥 ${vlog.ai_analysis?.calories || 0} קק״ל`"></span>
-                                                    <span class="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-extrabold"
-                                                          x-text="`💪 ${vlog.ai_analysis?.protein_g || 0}g`"></span>
-                                                    <span class="px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold"
-                                                          x-text="`🎯 ${vlog.ai_analysis?.confidence_score || 88}%`"></span>
-                                                </div>
-                                            </div>
-                                            <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                                                <span class="font-mono" dir="ltr" x-text="vlog.created_at_iso"></span>
-                                                <span x-text="`• ☀️ בהירות: ${vlog.forensics?.mean_brightness || 128}/255`"></span>
-                                                <span x-text="`• 🌗 ניגודיות: ${vlog.forensics?.contrast_std || 48}`"></span>
-                                                <span x-text="`• 🔍 חדות: ${vlog.forensics?.sharpness_score || 65}/100`"></span>
-                                                <span x-text="`• 🌡️ R/B: ${vlog.forensics?.warm_cool_ratio || 1.0}`"></span>
-                                            </div>
-                                            <div class="text-[11px] text-slate-600" x-text="`📏 ${vlog.ai_analysis?.portion_estimation_method || ''}`"></div>
-                                            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-                                                <span class="text-[10px] text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md font-semibold"
-                                                      x-text="(vlog.forensics?.enhancements_applied && vlog.forensics.enhancements_applied.length) ? `✨ ${vlog.forensics.enhancements_applied.join(' • ')}` : '✨ איכות אופטית מיטבית'"></span>
-                                                <div class="flex items-center gap-1.5">
-                                                    <button type="button"
-                                                            @click="reanalyzeVisionLog(vlog)"
-                                                            :disabled="reanalyzingLogId === vlog.id"
-                                                            class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[11px] font-bold transition cursor-pointer">
-                                                        <span x-text="reanalyzingLogId === vlog.id ? '⏳ מנתח...' : '🔄 נתח מחדש'"></span>
-                                                    </button>
-                                                    <button type="button"
-                                                            x-show="currentUser && currentUser.is_admin"
-                                                            @click="openPhotoAnalysisInLab(vlog)"
-                                                            class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition cursor-pointer">
-                                                        📊 היסטוגרמה וכיול
-                                                    </button>
-                                                </div>
-                                            </div>
+                                        <div class="min-w-0">
+                                            <div class="text-xs font-bold text-slate-900 truncate" x-text="vlog.ai_analysis?.summary || 'צילום ארוחה'"></div>
+                                            <div class="text-[10px] text-slate-500 font-mono" dir="ltr" x-text="`${vlog.created_at_iso || ''} • ${vlog.forensics?.size_kb || 0}KB`"></div>
                                         </div>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                                        <span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 text-[10px] font-bold" x-text="`${vlog.ai_analysis?.calories || 0} קק״ל`"></span>
+                                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-bold" x-text="`${vlog.ai_analysis?.protein_g || 0}g`"></span>
                                     </div>
                                 </div>
                             </template>
@@ -4219,439 +4171,103 @@
             </div>
 
             <!-- =============================================================== -->
-            <!-- VISION AI FORENSICS, HISTOGRAM & AGENT CALIBRATION STUDIO        -->
+            <!-- MINIMAL PHOTO TROUBLESHOOTING & CALIBRATION LOG (SETTINGS TAB)  -->
             <!-- =============================================================== -->
-            <div x-show="adminNavTab === 'settings'" class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-indigo-200/90 space-y-5">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                    <div class="space-y-1">
-                        <div class="inline-flex items-center gap-1.5 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                            <span>🔬</span> מעבדת Vision AI וכיול סוכן התמונות
-                        </div>
-                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900">ניתוח תמונות לקוחות, היסטוגרמת RGB/בהירות ואימון הסוכן</h3>
-                        <p class="text-xs text-slate-500">
-                            בדוק את הטלמטריה האופטית של כל תמונה (היסטוגרמת 16 ערוצים, חשיפה, ניגודיות, חדות ואיזון צבעים), צפה בנימוקי המודל ודייק את חוקי הסוכן בזמן אמת
-                        </p>
+            <div x-show="adminNavTab === 'settings'" class="bg-white rounded-3xl p-4 sm:p-5 shadow-xs border border-slate-200/90 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-sm sm:text-base font-extrabold text-slate-900">📸 יומן בדיקת צילומים וכיול מהיר (<span x-text="(visionLogs || []).length"></span>)</h3>
+                        <p class="text-[11px] text-slate-500">תצוגה קומפקטית לבירור תקלות בצילום ודיוק חוקי ה-AI ללא היסטוגרמות כבדות</p>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <label class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-extrabold shadow-xs transition cursor-pointer flex items-center gap-1.5">
-                            <span x-show="!visionTestingPhoto">📸 העלה תמונה לבדיקת עומק</span>
-                            <span x-show="visionTestingPhoto">⏳ מנתח היסטוגרמה ו-AI...</span>
-                            <input type="file" accept="image/*" class="hidden" :disabled="visionTestingPhoto" @change="runAdminVisionTest($event)">
-                        </label>
+                    <div class="flex items-center gap-2">
+                        <input type="text"
+                               x-model="visionSearchQuery"
+                               placeholder="חפש משתמש / מאכל..."
+                               class="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs outline-none focus:bg-white focus:border-indigo-500">
                         <button type="button"
                                 @click="fetchVisionLogs()"
                                 :disabled="visionLoading"
-                                class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
-                            <span x-text="visionLoading ? 'טוען...' : '🔄 רענן ניתוחים'"></span>
+                                class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                            <span x-text="visionLoading ? 'טוען...' : '🔄 רענן'"></span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Active Agent Calibration Rules (Memory Bank) -->
-                <div class="bg-gradient-to-br from-slate-50 to-indigo-50/40 rounded-2xl p-4 border border-indigo-100 space-y-3">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                            <h4 class="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-                                <span>🧠</span> חוקי הכיול הפעילים של סוכן ה-Vision (<span x-text="(visionCalibrationRules || []).length"></span> חוקים פעילים)
-                            </h4>
-                            <p class="text-[11px] text-slate-500">חוקים אלו מוזרקים אוטומטית לפרומפט של הסוכן בכל ניתוח תמונה של לקוח באתר או בטלגרם</p>
-                        </div>
-                    </div>
+                <!-- Compact Calibration Rules Input -->
+                <form @submit.prevent="submitNewVisionRule()" class="flex flex-col sm:flex-row gap-2">
+                    <input type="text"
+                           x-model="newVisionRuleText"
+                           placeholder="הוסף חוק דיוק קבוע לסוכן התמונות..."
+                           class="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:bg-white focus:border-indigo-500 outline-none">
+                    <button type="submit"
+                            :disabled="!newVisionRuleText.trim() || visionSavingRule"
+                            class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer whitespace-nowrap">
+                        + הוסף חוק (<span x-text="(visionCalibrationRules || []).length"></span>)
+                    </button>
+                </form>
 
-                    <!-- Add New General Rule Form -->
-                    <form @submit.prevent="submitNewVisionRule()" class="flex flex-col sm:flex-row gap-2">
-                        <input type="text"
-                               x-model="newVisionRuleText"
-                               placeholder="הוסף הוראת דיוק קבועה לסוכן (למשל: 'קערת פוקי בינונית מכילה 160 גרם אורז מבושל ו-100 גרם דג = כ-520 קק״ל')..."
-                               class="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs focus:border-indigo-500 outline-none">
-                        <button type="submit"
-                                :disabled="!newVisionRuleText.trim() || visionSavingRule"
-                                class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-extrabold transition cursor-pointer whitespace-nowrap">
-                            + הוסף חוק לסוכן
-                        </button>
-                    </form>
-
-                    <!-- Active Rules Chips/List -->
-                    <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                        <template x-for="rule in visionCalibrationRules" :key="rule.id">
-                            <div class="flex items-start justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200/80 text-xs">
-                                <div class="space-y-0.5">
-                                    <span class="inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 ml-1.5" x-text="rule.category || 'כיול אדמין'"></span>
-                                    <span class="text-slate-800 font-medium leading-relaxed" x-text="rule.rule_text"></span>
-                                </div>
-                                <button type="button"
-                                        @click="deleteVisionRule(rule.id)"
-                                        class="text-slate-400 hover:text-rose-600 font-bold px-1.5 py-0.5 rounded-lg hover:bg-rose-50 transition flex-shrink-0"
-                                        title="מחק חוק כיול">
-                                    ✕
-                                </button>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Aggregate Photo History Analytics Dashboard -->
-                <div x-show="visionLogs && visionLogs.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
-                        <div class="text-[10px] font-bold text-slate-400">📸 סה״כ צילומים בארכיון</div>
-                        <div class="text-lg font-extrabold text-slate-900 mt-0.5" x-text="visionStats?.total_photos || (visionLogs || []).length"></div>
-                        <div class="text-[10px] text-emerald-700 font-bold" x-text="`זיהוי ארוחה: ${visionStats?.success_rate_pct ?? 100}%`"></div>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
-                        <div class="text-[10px] font-bold text-slate-400">🎯 ביטחון AI ממוצע</div>
-                        <div class="text-lg font-extrabold text-indigo-700 mt-0.5" x-text="`${visionStats?.avg_confidence || 90}%`"></div>
-                        <div class="text-[10px] text-slate-500" x-text="`${visionStats?.recognized_meals || 0} ארוחות מזוהות`"></div>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
-                        <div class="text-[10px] font-bold text-slate-400">☀️ בהירות ממוצעת (Luma)</div>
-                        <div class="text-lg font-extrabold text-slate-900 mt-0.5" x-text="`${visionStats?.avg_brightness || 127} / 255`"></div>
-                        <div class="text-[10px] text-slate-500" x-text="`ניגודיות Std: ${visionStats?.avg_contrast || 50}`"></div>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
-                        <div class="text-[10px] font-bold text-slate-400">🔍 חדות אופטית ממוצעת</div>
-                        <div class="text-lg font-extrabold text-slate-900 mt-0.5" x-text="`${visionStats?.avg_sharpness || 60} / 100`"></div>
-                        <div class="text-[10px] text-slate-500">מדד חדות קצוות</div>
-                    </div>
-                    <div class="bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-3">
-                        <div class="text-[10px] font-bold text-indigo-700">✨ שופרו ב-Pre-Processor</div>
-                        <div class="text-lg font-extrabold text-indigo-950 mt-0.5" x-text="visionStats?.enhanced_count || 0"></div>
-                        <div class="text-[10px] text-indigo-700">תיקון אור/חדות/צבע אוטומטי</div>
-                    </div>
-                    <div class="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3">
-                        <div class="text-[10px] font-bold text-emerald-700">🛡️ אומתו / כוילו</div>
-                        <div class="text-lg font-extrabold text-emerald-950 mt-0.5" x-text="(visionStats?.calibrated_count || 0) + (visionStats?.verified_adjusted_count || 0)"></div>
-                        <div class="text-[10px] text-emerald-700" x-text="`ממוצע מנה: ${visionStats?.avg_calories_per_meal || 0} קק״ל`"></div>
-                    </div>
-                </div>
-
-                <!-- Analyzed Customer & Test Photos List -->
-                <div class="space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <h4 class="text-xs sm:text-sm font-extrabold text-slate-800">
-                                    📊 היסטוריית כל הצילומים וההיסטוגרמות (<span x-text="filteredVisionLogs.length"></span>/<span x-text="(visionLogs || []).length"></span>)
-                                </h4>
-                                <template x-if="(currentUser?.email || '').toLowerCase().includes('itamar')">
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
-                                        🔒 מוגבל ל-15 צילומים (איתמר)
-                                    </span>
-                                </template>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-1 text-[11px]">
-                                <button type="button" @click="visionFilter = 'all'"
-                                        :class="visionFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                                        class="px-2.5 py-1 rounded-lg font-bold transition cursor-pointer">הכל</button>
-                                <button type="button" @click="visionFilter = 'meals'"
-                                        :class="visionFilter === 'meals' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                                        class="px-2.5 py-1 rounded-lg font-bold transition cursor-pointer">✓ זוהתה ארוחה</button>
-                                <button type="button" @click="visionFilter = 'enhanced'"
-                                        :class="visionFilter === 'enhanced' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                                        class="px-2.5 py-1 rounded-lg font-bold transition cursor-pointer">✨ שופרו אופטית</button>
-                                <button type="button" @click="visionFilter = 'calibrated'"
-                                        :class="visionFilter === 'calibrated' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                                        class="px-2.5 py-1 rounded-lg font-bold transition cursor-pointer">🎯 כוילו</button>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2">
-                            <input type="text"
-                                   x-model="visionSearchQuery"
-                                   placeholder="חפש צילום לפי מאכל / משתמש / תאריך..."
-                                   class="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs outline-none focus:bg-white focus:border-indigo-500">
-                            <button type="button"
-                                    @click="exportVisionLogsCSV()"
-                                    x-show="visionLogs && visionLogs.length > 0"
-                                    class="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-extrabold transition cursor-pointer">
-                                📥 ייצוא CSV
-                            </button>
-                            <button type="button"
-                                    @click="exportVisionLogsJSON()"
-                                    x-show="visionLogs && visionLogs.length > 0"
-                                    class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition cursor-pointer">
-                                📥 JSON
-                            </button>
-                            <div class="flex items-center gap-1 text-[11px]">
-                                <button type="button" @click="visionHistChannel = 'luma'"
-                                        class="px-2 py-1 rounded-lg font-bold transition cursor-pointer"
-                                        :class="visionHistChannel === 'luma' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'">☀️ Luma</button>
-                                <button type="button" @click="visionHistChannel = 'rgb'"
-                                        class="px-2 py-1 rounded-lg font-bold transition cursor-pointer"
-                                        :class="visionHistChannel === 'rgb' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'">🌈 RGB</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <template x-if="!visionLogs || visionLogs.length === 0">
-                        <div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
-                            <div class="text-2xl">📷</div>
-                            <div class="text-xs font-bold text-slate-700">טרם נותחו תמונות בארכיון</div>
-                            <div class="text-[11px] text-slate-500">העלה תמונה בכפתור "📸 העלה תמונה לבדיקת עומק" למעלה או צלם ארוחה מהמסך הראשי כדי לראות את ההיסטוגרמה המלאה וניתוח ה-AI</div>
+                <div x-show="visionCalibrationRules && visionCalibrationRules.length > 0" class="flex flex-wrap gap-1.5">
+                    <template x-for="rule in visionCalibrationRules" :key="rule.id">
+                        <div class="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-[11px]">
+                            <span class="text-slate-700" x-text="rule.rule_text"></span>
+                            <button type="button" @click="deleteVisionRule(rule.id)" class="text-slate-400 hover:text-rose-600 font-bold cursor-pointer">✕</button>
                         </div>
                     </template>
+                </div>
 
-                    <div class="space-y-4">
-                        <template x-for="vlog in filteredVisionLogs" :key="vlog.id">
-                            <div :id="'vlog-card-' + vlog.id" class="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 space-y-4">
-                                <!-- Top Header: Thumbnail + AI Verdict + User Info -->
-                                <div class="flex flex-col md:flex-row gap-4">
-                                    <!-- Photo Thumbnail -->
-                                    <div class="w-full md:w-44 flex-shrink-0 flex flex-col items-center gap-2">
-                                        <template x-if="vlog.forensics && vlog.forensics.thumbnail_data_url">
-                                            <img :src="vlog.forensics.thumbnail_data_url"
-                                                 alt="Meal Thumbnail"
-                                                 class="w-full h-36 object-cover rounded-2xl border border-slate-200 shadow-xs bg-white">
-                                        </template>
-                                        <div class="w-full flex items-center justify-between text-[10px] text-slate-500 px-1 font-mono" dir="ltr">
-                                            <span x-text="`${vlog.forensics?.orig_width || 0}×${vlog.forensics?.orig_height || 0}px`"></span>
-                                            <span x-text="`${vlog.forensics?.size_kb || 0} KB`"></span>
-                                            <span x-text="vlog.forensics?.format || 'JPEG'"></span>
+                <!-- Minimal Photo Logs List -->
+                <div class="space-y-2 max-h-96 overflow-y-auto pr-1">
+                    <template x-for="vlog in filteredVisionLogs" :key="vlog.id">
+                        <div :id="'vlog-card-' + vlog.id" class="rounded-xl border border-slate-200/90 bg-slate-50/50 p-3 space-y-2">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <template x-if="vlog.forensics && vlog.forensics.thumbnail_data_url">
+                                        <img :src="vlog.forensics.thumbnail_data_url" alt="" class="w-14 h-14 object-cover rounded-xl border border-slate-200 bg-white flex-shrink-0">
+                                    </template>
+                                    <div class="min-w-0 space-y-0.5">
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800" x-text="vlog.user_name || vlog.user_id"></span>
+                                            <span class="text-[10px] font-mono text-slate-400" dir="ltr" x-text="`${vlog.created_at_iso || ''} • ${vlog.forensics?.orig_width || 0}×${vlog.forensics?.orig_height || 0} (${vlog.forensics?.size_kb || 0}KB)`"></span>
+                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                                  :class="vlog.status === 'error' ? 'bg-rose-100 text-rose-700' : (vlog.status === 'rejected' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800')"
+                                                  x-text="vlog.status === 'error' ? 'שגיאה' : (vlog.status === 'rejected' ? 'לא מזון' : 'תקין')"></span>
                                         </div>
-                                    </div>
-
-                                    <!-- AI Extraction & Reasoning Summary -->
-                                    <div class="flex-1 min-w-0 space-y-2.5">
-                                        <div class="flex flex-wrap items-center justify-between gap-2">
-                                            <div class="flex flex-wrap items-center gap-1.5">
-                                                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800"
-                                                      x-text="vlog.user_name || vlog.user_id"></span>
-                                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700"
-                                                      x-text="vlog.source === 'telegram-photo' ? '📱 טלגרם' : (vlog.source === 'admin-vision-lab' ? '🔬 מעבדת אדמין' : '🌐 אפליקציית Web')"></span>
-                                                <span class="text-[11px] text-slate-400 font-mono" dir="ltr" x-text="vlog.created_at_iso"></span>
-                                                <span x-show="vlog.calibrated" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                                    ✓ כויל ע״י אדמין
-                                                </span>
-                                                <span x-show="vlog.reanalysis_count > 0" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 border border-violet-300"
-                                                      x-text="`🔄 נותח מחדש (${vlog.reanalysis_count})`"></span>
-                                            </div>
-                                            <div class="flex items-center gap-1.5">
-                                                <button type="button"
-                                                        @click="reanalyzeVisionLog(vlog)"
-                                                        :disabled="reanalyzingLogId === vlog.id"
-                                                        class="px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-extrabold transition cursor-pointer"
-                                                        title="הרץ שוב את סוכן השיפור האופטי ו-Gemini Vision על תמונה שמורה זו">
-                                                    <span x-text="reanalyzingLogId === vlog.id ? '⏳ מנתח מחדש...' : '🔄 נתח מחדש'"></span>
-                                                </button>
-                                                <span class="text-xs font-extrabold px-2.5 py-1 rounded-xl border"
-                                                      :class="(vlog.ai_analysis?.confidence_score || 85) >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'"
-                                                      x-text="`🎯 ביטחון מודל: ${vlog.ai_analysis?.confidence_score || 88}%`"></span>
-                                                <button type="button"
-                                                        @click="deleteVisionLog(vlog.id)"
-                                                        class="p-1.5 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 text-xs transition cursor-pointer"
-                                                        title="מחק רשומת צילום">
-                                                    🗑️
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div class="bg-white rounded-xl p-3 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                            <div>
-                                                <div class="text-sm font-extrabold text-slate-900" x-text="vlog.ai_analysis?.summary || 'ללא תיאור'"></div>
-                                                <div x-show="vlog.caption" class="text-[11px] text-indigo-600 mt-0.5" x-text="`💬 כיתוב משתמש: ${vlog.caption}`"></div>
-                                            </div>
-                                            <div class="flex items-center gap-2 flex-shrink-0">
-                                                <span class="px-3 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-extrabold"
-                                                      x-text="`🔥 ${vlog.ai_analysis?.calories || 0} קק״ל`"></span>
-                                                <span class="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-extrabold"
-                                                      x-text="`💪 ${vlog.ai_analysis?.protein_g || 0}g חלבון`"></span>
-                                            </div>
-                                        </div>
-
-                                        <!-- Itemized AI Breakdown -->
-                                        <div x-show="vlog.ai_analysis?.items && vlog.ai_analysis.items.length > 0" class="flex flex-wrap gap-1.5">
-                                            <template x-for="(it, idx) in (vlog.ai_analysis?.items || [])" :key="idx">
-                                                <span class="text-[11px] bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700">
-                                                    <strong x-text="it.name"></strong>:
-                                                    <span class="text-amber-700 font-bold" x-text="`${it.calories} קק״ל`"></span> •
-                                                    <span class="text-emerald-700 font-bold" x-text="`${it.protein_g}g`"></span>
-                                                </span>
-                                            </template>
-                                        </div>
-
-                                        <!-- Agent Reasoning Details -->
-                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-                                            <div class="bg-white p-2.5 rounded-xl border border-slate-200/70">
-                                                <span class="font-extrabold text-slate-700 block mb-0.5">📏 שיטת הערכת כמות ונפח:</span>
-                                                <span class="text-slate-600" x-text="vlog.ai_analysis?.portion_estimation_method || 'לפי פרופורציות הצלחת'"></span>
-                                            </div>
-                                            <div class="bg-white p-2.5 rounded-xl border border-slate-200/70">
-                                                <span class="font-extrabold text-slate-700 block mb-0.5">👁️ סימנים חזותיים שזוהו:</span>
-                                                <span class="text-slate-600" x-text="vlog.ai_analysis?.visual_cues || 'מרקם, צבע וצפיפות'"></span>
-                                            </div>
-                                            <div class="bg-white p-2.5 rounded-xl border border-slate-200/70">
-                                                <span class="font-extrabold text-slate-700 block mb-0.5">🫒 קלוריות סמויות (שמן/רוטב):</span>
-                                                <span class="text-slate-600" x-text="vlog.ai_analysis?.hidden_calories_note || 'ללא הערות מיוחדות'"></span>
-                                            </div>
-                                        </div>
+                                        <div class="text-xs font-extrabold text-slate-900 truncate" x-text="vlog.ai_analysis?.summary || 'ללא תיאור'"></div>
+                                        <div x-show="vlog.caption" class="text-[11px] text-indigo-600 truncate" x-text="`הערה: ${vlog.caption}`"></div>
                                     </div>
                                 </div>
 
-                                <!-- Middle Section: Visual 16-Bin Histogram + Optical Telemetry Metrics -->
-                                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-2 border-t border-slate-200/70">
-                                    <!-- 16-Bin Histogram Bar Chart -->
-                                    <div class="lg:col-span-6 bg-slate-900 text-white rounded-2xl p-4 space-y-2.5">
-                                        <div class="flex items-center justify-between text-[11px]">
-                                            <span class="font-extrabold text-slate-200">📊 היסטוגרמת תמונה (16 תחומי עוצמה 0–255)</span>
-                                            <span class="font-mono text-slate-400" dir="ltr"
-                                                  x-text="`Luma=${vlog.forensics?.mean_brightness || 128} | Std=${vlog.forensics?.contrast_std || 48}`"></span>
-                                        </div>
-
-                                        <!-- Histogram Bars (0..15) -->
-                                        <div class="h-28 flex items-end gap-1 pt-2 px-1 border-b border-slate-700" dir="ltr">
-                                            <template x-for="(binLabel, bIdx) in (vlog.forensics?.hist_bins || [])" :key="bIdx">
-                                                <div class="flex-1 h-full flex flex-col justify-end items-center group relative">
-                                                    <!-- Luma Single Bar Mode -->
-                                                    <template x-if="visionHistChannel === 'luma'">
-                                                        <div class="w-full rounded-t bg-gradient-to-t from-amber-500 to-yellow-300 transition-all"
-                                                             :style="`height: ${Math.max(4, Math.min(100, (vlog.forensics?.hist_luma?.[bIdx] || 0) * 3.2))}%`"
-                                                             :title="`${binLabel}: ${vlog.forensics?.hist_luma?.[bIdx] || 0}%`"></div>
-                                                    </template>
-                                                    <!-- RGB 3-Bar Mode -->
-                                                    <template x-if="visionHistChannel === 'rgb'">
-                                                        <div class="w-full h-full flex items-end justify-center gap-[1px]">
-                                                            <div class="w-1/3 bg-rose-500 rounded-t"
-                                                                 :style="`height: ${Math.max(4, Math.min(100, (vlog.forensics?.hist_r?.[bIdx] || 0) * 3.2))}%`"
-                                                                 :title="`R (${binLabel}): ${vlog.forensics?.hist_r?.[bIdx] || 0}%`"></div>
-                                                            <div class="w-1/3 bg-emerald-400 rounded-t"
-                                                                 :style="`height: ${Math.max(4, Math.min(100, (vlog.forensics?.hist_g?.[bIdx] || 0) * 3.2))}%`"
-                                                                 :title="`G (${binLabel}): ${vlog.forensics?.hist_g?.[bIdx] || 0}%`"></div>
-                                                            <div class="w-1/3 bg-sky-400 rounded-t"
-                                                                 :style="`height: ${Math.max(4, Math.min(100, (vlog.forensics?.hist_b?.[bIdx] || 0) * 3.2))}%`"
-                                                                 :title="`B (${binLabel}): ${vlog.forensics?.hist_b?.[bIdx] || 0}%`"></div>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </template>
-                                        </div>
-                                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono" dir="ltr">
-                                            <span>0 (צללים כהים)</span>
-                                            <span>128 (גווני ביניים)</span>
-                                            <span>255 (שיאי אור)</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Optical Forensics Grid -->
-                                    <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                            <div class="text-[10px] text-slate-400 font-bold">☀️ בהירות וחשיפה</div>
-                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`${vlog.forensics?.mean_brightness || 0} / 255`"></div>
-                                            <div class="text-[10px] text-indigo-600 font-semibold" x-text="vlog.forensics?.brightness_label || ''"></div>
-                                        </div>
-                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                            <div class="text-[10px] text-slate-400 font-bold">🌗 ניגודיות וטווח דינמי</div>
-                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`Std ${vlog.forensics?.contrast_std || 0} (DR ${vlog.forensics?.dynamic_range || 0})`"></div>
-                                            <div class="text-[10px] text-slate-600" x-text="vlog.forensics?.contrast_label || ''"></div>
-                                        </div>
-                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                            <div class="text-[10px] text-slate-400 font-bold">🔍 חדות ופרטים</div>
-                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`${vlog.forensics?.sharpness_score || 0} / 100`"></div>
-                                            <div class="text-[10px] text-emerald-700 font-semibold" x-text="vlog.forensics?.sharpness_label || ''"></div>
-                                        </div>
-                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                            <div class="text-[10px] text-slate-400 font-bold">🌡️ טמפרטורת צבע (R/B)</div>
-                                            <div class="font-extrabold text-slate-800 mt-0.5" dir="ltr" x-text="`${vlog.forensics?.warm_cool_ratio || 1.0} (${vlog.forensics?.mean_r}/${vlog.forensics?.mean_g}/${vlog.forensics?.mean_b})`"></div>
-                                            <div class="text-[10px] text-amber-700 font-semibold" x-text="vlog.forensics?.lighting_temp_label || ''"></div>
-                                        </div>
-                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                            <div class="text-[10px] text-slate-400 font-bold">🥗 פרופיל צבעי מזון</div>
-                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`ירוק: ${vlog.forensics?.green_fresh_pct || 0}% | חם: ${vlog.forensics?.warm_cooked_pct || 0}%`"></div>
-                                            <div class="text-[10px] text-slate-500" x-text="`רוויה: ${vlog.forensics?.saturation_score || 0}`"></div>
-                                        </div>
-                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                            <div class="text-[10px] text-slate-400 font-bold">⚡ קטימת קצוות (Clipping)</div>
-                                            <div class="font-extrabold text-slate-800 mt-0.5" x-text="`צל: ${vlog.forensics?.shadow_clipping_pct || 0}% | אור: ${vlog.forensics?.highlight_clipping_pct || 0}%`"></div>
-                                            <div class="text-[10px] text-slate-500" x-text="`חציון P50: ${vlog.forensics?.p50_luma || 128}`"></div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Optical Warnings if any -->
-                                <div x-show="vlog.forensics?.optical_warnings && vlog.forensics.optical_warnings.length > 0"
-                                     class="bg-amber-50 border border-amber-200/80 rounded-xl px-3.5 py-2 text-[11px] text-amber-900 flex items-start gap-2">
-                                    <span>⚠️</span>
-                                    <div>
-                                        <strong>התראות חיישן אופטי:</strong>
-                                        <span x-text="(vlog.forensics?.optical_warnings || []).join(' • ')"></span>
-                                    </div>
-                                </div>
-
-                                <!-- Pre-Analysis Auto-Enhancements & Post-Analysis Verifier Agent Report -->
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                    <div class="bg-indigo-50/70 border border-indigo-200/80 rounded-xl px-3.5 py-2 text-[11px] text-indigo-950 flex items-start gap-2">
-                                        <span>✨</span>
-                                        <div>
-                                            <strong>סוכן שיפור תמונה אוטומטי (Pre-Processor):</strong>
-                                            <span x-text="(vlog.forensics?.enhancements_applied && vlog.forensics.enhancements_applied.length > 0) ? vlog.forensics.enhancements_applied.join(' • ') : 'התמונה באיכות אופטית מיטבית — לא נדרש תיקון צבע/חשיפה'"></span>
-                                        </div>
-                                    </div>
-                                    <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-xl px-3.5 py-2 text-[11px] text-emerald-950 flex items-start gap-2">
-                                        <span>🛡️</span>
-                                        <div>
-                                            <strong>סוכן אימות ובקרת סכומים (Verifier Agent):</strong>
-                                            <span x-text="(vlog.forensics?.verifier_notes && vlog.forensics.verifier_notes.length > 0) ? vlog.forensics.verifier_notes.join(' • ') : 'בדיקת סכומי רכיבים וערכים תרמודינמיים תקינה ✓'"></span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Bottom Action Bar: Calibrate Agent on this Photo -->
-                                <div class="pt-2 border-t border-slate-200/60 flex flex-col gap-3">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-[11px] text-slate-500">רוצה לדייק את הסוכן על התמונה הזו כדי שילמד להבא ויתקן את הערכים?</span>
-                                        <button type="button"
-                                                @click="openVisionCalibrateForm(vlog)"
-                                                class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold transition cursor-pointer">
-                                            🎯 דייק וכוון את הסוכן על תמונה זו
-                                        </button>
-                                    </div>
-
-                                    <!-- Inline Calibration Editor -->
-                                    <div x-show="calibratingLogId === vlog.id" x-transition class="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 space-y-3">
-                                        <div class="text-xs font-extrabold text-indigo-950">🎯 כיול סוכן ה-Vision ותיקון ערכי התמונה</div>
-                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                            <div>
-                                                <label class="block text-[11px] font-bold text-slate-700 mb-1">תיאור מנה מדויק</label>
-                                                <input type="text" x-model="calibrateForm.corrected_summary"
-                                                       class="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs outline-none focus:border-indigo-500">
-                                            </div>
-                                            <div>
-                                                <label class="block text-[11px] font-bold text-slate-700 mb-1">קלוריות מדויקות (קק״ל)</label>
-                                                <input type="number" x-model.number="calibrateForm.corrected_calories"
-                                                       class="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold outline-none focus:border-indigo-500">
-                                            </div>
-                                            <div>
-                                                <label class="block text-[11px] font-bold text-slate-700 mb-1">חלבון מדויק (גרם)</label>
-                                                <input type="number" step="0.5" x-model.number="calibrateForm.corrected_protein_g"
-                                                       class="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold outline-none focus:border-indigo-500">
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-[11px] font-bold text-slate-700 mb-1">כלל לקח לסוכן (נשמר בזיכרון הסוכן לכל התמונות הבאות — אם תשאיר ריק, יופק אוטומטית מהתיקון)</label>
-                                            <input type="text" x-model="calibrateForm.rule_text"
-                                                   placeholder="למשל: בצלחת עמוקה כזו כמות הפסטה היא 200 גרם מבושל (310 קק״ל) ולא 350 גרם..."
-                                                   class="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs outline-none focus:border-indigo-500">
-                                        </div>
-                                        <div class="flex flex-wrap items-center justify-between gap-2">
-                                            <label x-show="vlog.meal_id" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                                <input type="checkbox" x-model="calibrateForm.update_customer_meal" class="rounded text-indigo-600">
-                                                <span>עדכן גם את הארוחה ביומן הלקוח (<span x-text="vlog.user_name"></span>)</span>
-                                            </label>
-                                            <div class="flex items-center gap-2 mr-auto">
-                                                <button type="button" @click="calibratingLogId = null"
-                                                        class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold cursor-pointer">
-                                                    ביטול
-                                                </button>
-                                                <button type="button" @click="submitVisionCalibration(vlog)"
-                                                        :disabled="visionSavingRule"
-                                                        class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-xs cursor-pointer">
-                                                    💾 שמור תיקון ולמד את הסוכן
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    <span class="px-2 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold" x-text="`${vlog.ai_analysis?.calories || 0} קק״ל`"></span>
+                                    <span class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold" x-text="`${vlog.ai_analysis?.protein_g || 0}g`"></span>
+                                    <button type="button"
+                                            @click="openVisionCalibrateForm(vlog)"
+                                            class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition cursor-pointer">
+                                        🎯 תקן
+                                    </button>
+                                    <button type="button"
+                                            @click="deleteVisionLog(vlog.id)"
+                                            class="p-1 rounded-lg bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 text-xs transition cursor-pointer">
+                                        🗑️
+                                    </button>
                                 </div>
                             </div>
-                        </template>
-                    </div>
+
+                            <!-- Inline Calibration Editor -->
+                            <div x-show="calibratingLogId === vlog.id" x-transition class="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3 space-y-2">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <input type="text" x-model="calibrateForm.corrected_summary" placeholder="תיאור מנה" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs">
+                                    <input type="number" x-model.number="calibrateForm.corrected_calories" placeholder="קלוריות" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold">
+                                    <input type="number" step="0.5" x-model.number="calibrateForm.corrected_protein_g" placeholder="חלבון (ג׳)" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold">
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <input type="text" x-model="calibrateForm.rule_text" placeholder="כלל לקח לסוכן (אופציונלי)..." class="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs">
+                                    <button type="button" @click="calibratingLogId = null" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold cursor-pointer">ביטול</button>
+                                    <button type="button" @click="submitVisionCalibration(vlog)" :disabled="visionSavingRule" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold cursor-pointer">💾 שמור</button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
 
@@ -7617,7 +7233,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=110').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=111').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });

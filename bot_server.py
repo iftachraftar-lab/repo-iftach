@@ -2377,41 +2377,14 @@ def delete_vision_calibration_rule_db(rule_id: str) -> bool:
 
 
 def compute_image_forensics_and_histogram(image_bytes: bytes) -> dict:
-    """Computes RGB & Luminance 16-bin histograms, exposure, contrast, sharpness, color balance, and a compact thumbnail."""
-    size_kb = round(len(image_bytes) / 1024.0, 1)
+    """Minimal diagnostic metadata & compact thumbnail for troubleshooting photo issues without heavy histograms."""
+    size_kb = round(len(image_bytes) / 1024.0, 1) if image_bytes else 0.0
     fallback = {
         "size_kb": size_kb,
         "orig_width": 0,
         "orig_height": 0,
-        "aspect_ratio": "1:1",
         "format": "JPEG",
-        "mean_brightness": 128.0,
-        "brightness_label": "תאורה מאוזנת",
-        "contrast_std": 48.0,
-        "contrast_label": "ניגודיות תקינה",
-        "dynamic_range": 140,
-        "p10_luma": 45,
-        "p50_luma": 128,
-        "p90_luma": 195,
-        "shadow_clipping_pct": 1.2,
-        "highlight_clipping_pct": 0.8,
-        "mean_r": 135.0,
-        "mean_g": 125.0,
-        "mean_b": 110.0,
-        "warm_cool_ratio": 1.22,
-        "lighting_temp_label": "תאורה חמה / פנים",
-        "saturation_score": 42.0,
-        "green_fresh_pct": 8.0,
-        "warm_cooked_pct": 34.0,
-        "sharpness_score": 68,
-        "sharpness_label": "חד וברור",
-        "hist_bins": [f"{i*16}-{i*16+15}" for i in range(16)],
-        "hist_r": [6.25] * 16,
-        "hist_g": [6.25] * 16,
-        "hist_b": [6.25] * 16,
-        "hist_luma": [6.25] * 16,
         "thumbnail_data_url": "",
-        "optical_warnings": [],
     }
     if Image is None or not image_bytes:
         return fallback
@@ -2419,172 +2392,22 @@ def compute_image_forensics_and_histogram(image_bytes: bytes) -> dict:
     try:
         with Image.open(io.BytesIO(image_bytes)) as raw_img:
             img_format = raw_img.format or "JPEG"
-            if ImageOps is not None:
-                img = ImageOps.exif_transpose(raw_img)
-            else:
-                img = raw_img
+            img = ImageOps.exif_transpose(raw_img) if ImageOps is not None else raw_img
             orig_w, orig_h = img.size
             rgb = img.convert("RGB")
-            luma = rgb.convert("L")
 
-            # 256-bin histograms
-            rgb_hist_256 = rgb.histogram()
-            r_256 = rgb_hist_256[0:256]
-            g_256 = rgb_hist_256[256:512]
-            b_256 = rgb_hist_256[512:768]
-            l_256 = luma.histogram()[0:256]
-
-            total_px = max(1, sum(l_256))
-
-            def _to_16_bins(h256: list) -> List[float]:
-                bins16 = []
-                for bi in range(16):
-                    chunk = sum(h256[bi * 16 : (bi + 1) * 16])
-                    bins16.append(round((chunk * 100.0) / total_px, 2))
-                return bins16
-
-            hist_r = _to_16_bins(r_256)
-            hist_g = _to_16_bins(g_256)
-            hist_b = _to_16_bins(b_256)
-            hist_luma = _to_16_bins(l_256)
-
-            mean_r = round(sum(i * c for i, c in enumerate(r_256)) / total_px, 1)
-            mean_g = round(sum(i * c for i, c in enumerate(g_256)) / total_px, 1)
-            mean_b = round(sum(i * c for i, c in enumerate(b_256)) / total_px, 1)
-            mean_l = round(sum(i * c for i, c in enumerate(l_256)) / total_px, 1)
-
-            variance_l = sum(((i - mean_l) ** 2) * c for i, c in enumerate(l_256)) / total_px
-            contrast_std = round(variance_l ** 0.5, 1)
-
-            def _percentile(h256: list, pct: float) -> int:
-                target = total_px * pct
-                acc = 0
-                for val, count in enumerate(h256):
-                    acc += count
-                    if acc >= target:
-                        return val
-                return 255
-
-            p10 = _percentile(l_256, 0.10)
-            p50 = _percentile(l_256, 0.50)
-            p90 = _percentile(l_256, 0.90)
-            dyn_range = max(0, p90 - p10)
-
-            shadow_clip_pct = round((sum(l_256[:16]) * 100.0) / total_px, 1)
-            highlight_clip_pct = round((sum(l_256[240:]) * 100.0) / total_px, 1)
-
-            # Fast 64x64 grid analysis for sharpness, saturation, and food color cues
-            small_rgb = rgb.resize((64, 64))
-            small_l = luma.resize((64, 64))
-            px_rgb = list(small_rgb.getdata())
-            px_l = list(small_l.getdata())
-
-            sat_sum = 0
-            green_cnt = 0
-            warm_cooked_cnt = 0
-            for r_v, g_v, b_v in px_rgb:
-                sat_sum += (max(r_v, g_v, b_v) - min(r_v, g_v, b_v))
-                if g_v > r_v + 10 and g_v > b_v + 12 and g_v > 45:
-                    green_cnt += 1
-                if r_v > g_v > b_v and r_v > 85 and (r_v - b_v) > 25:
-                    warm_cooked_cnt += 1
-
-            n_small = max(1, len(px_rgb))
-            saturation_score = round(sat_sum / n_small, 1)
-            green_fresh_pct = round((green_cnt * 100.0) / n_small, 1)
-            warm_cooked_pct = round((warm_cooked_cnt * 100.0) / n_small, 1)
-
-            grad_sum = 0
-            grad_cnt = 0
-            for y in range(63):
-                row_off = y * 64
-                for x in range(63):
-                    idx = row_off + x
-                    c_val = px_l[idx]
-                    grad_sum += abs(c_val - px_l[idx + 1]) + abs(c_val - px_l[idx + 64])
-                    grad_cnt += 2
-            avg_grad = grad_sum / max(1, grad_cnt)
-            sharpness_score = int(min(100, max(5, round(avg_grad * 3.6))))
-
-            warm_cool_ratio = round((mean_r + 1.0) / (mean_b + 1.0), 2)
-
-            warnings = []
-            if mean_l < 75 or shadow_clip_pct > 22:
-                brightness_label = "כהה / תת-חשיפה"
-                warnings.append("התמונה כהה יחסית (תת-חשיפה) — ייתכן שרטבים כהים או עומק הצלחת מוסתרים בצללים.")
-            elif mean_l > 195 or highlight_clip_pct > 18:
-                brightness_label = "בהירה מאוד / חשיפת יתר"
-                warnings.append("חשיפת יתר באזורים בהירים (סינוור/פלאש) — עלול לטשטש מרקם של אורז, גבינות או ברק שמן.")
-            else:
-                brightness_label = "תאורה מאוזנת וטובה"
-
-            if contrast_std < 32:
-                contrast_label = "ניגודיות נמוכה (שטוחה)"
-                warnings.append("ניגודיות נמוכה — הפרדה חלשה בין מרכיבים בעלי צבע דומה.")
-            elif contrast_std > 72:
-                contrast_label = "ניגודיות גבוהה (צללים חדים)"
-            else:
-                contrast_label = "ניגודיות מיטבית"
-
-            if sharpness_score < 32:
-                sharpness_label = "מטושטשת / תנועה"
-                warnings.append("חדות נמוכה (טשטוש) — קשה יותר להעריך מרקם מדויק או כיתוב קטן על אריזה.")
-            elif sharpness_score < 55:
-                sharpness_label = "חדות בינונית"
-            else:
-                sharpness_label = "חדה וברורה"
-
-            if warm_cool_ratio > 1.32:
-                lighting_temp_label = "תאורה צהובה/חמה מאוד (פנים)"
-                warnings.append("תאורת חדר חמה/צהובה (יחס R/B גבוה) — עלולה לגרום למזון מאודה/אפוי להיראות מטוגן או שומני יותר.")
-            elif warm_cool_ratio < 0.92:
-                lighting_temp_label = "תאורה קרה / פלורסנט"
-            else:
-                lighting_temp_label = "איזון לבן טבעי (Daylight)"
-
-            # High-clarity thumbnail for Photo History & Re-analysis
-            thumb = rgb.copy()
-            thumb.thumbnail((320, 320))
+            # Compact 140x140 thumbnail (~2-3 KB) strictly for quick admin troubleshooting
+            rgb.thumbnail((140, 140))
             t_out = io.BytesIO()
-            thumb.save(t_out, format="JPEG", quality=74, optimize=True)
+            rgb.save(t_out, format="JPEG", quality=52, optimize=True)
             thumb_b64 = base64.b64encode(t_out.getvalue()).decode("ascii")
-            thumb_data_url = f"data:image/jpeg;base64,{thumb_b64}"
 
             return {
                 "size_kb": size_kb,
                 "orig_width": orig_w,
                 "orig_height": orig_h,
-                "aspect_ratio": f"{round(orig_w / max(1, orig_h), 2)}:1",
                 "format": img_format,
-                "mean_brightness": mean_l,
-                "brightness_label": brightness_label,
-                "contrast_std": contrast_std,
-                "contrast_label": contrast_label,
-                "dynamic_range": dyn_range,
-                "p10_luma": p10,
-                "p50_luma": p50,
-                "p90_luma": p90,
-                "shadow_clipping_pct": shadow_clip_pct,
-                "highlight_clipping_pct": highlight_clip_pct,
-                "mean_r": mean_r,
-                "mean_g": mean_g,
-                "mean_b": mean_b,
-                "warm_cool_ratio": warm_cool_ratio,
-                "lighting_temp_label": lighting_temp_label,
-                "saturation_score": saturation_score,
-                "green_fresh_pct": green_fresh_pct,
-                "warm_cooked_pct": warm_cooked_pct,
-                "sharpness_score": sharpness_score,
-                "sharpness_label": sharpness_label,
-                "hist_bins": [f"{i*16}-{i*16+15}" for i in range(16)],
-                "hist_r": hist_r,
-                "hist_g": hist_g,
-                "hist_b": hist_b,
-                "hist_luma": hist_luma,
-                "thumbnail_data_url": thumb_data_url,
-                "optical_warnings": warnings,
-                "enhancements_applied": [],
-                "verifier_notes": [],
+                "thumbnail_data_url": f"data:image/jpeg;base64,{thumb_b64}",
             }
     except Exception as e:
         print(f"WARN compute_image_forensics_and_histogram: {e}")
@@ -2592,69 +2415,9 @@ def compute_image_forensics_and_histogram(image_bytes: bytes) -> dict:
 
 
 def auto_enhance_food_image(image_bytes: bytes, mime_type: str, forensics: dict) -> tuple[bytes, str, List[str]]:
-    """Pre-analysis optical agent: automatically fixes dark exposure, low contrast, warm yellow cast, and blur before Gemini Vision."""
-    enhancements: List[str] = []
-    if Image is None or not image_bytes:
-        norm_b, clean_m = _normalize_image_bytes(image_bytes, mime_type)
-        return norm_b, clean_m, enhancements
-
-    try:
-        with Image.open(io.BytesIO(image_bytes)) as raw_img:
-            img = ImageOps.exif_transpose(raw_img) if ImageOps is not None else raw_img
-            if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
-                bg = Image.new("RGB", img.size, (255, 255, 255))
-                rgba = img.convert("RGBA")
-                bg.paste(rgba, mask=rgba.split()[3])
-                img = bg
-            elif img.mode != "RGB":
-                img = img.convert("RGB")
-
-            img.thumbnail((1280, 1280))
-
-            mean_l = float(forensics.get("mean_brightness", 128.0))
-            contrast_std = float(forensics.get("contrast_std", 48.0))
-            dyn_range = int(forensics.get("dynamic_range", 140))
-            warm_cool = float(forensics.get("warm_cool_ratio", 1.15))
-            sharpness = int(forensics.get("sharpness_score", 68))
-
-            # 1. White-Balance Normalization if indoor lighting is overly yellow/warm
-            if warm_cool > 1.32:
-                r_ch, g_ch, b_ch = img.split()
-                r_factor = max(0.88, min(0.95, 1.22 / warm_cool))
-                b_factor = min(1.18, max(1.05, warm_cool / 1.22))
-                r_ch = r_ch.point(lambda v: int(min(255, max(0, round(v * r_factor)))))
-                b_ch = b_ch.point(lambda v: int(min(255, max(0, round(v * b_factor)))))
-                img = Image.merge("RGB", (r_ch, g_ch, b_ch))
-                enhancements.append(f"תיקון איזון לבן אוטומטי (נטרול תאורה צהובה R/B={warm_cool})")
-
-            # 2. Auto-Contrast if dynamic range or contrast is flat
-            if ImageOps is not None and (contrast_std < 38.0 or dyn_range < 115):
-                img = ImageOps.autocontrast(img, cutoff=1)
-                enhancements.append(f"הרחבת טווח דינמי וניגודיות (Auto-Contrast, Std={contrast_std})")
-
-            # 3. Exposure / Shadow Lift if image is underexposed or dark
-            if ImageEnhance is not None:
-                if mean_l < 92.0:
-                    boost = round(min(1.42, max(1.12, 110.0 / max(38.0, mean_l))), 2)
-                    img = ImageEnhance.Brightness(img).enhance(boost)
-                    enhancements.append(f"הבהרת חשיפה ופתיחת צללים (×{boost})")
-                elif mean_l > 202.0:
-                    img = ImageEnhance.Brightness(img).enhance(0.88)
-                    enhancements.append("איזון חשיפת יתר וסינוור (×0.88)")
-
-            # 4. Edge & Label Sharpening if slightly soft/blurry
-            if ImageFilter is not None and sharpness < 54:
-                img = img.filter(ImageFilter.UnsharpMask(radius=1.4, percent=135, threshold=3))
-                enhancements.append(f"חידוד קצוות וטקסט (Unsharp Mask, חדות={sharpness})")
-
-            out = io.BytesIO()
-            img.save(out, format="JPEG", quality=87, optimize=True)
-            forensics["enhancements_applied"] = enhancements
-            return out.getvalue(), "image/jpeg", enhancements
-    except Exception as e:
-        print(f"WARN auto_enhance_food_image fallback: {e}")
-        norm_b, clean_m = _normalize_image_bytes(image_bytes, mime_type)
-        return norm_b, clean_m, enhancements
+    """Fast single-pass normalization without heavy pixel-level optical filters."""
+    norm_b, clean_m = _normalize_image_bytes(image_bytes, mime_type)
+    return norm_b, clean_m, []
 
 
 def verify_and_reconcile_nutrition_extraction(
@@ -2665,82 +2428,32 @@ def verify_and_reconcile_nutrition_extraction(
     caption: str = "",
     rules_block: str = "",
 ) -> tuple[NutritionExtraction, List[str]]:
-    """Post-analysis Verifier Agent: runs 2nd-pass AI critic on low-confidence detections and enforces thermodynamic & sum consistency."""
-    verifier_notes: List[str] = []
+    """Fast O(1) thermodynamic & item sum consistency check (no second AI call)."""
     if not extraction.is_meal:
-        forensics["verifier_notes"] = verifier_notes
-        return extraction, verifier_notes
+        return extraction, []
 
-    # Step 1: Conditional Second-Pass AI Critic if initial confidence < 75%
-    conf = int(getattr(extraction, "confidence_score", 88) or 88)
-    if ai_client and conf < 75 and norm_bytes:
-        try:
-            items_preview = ", ".join(f"{it.name} ({it.calories} קק״ל, {it.protein_g}g חלבון)" for it in (extraction.items or []))
-            critic_prompt = f"""אתה סוכן מבקר ומאמת (Vision Verifier Agent) לבקרת איכות של פענוח תמונות מזון בישראל.
-הסוכן הראשוני ניתח את התמונה ברמת ביטחון נמוכה ({conf}%) והחזיר:
-- סיכום ראשוני: {extraction.summary}
-- רכיבים שזוהו: {items_preview}
-- סה"כ ראשוני: {extraction.calories} קק"ל, {extraction.protein_g}g חלבון
-- הערת משתמש: '{caption.strip() if caption else "ללא"}'{rules_block}
-
-בדוק שוב את התמונה בעיון:
-1. האם זוהו כל המרכיבים בצלחת/אריזה בצורה נכונה? האם יש מרכיב שפוספס או זוהה בטעות?
-2. האם משקלי המנה תואמים לקנה המידה של הצלחת/כלי ההגשה?
-3. החזר JSON מתוקן ומדויק עם סכומים עקביים ועדכן את confidence_score בהתאם."""
-            resp2 = ai_client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[
-                    types.Part.from_bytes(data=norm_bytes, mime_type=clean_mime),
-                    critic_prompt,
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=NutritionExtraction,
-                    temperature=0.05,
-                ),
-            )
-            refined = NutritionExtraction.model_validate_json(resp2.text)
-            if refined.is_meal and refined.calories > 0:
-                verifier_notes.append(
-                    f"בוצע אימות סוכן שני (Two-Pass AI Critic) עקב ביטחון ראשוני של {conf}%: עודכן מ-{extraction.calories} ל-{refined.calories} קק״ל"
-                )
-                extraction = refined
-        except Exception as e:
-            print(f"WARN second-pass vision critic skipped: {e}")
-
-    # Step 2: Thermodynamic & Item Sum Consistency Check
     if extraction.items and len(extraction.items) >= 1:
         for it in extraction.items:
             it.calories = max(0, int(it.calories))
             it.protein_g = round(max(0.0, float(it.protein_g)), 1)
             min_thermo_cal = int(round(it.protein_g * 4.0))
             if it.calories < min_thermo_cal:
-                verifier_notes.append(
-                    f"תיקון תרמודינמי לפריט '{it.name}': {it.protein_g}g חלבון חייבים להכיל לפחות {min_thermo_cal} קק״ל (עודכן מ-{it.calories})"
-                )
                 it.calories = min_thermo_cal
 
         sum_cal = sum(int(it.calories) for it in extraction.items)
         sum_prot = round(sum(float(it.protein_g) for it in extraction.items), 1)
 
         if sum_cal > 0 and abs(sum_cal - int(extraction.calories)) > 15:
-            verifier_notes.append(f"סנכרון סכום רכיבים: סה״כ קלוריות תוקן מ-{extraction.calories} ל-{sum_cal} קק״ל בהתאם לפירוט המרכיבים")
             extraction.calories = sum_cal
 
         if sum_prot >= 0 and abs(sum_prot - float(extraction.protein_g)) > 1.5:
-            verifier_notes.append(f"סנכרון סכום חלבון: סה״כ חלבון תוקן מ-{extraction.protein_g}g ל-{sum_prot}g בהתאם לפירוט המרכיבים")
             extraction.protein_g = sum_prot
 
     min_total_cal = int(round(float(extraction.protein_g) * 4.0))
     if extraction.calories < min_total_cal:
-        verifier_notes.append(f"תיקון מינימום קלוריות כולל לפי חלבון ({min_total_cal} קק״ל)")
         extraction.calories = min_total_cal
 
-    if not verifier_notes:
-        verifier_notes.append("בדיקת סוכן אימות: סכומי הרכיבים והערכים התרמודינמיים נמצאו תקינים ועקביים ✓")
-
-    forensics["verifier_notes"] = verifier_notes
-    return extraction, verifier_notes
+    return extraction, []
 
 
 def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "", forensics: Optional[dict] = None) -> NutritionExtraction:
@@ -2752,66 +2465,25 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
             protein_g=32.0,
             summary=label,
             confidence_score=85,
-            portion_estimation_method="הערכת ברירת מחדל (ללא חיבור AI)",
-            visual_cues="מצב הדגמה מקומי",
-            hidden_calories_note="ללא",
-            applied_calibration_rules=[],
         )
 
-    if forensics is None:
-        forensics = compute_image_forensics_and_histogram(image_bytes)
-
-    norm_bytes, clean_mime, enhancements = auto_enhance_food_image(image_bytes, mime_type, forensics)
+    norm_bytes, clean_mime = _normalize_image_bytes(image_bytes, mime_type)
 
     active_rules = get_vision_calibration_rules_db()
     rules_block = ""
     if active_rules:
-        rules_lines = "\n".join(f"  - [{r.get('category', 'כיול')}]: {r.get('rule_text', '')}" for r in active_rules[:25])
-        rules_block = f"\n\n🎯 חוקי כיול ודיוק מחייבים של סוכן ה-Vision (הוגדרו ע״י מנהל המערכת — חובה ליישם במידת הרלוונטיות):\n{rules_lines}"
-
-    enhancements_line = (
-        f"\n- שיפורי תמונה אופטיים שבוצעו אוטומטית לפני הפענוח: {' | '.join(enhancements)}"
-        if enhancements
-        else "\n- איכות אופטית: תקינה (לא נדרש תיקון חשיפה/איזון לבן)"
-    )
-
-    optical_context = (
-        f"\n\n📊 טלמטריה אופטית והיסטוגרמת התמונה (מחושב ע״י חיישן התמונה לפני הניתוח):\n"
-        f"- רזולוציה מקורית: {forensics.get('orig_width')}x{forensics.get('orig_height')} פיקסלים\n"
-        f"- בהירות ממוצעת (Luminance): {forensics.get('mean_brightness')}/255 ({forensics.get('brightness_label')}), חציון: {forensics.get('p50_luma')}\n"
-        f"- ניגודיות (StdDev): {forensics.get('contrast_std')} ({forensics.get('contrast_label')}), טווח דינמי P10-P90: {forensics.get('dynamic_range')}\n"
-        f"- קטימת צללים כהים: {forensics.get('shadow_clipping_pct')}%, קטימת שיאי אור (פלאש/סינוור): {forensics.get('highlight_clipping_pct')}%\n"
-        f"- איזון צבעים ממוצע: R={forensics.get('mean_r')}, G={forensics.get('mean_g')}, B={forensics.get('mean_b')} | יחס חם/קר (R/B): {forensics.get('warm_cool_ratio')} ({forensics.get('lighting_temp_label')})\n"
-        f"- חדות פרטים (Edge Sharpness): {forensics.get('sharpness_score')}/100 ({forensics.get('sharpness_label')})\n"
-        f"- דומיננטיות ירוקים/טריים: {forensics.get('green_fresh_pct')}%, גוונים חמים/מבושלים/שחומים: {forensics.get('warm_cooked_pct')}%"
-        f"{enhancements_line}"
-    )
-    if forensics.get("optical_warnings"):
-        optical_context += "\n- דגשים אופטיים למודל: " + " | ".join(forensics["optical_warnings"])
+        rules_lines = "\n".join(f"  - {r.get('rule_text', '')}" for r in active_rules[:20])
+        rules_block = f"\n\nחוקי כיול מחייבים:\n{rules_lines}"
 
     caption_note = f"\nהערת המשתמש לתמונה: '{caption.strip()}'." if caption and caption.strip() else ""
-    prompt = f"""אתה סוכן Vision AI קפדני לניתוח תמונות מזון, ארוחות ושקילת נפחים בישראל.{caption_note}{optical_context}{rules_block}
+    prompt = f"""אתה סוכן Vision AI לניתוח תמונות מזון בישראל.{caption_note}{rules_block}
 
-בדיקת סף קריטית ראשונה (סינון ודחייה של חפצים שאינם מזון):
-- בדוק היטב האם בתמונה אכן מופיע אוכל, מנה, מאכל, משקה, קפה, פרי, ירק, חטיף או תווית ערכים תזונתיים.
-- אם התמונה מציגה חפץ דומם, מכשיר חשמלי (כגון קמין חשמלי, טוסטר, רדיאטור, תנור, מאוורר, טלפון, כלי עבודה), רהיט, מכשיר אלקטרוני, מסמך לא תזונתי, צעצוע, בגד או חיה:
-  * חובה לסמן: is_meal=False
-  * קבע: calories=0, protein_g=0, items=[]
-  * בשדה summary ציין בדיוק מה האובייקט שזוהה (למשל: "קמין חשמלי / מכשיר חשמלי — אינו מזון").
-  * בשדה confidence_score תן ציון ביטחון בזיהוי האובייקט.
-  * אל תמציא בשום אופן קלוריות או חלבון לחפצים שאינם מזון!
-
-אם ורק אם התמונה מציגה מזון או משקה אכילים:
-- סמן is_meal=True
-- זהה את כל המרכיבים בצלחת/במנה, הערך את גודל המנה בצורה מציאותית לפי קנה מידה חזותי וחשב סך קלוריות וחלבון בגרמים.
-- החזר תיאור קצר, טבעי וברור בעברית בשדה summary (למשל: "חזה עוף 180 ג' עם אורז לבן וסלט קצוץ").
-- ברשימת items, פרט כל פריט או רכיב בנפרד עם השם שלו, משקל משוער, קלוריות וחלבון. ודא שסכום הרכיבים תואם לסך הכל!
-- מלא את שדות הבקרה של הסוכן:
-  * confidence_score: ציון ביטחון (0-100) בזיהוי המנה והכמויות.
-  * portion_estimation_method: הסבר קצר בעברית איך הערכת את המשקל/נפח (למשל: "לפי צלחת מנה עיקרית 26 ס״מ וגובה ערימת האורז").
-  * visual_cues: סימנים חזותיים שזיהית בתמונה (ברק שמן, סימני צריבה על הגריל, מרקם, צפיפות, תאורה).
-  * hidden_calories_note: אילו קלוריות סמויות הוספת לחישוב (שמן בישול, טחינה, רוטב, חמאה) או "ללא קלוריות סמויות".
-  * applied_calibration_rules: רשימה קצרה של חוקי הכיול שהפעלת בתמונה זו (אם רלוונטי)."""
+1. אם התמונה אינה מציגה אוכל/משקה/תווית תזונה: סמן is_meal=False, calories=0, protein_g=0, items=[], וב-summary ציין בקצרה מה מופיע בתמונה.
+2. אם התמונה מציגה מזון או משקה:
+   - סמן is_meal=True.
+   - ב-summary כתוב תיאור קצר וברור בעברית.
+   - ב-items פרט כל מרכיב עם משקל משוער, calories ו-protein_g כך שסכומם יתאים לסה"כ.
+   - השאר את שדות ההסבר הטקסטואליים (portion_estimation_method, visual_cues, hidden_calories_note) קצרים מאוד (עד 5 מילים) כדי לחסוך זמן."""
 
     last_err = None
     for model_name in GEMINI_FLASH_MODELS:
@@ -2831,7 +2503,7 @@ def analyze_meal_image(image_bytes: bytes, mime_type: str = "image/jpeg", captio
             extracted = NutritionExtraction.model_validate_json(response.text)
             extracted, _ = verify_and_reconcile_nutrition_extraction(
                 extraction=extracted,
-                forensics=forensics,
+                forensics=forensics or {},
                 norm_bytes=norm_bytes,
                 clean_mime=clean_mime,
                 caption=caption,
@@ -2934,6 +2606,13 @@ def save_vision_analysis_log_db(
         status_str = "success"
     conf_val = int(getattr(extraction, "confidence_score", 88) or 88)
     thumb_url = (forensics or {}).get("thumbnail_data_url") or ""
+    minimal_forensics = {
+        "size_kb": (forensics or {}).get("size_kb", 0),
+        "orig_width": (forensics or {}).get("orig_width", 0),
+        "orig_height": (forensics or {}).get("orig_height", 0),
+        "format": (forensics or {}).get("format", "JPEG"),
+        "thumbnail_data_url": thumb_url,
+    }
     record = {
         "id": log_id,
         "user_id": uid,
@@ -2944,7 +2623,7 @@ def save_vision_analysis_log_db(
         "meal_id": meal_id or "",
         "caption": caption or "",
         "created_at_iso": now_iso,
-        "forensics": forensics,
+        "forensics": minimal_forensics,
         "ai_analysis": {
             "is_meal": extraction.is_meal,
             "summary": summary_str,
@@ -2952,10 +2631,6 @@ def save_vision_analysis_log_db(
             "protein_g": round(float(extraction.protein_g), 1),
             "items": items_list,
             "confidence_score": conf_val,
-            "portion_estimation_method": getattr(extraction, "portion_estimation_method", "") or "הערכה חזותית לפי פרופורציות הצלחת והמרכיבים",
-            "visual_cues": getattr(extraction, "visual_cues", "") or "זיהוי צבעים, מרקם ונפח המנה",
-            "hidden_calories_note": getattr(extraction, "hidden_calories_note", "") or "ללא הערות מיוחדות",
-            "applied_calibration_rules": list(getattr(extraction, "applied_calibration_rules", []) or []),
         },
         "calibrated": False,
         "admin_rule_added": "",
@@ -2964,8 +2639,8 @@ def save_vision_analysis_log_db(
         "reanalysis_count": 0,
     }
     _LOCAL_VISION_LOGS.insert(0, record)
-    if len(_LOCAL_VISION_LOGS) > 200:
-        del _LOCAL_VISION_LOGS[200:]
+    if len(_LOCAL_VISION_LOGS) > 50:
+        del _LOCAL_VISION_LOGS[50:]
     if db:
         try:
             db.collection("vision_analysis_logs").document(log_id).set({
@@ -2976,13 +2651,10 @@ def save_vision_analysis_log_db(
             print(f"ERROR save_vision_analysis_log_db: {e}")
         if meal_id:
             try:
-                meal_updates = {
+                db.collection("meals").document(meal_id).set({
                     "vision_log_id": log_id,
                     "vision_confidence": conf_val,
-                }
-                if thumb_url:
-                    meal_updates["thumbnail_data_url"] = thumb_url
-                db.collection("meals").document(meal_id).set(meal_updates, merge=True)
+                }, merge=True)
             except Exception as e:
                 print(f"WARN updating meal with vision_log_id: {e}")
     if meal_id:
@@ -2990,8 +2662,6 @@ def save_vision_analysis_log_db(
             if m.get("id") == meal_id:
                 m["vision_log_id"] = log_id
                 m["vision_confidence"] = conf_val
-                if thumb_url:
-                    m["thumbnail_data_url"] = thumb_url
     return record
 
 
@@ -3120,27 +2790,35 @@ def _backfill_photo_meals_to_vision_logs():
         print(f"WARN _backfill_photo_meals_to_vision_logs: {e}")
 
 
-def get_vision_analysis_logs_db(limit: int = 100, user_id_filter: Optional[str] = None) -> dict:
-    _backfill_photo_meals_to_vision_logs()
+def get_vision_analysis_logs_db(limit: int = 25, user_id_filter: Optional[str] = None) -> dict:
+    cap = min(max(1, limit), 30)
     rules = get_vision_calibration_rules_db()
     logs = []
     if db:
         try:
-            docs = db.collection("vision_analysis_logs").order_by("created_at", direction=firestore.Query.DESCENDING).limit(max(limit, 100)).stream()
+            docs = db.collection("vision_analysis_logs").order_by("created_at", direction=firestore.Query.DESCENDING).limit(cap).stream()
             for doc in docs:
                 d = doc.to_dict() or {}
                 d["id"] = doc.id
                 d.pop("created_at", None)
                 if user_id_filter and not _doc_matches_user(d, user_id_filter):
                     continue
+                f_raw = d.get("forensics") or {}
+                d["forensics"] = {
+                    "size_kb": f_raw.get("size_kb", 0),
+                    "orig_width": f_raw.get("orig_width", 0),
+                    "orig_height": f_raw.get("orig_height", 0),
+                    "format": f_raw.get("format", "JPEG"),
+                    "thumbnail_data_url": f_raw.get("thumbnail_data_url", ""),
+                }
                 logs.append(d)
-                if len(logs) >= limit:
+                if len(logs) >= cap:
                     break
         except Exception as e:
             print(f"ERROR get_vision_analysis_logs_db: {e}")
-            logs = [lg for lg in _LOCAL_VISION_LOGS if (not user_id_filter or _doc_matches_user(lg, user_id_filter))][:limit]
+            logs = [lg for lg in _LOCAL_VISION_LOGS if (not user_id_filter or _doc_matches_user(lg, user_id_filter))][:cap]
     else:
-        logs = [lg for lg in _LOCAL_VISION_LOGS if (not user_id_filter or _doc_matches_user(lg, user_id_filter))][:limit]
+        logs = [lg for lg in _LOCAL_VISION_LOGS if (not user_id_filter or _doc_matches_user(lg, user_id_filter))][:cap]
 
     logs.sort(key=lambda x: x.get("created_at_iso") or "", reverse=True)
     return {
