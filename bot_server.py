@@ -38,7 +38,9 @@ try:
 except ImportError:
     google_id_token = None
     google_requests = None
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.openapi.utils import get_openapi
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.staticfiles import StaticFiles
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
@@ -4676,7 +4678,99 @@ async def lifespan(app: FastAPI):
         await tg_app.shutdown()
 
 
-app = FastAPI(title="NutriAgent AI", lifespan=lifespan)
+app = FastAPI(title="NutriAgent AI", version="2.5.0", lifespan=lifespan)
+
+OAUTH_SCOPES_SUPPORTED = {
+    "meals:read": "Read daily meals, nutrition logs, and calorie/protein summaries",
+    "meals:write": "Log, update, or delete meals via AI text, photo, voice, or barcode",
+    "workouts:read": "Read logged workouts and Google Fit activity summaries",
+    "workouts:write": "Log or update workouts and burned calories",
+    "profile:read": "Read user profile, metabolic targets, and access status",
+    "profile:write": "Update calorie/protein targets, water intake, and weight logs",
+}
+
+NUTRIAGENT_LLMS_MARKDOWN = """# NutriAgent AI — Smart Nutrition, Calorie & Protein Coach
+
+NutriAgent AI is an AI-powered nutrition, calorie, protein, and fitness tracking platform (Hebrew & English) powered by Google Gemini 2.5 and Cloud Run.
+
+## Core Capabilities
+- **Multi-Modal Meal Logging:** Log meals via natural Hebrew/English text (`POST /api/meals/ai`), food & nutrition-label photos (`POST /api/meals/photo`), voice recordings (`POST /api/meals/voice`), or Israeli supermarket barcodes (`GET /api/barcode/{code}`).
+- **Smart Meal-Slot Routing:** Automatically classifies or routes meals into Breakfast (`breakfast`), Lunch (`lunch`), Dinner (`dinner`), and Snacks (`snack`).
+- **Daily Metabolic Summary & History:** Retrieve daily calorie, protein, water, and workout balances (`GET /api/summary`, `GET /api/history`).
+- **Expert & Studio Matching:** Connect with clinical dietitians, personal trainers (`POST /api/leads/expert`), trial workouts at local studios (`POST /api/leads/workout`), and nutritional supplements (`POST /api/leads/supplements`).
+
+## Machine-Readable Endpoints & Documentation
+- **OpenAPI Specification:** [/openapi.json](/openapi.json)
+- **Interactive API Docs:** [/docs](/docs)
+- **LLM Documentation:** [/llms.txt](/llms.txt)
+- **OAuth 2.0 Authorization Metadata:** [/.well-known/oauth-authorization-server](/.well-known/oauth-authorization-server)
+- **OAuth 2.0 Protected Resource Metadata (RFC 9728):** [/.well-known/oauth-protected-resource](/.well-known/oauth-protected-resource)
+- **Health Probe:** [/api/health](/api/health)
+"""
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="NutriAgent AI API",
+        version="2.5.0",
+        description="AI-powered nutrition, calorie, protein, and workout tracking API with scoped OAuth 2.0 permissions.",
+        routes=app.routes,
+    )
+    components = openapi_schema.setdefault("components", {})
+    security_schemes = components.setdefault("securitySchemes", {})
+    security_schemes["OAuth2"] = {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authentication with scoped permissions for NutriAgent AI resources.",
+        "flows": {
+            "authorizationCode": {
+                "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+                "tokenUrl": "https://oauth2.googleapis.com/token",
+                "scopes": OAUTH_SCOPES_SUPPORTED,
+            }
+        },
+    }
+    security_schemes["BearerAuth"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+    }
+    openapi_schema["security"] = [
+        {"OAuth2": list(OAUTH_SCOPES_SUPPORTED.keys())},
+        {"BearerAuth": []},
+    ]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
+
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    accept_hdr = (request.headers.get("accept") or "").lower()
+    if exc.status_code == 404 and "text/markdown" in accept_hdr:
+        md_404 = (
+            f"# 404 Not Found — NutriAgent AI\n\n"
+            f"The requested path `{request.url.path}` does not exist on this server.\n\n"
+            f"## Helpful Links for Agents & Developers\n"
+            f"- **LLM Guide & Overview:** [/llms.txt](/llms.txt)\n"
+            f"- **Interactive API Documentation:** [/docs](/docs)\n"
+            f"- **OpenAPI 3.1 Schema:** [/openapi.json](/openapi.json)\n"
+            f"- **Homepage:** [/](https://nutrition-service-313955139672.me-west1.run.app/)\n"
+        )
+        return Response(
+            content=md_404,
+            status_code=404,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Vary": "Accept"},
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=getattr(exc, "headers", None) or {"Vary": "Accept"},
+    )
 
 
 @app.middleware("http")
@@ -4693,15 +4787,72 @@ if os.path.exists(_STATIC_DIR):
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
+@app.get("/llms.txt")
+def serve_llms_txt():
+    return Response(
+        content=NUTRIAGENT_LLMS_MARKDOWN,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Vary": "Accept", "Cache-Control": "public, max-age=300"},
+    )
+
+
+@app.get("/.well-known/oauth-authorization-server")
+@app.get("/.well-known/openid-configuration")
+def serve_oauth_authorization_server_metadata(request: Request):
+    base_url = str(request.base_url).rstrip("/")
+    if base_url.startswith("http://") and "run.app" in base_url:
+        base_url = "https://" + base_url[len("http://"):]
+    return {
+        "issuer": base_url,
+        "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_endpoint": f"{base_url}/api/auth/google",
+        "userinfo_endpoint": f"{base_url}/api/auth/me",
+        "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
+        "scopes_supported": list(OAUTH_SCOPES_SUPPORTED.keys()),
+        "response_types_supported": ["code", "token", "id_token"],
+        "grant_types_supported": ["authorization_code", "urn:ietf:params:oauth:grant-type:jwt-bearer"],
+        "token_endpoint_auth_methods_supported": ["client_secret_post", "private_key_jwt", "none"],
+        "code_challenge_methods_supported": ["S256"],
+        "service_documentation": f"{base_url}/docs",
+    }
+
+
+@app.get("/.well-known/oauth-protected-resource")
+def serve_oauth_protected_resource_metadata(request: Request):
+    base_url = str(request.base_url).rstrip("/")
+    if base_url.startswith("http://") and "run.app" in base_url:
+        base_url = "https://" + base_url[len("http://"):]
+    return {
+        "resource": base_url,
+        "authorization_servers": [base_url, "https://accounts.google.com"],
+        "scopes_supported": list(OAUTH_SCOPES_SUPPORTED.keys()),
+        "bearer_methods_supported": ["header", "cookie"],
+        "resource_documentation": f"{base_url}/docs",
+    }
+
+
 @app.get("/")
 @app.get("/itamar")
 @app.get("/p/{partner_slug}")
-def serve_pwa(partner_slug: str = None):
+def serve_pwa(request: Request, partner_slug: str = None):
+    accept_hdr = (request.headers.get("accept") or "").lower()
+    if "text/markdown" in accept_hdr and (
+        "text/html" not in accept_hdr or accept_hdr.find("text/markdown") < accept_hdr.find("text/html")
+    ):
+        return Response(
+            content=NUTRIAGENT_LLMS_MARKDOWN,
+            media_type="text/markdown; charset=utf-8",
+            headers={
+                "Vary": "Accept",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+            },
+        )
     idx = os.path.join(_STATIC_DIR, "index.html")
     if os.path.exists(idx):
         return FileResponse(
             idx,
             headers={
+                "Vary": "Accept",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "Expires": "0",

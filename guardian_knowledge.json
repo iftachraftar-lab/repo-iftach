@@ -1,14 +1,17 @@
 {
-  "last_audit_at": "2026-11-09T13:41:21.155395+02:00",
-  "total_runs": 7,
-  "sw_version": "107",
+  "last_audit_at": "2026-11-09T15:34:20.900195+02:00",
+  "total_runs": 9,
+  "sw_version": "108",
   "counts": {
-    "api_routes": 104,
+    "api_routes": 108,
     "pydantic_models": 64,
     "alpine_methods": 185
   },
   "newly_learned_routes_last_run": [
-    "POST /api/leads/supplements"
+    "GET /.well-known/oauth-authorization-server",
+    "GET /.well-known/oauth-protected-resource",
+    "GET /.well-known/openid-configuration",
+    "GET /llms.txt"
   ],
   "removed_routes_last_run": [],
   "routes": [
@@ -21,6 +24,9 @@
     "DELETE /api/weight/{entry_id}",
     "DELETE /api/workouts/{workout_id}",
     "GET /",
+    "GET /.well-known/oauth-authorization-server",
+    "GET /.well-known/oauth-protected-resource",
+    "GET /.well-known/openid-configuration",
     "GET /api/admin/billing-and-costs",
     "GET /api/admin/leads",
     "GET /api/admin/photo-errors",
@@ -50,6 +56,7 @@
     "GET /api/wolt/dishes",
     "GET /healthz",
     "GET /itamar",
+    "GET /llms.txt",
     "GET /manifest.json",
     "GET /p/{partner_slug}",
     "GET /sw.js",

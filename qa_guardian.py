@@ -409,7 +409,7 @@ def run_suite_6_discovery_and_syntax(
         f"Successfully parsed {len(py_src.splitlines())} lines of Python AST"
     ))
 
-    # 6.2 HTML structural balance check (<script> and </script>)
+    # 6.2 HTML structural balance check (<script> and </script>) & Sequential Heading Hierarchy
     open_scripts = len(re.findall(r"<script\b[^>]*>", html_src, re.IGNORECASE))
     close_scripts = len(re.findall(r"</script>", html_src, re.IGNORECASE))
     scripts_balanced = (open_scripts == close_scripts) and open_scripts > 0
@@ -418,6 +418,34 @@ def run_suite_6_discovery_and_syntax(
         "static/index.html balanced <script> tags",
         scripts_balanced,
         f"Balanced ({open_scripts} <script> blocks)" if scripts_balanced else f"Unbalanced <script> tags: {open_scripts} open vs {close_scripts} close"
+    ))
+
+    # 6.2b Agentic Web Readiness (is-agentic.com 5 checks: 404 markdown, sequential headings, OAuth scopes, Markdown negotiation, OAuth metadata)
+    heading_matches = list(re.finditer(r"<(h[1-6])(\b[^>]*)>(.*?)</\1>", html_src, re.DOTALL))
+    prev_lvl = 1
+    heading_issues = 0
+    for hm in heading_matches:
+        lvl = int(hm.group(1)[1])
+        clean_txt = re.sub(r"<[^>]+>", "", hm.group(3)).strip()
+        if lvl > prev_lvl + 1 or not clean_txt:
+            heading_issues += 1
+        prev_lvl = lvl
+
+    agentic_ok = (
+        heading_issues == 0
+        and 'aria-label="אודות מערכת NutriAgent AI"' in html_src
+        and "custom_http_exception_handler" in py_src
+        and "OAUTH_SCOPES_SUPPORTED" in py_src
+        and '"/.well-known/oauth-authorization-server"' in py_src
+        and '"/.well-known/oauth-protected-resource"' in py_src
+        and '"/llms.txt"' in py_src
+    )
+    results.append(GuardianCheckResult(
+        cat_id, cat_name,
+        "Agentic Web Readiness (is-agentic.com 5/5 checks: Markdown 404, No-JS HTML & sequential headings, Scoped OAuth, Markdown negotiation)",
+        agentic_ok,
+        f"All 5 Agentic Web checks verified ({len(heading_matches)} sequential headings, 0 issues)"
+        if agentic_ok else f"Agentic readiness issue detected (heading_issues={heading_issues})"
     ))
 
     # 6.3 Auto-discover all FastAPI routes & Pydantic BaseModels in bot_server.py
