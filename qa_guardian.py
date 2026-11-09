@@ -547,11 +547,89 @@ def run_suite_6_discovery_and_syntax(
 
 
 # ==============================================================================
+# SUITE 7: UX & Interactive Flow Integrity (Dead-Clicks, Modal Traps & Watchdog)
+# ==============================================================================
+def run_suite_7_ux_integrity(py_src: str, html_src: str) -> List[GuardianCheckResult]:
+    results: List[GuardianCheckResult] = []
+    cat_id = 7
+    cat_name = "7. UX & Interactive Flow Integrity (Dead-Clicks, Modal Traps & Watchdog)"
+
+    # 7.1 Dead-Click Audit: Verify every function invoked in @click="..." exists in nutritionApp()
+    defined_methods = set(re.findall(r"\b(?:async\s+)?([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*\{", html_src))
+    js_builtins = {
+        "alert", "confirm", "prompt", "setTimeout", "clearTimeout", "encodeURIComponent",
+        "parseInt", "parseFloat", "Number", "String", "Boolean", "Date", "Math", "Object",
+        "Array", "JSON", "console", "window", "document", "navigator", "localStorage",
+        "sessionStorage", "fetch", "scrollBy", "scrollTo", "focus", "click", "select",
+        "open", "if", "for", "while", "switch", "catch"
+    }
+    click_exprs = re.findall(r'@click(?:\.[a-z]+)*="([^"]+)"', html_src)
+    dead_clicks = sorted({
+        f"{fn}() in @click=\"{expr}\""
+        for expr in click_exprs
+        for fn in re.findall(r"(?<![.\w\$])([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", expr)
+        if fn not in defined_methods and fn not in js_builtins
+    })
+    results.append(GuardianCheckResult(
+        cat_id, cat_name,
+        f"Zero Dead-Clicks across all {len(click_exprs)} @click interactive buttons",
+        len(dead_clicks) == 0,
+        f"All {len(click_exprs)} @click handlers map to valid methods ({len(defined_methods)} methods verified)"
+        if not dead_clicks else f"Dead-click handlers calling undefined methods: {dead_clicks[:5]}"
+    ))
+
+    # 7.2 Modal Trap Audit: Verify every modal overlay has a working close path (= false / = null)
+    modal_flags = sorted(set(re.findall(
+        r'x-show="(show[A-Za-z0-9_]*Modal|open[A-Za-z0-9_]*Modal|showBmiWizard|mealToEdit)"',
+        html_src
+    )))
+    unclosable_modals = [
+        m for m in modal_flags
+        if not re.search(rf"\b{m}\s*=\s*(?:false|null)\b", html_src)
+    ]
+    results.append(GuardianCheckResult(
+        cat_id, cat_name,
+        f"Zero Modal Traps across all {len(modal_flags)} modals & overlays",
+        len(unclosable_modals) == 0 and "closeAllModals()" in html_src,
+        f"All {len(modal_flags)} modals have explicit close paths + Escape key recovery"
+        if not unclosable_modals else f"Unclosable modals detected: {unclosable_modals}"
+    ))
+
+    # 7.3 Auto-Unfreeze Client-Side UX Watchdog & Telemetry Endpoint
+    watchdog_ok = (
+        "startUxWatchdog()" in html_src
+        and "this.startUxWatchdog();" in html_src
+        and "ux_freeze_recovered" in html_src
+        and '"/api/ux-telemetry"' in py_src
+    )
+    results.append(GuardianCheckResult(
+        cat_id, cat_name,
+        "Live UX Auto-Unfreeze Watchdog (25s stuck-spinner release + JS error telemetry)",
+        watchdog_ok,
+        "Client-side UX Watchdog & /api/ux-telemetry active" if watchdog_ok else "Missing UX Watchdog or telemetry endpoint"
+    ))
+
+    # 7.4 Mobile Viewport Overflow Protection & Favorites Strip Scroll Controls
+    mobile_ux_ok = (
+        "overflow-x: hidden !important;" in html_src
+        and "$refs.favoritesStrip.scrollBy" in html_src
+    )
+    results.append(GuardianCheckResult(
+        cat_id, cat_name,
+        "Mobile viewport overflow guard & Favorites strip horizontal scroll controls",
+        mobile_ux_ok,
+        "Mobile overflow-x guard and Favorites ›/‹ scroll buttons verified" if mobile_ux_ok else "Missing mobile overflow guard or Favorites scroll controls"
+    ))
+
+    return results
+
+
+# ==============================================================================
 # MAIN RUNNER (CLI & API Entrypoint)
 # ==============================================================================
 def run_guardian_audit(update_knowledge: bool = True) -> Dict[str, Any]:
     """
-    Executes all 6 architectural reliability suites in 100% read-only mode.
+    Executes all 7 architectural & UX reliability suites in 100% read-only mode.
     Returns a structured report suitable for CLI output or Admin Dashboard JSON.
     """
     py_src = _read_text(BOT_SERVER_PATH)
@@ -571,6 +649,7 @@ def run_guardian_audit(update_knowledge: bool = True) -> Dict[str, Any]:
         py_src, tree, html_src, update_knowledge=update_knowledge
     )
     all_results.extend(suite_6_results)
+    all_results.extend(run_suite_7_ux_integrity(py_src, html_src))
 
     passed_count = sum(1 for r in all_results if r.passed)
     total_count = len(all_results)

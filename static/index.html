@@ -7641,7 +7641,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=108').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=109').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -10968,7 +10968,106 @@
                 }
             },
 
+            reportUxTelemetry(eventType, flagOrSource = '', message = '') {
+                try {
+                    this._uxTelemetryCount = (this._uxTelemetryCount || 0) + 1;
+                    if (this._uxTelemetryCount > 8) return;
+                    fetch('/api/ux-telemetry', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            event_type: eventType,
+                            flag_or_source: String(flagOrSource || '').slice(0, 100),
+                            message: String(message || '').slice(0, 350),
+                            active_tab: this.activeTab || 'today',
+                            viewport: `${window.innerWidth}x${window.innerHeight}`
+                        })
+                    }).catch(() => {});
+                } catch (err) {}
+            },
+
+            closeAllModals() {
+                this.showExpertsDirectoryModal = false;
+                this.showTrialWorkoutModal = false;
+                this.showHoldonAffiliateModal = false;
+                this.showMealConfirmModal = false;
+                this.showOnboardingModal = false;
+                this.showBmiWizard = false;
+                this.showTermsModal = false;
+                this.showSupportModal = false;
+                this.openBarcodeModal = false;
+                this.openCameraModal = false;
+                this.showWorkoutModal = false;
+                this.showGroceryModal = false;
+                this.showCoachBetaModal = false;
+                this.showAchievementsModal = false;
+                this.openPushModal = false;
+                this.openTargetModal = false;
+                this.openAuthModal = false;
+                this.mealToEdit = null;
+                this.mealToDelete = null;
+                if (document.body) document.body.style.overflow = '';
+            },
+
+            startUxWatchdog() {
+                if (this._uxWatchdogStarted) return;
+                this._uxWatchdogStarted = true;
+                this._uxLockTimestamps = {};
+                const watchedFlags = [
+                    'aiAnalyzing',
+                    'quickLoggingMeal',
+                    'mealConfirmSaving',
+                    'expertLeadSaving',
+                    'trialWorkoutSending',
+                    'supplementsLeadSending',
+                    'isLoggingShake',
+                    'historyAiAnalyzing',
+                    'historyPhotoAnalyzing',
+                    'barcodeSearching',
+                    'barcodeScanningPhoto',
+                    'refreshing'
+                ];
+
+                // 1. Periodic Auto-Unfreeze Check (every 3s; releases any lock stuck > 25s)
+                setInterval(() => {
+                    const now = Date.now();
+                    for (const flag of watchedFlags) {
+                        if (this[flag]) {
+                            if (!this._uxLockTimestamps[flag]) {
+                                this._uxLockTimestamps[flag] = now;
+                            } else if (now - this._uxLockTimestamps[flag] > 25000) {
+                                this[flag] = false;
+                                delete this._uxLockTimestamps[flag];
+                                this.showToast('⚠️ הפעולה לקחה יותר מדי זמן ושוחררה אוטומטית — ניתן לנסות שוב', 'warning');
+                                this.reportUxTelemetry('ux_freeze_recovered', flag, 'Stuck loading state auto-released after 25s');
+                            }
+                        } else if (this._uxLockTimestamps[flag]) {
+                            delete this._uxLockTimestamps[flag];
+                        }
+                    }
+                }, 3000);
+
+                // 2. Global Escape Key Safety Valve (closes any stuck modal overlay)
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        this.closeAllModals();
+                    }
+                });
+
+                // 3. Global Runtime JS Error & Unhandled Rejection Catcher
+                window.addEventListener('error', (ev) => {
+                    const msg = ev?.message || 'Unknown JS error';
+                    if (msg.includes('ResizeObserver')) return;
+                    this.reportUxTelemetry('js_runtime_error', `${ev?.filename || ''}:${ev?.lineno || 0}`, msg);
+                });
+                window.addEventListener('unhandledrejection', (ev) => {
+                    const reason = ev?.reason?.message || String(ev?.reason || 'Unhandled promise rejection');
+                    this.reportUxTelemetry('unhandled_promise', 'promise', reason);
+                });
+            },
+
             async init() {
+                    this.startUxWatchdog();
                     this.initGoogleAnalytics();
                     // LOCAL ONLY BYPASS (Zero impact on production):
                     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

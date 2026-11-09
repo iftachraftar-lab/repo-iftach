@@ -5927,10 +5927,62 @@ def api_admin_daily_health_check(request: Request):
 
 @app.get("/api/admin/qa-guardian")
 def api_admin_qa_guardian(request: Request):
-    """Read-only endpoint that runs all 6 QA & Architecture Guardian suites without mutating any data or code."""
+    """Read-only endpoint that runs all QA & Architecture + UX Guardian suites without mutating any data or code."""
     require_admin_user(request)
     from qa_guardian import run_guardian_audit
     return run_guardian_audit(update_knowledge=False)
+
+
+# ---------------------------------------------------------------------------
+# Client-Side UX Watchdog & Freeze/Error Telemetry Agent
+# ---------------------------------------------------------------------------
+
+_LOCAL_UX_TELEMETRY: List[dict] = []
+
+
+class UXTelemetryEventRequest(BaseModel):
+    event_type: str = "ux_freeze_recovered"  # ux_freeze_recovered | js_runtime_error | unhandled_promise | modal_trap_escaped
+    flag_or_source: Optional[str] = ""
+    message: Optional[str] = ""
+    active_tab: Optional[str] = ""
+    viewport: Optional[str] = ""
+
+
+@app.post("/api/ux-telemetry")
+def api_report_ux_telemetry(req: UXTelemetryEventRequest, request: Request):
+    """Receives live UX watchdog events (auto-unfrozen loading spinners, caught JS errors) from client browsers."""
+    uid = get_request_user_id(request)
+    rec = {
+        "id": f"ux_{int(time.time())}_{uuid.uuid4().hex[:6]}",
+        "user_id": uid,
+        "event_type": (req.event_type or "ux_event").strip()[:60],
+        "flag_or_source": (req.flag_or_source or "").strip()[:120],
+        "message": (req.message or "").strip()[:400],
+        "active_tab": (req.active_tab or "").strip()[:40],
+        "viewport": (req.viewport or "").strip()[:40],
+        "created_at": get_israel_now().isoformat(),
+    }
+    _LOCAL_UX_TELEMETRY.insert(0, rec)
+    if len(_LOCAL_UX_TELEMETRY) > 100:
+        del _LOCAL_UX_TELEMETRY[100:]
+    if db:
+        try:
+            db.collection("ux_telemetry").document(rec["id"]).set(rec)
+        except Exception as e:
+            print(f"WARN saving ux_telemetry: {e}")
+    return {"ok": True, "id": rec["id"]}
+
+
+@app.get("/api/admin/ux-telemetry")
+def api_admin_list_ux_telemetry(request: Request, limit: int = 50):
+    require_admin_user(request)
+    if db:
+        try:
+            docs = db.collection("ux_telemetry").order_by("created_at", direction=firestore.Query.DESCENDING).limit(limit).stream()
+            return {"events": [d.to_dict() for d in docs]}
+        except Exception:
+            pass
+    return {"events": _LOCAL_UX_TELEMETRY[:limit]}
 
 
 # ---------------------------------------------------------------------------

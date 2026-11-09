@@ -1,17 +1,15 @@
 {
-  "last_audit_at": "2026-11-09T15:34:20.900195+02:00",
-  "total_runs": 9,
-  "sw_version": "108",
+  "last_audit_at": "2026-11-09T15:51:47.047913+02:00",
+  "total_runs": 11,
+  "sw_version": "109",
   "counts": {
-    "api_routes": 108,
-    "pydantic_models": 64,
+    "api_routes": 110,
+    "pydantic_models": 65,
     "alpine_methods": 185
   },
   "newly_learned_routes_last_run": [
-    "GET /.well-known/oauth-authorization-server",
-    "GET /.well-known/oauth-protected-resource",
-    "GET /.well-known/openid-configuration",
-    "GET /llms.txt"
+    "GET /api/admin/ux-telemetry",
+    "POST /api/ux-telemetry"
   ],
   "removed_routes_last_run": [],
   "routes": [
@@ -33,6 +31,7 @@
     "GET /api/admin/qa-guardian",
     "GET /api/admin/users",
     "GET /api/admin/users/{target_uid}/details",
+    "GET /api/admin/ux-telemetry",
     "GET /api/admin/vision-logs",
     "GET /api/analytics/config",
     "GET /api/auth/config",
@@ -106,6 +105,7 @@
     "POST /api/user/delete-account-self",
     "POST /api/user/onboarding",
     "POST /api/user/ping-admin-approval",
+    "POST /api/ux-telemetry",
     "POST /api/vision-logs/{log_id}/reanalyze",
     "POST /api/water/add",
     "POST /api/water/set",
@@ -176,6 +176,7 @@
     "SupportContactRequest",
     "TargetUpdateRequest",
     "TermsAcceptRequest",
+    "UXTelemetryEventRequest",
     "VisionCalibrateRequest",
     "VisionTestAnalyzeRequest",
     "VoiceMealRequest",
