@@ -5888,6 +5888,7 @@ async def api_submit_workout_lead(req: WorkoutLeadRequest, request: Request):
     payload["user_id"] = uid
     payload["email"] = u_email
     record = save_workout_lead_db(payload)
+    record_analytics_event_db("submit_trial_workout_lead")
 
     current_trial_status = udoc.get("trial_workout_access_status", "none")
     new_trial_status = "approved" if current_trial_status == "approved" else "pending"
@@ -5946,6 +5947,7 @@ async def api_submit_expert_lead(req: ExpertLeadRequest, request: Request):
     payload["user_id"] = uid
     payload["email"] = u_email
     record = save_expert_lead_db(payload)
+    record_analytics_event_db("submit_dietitian_lead" if req.expert_type == "dietitian" else "submit_trainer_lead")
 
     current_exp_status = udoc.get("experts_access_status", "none")
     new_exp_status = "approved" if current_exp_status == "approved" else "pending"
@@ -6058,12 +6060,109 @@ async def api_submit_coach_lead(req: CoachLeadRequest):
     return {"ok": True, "lead_id": record["id"], "message": "הפרטים התקבלו בהצלחה!"}
 
 
+_LOCAL_ANALYTICS_COUNTS: dict = {}
+_LOCAL_ANALYTICS_CONFIG: dict = {"ga_measurement_id": os.getenv("GA_MEASUREMENT_ID", "").strip()}
+
+
+class AnalyticsEventRequest(BaseModel):
+    event_name: str
+    category: Optional[str] = ""
+    label: Optional[str] = ""
+
+
+class AdminAnalyticsConfigRequest(BaseModel):
+    ga_measurement_id: str
+
+
+def get_analytics_config_db() -> dict:
+    ga_id = _LOCAL_ANALYTICS_CONFIG.get("ga_measurement_id", "") or os.getenv("GA_MEASUREMENT_ID", "").strip()
+    if db:
+        try:
+            doc = db.collection("app_config").document("analytics_config").get()
+            if doc.exists:
+                data = doc.to_dict() or {}
+                if data.get("ga_measurement_id") is not None:
+                    ga_id = str(data.get("ga_measurement_id")).strip()
+                    _LOCAL_ANALYTICS_CONFIG["ga_measurement_id"] = ga_id
+        except Exception as e:
+            print(f"WARN get_analytics_config_db: {e}")
+    return {"ga_measurement_id": ga_id}
+
+
+def set_analytics_config_db(ga_measurement_id: str) -> dict:
+    clean_id = (ga_measurement_id or "").strip()
+    _LOCAL_ANALYTICS_CONFIG["ga_measurement_id"] = clean_id
+    if db:
+        try:
+            db.collection("app_config").document("analytics_config").set({
+                "ga_measurement_id": clean_id,
+                "updated_at": get_israel_now().isoformat()
+            }, merge=True)
+        except Exception as e:
+            print(f"WARN set_analytics_config_db: {e}")
+    return {"ok": True, "ga_measurement_id": clean_id}
+
+
+def record_analytics_event_db(event_name: str) -> None:
+    clean = (event_name or "").strip().lower()[:64]
+    if not clean:
+        return
+    _LOCAL_ANALYTICS_COUNTS[clean] = _LOCAL_ANALYTICS_COUNTS.get(clean, 0) + 1
+    if db:
+        try:
+            db.collection("app_config").document("analytics_stats").set({
+                clean: firestore.Increment(1),
+                "updated_at": get_israel_now().isoformat()
+            }, merge=True)
+        except Exception as e:
+            print(f"WARN record_analytics_event_db: {e}")
+
+
+def get_analytics_summary_db() -> dict:
+    counts = dict(_LOCAL_ANALYTICS_COUNTS)
+    if db:
+        try:
+            doc = db.collection("app_config").document("analytics_stats").get()
+            if doc.exists:
+                data = doc.to_dict() or {}
+                for k, v in data.items():
+                    if isinstance(v, (int, float)):
+                        counts[k] = int(v)
+        except Exception as e:
+            print(f"WARN get_analytics_summary_db: {e}")
+    return counts
+
+
+@app.get("/api/analytics/config")
+def api_get_analytics_config():
+    return get_analytics_config_db()
+
+
+@app.post("/api/analytics/event")
+def api_record_analytics_event(req: AnalyticsEventRequest):
+    record_analytics_event_db(req.event_name)
+    return {"ok": True}
+
+
+@app.post("/api/admin/analytics/config")
+def api_admin_set_analytics_config(req: AdminAnalyticsConfigRequest, request: Request):
+    require_admin_user(request)
+    return set_analytics_config_db(req.ga_measurement_id)
+
+
 @app.get("/api/admin/leads")
 def api_admin_list_leads(request: Request, limit: int = Query(default=50, ge=1, le=200)):
     require_admin_user(request)
     admin_cid = get_telegram_admin_chat_id()
     leads = list_leads_admin_db(limit=limit)
-    return {"leads": leads, "admin_chat_id": admin_cid}
+    analytics_counts = get_analytics_summary_db()
+    ga_cfg = get_analytics_config_db()
+    return {
+        "leads": leads,
+        "admin_chat_id": admin_cid,
+        "analytics": analytics_counts,
+        "ga_measurement_id": ga_cfg.get("ga_measurement_id", "")
+    }
 
 
 @app.post("/api/admin/telegram-target")
