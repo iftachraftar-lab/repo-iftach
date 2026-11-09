@@ -5203,7 +5203,7 @@ def save_workout_lead_db(lead_dict: dict) -> dict:
         "studio_perk": lead_dict.get("studio_perk", ""),
         "voucher_code": lead_dict.get("voucher_code", ""),
         "notes": lead_dict.get("notes", ""),
-        "created_at": datetime.now().isoformat(),
+        "created_at": get_israel_now().isoformat(),
         "status": "pending"
     }
     if db:
@@ -5233,7 +5233,7 @@ def save_expert_lead_db(lead_dict: dict) -> dict:
         "expert_specialty": lead_dict.get("expert_specialty", "").strip(),
         "expert_location": lead_dict.get("expert_location", "").strip(),
         "notes": lead_dict.get("notes", "").strip(),
-        "created_at": datetime.now().isoformat(),
+        "created_at": get_israel_now().isoformat(),
         "status": "new"
     }
     if db:
@@ -5257,7 +5257,7 @@ def save_coach_lead_db(coach_dict: dict) -> dict:
         "email": coach_dict.get("email", "").strip(),
         "clients_count": coach_dict.get("clients_count", "1-10"),
         "notes": coach_dict.get("notes", ""),
-        "created_at": datetime.now().isoformat(),
+        "created_at": get_israel_now().isoformat(),
         "status": "new"
     }
     if db:
@@ -5734,6 +5734,14 @@ def api_admin_billing_and_costs(request: Request):
 def api_admin_daily_health_check(request: Request):
     require_admin_user(request)
     return send_admin_health_and_billing_push(manual_trigger=True)
+
+
+@app.get("/api/admin/qa-guardian")
+def api_admin_qa_guardian(request: Request):
+    """Read-only endpoint that runs all 6 QA & Architecture Guardian suites without mutating any data or code."""
+    require_admin_user(request)
+    from qa_guardian import run_guardian_audit
+    return run_guardian_audit(update_knowledge=False)
 
 
 # ---------------------------------------------------------------------------

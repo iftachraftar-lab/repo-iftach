@@ -7611,7 +7611,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=105').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=106').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -7888,6 +7888,7 @@
                 activeFavoritesTab: 'auto',
                 aiInputText: '',
                 aiAnalyzing: false,
+                quickLoggingMeal: false,
                 selectedPhotoDataUrl: null,
                 selectedPhotoMimeType: 'image/jpeg',
                 isMobileDevice: isMob,
@@ -11616,6 +11617,7 @@
                 },
 
                 async submitVoiceBlob(blob, mimeType) {
+                    if (this.aiAnalyzing) return;
                     this.aiAnalyzing = true;
                     try {
                         const dataUrl = await new Promise((resolve, reject) => {
@@ -12004,7 +12006,7 @@
                 },
 
                 async submitPhotoMeal() {
-                    if (!this.selectedPhotoDataUrl) return;
+                    if (!this.selectedPhotoDataUrl || this.aiAnalyzing) return;
                     this.trackUsageEvent('meal_log_photo');
                     this.aiAnalyzing = true;
                     try {
@@ -13831,6 +13833,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
             },
 
             async saveConfirmedMeal() {
+                if (this.mealConfirmSaving) return;
                 if (!this.mealConfirmForm.description.trim()) {
                     alert('נא להזין תיאור ארוחה');
                     return;
@@ -14394,7 +14397,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 },
 
                 async submitAIMeal() {
-                    if (!this.aiInputText.trim()) return;
+                    if (!this.aiInputText.trim() || this.aiAnalyzing) return;
                     this.trackUsageEvent('meal_log_text');
                     this.aiAnalyzing = true;
                     try {
@@ -14424,6 +14427,8 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 },
 
                 async quickLogPreset(chip, slot = null) {
+                    if (this.quickLoggingMeal) return;
+                    this.quickLoggingMeal = true;
                     try {
                         this.trackUsageEvent('meal_log_favorite');
                         const targetSlot = slot || (this.targetMealSlot && this.targetMealSlot !== 'auto' ? this.targetMealSlot : this.currentMealSlot);
@@ -14449,6 +14454,8 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         this.showToast(`✅ נוסף ל${slotNames[targetSlot] || 'יומן'}: ${chip.label} (+${chip.calories} קק"ל)`);
                     } catch (e) {
                         this.showToast('שגיאה בהוספת הארוחה', 'error');
+                    } finally {
+                        this.quickLoggingMeal = false;
                     }
                 },
 
