@@ -49,7 +49,7 @@
     <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=130"></script>
+    <script src="/static/js/translations.js?v=131"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -7555,7 +7555,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=130').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=131').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -11955,7 +11955,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=130');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=131');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -14228,17 +14228,40 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 }
             },
 
+            get onboardingValidationError() {
+                return this._getBodyMetricError(this.onboardingForm.age, this.onboardingForm.height_cm, this.onboardingForm.weight_kg);
+            },
+
+            proceedOnboardingStep1() {
+                const err = this.onboardingValidationError;
+                if (err) {
+                    this.showToast(err, 'error');
+                    return;
+                }
+                this.onboardingStep = 2;
+            },
+
+            _clampedOnboardingMetrics() {
+                const clamp = (v, lo, hi, fb) => {
+                    const n = Number(v);
+                    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fb;
+                };
+                return {
+                    w: clamp(this.onboardingForm.weight_kg, 35, 250, 75),
+                    h: clamp(this.onboardingForm.height_cm, 120, 230, 175),
+                    a: clamp(this.onboardingForm.age, 14, 100, 28),
+                };
+            },
+
             get onboardingBmr() {
-                const w = Number(this.onboardingForm.weight_kg) || 75;
-                const h = Number(this.onboardingForm.height_cm) || 175;
-                const a = Number(this.onboardingForm.age) || 28;
+                const { w, h, a } = this._clampedOnboardingMetrics();
                 const isMale = this.onboardingForm.gender === 'male';
-                return Math.round(10 * w + 6.25 * h - 5 * a + (isMale ? 5 : -161));
+                return Math.max(800, Math.round(10 * w + 6.25 * h - 5 * a + (isMale ? 5 : -161)));
             },
 
             get onboardingTdee() {
                 const act = Number(this.onboardingForm.activity) || 1.55;
-                return Math.round(this.onboardingBmr * act);
+                return Math.min(6000, Math.max(1000, Math.round(this.onboardingBmr * act)));
             },
 
             get onboardingTargetCalories() {
@@ -14246,21 +14269,21 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 const g = this.onboardingForm.goal;
                 if (g === 'cut_aggressive') return Math.max(1200, tdee - 500);
                 if (g === 'cut_moderate') return Math.max(1300, tdee - 300);
-                if (g === 'bulk') return tdee + 300;
-                return tdee;
+                if (g === 'bulk') return Math.min(6000, tdee + 300);
+                return Math.min(6000, Math.max(1200, tdee));
             },
 
             get onboardingTargetProtein() {
-                const w = Number(this.onboardingForm.weight_kg) || 75;
+                const { w } = this._clampedOnboardingMetrics();
                 const g = this.onboardingForm.goal;
-                if (g === 'cut_aggressive' || g === 'cut_moderate') return Math.round(w * 2.1);
-                if (g === 'bulk') return Math.round(w * 2.0);
-                return Math.round(w * 1.8);
+                if (g === 'cut_aggressive' || g === 'cut_moderate') return Math.min(400, Math.max(40, Math.round(w * 2.1)));
+                if (g === 'bulk') return Math.min(400, Math.max(40, Math.round(w * 2.0)));
+                return Math.min(400, Math.max(40, Math.round(w * 1.8)));
             },
 
             get onboardingWaterTarget() {
-                const w = Number(this.onboardingForm.weight_kg) || 75;
-                return Math.round((w * 35) / 100) * 100;
+                const { w } = this._clampedOnboardingMetrics();
+                return Math.min(8000, Math.max(1500, Math.round((w * 35) / 100) * 100));
             },
 
             dismissOnboarding() {
@@ -14283,6 +14306,12 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 }
                 if (!this.onboardingAcceptedTerms) {
                     this.showToast('חובה לקרוא ולאשר את תנאי השימוש ומדיניות הפרטיות', 'warning');
+                    return;
+                }
+                const metricErr = this.onboardingValidationError;
+                if (metricErr) {
+                    this.onboardingStep = 1;
+                    this.showToast(metricErr, 'error');
                     return;
                 }
                 this.onboardingSaving = true;
@@ -14846,14 +14875,20 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
 
                 async submitHistoryManualMeal() {
                     if (!this.historyManualMeal.description || this.historyManualMeal.calories === null || this.historyManualMeal.protein_g === null) return;
+                    const cals = Math.round(Number(this.historyManualMeal.calories));
+                    const prot = Math.round(Number(this.historyManualMeal.protein_g) * 10) / 10;
+                    if (!Number.isFinite(cals) || cals < 0 || cals > 10000 || !Number.isFinite(prot) || prot < 0 || prot > 500) {
+                        this.showToast('ערכי הקלוריות (0–10,000) או החלבון (0–500g) אינם תקינים', 'error');
+                        return;
+                    }
                     try {
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 description: this.historyManualMeal.description,
-                                calories: Math.round(Number(this.historyManualMeal.calories) || 0),
-                                protein_g: Math.round((Number(this.historyManualMeal.protein_g) || 0) * 10) / 10,
+                                calories: cals,
+                                protein_g: prot,
                                 log_date: this.selectedDate
                             })
                         });
@@ -14879,6 +14914,12 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
 
                 async saveEditedMeal() {
                     if (!this.mealToEdit) return;
+                    const editCal = Math.round(Number(this.editForm.calories));
+                    const editProt = Math.round(Number(this.editForm.protein_g) * 10) / 10;
+                    if (!Number.isFinite(editCal) || editCal < 0 || editCal > 10000 || !Number.isFinite(editProt) || editProt < 0 || editProt > 500) {
+                        this.showToast('ערכי הקלוריות (0–10,000) או החלבון (0–500g) אינם תקינים', 'error');
+                        return;
+                    }
                     const id = this.mealToEdit.id;
                     // If single item or no items, ensure items matches the updated values
                     if (!this.editForm.items || this.editForm.items.length <= 1) {
@@ -15030,14 +15071,20 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
 
                 async submitManualMeal() {
                     if (!this.newMeal.description || this.newMeal.calories === null || this.newMeal.protein_g === null) return;
+                    const cals = Math.round(Number(this.newMeal.calories));
+                    const prot = Math.round(Number(this.newMeal.protein_g) * 10) / 10;
+                    if (!Number.isFinite(cals) || cals < 0 || cals > 10000 || !Number.isFinite(prot) || prot < 0 || prot > 500) {
+                        this.showToast('ערכי הקלוריות (0–10,000) או החלבון (0–500g) אינם תקינים', 'error');
+                        return;
+                    }
                     try {
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 ...this.newMeal,
-                                calories: Math.round(Number(this.newMeal.calories) || 0),
-                                protein_g: Math.round((Number(this.newMeal.protein_g) || 0) * 10) / 10
+                                calories: cals,
+                                protein_g: prot
                             })
                         });
                         if (!res.ok) {
@@ -16374,9 +16421,15 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         </div>
                     </div>
 
+                    <div x-show="onboardingValidationError" class="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700 flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span x-text="onboardingValidationError"></span>
+                    </div>
+
                     <div class="pt-2 space-y-2">
-                        <button type="button" @click="onboardingStep = 2"
-                                class="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition cursor-pointer shadow-md shadow-emerald-600/20">
+                        <button type="button" @click="proceedOnboardingStep1()"
+                                :class="onboardingValidationError ? 'bg-slate-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'"
+                                class="w-full py-3 rounded-2xl text-white font-extrabold text-xs transition shadow-md shadow-emerald-600/20">
                             המשך לשלב הבא ➔
                         </button>
                         <button type="button" @click="dismissOnboarding()"

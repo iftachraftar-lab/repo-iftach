@@ -645,6 +645,52 @@ async function runAudit() {
 
     if (report.jsErrors.length === 0) report.passed.push('Zero uncaught JS/Alpine runtime errors');
     else report.failed.push(`Captured ${report.jsErrors.length} runtime JS error(s)`);
+
+    // -----------------------------------------------------------------------
+    // FLOW 11: Live API Security & Input-Fuzzing Penetration Checks
+    // -----------------------------------------------------------------------
+    const meToken = await evalJs("window.Alpine.$data(document.querySelector('[x-data]'))?.currentUser?.session_token || ''");
+    const fuzzHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${meToken}` };
+
+    const rDelNoAuth = await fetch(`${backend.baseUrl}/api/user/delete-account-self`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: 'victim_user_123', confirmation: 'מחק' }),
+    });
+    const rBindNoAuth = await fetch(`${backend.baseUrl}/api/user/bind-coach-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: 'victim_user_123', coach_code: 'itamar' }),
+    });
+    const rNegCal = await fetch(`${backend.baseUrl}/api/meals/`, {
+      method: 'POST',
+      headers: fuzzHeaders,
+      body: JSON.stringify({ description: 'Neg', calories: -500, protein_g: 10 }),
+    });
+    const rExtremeWater = await fetch(`${backend.baseUrl}/api/water/add`, {
+      method: 'POST',
+      headers: fuzzHeaders,
+      body: JSON.stringify({ amount_ml: 999999 }),
+    });
+    const rAbsurdOnb = await fetch(`${backend.baseUrl}/api/user/onboarding`, {
+      method: 'POST',
+      headers: fuzzHeaders,
+      body: JSON.stringify({ height_cm: 10000, weight_kg: 50000, age: 5, target_calories: 641655 }),
+    });
+
+    if (
+      rDelNoAuth.status === 401 &&
+      rBindNoAuth.status === 401 &&
+      rNegCal.status === 422 &&
+      rExtremeWater.status === 422 &&
+      rAbsurdOnb.status === 422
+    ) {
+      report.passed.push('Security & Fuzz Audit passed: unauthenticated IDORs blocked (401) & extreme/negative inputs rejected (422)');
+    } else {
+      report.failed.push(
+        `Security/Fuzz check failed: del=${rDelNoAuth.status}, bind=${rBindNoAuth.status}, negCal=${rNegCal.status}, water=${rExtremeWater.status}, onb=${rAbsurdOnb.status}`
+      );
+    }
   } finally {
     cdp.close();
     try { browser.proc.kill(); } catch {}

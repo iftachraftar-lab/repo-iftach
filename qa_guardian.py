@@ -275,6 +275,26 @@ def run_suite_3_serverless(py_src: str, tree: ast.AST) -> List[GuardianCheckResu
         if push_isolation_ok else "Privacy leak risk: admin/technical push may broadcast to regular users"
     ))
 
+    # 3.5 Auth Spoofing & Clinical Input Bounds Hardening
+    spoof_free = True
+    for fn_name in ("api_delete_account_self", "api_bind_coach_code", "api_accept_terms", "api_ping_admin_approval"):
+        fn_src = _extract_func_source(py_src, tree, fn_name)
+        if "req.user_id" in fn_src:
+            spoof_free = False
+    bounds_ok = (
+        "class ManualMealRequest" in py_src
+        and "calories: int = Field(ge=0, le=10000)" in py_src
+        and "class OnboardingSaveRequest" in py_src
+        and "height_cm: Optional[float] = Field(default=None, ge=120.0, le=230.0)" in py_src
+    )
+    results.append(GuardianCheckResult(
+        cat_id, cat_name,
+        "Auth Spoofing (IDOR) Prevention & Clinical Input Bounds Enforcement",
+        spoof_free and bounds_ok,
+        "Zero req.user_id auth bypasses; strict bounds on meals, water, BMI & onboarding"
+        if (spoof_free and bounds_ok) else "Detected unauthenticated req.user_id fallback or missing Pydantic bounds"
+    ))
+
     return results
 
 

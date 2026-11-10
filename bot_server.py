@@ -264,23 +264,23 @@ class GroceryListSchema(BaseModel):
 
 
 class GroceryGenerateRequest(BaseModel):
-    target_calories: Optional[int] = 2000
-    target_protein: Optional[float] = 130
-    preferences: Optional[str] = ""
-    days: Optional[int] = 7
+    target_calories: Optional[int] = Field(default=2000, ge=500, le=10000)
+    target_protein: Optional[float] = Field(default=130, ge=20.0, le=500.0)
+    preferences: Optional[str] = Field(default="", max_length=300)
+    days: Optional[int] = Field(default=7, ge=1, le=14)
     lang: Optional[str] = "he"
 
 
 
 class ManualMealRequest(BaseModel):
-    description: str
-    calories: int
-    protein_g: float
+    description: str = Field(min_length=1, max_length=300)
+    calories: int = Field(ge=0, le=10000)
+    protein_g: float = Field(ge=0.0, le=500.0)
     log_date: Optional[str] = None
     log_time: Optional[str] = None
     meal_type: Optional[str] = None
-    original_ai_calories: Optional[int] = None
-    original_ai_protein: Optional[float] = None
+    original_ai_calories: Optional[int] = Field(default=None, ge=0, le=10000)
+    original_ai_protein: Optional[float] = Field(default=None, ge=0.0, le=500.0)
     source: Optional[str] = "web"
 
 
@@ -6016,9 +6016,10 @@ async def _admin_daily_0800_scheduler():
 
 @app.get("/api/cron/daily-health-check")
 @app.post("/api/cron/daily-health-check")
-def api_cron_daily_health_check(force: bool = False):
+def api_cron_daily_health_check(request: Request, force: bool = False):
     """Cloud Scheduler endpoint to wake up Cloud Run at 08:00 Asia/Jerusalem and dispatch the daily report."""
-    if not force and _has_daily_health_been_sent_today():
+    allow_force = bool(force and is_admin_user_id(get_request_user_id(request)))
+    if not allow_force and _has_daily_health_been_sent_today():
         return {"status": "already_sent_today", "date": get_israel_today_str()}
     return send_admin_health_and_billing_push(manual_trigger=False)
 
@@ -6110,9 +6111,10 @@ async def _user_daily_2000_scheduler():
 
 @app.get("/api/cron/daily-user-reminders")
 @app.post("/api/cron/daily-user-reminders")
-def api_cron_daily_user_reminders(force: bool = False):
+def api_cron_daily_user_reminders(request: Request, force: bool = False):
     """Cloud Scheduler endpoint to wake up Cloud Run at 20:00 Asia/Jerusalem and dispatch daily user reminders."""
-    if not force and _has_daily_user_push_been_sent_today():
+    allow_force = bool(force and is_admin_user_id(get_request_user_id(request)))
+    if not allow_force and _has_daily_user_push_been_sent_today():
         return {"status": "already_sent_today", "date": get_israel_today_str()}
     return dispatch_daily_user_reminders(manual_trigger=False)
 
@@ -9807,24 +9809,24 @@ async def telegram_webhook(request: Request):
 # ---------------------------------------------------------------------------
 
 class WaterAddRequest(BaseModel):
-    amount_ml: int
+    amount_ml: int = Field(ge=-5000, le=5000)
     log_date: Optional[str] = None
 
 class WaterSetRequest(BaseModel):
-    amount_ml: int
+    amount_ml: int = Field(ge=0, le=15000)
     log_date: Optional[str] = None
 
 class OnboardingSaveRequest(BaseModel):
-    height_cm: Optional[float] = None
-    weight_kg: Optional[float] = None
-    age: Optional[int] = None
+    height_cm: Optional[float] = Field(default=None, ge=120.0, le=230.0)
+    weight_kg: Optional[float] = Field(default=None, ge=35.0, le=250.0)
+    age: Optional[int] = Field(default=None, ge=14, le=100)
     gender: Optional[str] = "male"
     activity_level: Optional[str] = "moderate"
-    sleep_hours: Optional[float] = 7.0
+    sleep_hours: Optional[float] = Field(default=7.0, ge=3.0, le=16.0)
     goal: Optional[str] = "cut_moderate"
-    target_calories: Optional[int] = None
-    target_protein: Optional[float] = None
-    water_target_ml: Optional[int] = 2500
+    target_calories: Optional[int] = Field(default=None, ge=800, le=6000)
+    target_protein: Optional[float] = Field(default=None, ge=30.0, le=400.0)
+    water_target_ml: Optional[int] = Field(default=2500, ge=500, le=8000)
     terms_accepted: bool = True
 
 
@@ -9960,8 +9962,6 @@ def api_accept_terms(req: TermsAcceptRequest, request: Request):
     Persists immutable audit log with timestamp and version in Firestore/local user record.
     """
     uid = get_request_user_id(request)
-    if uid == "default" and req.user_id:
-        uid = _normalize_user_id(req.user_id)
     now_iso = get_israel_now().isoformat()
     terms_data = {
         "terms_accepted": True,
@@ -9976,7 +9976,7 @@ def api_accept_terms(req: TermsAcceptRequest, request: Request):
             db.collection("users").document(uid).set(terms_data, merge=True)
         except Exception as e:
             print(f"ERROR api_accept_terms Firestore: {e}")
-    elif uid in _LOCAL_USERS:
+    elif uid != "default" and uid in _LOCAL_USERS:
         _LOCAL_USERS[uid].update(terms_data)
 
     return {
@@ -9998,8 +9998,6 @@ def api_bind_coach_code(req: BindCoachCodeRequest, request: Request):
     Binds a user directly to a coach using an invite code (e.g. 'ITAMAR', 'איתמר', 'FIT2026').
     """
     uid = get_request_user_id(request)
-    if uid == "default" and req.user_id:
-        uid = _normalize_user_id(req.user_id)
     if uid == "default":
         raise HTTPException(status_code=401, detail="יש להתחבר לחשבון כדי להזין קוד מאמן")
 
@@ -10053,8 +10051,6 @@ def api_delete_account_self(req: DeleteAccountSelfRequest, request: Request):
     Permanently deletes the user profile and all associated meals, weights, targets, and logs.
     """
     uid = get_request_user_id(request)
-    if uid == "default" and req.user_id:
-        uid = _normalize_user_id(req.user_id)
     if uid == "default":
         raise HTTPException(status_code=401, detail="יש להתחבר תחילה")
     if is_super_admin_user_id(uid):
@@ -10146,9 +10142,9 @@ def api_ping_admin_approval(req: PingAdminApprovalRequest, request: Request):
     Called by an unapproved user on the waiting screen to remind the admin to approve their account.
     """
     uid = get_request_user_id(request)
-    if uid == "default" and req.user_id:
-        uid = _normalize_user_id(req.user_id)
-    udoc = get_user_doc_db(uid) if uid != "default" else {}
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר עם חשבון Google תחילה")
+    udoc = get_user_doc_db(uid)
     u_email = req.email or udoc.get("email") or uid
     u_name = req.name or udoc.get("name") or u_email.split("@")[0]
 
