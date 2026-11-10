@@ -7703,6 +7703,7 @@
                     document.documentElement.lang = this.currentLang;
                     if (window.applyTranslations) {
                         window.applyTranslations(this.currentLang);
+                        this.$nextTick(() => { window.applyTranslations(this.currentLang); });
                     }
                 },
                 t(key, fallback) {
@@ -10800,12 +10801,12 @@
                     return this.groceryList?.aisles.filter(a => a.category === this.groceryAisleFilter);
                 },
 
-                initGroceryList() {
+                initGroceryList(autoGenerate = false) {
                     try {
                         const saved = localStorage.getItem('nutri_grocery_list');
                         if (saved) {
                             this.groceryList = JSON.parse(saved);
-                        } else {
+                        } else if (autoGenerate && this.currentUser) {
                             this.generateGroceryList();
                         }
                     } catch(e) {
@@ -10942,7 +10943,7 @@
 
                 openGroceryListModal() {
                     if (!this.groceryList) {
-                        this.initGroceryList();
+                        this.initGroceryList(true);
                     }
                     this.showGroceryModal = true;
                 },
@@ -12305,6 +12306,9 @@
                     } else if (tab === 'recipes' && (!this.woltDishes || !this.woltDishes.length)) {
                         this.fetchWoltDishes();
                     }
+                    if (this.currentLang === 'en' && window.applyTranslations) {
+                        this.$nextTick(() => { window.applyTranslations('en'); });
+                    }
                 },
 
                 async fetchAdminUsers(forceRefresh = false) {
@@ -12945,6 +12949,9 @@
                         this.$nextTick(() => {
                             this.scrollStripToToday();
                             this.scrollHistoryChartToToday();
+                            if (this.currentLang === 'en' && window.applyTranslations) {
+                                window.applyTranslations('en');
+                            }
                         });
                     } catch (e) {
                         console.error(e);

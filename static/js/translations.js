@@ -1683,6 +1683,8 @@
   "💬 אחר": "💬 Other",
   "פוש פעיל": "Push Active",
   "מכשירים מחוברים בשרת:": "Connected devices on server:",
+  "⚖️ השקילה נשמרה בהצלחה!": "⚖️ Weight saved successfully!",
+  "שמור במועדפים": "Save to Favorites",
   "🚫 הרשאת התראות חסומה בדפדפן": "🚫 Notifications blocked in browser",
   "כדי לקבל התראות בנייד, לחץ על אייקון המנעול / ההגדרות בשורת הכתובת ואפשר \"התראות (Notifications)\" ולאחר מכן לחץ על כפתור ההפעלה למטה.": "To receive notifications on mobile, tap the lock / site settings icon in the address bar, allow Notifications, then tap Enable below.",
   "כרגע רק המחשב מחובר להתראות! פתח את האפליקציה בטלפון הנייד, לחץ על 🔔 התראות בראש המסך, ולחץ על הפעל התראות פוש בנייד.": "Only your desktop is connected right now! Open the app on your phone, tap the 🔔 bell icon at the top, and enable Push Notifications."
@@ -1861,17 +1863,25 @@
         };
 
         const obs = new MutationObserver(() => {
+            if (isTranslating) return;
             const currentLang = localStorage.getItem('nutri_lang') || 'he';
             if (currentLang !== 'en') return;
             if (mutationTimer) clearTimeout(mutationTimer);
             mutationTimer = setTimeout(runSync, 35);
         });
 
+        const obsCfg = {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            attributes: true,
+            attributeFilter: ['title', 'placeholder', 'alt', 'aria-label']
+        };
         if (document.body) {
-            obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+            obs.observe(document.body, obsCfg);
         } else {
             document.addEventListener('DOMContentLoaded', () => {
-                obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+                obs.observe(document.body, obsCfg);
             });
         }
     })();
