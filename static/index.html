@@ -2327,7 +2327,7 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                <div class="flex items-center gap-1.5 border-b border-slate-100 pb-3">
                     <button type="button"
                             @click="$refs.history14Chart.scrollBy({ left: 180, behavior: 'smooth' })"
                             title="גלול אחורה בימים"
@@ -2337,27 +2337,30 @@
                     </button>
 
                     <div x-ref="history14Chart"
-                         class="flex-1 min-w-0 flex items-end gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar scroll-smooth h-48 pt-6 pb-1 px-1">
+                         class="flex-1 min-w-0 flex items-end gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar scroll-smooth pt-2 pb-1 px-1">
                         <template x-for="day in (rolling14Trend.length ? rolling14Trend : dailyTrend)" :key="day.date">
                             <button type="button"
                                     :data-is-today="day.date === todayStr ? 'true' : 'false'"
                                     @click="selectHistoryDate(day.date)"
-                                    class="min-w-[50px] sm:min-w-[56px] flex-1 flex-shrink-0 flex flex-col items-center justify-end h-full group focus:outline-none cursor-pointer">
-                                <span class="text-[10px] sm:text-xs font-bold mb-1 transition"
-                                      :class="selectedDate === day.date ? 'text-slate-900 scale-110' : 'text-slate-500'"
-                                      x-text="day.calories > 0 ? day.calories : '-'"></span>
-                                <div class="w-full max-w-[36px] bg-slate-100 rounded-t-xl h-28 flex items-end p-0.5 transition"
-                                     :class="selectedDate === day.date ? 'ring-2 ring-slate-900 ring-offset-2 rounded-xl' : ''">
+                                    class="min-w-[58px] sm:min-w-[64px] flex-shrink-0 flex flex-col items-center justify-end py-1 group focus:outline-none cursor-pointer">
+                                <span class="text-[11px] font-bold h-5 flex items-center justify-center whitespace-nowrap transition"
+                                      :class="selectedDate === day.date ? 'text-slate-900 font-black' : 'text-slate-500'"
+                                      x-text="day.calories > 0 ? day.calories.toLocaleString() : '-'"></span>
+                                <div class="w-8 sm:w-9 h-28 bg-slate-100 rounded-t-xl flex items-end p-0.5 transition my-1"
+                                     :class="selectedDate === day.date ? 'ring-2 ring-slate-900 rounded-xl' : ''">
                                     <div class="w-full rounded-t-lg transition-all duration-500"
                                          :class="day.calories > summary.target_calories ? 'bg-rose-500' : (day.calories > 0 ? 'bg-emerald-500' : 'bg-slate-200')"
                                          :style="`height: ${day.calories > 0 ? Math.max(12, Math.min(100, Math.round((day.calories / Math.max(summary.target_calories, 2200)) * 100))) : 6}%`">
                                     </div>
                                 </div>
-                                <span class="text-[11px] font-semibold mt-2"
-                                      :class="selectedDate === day.date ? 'text-emerald-700 font-bold' : 'text-slate-600'"
-                                      x-text="shortDayLabel(day.date)"></span>
-                                <span class="text-[10px] text-slate-400" x-text="`${day.protein_g.toFixed(0)}g חלבון`"></span>
-                                <span class="text-[9px] font-extrabold text-sky-600 mt-0.5" x-show="day.water_ml" x-text="`💧 ${((day.water_ml || 0) / 1000).toFixed(1)}L`"></span>
+                                <span class="text-[11px] font-bold h-4 flex items-center justify-center mt-1 whitespace-nowrap"
+                                      :class="selectedDate === day.date ? 'text-emerald-700' : 'text-slate-700'"
+                                      x-text="shortHistoryChartLabel(day.date)"></span>
+                                <span class="text-[10px] text-slate-400 h-4 flex items-center justify-center whitespace-nowrap"
+                                      x-text="`${Math.round(day.protein_g || 0)}g חלבון`"></span>
+                                <span class="text-[10px] font-bold h-4 flex items-center justify-center whitespace-nowrap"
+                                      :class="day.water_ml ? 'text-sky-600' : 'text-transparent'"
+                                      x-text="day.water_ml ? `💧${((day.water_ml || 0) / 1000).toFixed(1)}L` : '-'"></span>
                             </button>
                         </template>
                     </div>
@@ -7526,7 +7529,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=117').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=118').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -15310,6 +15313,17 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     const parts = dateStr.split('-').map(Number);
                     const d = new Date(parts[0], parts[1] - 1, parts[2]);
                     return d.toLocaleDateString('he-IL', { weekday: 'short' });
+                },
+
+                shortHistoryChartLabel(dateStr) {
+                    if (!dateStr) return '';
+                    if (dateStr === this.todayStr) return this.currentLang === 'en' ? 'Today' : 'היום';
+                    const [y, m, d] = dateStr.split('-').map(Number);
+                    const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+                    const labels = this.currentLang === 'en'
+                        ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                        : ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+                    return `${labels[dt.getUTCDay()]} ${d}/${m}`;
                 },
 
                 async openBarcodeScannerModal() {

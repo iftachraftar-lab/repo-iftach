@@ -1,11 +1,11 @@
 {
-  "last_audit_at": "2026-11-10T09:52:50.329913+02:00",
-  "total_runs": 34,
-  "sw_version": "117",
+  "last_audit_at": "2026-11-10T09:56:15.101466+02:00",
+  "total_runs": 36,
+  "sw_version": "118",
   "counts": {
     "api_routes": 112,
     "pydantic_models": 65,
-    "alpine_methods": 192
+    "alpine_methods": 193
   },
   "newly_learned_routes_last_run": [],
   "removed_routes_last_run": [],
@@ -342,6 +342,7 @@
     "shareWeeklyReportWhatsApp",
     "shiftHistoryDate",
     "shortDayLabel",
+    "shortHistoryChartLabel",
     "showToast",
     "startLiveBarcodeDetector",
     "startLiveViewfinderCamera",
