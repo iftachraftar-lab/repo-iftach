@@ -1647,7 +1647,40 @@
   "עבור לחנות התוספים (HoldOn)": "Go to Supplements Store (HoldOn)",
   "אני רוצה! בדוק זכאות לתוספים 🚀": "I Want This! Check Supplement Eligibility 🚀",
   "חיפה והצפון": "Haifa & North",
-  "מאמן/ת כושר אישי/ת": "Personal Fitness Trainer"
+  "מאמן/ת כושר אישי/ת": "Personal Fitness Trainer",
+  "ניהול משתמשים, כספים ובקרת מערכת": "User Management, Finance & System Control",
+  "פתיחת תיבת פניות לתמיכה": "Open support ticket box",
+  "מועדפים:": "Favorites:",
+  "2 ביצים, טוסט וקוטג׳": "2 Eggs, Toast & Cottage Cheese",
+  "שיבולת שועל ובננה": "Oatmeal & Banana",
+  "פרגית ותפוח אדמה": "Chicken Thighs & Potato",
+  "שקשוקה ולחם": "Shakshuka & Bread",
+  "טוסט צהובה וסלט": "Cheese Toast & Salad",
+  "חביתת ירק וסלט ישראלי": "Herb Omelet & Israeli Salad",
+  "תפוח / פרי עונתי": "Apple / Seasonal Fruit",
+  "חופן שקדים ואגוזים": "Handful of Almonds & Nuts",
+  "התכנים המופיעים באתר זה נועדו לספק אינפורמציה כללית בלבד. אינם מהווים המלצה, תחליף להתייעצות עם מומחה או קבלת ייעוץ רפואי.": "The content on this site is for general informational purposes only and is not a substitute for professional medical advice.",
+  "NutriAgent AI • אין להעתיק, לשכפל או להדפיס לשם פירסום או הפצה בכל דרך שהיא, ללא קבלת אישור מפורש בכתב. כל הזכויות שמורות.": "NutriAgent AI • No reproduction, copying or distribution in any form without prior written permission. All rights reserved.",
+  "שיתוף דוח": "Share Report",
+  "למאמנים ודיאטנים": "For Trainers & Dietitians",
+  "סה\"כ קלוריות": "Total Calories",
+  "סה\"כ חלבון": "Total Protein",
+  "סורק סופר": "Supermarket Scanner",
+  "📄 תנאי השימוש ומדיניות הפרטיות": "📄 Terms of Use & Privacy Policy",
+  "תנאי השימוש ומדיניות הפרטיות": "Terms of Use & Privacy Policy",
+  "למשל: רצתי 5 ק״מ ב-28 דקות, או אימון כוח גב וידיים 45 דק׳ בחדר כושר...": "e.g., Ran 5 km in 28 min, or back & arms strength workout 45 min at the gym...",
+  "זיהוי ממאגר שקיפות מחירים רשמי (CHP), תנובה, שטראוס, אסם ו-OpenFoodFacts": "Matched via official CHP Price Transparency DB, Tnuva, Strauss, Osem & OpenFoodFacts",
+  "הפנייה תישלח ישירות למנהל המערכת": "Your ticket will be sent directly to the system admin",
+  "נושא הפנייה:": "Subject:",
+  "תיאור הפנייה:": "Description:",
+  "ספר לנו מה קרה, היכן נתקלת בקושי או מה נרצה לשפר...": "Tell us what happened, where you ran into an issue, or what we can improve...",
+  "שמירה על פרטיות:": "Privacy Protection:",
+  "הפנייה מועברת בצורה מוצפנת ומאובטחת לצוות הניהול מבלי לחשוף פרטים אישיים.": "Your message is transmitted securely and encrypted to the support team without exposing personal details.",
+  "✉️ שלח פנייה": "✉️ Send Ticket",
+  "🚨 תקלה טכנית (מצלמה, מודל AI, התחברות)": "🚨 Technical Issue (Camera, AI Model, Login)",
+  "🥗 שאלה לגבי תזונה ויעדים": "🥗 Question about Nutrition & Targets",
+  "💡 הצעה לשיפור ופיצ'ר חדש": "💡 Feature Request & Improvement Idea",
+  "💬 אחר": "💬 Other"
 };
 
     window.EN_TO_HE = {};
@@ -1693,6 +1726,12 @@
                      .replace(/(\d[\d,\.]*)\s*מ[״"]ל/g, '$1 ml')
                      .replace(/(\d[\d,\.]*)\s*ק[״"]ג/g, '$1 kg')
                      .replace(/(\d[\d,\.]*)\s*ימים/g, '$1 days')
+                     .replace(/(\d[\d,\.]*)\s*כוסות/g, '$1 cups')
+                     .replace(/סה[״"]כ\s*(?:קלוריות|Calories)/g, 'Total Calories')
+                     .replace(/סה[״"]כ\s*(?:חלבון|Protein)/g, 'Total Protein')
+                     .replace(/טרם נרשמו מנות ל(.+)/g, 'No meals logged yet for $1')
+                     .replace(/ל(Trainers\s*&\s*Dietitians)/g, 'For $1')
+                     .replace(/📄\s*Terms of Use\s*וPrivacy Policy/g, '📄 Terms of Use & Privacy Policy')
                      .replace(/(\d[\d,\.]*)\s*צעדים/g, '$1 steps')
                      .replace(/(\d[\d,\.]*)\s*שניות/g, '$1 seconds')
                      .replace(/(\d[\d,\.]*)\s*דקות/g, '$1 minutes')
