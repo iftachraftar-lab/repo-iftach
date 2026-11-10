@@ -712,14 +712,25 @@
             <!-- REGULAR METABOLIC JOURNAL & SLOTS (Shown when in Summary sub-tab) -->
             <div x-show="coachingSubTab === 'summary'" class="space-y-4 sm:space-y-5">
 
-            <!-- 7-Day Interactive Weekly Strip (Calm Rounded Squares + Hover Highlights Popover) -->
+            <!-- 14-Day Rolling Interactive Strip (Calm Rounded Squares + Horizontal Scroll + Hover Pill) -->
             <div class="relative"
+                 x-init="$nextTick(() => scrollStripToToday())"
                  @mouseleave="hoveredStripDate = null"
                  @click.outside="pinnedStripDate = null">
-                <div class="bg-white/95 rounded-3xl p-2 sm:p-2.5 shadow-2xs border border-slate-200/80">
-                    <div class="grid grid-cols-7 gap-1.5">
+                <div class="bg-white/95 rounded-3xl p-2 sm:p-2.5 shadow-2xs border border-slate-200/80 flex items-center gap-1.5">
+                    <button type="button"
+                            @click="$refs.rollingDaysStrip.scrollBy({ left: 160, behavior: 'smooth' })"
+                            title="גלול אחורה בימים"
+                            aria-label="גלול ימינה"
+                            class="w-6 h-6 rounded-full bg-slate-100/90 hover:bg-emerald-50 border border-slate-200/90 hover:border-emerald-300 text-slate-500 hover:text-emerald-700 flex items-center justify-center flex-shrink-0 cursor-pointer transition active:scale-90 shadow-2xs">
+                        <span class="text-xs font-black leading-none select-none">›</span>
+                    </button>
+
+                    <div x-ref="rollingDaysStrip"
+                         class="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
                         <template x-for="day in weeklyStripDays" :key="day.dateStr">
                             <button type="button"
+                                    :data-is-today="day.isToday ? 'true' : 'false'"
                                     @mouseenter="if (!day.isFuture) hoveredStripDate = day.dateStr"
                                     @click="togglePinnedStripDay(day)"
                                     :disabled="day.isFuture"
@@ -733,7 +744,7 @@
                                                     : 'bg-slate-50/80 hover:bg-slate-100 text-slate-600 border-slate-200/70 cursor-pointer')),
                                         (activeStripPreviewDay && activeStripPreviewDay.dateStr === day.dateStr && !day.isToday) ? 'ring-2 ring-emerald-500/35' : ''
                                     ]"
-                                    class="py-2 px-1 rounded-2xl border flex flex-col items-center justify-center gap-1 transition">
+                                    class="min-w-[46px] sm:min-w-[54px] flex-1 flex-shrink-0 py-2 px-1 rounded-2xl border flex flex-col items-center justify-center gap-1 transition">
                                 <span class="text-[10px] font-bold leading-none opacity-75" x-text="day.label"></span>
                                 <span class="text-xs sm:text-sm font-black leading-none" x-text="day.dayNum"></span>
                                 <span class="w-2 h-2 rounded-full transition-all"
@@ -745,6 +756,14 @@
                             </button>
                         </template>
                     </div>
+
+                    <button type="button"
+                            @click="$refs.rollingDaysStrip.scrollBy({ left: -160, behavior: 'smooth' })"
+                            title="גלול קדימה להיום"
+                            aria-label="גלול שמאלה"
+                            class="w-6 h-6 rounded-full bg-slate-100/90 hover:bg-emerald-50 border border-slate-200/90 hover:border-emerald-300 text-slate-500 hover:text-emerald-700 flex items-center justify-center flex-shrink-0 cursor-pointer transition active:scale-90 shadow-2xs">
+                        <span class="text-xs font-black leading-none select-none">‹</span>
+                    </button>
                 </div>
 
                 <!-- Minimal Floating Hover / Tap Summary Pill (Does NOT navigate away!) -->
@@ -7486,7 +7505,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=115').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=116').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -7871,6 +7890,7 @@
                 allMeals: [],
                 allWorkouts: [],
                 dailyTrend: [],
+                rolling14Trend: [],
                 hoveredStripDate: null,
                 pinnedStripDate: null,
                 activeEntryMode: 'meal',
@@ -10509,7 +10529,6 @@
                     const todayIso = this.todayStr || getIsraelDateStr();
                     const [y, m, d] = todayIso.split('-').map(Number);
                     const anchor = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-                    const dow = anchor.getUTCDay();
 
                     const activeDates = new Set();
                     const statsByDate = {};
@@ -10534,14 +10553,19 @@
                             }
                         }
                     });
-                    (this.dailyTrend || []).forEach(item => {
-                        if (item.date && (Number(item.calories) > 0 || Number(item.meals_count) > 0 || Number(item.water_ml) > 0)) {
+
+                    const sourceTrend = (this.rolling14Trend && this.rolling14Trend.length)
+                        ? this.rolling14Trend
+                        : (this.dailyTrend || []);
+                    sourceTrend.forEach(item => {
+                        const mc = Number(item.meal_count || item.meals_count || 0);
+                        if (item.date && (Number(item.calories) > 0 || mc > 0 || Number(item.water_ml) > 0)) {
                             activeDates.add(item.date);
                             const st = ensureDay(item.date);
                             st.cals = Math.max(st.cals, Number(item.calories) || 0);
                             st.prot = Math.max(st.prot, Number(item.protein_g) || 0);
                             st.waterMl = Math.max(st.waterMl, Number(item.water_ml) || 0);
-                            st.mealsCount = Math.max(st.mealsCount, Number(item.meals_count) || 0);
+                            st.mealsCount = Math.max(st.mealsCount, mc);
                         }
                     });
 
@@ -10567,10 +10591,11 @@
                         ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
                         : ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 
+                    // Rolling 14-day sliding window: [Today - 13d ... Today]
                     const days = [];
-                    for (let i = 0; i < 7; i++) {
+                    for (let offset = 13; offset >= 0; offset--) {
                         const dt = new Date(anchor);
-                        dt.setUTCDate(anchor.getUTCDate() - dow + i);
+                        dt.setUTCDate(anchor.getUTCDate() - offset);
                         const yy = dt.getUTCFullYear();
                         const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
                         const dd = String(dt.getUTCDate()).padStart(2, '0');
@@ -10581,11 +10606,11 @@
                         const isOver = cals > targetCal * 1.08;
                         days.push({
                             dateStr,
-                            label: labels[i],
+                            label: labels[dt.getUTCDay()],
                             dayNum: dt.getUTCDate(),
                             monthNum: dt.getUTCMonth() + 1,
                             isToday: dateStr === todayIso,
-                            isFuture: dateStr > todayIso,
+                            isFuture: false,
                             hasLogged: activeDates.has(dateStr),
                             calories: cals,
                             protein: Math.round(st.prot),
@@ -10597,6 +10622,18 @@
                         });
                     }
                     return days;
+                },
+
+                scrollStripToToday() {
+                    const strip = this.$refs.rollingDaysStrip;
+                    if (!strip) return;
+                    const todayEl = strip.querySelector('[data-is-today="true"]');
+                    if (!todayEl) return;
+                    const sRect = strip.getBoundingClientRect();
+                    const tRect = todayEl.getBoundingClientRect();
+                    if (tRect.left < sRect.left || tRect.right > sRect.right) {
+                        strip.scrollLeft += (tRect.left - sRect.left) - 4;
+                    }
                 },
 
                 get activeStripPreviewDay() {
@@ -12824,6 +12861,8 @@
                         this.allMeals = data.meals || [];
                         this.allWorkouts = data.workouts || [];
                         this.dailyTrend = data.daily_trend || [];
+                        this.rolling14Trend = data.rolling_14_trend || data.daily_trend || [];
+                        this.$nextTick(() => this.scrollStripToToday());
                     } catch (e) {
                         console.error(e);
                     }

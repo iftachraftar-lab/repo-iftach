@@ -6901,8 +6901,8 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
         all_workouts = [w for w in _LOCAL_WORKOUTS if _doc_matches_user(w, uid)]
 
     targets = get_targets(user_id=uid)
-    daily_trend = []
-    for i in range(6, -1, -1):
+    rolling_14_trend = []
+    for i in range(13, -1, -1):
         d = str(today_date - timedelta(days=i))
         day_meals = [m for m in all_meals if m.get("log_date") == d]
         day_workouts = [w for w in all_workouts if w.get("log_date") == d]
@@ -6921,7 +6921,7 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
         else:
             day_water = int(_LOCAL_WATER.get(f"{uid}_{d}", 0))
 
-        daily_trend.append({
+        rolling_14_trend.append({
             "date": d,
             "calories": cal,
             "burned_calories": burned,
@@ -6935,7 +6935,8 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
     return {
         "meals": all_meals,
         "workouts": all_workouts,
-        "daily_trend": daily_trend,
+        "daily_trend": rolling_14_trend[-7:],
+        "rolling_14_trend": rolling_14_trend,
         "target_calories": targets["target_calories"],
         "target_protein": targets["target_protein"],
         "start_date": start_date_str,
