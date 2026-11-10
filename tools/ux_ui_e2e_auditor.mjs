@@ -475,6 +475,38 @@ async function runAudit() {
       report.failed.push(`Targets/Support check failed: ${JSON.stringify(miscApi)}`);
     }
 
+    const bmiGuard = await evalJs(`(() => {
+      const root = window.Alpine.$data(document.querySelector('[x-data]'));
+      root.openBmiWizard();
+      root.bmiForm.age = 5;
+      root.bmiForm.height_cm = 10000;
+      root.bmiForm.weight_kg = 50000;
+      root.proceedBmiStep1();
+      const blockedStep = root.bmiStep;
+      const errText = root.bmiValidationError;
+      const clampedCal = root.wizardTargetCalories;
+      root.bmiForm.age = 30;
+      root.bmiForm.height_cm = 178;
+      root.bmiForm.weight_kg = 78;
+      root.proceedBmiStep1();
+      const validStep = root.bmiStep;
+      const validBmi = root.currentBmiValue;
+      root.closeAllModals();
+      root.toast.visible = false;
+      return { blockedStep, hasErr: Boolean(errText), clampedCal, validStep, validBmi };
+    })()`);
+    if (
+      bmiGuard.blockedStep === 1 &&
+      bmiGuard.hasErr &&
+      bmiGuard.clampedCal <= 6000 &&
+      bmiGuard.validStep === 2 &&
+      bmiGuard.validBmi === '24.6'
+    ) {
+      report.passed.push(`BMI Wizard blocks absurd values (stays step 1, capped ${bmiGuard.clampedCal} kcal) & allows valid metrics (BMI ${bmiGuard.validBmi})`);
+    } else {
+      report.failed.push(`BMI Wizard validation failed: ${JSON.stringify(bmiGuard)}`);
+    }
+
     // -----------------------------------------------------------------------
     // FLOW 8: Bilingual UI Leak Scan across Tabs & 11 Modals in English Mode
     // -----------------------------------------------------------------------

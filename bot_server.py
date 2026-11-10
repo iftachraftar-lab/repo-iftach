@@ -332,9 +332,9 @@ class TargetUpdateRequest(BaseModel):
     target_protein: int = Field(default=120, ge=20, le=500)
     water_target_ml: Optional[int] = Field(default=2500, ge=500, le=10000)
     daily_ai_limit: Optional[int] = Field(default=None, ge=0, le=1000)
-    height_cm: Optional[float] = None
-    weight_kg: Optional[float] = None
-    age: Optional[int] = None
+    height_cm: Optional[float] = Field(default=None, ge=100, le=250)
+    weight_kg: Optional[float] = Field(default=None, ge=30, le=300)
+    age: Optional[int] = Field(default=None, ge=10, le=120)
     gender: Optional[str] = "male"
     activity_level: Optional[str] = "1.55"
     sleep_hours: Optional[float] = 7.5

@@ -1685,6 +1685,11 @@
   "מכשירים מחוברים בשרת:": "Connected devices on server:",
   "⚖️ השקילה נשמרה בהצלחה!": "⚖️ Weight saved successfully!",
   "שמור במועדפים": "Save to Favorites",
+  "גיל תקין הוא בין 14 ל-100": "Valid age is between 14 and 100",
+  "גובה תקין הוא בין 120 ל-230 ס״מ": "Valid height is between 120 and 230 cm",
+  "משקל תקין הוא בין 35 ל-250 ק״ג": "Valid weight is between 35 and 250 kg",
+  "יעד קלוריות תקין הוא בין 800 ל-6,000 קק״ל": "Valid calorie target is 800–6,000 kcal",
+  "יעד חלבון תקין הוא בין 30 ל-400 גרם": "Valid protein target is 30–400g",
   "🚫 הרשאת התראות חסומה בדפדפן": "🚫 Notifications blocked in browser",
   "כדי לקבל התראות בנייד, לחץ על אייקון המנעול / ההגדרות בשורת הכתובת ואפשר \"התראות (Notifications)\" ולאחר מכן לחץ על כפתור ההפעלה למטה.": "To receive notifications on mobile, tap the lock / site settings icon in the address bar, allow Notifications, then tap Enable below.",
   "כרגע רק המחשב מחובר להתראות! פתח את האפליקציה בטלפון הנייד, לחץ על 🔔 התראות בראש המסך, ולחץ על הפעל התראות פוש בנייד.": "Only your desktop is connected right now! Open the app on your phone, tap the 🔔 bell icon at the top, and enable Push Notifications."

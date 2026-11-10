@@ -1,11 +1,11 @@
 {
-  "last_audit_at": "2026-11-10T13:48:45.121701+02:00",
-  "total_runs": 62,
-  "sw_version": "129",
+  "last_audit_at": "2026-11-10T13:59:05.737441+02:00",
+  "total_runs": 64,
+  "sw_version": "130",
   "counts": {
     "api_routes": 114,
     "pydantic_models": 65,
-    "alpine_methods": 193
+    "alpine_methods": 196
   },
   "newly_learned_routes_last_run": [],
   "removed_routes_last_run": [],
@@ -193,6 +193,8 @@
     "WorkoutLeadRequest"
   ],
   "alpine_methods": [
+    "_clampedBmiMetrics",
+    "_getBodyMetricError",
     "_matchCatalogItems",
     "_normalizeHebrewSearch",
     "_runGoogleFitSyncRequest",
@@ -304,6 +306,7 @@
     "openWoltCustomizer",
     "openWorkoutLogger",
     "pingAdminApproval",
+    "proceedBmiStep1",
     "quickLogPreset",
     "reanalyzeVisionLog",
     "recalcTotalsFromItems",
