@@ -590,6 +590,21 @@ async function runAudit() {
     if (mobilePushVisible) report.passed.push('Mobile (390px) Push Notifications bell button is visible and clickable');
     else report.failed.push('Mobile (390px) Push Notifications bell button is hidden!');
 
+    const waterCardOverlap = await evalJs(`(() => {
+      const card = document.getElementById('waterTrackerCard');
+      if (!card) return { ok: false, reason: 'waterTrackerCard missing' };
+      const statusBox = card.children[0];
+      const buttonsBox = card.children[1];
+      if (!statusBox || !buttonsBox) return { ok: false, reason: 'water children missing' };
+      const sr = statusBox.getBoundingClientRect();
+      const br = buttonsBox.getBoundingClientRect();
+      const overlaps = sr.right > br.left + 1 && sr.left < br.right - 1 && sr.bottom > br.top + 1 && sr.top < br.bottom - 1;
+      const clipped = statusBox.scrollWidth > statusBox.clientWidth + 2 || sr.right > card.getBoundingClientRect().right + 2;
+      return { ok: !overlaps && !clipped, overlaps, clipped, statusHeight: Math.round(sr.height) };
+    })()`);
+    if (waterCardOverlap.ok) report.passed.push('Mobile (390px) Water tracker text & buttons cleanly separated with zero overlap');
+    else report.failed.push(`Mobile (390px) Water tracker layout broken: ${JSON.stringify(waterCardOverlap)}`);
+
     // -----------------------------------------------------------------------
     // FLOW 10: Zero HTTP >= 400 API Errors & Zero Runtime JS Exceptions
     // -----------------------------------------------------------------------

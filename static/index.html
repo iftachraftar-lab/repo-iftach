@@ -49,7 +49,7 @@
     <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=128"></script>
+    <script src="/static/js/translations.js?v=129"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -1663,21 +1663,21 @@
             <div class="space-y-2.5">
 
                 <!-- Ultra-Clean, Calm & Minimal Water Bar -->
-                <div class="px-3.5 py-2.5 rounded-2xl bg-white/70 backdrop-blur-lg border border-white/90 shadow-[0_4px_18px_rgba(15,23,42,0.03)] transition-all flex items-center justify-between gap-2">
+                <div id="waterTrackerCard" class="px-3.5 py-2.5 rounded-2xl bg-white/70 backdrop-blur-lg border border-white/90 shadow-[0_4px_18px_rgba(15,23,42,0.03)] transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-2">
                     <!-- Left: Clean Water Status -->
-                    <div class="flex items-center gap-2 text-xs min-w-0">
-                        <span class="text-base select-none flex-shrink-0">💧</span>
-                        <div class="flex items-baseline gap-1.5 min-w-0">
-                            <span class="font-bold text-slate-800">שתיית מים</span>
-                            <span class="font-black text-slate-900" x-text="`${(summary.water_ml || 0).toLocaleString()} מ״ל`"></span>
-                            <span class="text-slate-400 text-[11px]">/ <span x-text="`${(summary.water_target_ml || 2500).toLocaleString()}`"></span></span>
-                            <span class="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md"
-                                  x-text="`${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></span>
+                    <div class="flex items-center justify-between sm:justify-start gap-2 text-xs min-w-0">
+                        <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            <span class="text-base select-none flex-shrink-0">💧</span>
+                            <span class="font-bold text-slate-800 whitespace-nowrap">שתיית מים</span>
+                            <span class="font-black text-slate-900 whitespace-nowrap" x-text="`${(summary.water_ml || 0).toLocaleString()} מ״ל`"></span>
+                            <span class="text-slate-400 text-[11px] whitespace-nowrap">/ <span x-text="`${(summary.water_target_ml || 2500).toLocaleString()}`"></span></span>
                         </div>
+                        <span class="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md flex-shrink-0 whitespace-nowrap"
+                              x-text="`${Math.min(100, Math.round(((summary.water_ml || 0) / (summary.water_target_ml || 2500)) * 100))}%`"></span>
                     </div>
 
                     <!-- Right: Aesthetic Clean Buttons -->
-                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                    <div class="flex items-center justify-end gap-1.5 flex-shrink-0">
                         <button type="button" @click="decreaseWater(250)" :disabled="(summary.water_ml || 0) <= 0"
                                 title="הפחת 250 מ״ל"
                                 class="h-7 w-7 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 font-bold text-xs transition cursor-pointer flex items-center justify-center disabled:opacity-25 active:scale-95 shadow-2xs">
@@ -7545,7 +7545,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=128').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=129').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -10800,12 +10800,12 @@
                     return this.groceryList?.aisles.filter(a => a.category === this.groceryAisleFilter);
                 },
 
-                initGroceryList(autoGenerate = false) {
+                initGroceryList() {
                     try {
                         const saved = localStorage.getItem('nutri_grocery_list');
                         if (saved) {
                             this.groceryList = JSON.parse(saved);
-                        } else if (autoGenerate && this.currentUser) {
+                        } else {
                             this.generateGroceryList();
                         }
                     } catch(e) {
@@ -10942,7 +10942,7 @@
 
                 openGroceryListModal() {
                     if (!this.groceryList) {
-                        this.initGroceryList(true);
+                        this.initGroceryList();
                     }
                     this.showGroceryModal = true;
                 },
@@ -11887,7 +11887,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=128');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=129');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
