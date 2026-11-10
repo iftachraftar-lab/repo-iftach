@@ -49,7 +49,7 @@
     <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js"></script>
+    <script src="/static/js/translations.js?v=120"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -73,6 +73,10 @@
             background-attachment: fixed;
             -webkit-tap-highlight-color: transparent;
             width: 100%;
+        }
+        [dir="ltr"] body {
+            direction: ltr;
+            text-align: left;
         }
         [x-cloak] {
             display: none !important;
@@ -7534,7 +7538,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=119').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=120').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12096,11 +12100,12 @@
                 },
 
                 mealSourceLabel(source) {
-                    if (source === 'telegram-voice' || source === 'web-voice') return '🎙️ הקלטת AI';
-                    if (source === 'telegram-photo' || source === 'web-photo') return '📸 צילום AI';
-                    if (source === 'telegram') return '📱 טלגרם';
+                    const isEn = this.currentLang === 'en';
+                    if (source === 'telegram-voice' || source === 'web-voice') return isEn ? '🎙️ Voice AI' : '🎙️ הקלטת AI';
+                    if (source === 'telegram-photo' || source === 'web-photo') return isEn ? '📸 Photo AI' : '📸 צילום AI';
+                    if (source === 'telegram') return isEn ? '📱 Telegram' : '📱 טלגרם';
                     if (source === 'web-ai') return '✨ AI';
-                    return '✍️ ידני';
+                    return isEn ? '✍️ Manual' : '✍️ ידני';
                 },
 
                 async openLiveCamera() {
@@ -15314,10 +15319,10 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 },
 
                 shortDayLabel(dateStr) {
-                    if (dateStr === this.todayStr) return 'היום';
+                    if (dateStr === this.todayStr) return this.currentLang === 'en' ? 'Today' : 'היום';
                     const parts = dateStr.split('-').map(Number);
                     const d = new Date(parts[0], parts[1] - 1, parts[2]);
-                    return d.toLocaleDateString('he-IL', { weekday: 'short' });
+                    return d.toLocaleDateString(this.currentLang === 'en' ? 'en-US' : 'he-IL', { weekday: 'short' });
                 },
 
                 shortHistoryChartLabel(dateStr) {

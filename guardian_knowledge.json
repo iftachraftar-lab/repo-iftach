@@ -1,7 +1,7 @@
 {
-  "last_audit_at": "2026-11-10T10:16:16.999172+02:00",
-  "total_runs": 39,
-  "sw_version": "119",
+  "last_audit_at": "2026-11-10T10:43:51.833166+02:00",
+  "total_runs": 41,
+  "sw_version": "120",
   "counts": {
     "api_routes": 112,
     "pydantic_models": 65,

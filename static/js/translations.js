@@ -1194,7 +1194,294 @@
   "ירקות ופירות": "Vegetables & Fruits",
   "משקאות ונשנושים": "Beverages & Snacks",
   "מההיסטוריה שלך": "From your history",
-  "⭐ מהמועדפים שלך": "⭐ From your favorites"
+  "⭐ מהמועדפים שלך": "⭐ From your favorites",
+  "היעד היומי שלך": "Your Daily Target",
+  "קק״ל להיום": "kcal today",
+  "קק\"ל להיום": "kcal today",
+  "קק״ל מומלץ": "kcal recommended",
+  "קק\"ל": "kcal",
+  "קק״ל": "kcal",
+  "ק\"ג": "kg",
+  "ק״ג": "kg",
+  "מ\"ל": "ml",
+  "מ״ל": "ml",
+  "דקות": "min",
+  "דק'": "min",
+  "דק׳": "min",
+  "היום": "Today",
+  "אתמול": "Yesterday",
+  "יום א׳": "Sun",
+  "יום ב׳": "Mon",
+  "יום ג׳": "Tue",
+  "יום ד׳": "Wed",
+  "יום ה׳": "Thu",
+  "יום ו׳": "Fri",
+  "יום ש׳": "Sat",
+  "א׳": "Sun",
+  "ב׳": "Mon",
+  "ג׳": "Tue",
+  "ד׳": "Wed",
+  "ה׳": "Thu",
+  "ו׳": "Fri",
+  "ש׳": "Sat",
+  "נותרו לך היום": "Remaining Today",
+  "ארוחות שתועדו": "meals logged",
+  "ארוחות שתועדו היום": "meals logged today",
+  "היומן היומי שלי": "My Daily Journal",
+  "הוספת ארוחה": "Add Meal",
+  "הוספת מדיה (תמונה, מצלמה, קול, ברקוד)": "Add Media (Photo, Camera, Voice, Barcode)",
+  "צילום במצלמה": "Camera Photo",
+  "צלם את הצלחת עכשיו": "Snap your plate now",
+  "בחירה מגלריה": "Choose from Gallery",
+  "העלה תמונה מהמכשיר": "Upload image from device",
+  "סריקת ברקוד": "Barcode Scan",
+  "סרוק מוצר ישראלי": "Scan product barcode",
+  "הקלטה קולית מהירה": "Quick voice recording",
+  "מה אכלת עכשיו? (למשל: 2 ביצים, סלט וחצי פיתה)...": "What did you eat? (e.g. 2 eggs, salad and toast)...",
+  "הוסף הערה לתמונה (למשל: חצי מנה)...": "Add a note to photo (e.g. half portion)...",
+  "ספר מה אכלת...": "Speak what you ate...",
+  "מקליט...": "Recording...",
+  "🎙️ מקליט...": "🎙️ Recording...",
+  "📸 תמונה צורפה בהצלחה": "📸 Photo attached successfully",
+  "📸 מנתח את התמונה ומחשב ערכים...": "📸 Analyzing image & calculating macros...",
+  "הוסף הערה בתיבה או לחץ שלח": "Add a note or tap Send",
+  "מזהה מרכיבים ומחשב ערכים...": "Detecting ingredients & macros...",
+  "הסר תמונה": "Remove photo",
+  "נתח תמונה": "Analyze Photo",
+  "הוסף": "Add",
+  "מנתח...": "Analyzing...",
+  "מוסיף ישירות ל:": "Adding directly to:",
+  "✕ החזר לאוטומטי לפי שעה": "✕ Reset to auto by time",
+  "אוטומטי לפי שעה": "Auto by time",
+  "ארוחת בוקר": "Breakfast",
+  "ארוחת צהריים": "Lunch",
+  "ארוחת ערב": "Dinner",
+  "ארוחות ביניים": "Snacks",
+  "🌅 ארוחת בוקר": "🌅 Breakfast",
+  "☀️ ארוחת צהריים": "☀️ Lunch",
+  "🌙 ארוחת ערב": "🌙 Dinner",
+  "🍎 ארוחות ביניים": "🍎 Snacks",
+  "🌅 בוקר": "🌅 Morning",
+  "☀️ צהריים": "☀️ Lunch",
+  "🌙 ערב": "🌙 Dinner",
+  "🍎 ביניים": "🍎 Snack",
+  "⭐ מועדפים מהירים:": "⭐ Quick Favorites:",
+  "גלול ימינה במועדפים": "Scroll favorites right",
+  "גלול שמאלה במועדפים": "Scroll favorites left",
+  "גלול אחורה בימים": "Scroll days back",
+  "גלול קדימה להיום": "Scroll forward to today",
+  "גלול ימינה": "Scroll right",
+  "גלול שמאלה": "Scroll left",
+  "ללא תיעוד": "No logs",
+  "במסגרת היעד ✓": "On Target ✓",
+  "חריגה קלה": "Slightly Over",
+  "יומן ↗": "Diary ↗",
+  "ליומן המלא ↗": "Full Diary ↗",
+  "שתיית מים": "Water Intake",
+  "שתיית מים:": "Water Intake:",
+  "הפחת 250 מ״ל": "Subtract 250 ml",
+  "הוסף כוס (250 מ״ל)": "Add glass (250 ml)",
+  "הוסף בקבוק (500 מ״ל)": "Add bottle (500 ml)",
+  "תזכורות מים פעילות": "Water reminders active",
+  "הפעל תזכורות מים": "Enable water reminders",
+  "הורד": "Install",
+  "הורדת האפליקציה למסך הבית (PWA)": "Install App to Home Screen (PWA)",
+  "הגדרת יעדים יומיים": "Daily Targets Settings",
+  "רענן נתונים": "Refresh Data",
+  "חשבון משתמש והתחברות Google": "User Account & Google Sign-In",
+  "מאמנים ותזונאים": "Trainers & Dietitians",
+  "נבחרת מאמני כושר, מדריכים ותזונאים קליניים עם הטבת שיחת ייעוץ חינם": "Certified Fitness Trainers & Clinical Dietitians with free consultation perk",
+  "⚖️ כיול": "⚖️ Calibrate",
+  "כיול BMI": "BMI Calibration",
+  "+ אימון": "+ Workout",
+  "+ תעד אימון": "+ Log Workout",
+  "תעד אימון": "Log Workout",
+  "פחמימה": "Carbs",
+  "פחמימות": "Carbs",
+  "שומן": "Fat",
+  "שומנים": "Fats",
+  "מים": "Water",
+  "💧 מים": "💧 Water",
+  "פירוט ▼": "Details ▼",
+  "צמצם ▲": "Collapse ▲",
+  "המלצת מאמן AI:": "AI Coach Recommendation:",
+  "מבט על יומי (קלאסי מקורי)": "Daily Overview (Classic View)",
+  "סגנון תצוגת המדדים ביומן היומי": "Daily Dashboard Metrics Style",
+  "בחר את תצורת הגרף המועדפת עליך. השינוי מתעדכן מיד ונשמר אוטומטית:": "Choose your preferred chart style. Updates immediately and saves automatically:",
+  "קומפקטי צדדי (Apple Health)": "Compact Side-by-Side (Apple Health)",
+  "טבעת קלוריות עגולה קומפקטית בצד לצד 4 שורות התקדמות.": "Compact triple progress rings alongside 4 macro bars.",
+  "פס מדדים דק (מומלץ)": "Minimal Macro Strip (Recommended)",
+  "כרטיס דק של 80px, שורת יעד בולטת ו-4 פסי מאקרו עדינים.": "Clean 80px strip, prominent goal line and 4 slim macro bars.",
+  "גרף מתקפל דינמי": "Dynamic Collapsible Gauge",
+  "פס מינימלי של 50px שנפתח לפרטים מלאים בלחיצה אחת.": "Minimal 50px bar that expands to full details in one tap.",
+  "קלאסי מקורי (טבעות גדולות)": "Original Classic (Large Rings)",
+  "העיצוב הקודם עם טבעות ה-SVG הגדולות והכרטיסים הרחבים.": "Previous layout with large SVG rings and wide cards.",
+  "אישור תיעוד ארוחה": "Confirm Meal Log",
+  "וודא את שעת האכילה והערכים שנמדדו ב-AI": "Verify meal time and AI-estimated macros",
+  "תיאור המנה": "Meal Description",
+  "תיאור מנה": "Meal description",
+  "קלוריות משוערות": "Estimated Calories",
+  "קלוריות (קק\"ל)": "Calories (kcal)",
+  "שיוך לארוחה ביומן": "Assign to Meal Slot",
+  "שעת האכילה בפועל:": "Actual Eating Time:",
+  "פירוט רכיבים שזוהו:": "Detected Items Breakdown:",
+  "שומר ארוחה...": "Saving meal...",
+  "💾 אשר והזן ליומן הארוחות": "💾 Confirm & Save to Meal Log",
+  "ערוך ארוחה": "Edit Meal",
+  "ערוך פרטי ארוחה זו": "Edit meal details",
+  "שכפל והוסף שוב להיום": "Duplicate to today",
+  "שמור במועדפים להוספה מהירה": "Save to quick favorites",
+  "הסר מהמועדפים": "Remove from favorites",
+  "מחק ארוחה זו": "Delete this meal",
+  "מוחק...": "Deleting...",
+  "🔬 ניתוח צילום": "🔬 Photo Analysis",
+  "🎙️ הקלטת AI": "🎙️ Voice AI",
+  "📸 צילום AI": "📸 Photo AI",
+  "📱 טלגרם": "📱 Telegram",
+  "✍️ ידני": "✍️ Manual",
+  "מגמת קלוריות — 14 ימים אחרונים": "Calorie Trend — Last 14 Days",
+  "14 ימים זוחלים עם גלילה לצדדים — לחץ על כל יום בגרף כדי לצפות בפירוט הארוחות שלו": "14 rolling days with horizontal scroll — tap any day bar to view its meal details",
+  "ביעד": "On Target",
+  "מעל היעד": "Over Target",
+  "דוח סיכום שבועי חכם (7 ימים אחרונים)": "Smart Weekly Summary (Last 7 Days)",
+  "הביצועים השבועיים שלך במבט אחד": "Your Weekly Performance at a Glance",
+  "שתף דוח ב-WhatsApp": "Share Report on WhatsApp",
+  "העתק סיכום": "Copy Summary",
+  "🔥 ממוצע קלוריות יומי": "🔥 Daily Calorie Avg",
+  "💪 ממוצע חלבון יומי": "💪 Daily Protein Avg",
+  "💧 ממוצע שתייה יומי": "💧 Daily Water Avg",
+  "🏃‍♂️ שריפה באימונים השבוע": "🏃‍♂️ Weekly Workout Burn",
+  "⚖️ מגמת משקל": "⚖️ Weight Trend",
+  "טרם נשקל": "Not weighed yet",
+  "הוסף שקילה למעקב": "Log weigh-in to track",
+  "מעקב משקל ומגמת התקדמות": "Weight & Progress Tracker",
+  "תעד שקילה יומית או שבועית למעקב רציף אחר ההתקדמות שלך": "Log a daily or weekly weigh-in to track your progress",
+  "משקל בק״ג (למשל 78.5)": "Weight in kg (e.g. 78.5)",
+  "+ תעד שקילה": "+ Log Weight",
+  "אין ארוחות או אימונים מתועדים לתאריך זה.": "No meals or workouts logged for this date.",
+  "+ הוסף ארוחה": "+ Add Meal",
+  "✕ סגור": "✕ Close",
+  "📅 הוספת ארוחה לתאריך:": "📅 Adding meal to date:",
+  "🤖 טקסט AI": "🤖 AI Text",
+  "📸 תמונה": "📸 Photo",
+  "⚡ ידני": "⚡ Manual",
+  "⌚ Google & Samsung": "⌚ Google & Samsung",
+  "תיעוד אימון, ריצה וכושר": "Log Workout, Run & Fitness",
+  "תעד אימון ב-AI, סנכרן מ-Google Fit או הזן ידנית (הקלוריות מוצגות בנפרד)": "Log via AI, sync Google Fit, or enter manually (calories tracked separately)",
+  "תאר את האימון שלך... (למשל: רצתי 5 ק״מ ב-28 דקות, או אימון כוח 45 דק׳ בחדר כושר, הליכה 6,000 צעדים)": "Describe your workout... (e.g. ran 5km in 28 mins, 45m strength training, 6,000 steps)",
+  "Gemini AI מחשב שריפת קלוריות מדעית לפי משקל גופך": "Gemini AI calculates scientific calorie burn based on your weight",
+  "✨ חשב ושמור אימון ב-AI": "✨ Analyze & Save Workout with AI",
+  "מנתח אימון ב-AI...": "Analyzing workout with AI...",
+  "👟 עדכון צעדים מהיר (חישוב קלוריות וק״מ אוטומטי)": "👟 Quick Step Logger (Auto Calories & Distance)",
+  "או הקלד מספר צעדים מדויק מהטלפון (למשל 5420)...": "Or enter exact steps from phone (e.g. 5420)...",
+  "או הקלד מספר צעדים מדויק (למשל 5420)...": "Or enter exact steps (e.g. 5420)...",
+  "שמור צעדים": "Save Steps",
+  "📸 סנכרון אוטומטי מצילום מסך (Samsung / Fit)": "📸 Auto-Sync from Screenshot (Samsung / Fit)",
+  "📸 סנכרון אוטומטי מצילום מסך (Samsung Health / Google Fit)": "📸 Auto-Sync from Screenshot (Samsung Health / Google Fit)",
+  "מפענח צילום מסך...": "Reading screenshot...",
+  "🔄 משוך מענן Google Fit": "🔄 Pull from Google Fit Cloud",
+  "מסנכרן...": "Syncing...",
+  "💡 למה צעדים מ-Samsung / Health Connect לא עולים לענן של גוגל?": "💡 Why don't Samsung / Health Connect steps sync to Google Cloud?",
+  "שם הפעילות (ריצה, משקולות...)": "Activity name (Running, Weights...)",
+  "קלוריות שנשרפו (קק״ל)": "Calories burned (kcal)",
+  "דקות (30)": "Minutes (30)",
+  "דקות (למשל 40)": "Minutes (e.g. 40)",
+  "משך זמן (דקות)": "Duration (minutes)",
+  "זהה מיקום מדויק למציאת מסעדות פתוחות סביבך ב-Wolt": "Detect precise location for open Wolt restaurants nearby",
+  "מה להזמין עכשיו ב-Wolt שנכנס בתקציב שלך?": "What to order on Wolt within your calorie budget?",
+  "🥗 סלטים וקערות": "🥗 Salads & Bowls",
+  "🍣 סושי ואסיאתי": "🍣 Sushi & Asian",
+  "🥩 בשרים והמבורגר": "🥩 Meats & Burgers",
+  "🥙 ים-תיכוני": "🥙 Mediterranean",
+  "🥪 כריכים וחלבי": "🥪 Sandwiches & Dairy",
+  "הכל": "All",
+  "שתיית מים וארוחות": "Water & Meals",
+  "שיחת היכרות חינם": "Free Intro Call",
+  "שיחת חינם": "Free Call",
+  "בדוק זכאות והטבה": "Check Eligibility & Perk",
+  "בדוק זכאות לאימון": "Check Workout Eligibility",
+  "בדוק זכאות לתוספים": "Check Supplement Eligibility",
+  "בדיקת זכאות לאימון ניסיון": "Trial Workout Eligibility Check",
+  "אני רוצה! בדוק זכאות 🚀": "I Want This! Check Eligibility 🚀",
+  "אני רוצה! 🚀": "I Want This! 🚀",
+  "שייק חלבון ותוספי תזונה": "Protein Shakes & Supplements",
+  "שייקים • קריאטין • ויטמינים": "Shakes • Creatine • Vitamins",
+  "איך קוראים לך?": "What is your name?",
+  "מספר טלפון *": "Phone Number *",
+  "מספר טלפון לחזרה": "Callback Phone Number",
+  "אזור / עיר": "City / Region",
+  "אימייל (אופציונלי)": "Email (optional)",
+  "התחבר עם Google כדי לגשת ליומן האישי שלך": "Sign in with Google to access your personal journal",
+  "התחברות מהירה למערכת": "Quick Sign-In",
+  "תנאי שימוש והצהרת בריאות": "Terms of Use & Health Disclaimer",
+  "📜 תנאי שימוש והצהרת בריאות": "📜 Terms of Use & Health Disclaimer",
+  "מדיניות פרטיות": "Privacy Policy",
+  "שיתוף האפליקציה": "Share App",
+  "נתקלתם בבעיה? כתבו לנו": "Found an issue? Contact us",
+  "שלח קישור הצטרפות לחברים": "Send invite link to friends",
+  "שתף סיכום שבועי עם התזונאי/ת": "Share Weekly Summary with Dietitian",
+  "שלח סיכום שבועי בוואטסאפ": "Send Weekly Summary via WhatsApp",
+  "הפק בלחיצה אחת דוח מעקב מעוצב (ממוצע קלורי, חלבון ואימונים) לשליחה בוואטסאפ": "One-tap formatted tracking report (avg calories, protein & workouts) for WhatsApp",
+  "תוכנית מאמנים ותזונאים": "Trainers & Dietitians Program",
+  "אתה מאמן כושר או תזונאית? רוצה ללוות את המתאמנים שלך ישירות בממשק NutriAgent? הצטרף לגרסת הבטא": "Are you a trainer or dietitian? Coach your clients directly inside NutriAgent — join our Beta",
+  "הצטרף לתוכנית המאמנים (Beta)": "Join Trainers Program (Beta)",
+  "הורדת האפליקציה למכשיר": "Install App on Device",
+  "הורד כאפליקציה למסך הבית": "Install App to Home Screen",
+  "הערת משתמש:": "User Note:",
+  "כל הזכויות שמורות.": "All rights reserved.",
+  "שינהם": "Both",
+  "נאכלו": "Consumed",
+  "שינוי:": "Change:",
+  "מחשבון מדדים גופניים ויעדים (Onboarding Engine)": "Body Metrics & Targets Calculator (Onboarding Engine)",
+  "מחשבון BMR / TDEE מדעי והתאמה ידנית מלאה": "Scientific BMR / TDEE Calculator & Full Manual Calibration",
+  "מין ביולוגי": "Biological Sex",
+  "שעות שינה": "Sleep Hours",
+  "מטרת התוכנית": "Program Goal",
+  "יעדי התוכנית בפועל (ניתנים לעריכה ידנית מלאה)": "Actual Program Targets (Fully Editable)",
+  "שמור יעדים ומדדים": "Save Targets & Metrics",
+  "החל ערכים מחושבים אלו על היעדים בפועל": "Apply Calculated Values to Active Targets",
+  "תוצאות חישוב מדעיות:": "Scientific Calculation Results:",
+  "עבודה בישיבה, מעט מאוד פעילות ספורטיבית (TDEE x1.2)": "Sedentary / Desk job, minimal exercise (TDEE x1.2)",
+  "1–2 אימונים קלים בשבוע או 7,000 צעדים ביום (TDEE x1.375)": "1–2 light workouts/week or 7,000 daily steps (TDEE x1.375)",
+  "3–5 אימוני כוח או אירובי בשבוע (TDEE x1.55)": "3–5 strength or cardio workouts/week (TDEE x1.55)",
+  "6+ אימונים כבדים בשבוע או עבודה פיזית מאומצת (TDEE x1.725)": "6+ intense workouts/week or heavy physical job (TDEE x1.725)",
+  "יושבני - מעט או ללא אימונים (1.2)": "Sedentary - little to no exercise (1.2)",
+  "פעילות קלה - אימונים 1-3 פעמים בשבוע (1.375)": "Light Activity - 1–3 workouts/week (1.375)",
+  "פעילות בינונית - אימונים 3-5 פעמים בשבוע (1.55)": "Moderate Activity - 3–5 workouts/week (1.55)",
+  "פעילות גבוהה - אימונים 6-7 פעמים בשבוע (1.725)": "High Activity - 6–7 workouts/week (1.725)",
+  "אתלט / עבודה פיזית מאומצת מאוד (1.9)": "Athlete / very heavy physical job (1.9)",
+  "⚡ חיטוב מואץ": "⚡ Aggressive Cut",
+  "🔥 חיטוב שומן": "🔥 Fat Loss",
+  "⚖️ שמירה ואיזון": "⚖️ Maintain & Balance",
+  "💪 מסת שריר": "💪 Muscle Gain",
+  "גירעון מתון של כ-400 קק״ל לשמירה מקסימלית על מסת שריר": "Moderate ~400 kcal deficit to preserve lean muscle",
+  "תת-משקל (<18.5)": "Underweight (<18.5)",
+  "ציוני דרך קליניים ומדעיים לבניית הרגלי תזונה לחיים": "Clinical & scientific milestones for lifelong nutrition habits",
+  "ציוני דרך מדעיים": "Scientific Milestones",
+  "רצף הרגל נוכחי": "Current Habit Streak",
+  "מחיקת חשבון": "Delete Account",
+  "התראות": "Alerts",
+  "רענן": "Refresh",
+  "ארוחות": "Meals",
+  "סטטוס": "Status",
+  "פעולה": "Action",
+  "תצוגה": "View",
+  "ברירת מחדל": "Default",
+  "מומלץ": "Recommended",
+  "ידני": "Manual",
+  "צילום": "Photo",
+  "הקלטה": "Voice",
+  "עכשיו": "Now",
+  "אכלת משהו אחר?": "Ate something else?",
+  "בחירת מנות מומלצות": "Recommended Meal Picks",
+  "קישור": "Link",
+  "וואטסאפ": "WhatsApp",
+  "טלגרם": "Telegram",
+  "מתאמנים": "Clients",
+  "משתמשים ומתאמנים": "Users & Clients",
+  "עלויות ותמחור": "Costs & Pricing",
+  "שגיאות צילום": "Photo Errors",
+  "הגדרות וחיבורים": "Settings & Integrations"
 };
 
     window.EN_TO_HE = {};
@@ -1216,35 +1503,59 @@
                 return text.replace(trimmed, window.HE_TO_EN[trimmed]);
             }
             let res = trimmed;
-            res = res.replace(/(\d+[\.\d]*)\s*קק״ל\s*נשרפו/g, '$1 kcal burned')
-                     .replace(/נותרו\s*(\d+[\.\d]*)\s*קק״ל\s*\(בתקציב\)/g, '$1 kcal left (in budget)')
-                     .replace(/חריגת\s*יעד:\s*(\d+[\.\d]*)\s*קק״ל/g, 'Over budget: $1 kcal')
-                     .replace(/(\d+[\.\d]*)\s*קק״ל\s*סה״כ/g, '$1 kcal total')
-                     .replace(/(\d+[\.\d]*)\s*קק״ל/g, '$1 kcal')
-                     .replace(/(\d+[\.\d]*)\s*גרם\s*חלבון/g, '$1g protein')
-                     .replace(/(\d+[\.\d]*)\s*גרם\s*פחמימות/g, '$1g carbs')
-                     .replace(/(\d+[\.\d]*)\s*גרם\s*שומן/g, '$1g fats')
-                     .replace(/(\d+[\.\d]*)\s*צעדים/g, '$1 steps')
-                     .replace(/(\d+[\.\d]*)\s*שניות/g, '$1 seconds')
-                     .replace(/(\d+[\.\d]*)\s*דקות/g, '$1 minutes')
-                     .replace(/(\d+[\.\d]*)\s*ארוחות\s*שתועדו/g, '$1 meals logged')
-                     .replace(/(\d+[\.\d]*)\s*רכיבים\s*זוהו\s*בצלחת/g, '$1 items detected on plate')
+            res = res.replace(/נדרשים עוד\s*(\d[\d,\.]*)\s*גרם חלבון להגעה ליעד היומי\.?/g, '$1g more protein needed for your daily goal.')
+                     .replace(/נאכלו\s*(\d[\d,\.]*)\s*מתוך\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Consumed $1 of $2 kcal')
+                     .replace(/שינוי:\s*([+\-]?\d[\d,\.]*)\s*ק[״"]ג/g, 'Change: $1 kg')
+                     .replace(/(\d[\d,\.]*)\s*קק[״"]ל\s*נשרפו/g, '$1 kcal burned')
+                     .replace(/נותרו\s*(\d[\d,\.]*)\s*קק[״"]ל\s*\(בתקציב\)/g, '$1 kcal left (in budget)')
+                     .replace(/חריגת\s*יעד:\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Over budget: $1 kcal')
+                     .replace(/חריגה(?:\s*של)?:\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Over target: $1 kcal')
+                     .replace(/חריגה\s+של\s+(\d[\d,\.]*)/g, 'Over by $1')
+                     .replace(/נותרו\s+(\d[\d,\.]*)\s*קק[״"]ל/g, '$1 kcal left')
+                     .replace(/נותרו\s+(\d[\d,\.]*)/g, '$1 left')
+                     .replace(/(\d[\d,\.]*)\s*קק[״"]ל\s*סה[״"]כ/g, '$1 kcal total')
+                     .replace(/(\d[\d,\.]*)\s*קק[״"]ל/g, '$1 kcal')
+                     .replace(/(\d[\d,\.]*)\s*g\s*חלבון/g, '$1g protein')
+                     .replace(/(\d[\d,\.]*)\s*g\s*פחמימה/g, '$1g carbs')
+                     .replace(/(\d[\d,\.]*)\s*g\s*שומן/g, '$1g fat')
+                     .replace(/(\d[\d,\.]*)\s*גרם\s*חלבון/g, '$1g protein')
+                     .replace(/(\d[\d,\.]*)\s*גרם\s*פחמימות/g, '$1g carbs')
+                     .replace(/(\d[\d,\.]*)\s*גרם\s*שומן/g, '$1g fats')
+                     .replace(/(\d[\d,\.]*)\s*מ[״"]ל/g, '$1 ml')
+                     .replace(/(\d[\d,\.]*)\s*ק[״"]ג/g, '$1 kg')
+                     .replace(/(\d[\d,\.]*)\s*ימים/g, '$1 days')
+                     .replace(/(\d[\d,\.]*)\s*צעדים/g, '$1 steps')
+                     .replace(/(\d[\d,\.]*)\s*שניות/g, '$1 seconds')
+                     .replace(/(\d[\d,\.]*)\s*דקות/g, '$1 minutes')
+                     .replace(/(\d[\d,\.]*)\s*דק[׳']/g, '$1 min')
+                     .replace(/(\d+)\s*\/\s*5\s*ארוחות\s*הושלמו/g, '$1/5 meals completed')
+                     .replace(/(\d+)\s*ארוחות\s*שתועדו\s*היום/g, '$1 meals logged today')
+                     .replace(/(\d[\d,\.]*)\s*ארוחות\s*שתועדו/g, '$1 meals logged')
+                     .replace(/(\d+)\s*מנות\s*שתועדו\s*היום/g, '$1 meals logged today')
+                     .replace(/\((\d+)\s*מנה\)/g, '($1 meal)')
+                     .replace(/\((\d+)\s*מנות\)/g, '($1 meals)')
+                     .replace(/(\d[\d,\.]*)\s*רכיבים\s*זוהו\s*בצלחת/g, '$1 items detected on plate')
                      .replace(/(\d+)\s*מחוברים\s*\((\d+)\s*נייד\)/g, '$1 connected ($2 mobile)')
+                     .replace(/ארוחות ב-(.*)/g, 'Meals on $1')
+                     .replace(/לתאריך:\s*(.*)/g, 'For date: $1')
+                     .replace(/שעת יעד:\s*(.*)/g, 'Target time: $1')
+                     .replace(/הוסף ל([^\s].*)/g, 'Add to $1')
+                     .replace(/צפה ביומן\s*(.*)/g, 'View diary $1')
+                     .replace(/מתוך\s*(\d[\d,\.]*)/g, 'of $1')
+                     .replace(/יעד:\s*(.*)/g, 'Target: $1')
                      .replace(/ברקוד:\s*(.*)/g, 'Barcode: $1')
                      .replace(/יצרן\s*\/\s*מותג:\s*(.*)/g, 'Brand: $1')
                      .replace(/ציון\s*התאמה:\s*(.*)/g, 'Match score: $1')
                      .replace(/למנה\s*\((.*)\)/g, 'Per serving ($1)')
                      .replace(/ארוחות\s*ל-(.*)/g, 'Meals for $1')
                      .replace(/חיסכון:\s*(.*)/g, 'Savings: $1');
-                     
-            if (res !== trimmed) {
-                return text.replace(trimmed, res);
-            }
 
-            for (let i = 0; i < window._SORTED_HE_PHRASES.length; i++) {
-                const heKey = window._SORTED_HE_PHRASES[i];
-                if (res.includes(heKey)) {
-                    res = res.split(heKey).join(window.HE_TO_EN[heKey]);
+            if (/[\u0590-\u05FF]/.test(res)) {
+                for (let i = 0; i < window._SORTED_HE_PHRASES.length; i++) {
+                    const heKey = window._SORTED_HE_PHRASES[i];
+                    if (res.includes(heKey)) {
+                        res = res.split(heKey).join(window.HE_TO_EN[heKey]);
+                    }
                 }
             }
             return text.replace(trimmed, res);
@@ -1267,7 +1578,7 @@
                 const val = node.nodeValue;
                 if (!val || !val.trim()) return;
                 if (isEn) {
-                    if (node.__origHe === undefined) {
+                    if (node.__origHe === undefined || /[\u0590-\u05FF]/.test(val)) {
                         node.__origHe = val;
                     }
                     const tr = window.translateText(node.__origHe, 'en');
@@ -1275,7 +1586,7 @@
                         node.nodeValue = tr;
                     }
                 } else {
-                    if (node.__origHe !== undefined) {
+                    if (node.__origHe !== undefined && val !== node.__origHe && !/[\u0590-\u05FF]/.test(val)) {
                         node.nodeValue = node.__origHe;
                     }
                 }
@@ -1288,7 +1599,7 @@
                     if (attrVal && attrVal.trim()) {
                         const key = '__origHe_' + attr;
                         if (isEn) {
-                            if (node[key] === undefined) {
+                            if (node[key] === undefined || /[\u0590-\u05FF]/.test(attrVal)) {
                                 node[key] = attrVal;
                             }
                             const tr = window.translateText(node[key], 'en');
@@ -1296,7 +1607,7 @@
                                 node.setAttribute(attr, tr);
                             }
                         } else {
-                            if (node[key] !== undefined) {
+                            if (node[key] !== undefined && attrVal !== node[key] && !/[\u0590-\u05FF]/.test(attrVal)) {
                                 node.setAttribute(attr, node[key]);
                             }
                         }
