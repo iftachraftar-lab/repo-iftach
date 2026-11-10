@@ -1747,17 +1747,21 @@
                 const val = node.nodeValue;
                 if (!val || !val.trim()) return;
                 if (isEn) {
-                    if (node.__origHe === undefined || /[\u0590-\u05FF]/.test(val)) {
+                    const hasHe = /[\u0590-\u05FF]/.test(val);
+                    // Refresh cached source text when first seen, when app/Alpine mutates a non-Hebrew node (e.g. "🔥 0" -> "🔥 885"), or when new Hebrew appears.
+                    if (node.__origHe === undefined || node.__lastEn === undefined || val !== node.__lastEn || hasHe) {
                         node.__origHe = val;
                     }
                     const tr = window.translateText(node.__origHe, 'en');
+                    node.__lastEn = tr;
                     if (tr !== val) {
                         node.nodeValue = tr;
                     }
                 } else {
-                    if (node.__origHe !== undefined && val !== node.__origHe && !/[\u0590-\u05FF]/.test(val)) {
+                    if (node.__origHe !== undefined && node.__lastEn !== undefined && val === node.__lastEn && !/[\u0590-\u05FF]/.test(val)) {
                         node.nodeValue = node.__origHe;
                     }
+                    node.__lastEn = undefined;
                 }
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 const tag = node.tagName.toLowerCase();
@@ -1767,18 +1771,22 @@
                     const attrVal = node.getAttribute(attr);
                     if (attrVal && attrVal.trim()) {
                         const key = '__origHe_' + attr;
+                        const lastEnKey = '__lastEn_' + attr;
                         if (isEn) {
-                            if (node[key] === undefined || /[\u0590-\u05FF]/.test(attrVal)) {
+                            const hasHe = /[\u0590-\u05FF]/.test(attrVal);
+                            if (node[key] === undefined || node[lastEnKey] === undefined || attrVal !== node[lastEnKey] || hasHe) {
                                 node[key] = attrVal;
                             }
                             const tr = window.translateText(node[key], 'en');
+                            node[lastEnKey] = tr;
                             if (tr !== attrVal) {
                                 node.setAttribute(attr, tr);
                             }
                         } else {
-                            if (node[key] !== undefined && attrVal !== node[key] && !/[\u0590-\u05FF]/.test(attrVal)) {
+                            if (node[key] !== undefined && node[lastEnKey] !== undefined && attrVal === node[lastEnKey] && !/[\u0590-\u05FF]/.test(attrVal)) {
                                 node.setAttribute(attr, node[key]);
                             }
+                            node[lastEnKey] = undefined;
                         }
                     }
                 });
