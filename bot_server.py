@@ -4981,10 +4981,32 @@ def api_auth_me(request: Request, response: Response):
     is_local_request = client_host in ("127.0.0.1", "localhost", "::1")
     if uid == "default":
         if is_local_request:
-            refreshed_token = "local_dev_token"
+            admin_email = "iftach.raftar@gmail.com"
+            local_uid = _make_user_id_from_email(admin_email)
+            if not db and local_uid not in _LOCAL_USERS:
+                _LOCAL_USERS[local_uid] = {
+                    "user_id": local_uid,
+                    "email": admin_email,
+                    "name": "Iftach (Local Dev)",
+                    "picture": "",
+                    "approved_by_owner": True,
+                    "is_admin": True,
+                    "is_blocked": False,
+                    "target_calories": 1800,
+                    "target_protein": 140.0,
+                }
+            refreshed_token = create_session_token(local_uid)
+            response.set_cookie(
+                key="session_token",
+                value=refreshed_token,
+                max_age=SESSION_TOKEN_TTL_SECONDS,
+                httponly=False,
+                samesite="lax",
+                path="/",
+            )
             return {
-                "id": "iftach_raftar_gmail_com",
-                "email": "iftach.raftar@gmail.com",
+                "id": local_uid,
+                "email": admin_email,
                 "name": "Iftach (Local Dev)",
                 "picture": "",
                 "is_super_admin": True,

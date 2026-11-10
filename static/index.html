@@ -49,7 +49,7 @@
     <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=125"></script>
+    <script src="/static/js/translations.js?v=126"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -7545,7 +7545,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=125').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=126').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -11314,9 +11314,8 @@
                             }
                         }
                         if (res.status === 401) {
-                            // Only clear local user if we don't have a valid local token or if server explicitly rejected the bearer token
                             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                            if (!isLocalhost && !token) {
+                            if (!isLocalhost) {
                                 this.currentUser = null;
                                 localStorage.removeItem('nutri_user');
                                 return;
@@ -11888,7 +11887,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=125');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=126');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -14779,18 +14778,22 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 description: this.historyManualMeal.description,
-                                calories: this.historyManualMeal.calories,
-                                protein_g: this.historyManualMeal.protein_g,
+                                calories: Math.round(Number(this.historyManualMeal.calories) || 0),
+                                protein_g: Math.round((Number(this.historyManualMeal.protein_g) || 0) * 10) / 10,
                                 log_date: this.selectedDate
                             })
                         });
-                        if (!res.ok) throw new Error('שגיאה בהוספת הארוחה');
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            if (res.status === 401) this.openUserAuthModal();
+                            throw new Error(err.detail || 'שגיאה בהוספת הארוחה');
+                        }
                         this.historyManualMeal = { description: '', calories: null, protein_g: null };
                         this.showHistoryAddMeal = false;
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast(`✅ הארוחה נוספה בהצלחה ל-${this.formatHebrewDate(this.selectedDate)}!`);
                     } catch (e) {
-                        this.showToast('שגיאה בהוספת הארוחה', 'error');
+                        this.showToast(e.message || 'שגיאה בהוספת הארוחה', 'error');
                     }
                 },
 
@@ -14921,17 +14924,21 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 description: chip.label,
-                                calories: chip.calories,
-                                protein_g: chip.protein_g,
+                                calories: Math.round(Number(chip.calories) || 0),
+                                protein_g: Math.round((Number(chip.protein_g) || 0) * 10) / 10,
                                 meal_type: targetSlot
                             })
                         });
-                        if (!res.ok) throw new Error('שגיאה בהוספה מהירה');
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            if (res.status === 401) this.openUserAuthModal();
+                            throw new Error(err.detail || `שגיאה בהוספת הארוחה (${res.status})`);
+                        }
                         this.targetMealSlot = 'auto';
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast(`✅ נוסף ל${slotNames[targetSlot] || 'יומן'}: ${chip.label} (+${chip.calories} קק"ל)`);
                     } catch (e) {
-                        this.showToast('שגיאה בהוספת הארוחה', 'error');
+                        this.showToast(e.message || 'שגיאה בהוספת הארוחה', 'error');
                     } finally {
                         this.quickLoggingMeal = false;
                     }
@@ -14943,14 +14950,22 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         const res = await fetch('/api/meals/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(this.newMeal)
+                            body: JSON.stringify({
+                                ...this.newMeal,
+                                calories: Math.round(Number(this.newMeal.calories) || 0),
+                                protein_g: Math.round((Number(this.newMeal.protein_g) || 0) * 10) / 10
+                            })
                         });
-                        if (!res.ok) throw new Error('Failed to add meal');
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            if (res.status === 401) this.openUserAuthModal();
+                            throw new Error(err.detail || 'שגיאה בהוספת הארוחה');
+                        }
                         this.newMeal = { description: '', calories: null, protein_g: null };
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast('✅ הארוחה נוספה בהצלחה!');
                     } catch (e) {
-                        this.showToast('שגיאה בהוספת ארוחה', 'error');
+                        this.showToast(e.message || 'שגיאה בהוספת ארוחה', 'error');
                     }
                 },
 
