@@ -67,15 +67,18 @@ except ImportError:
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+IS_E2E_OFFLINE = os.getenv("NUTRI_E2E_OFFLINE") == "1"
+BOT_TOKEN = None if IS_E2E_OFFLINE else os.getenv("TELEGRAM_BOT_TOKEN")
 BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "Iftachtaskbot").lstrip("@")
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+GEMINI_KEY = None if IS_E2E_OFFLINE else os.getenv("GEMINI_API_KEY")
+WEBHOOK_URL = None if IS_E2E_OFFLINE else os.getenv("WEBHOOK_URL")
 ENV_GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("PROJECT_ID") or "august-balancer-488508-k9"
 
 def _has_gcp_credentials() -> bool:
+    if IS_E2E_OFFLINE:
+        return False
     if os.environ.get("K_SERVICE") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
         return True
     appdata = os.environ.get("APPDATA", "")

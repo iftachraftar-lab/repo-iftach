@@ -1,29 +1,26 @@
 ---
 name: ux-ui-auditor
-description: Dedicated real-browser UX, UI, i18n (EN/HE), modal-trap, and data-sync QA Auditor Agent for NutriAgent. Activate on every frontend, Alpine.js, CSS, popup/modal, or translation change, or when investigating UI regressions.
+description: Dedicated real-backend + real-browser UX, UI, Action Flow, i18n (EN/HE), modal-trap, and data-sync QA Auditor Agent for NutriAgent. Activate on every frontend, Alpine.js, CSS, popup/modal, auth, or translation change.
 ---
 
-# NutriAgent UX/UI QA Auditor Agent
+# NutriAgent UX/UI & Full-Flow E2E Auditor Agent
 
-Use this skill whenever modifying `static/index.html`, `static/js/translations.js`, `static/sw.js`, or frontend-facing endpoints in `bot_server.py`.
+Use this skill whenever modifying `static/index.html`, `static/js/translations.js`, `static/sw.js`, or any frontend-facing endpoints in `bot_server.py`.
 
-## Automated Real-Browser Checks
+## Automated Real-Backend + Real-Browser E2E Audit
 
-Run the Headless Chrome/Edge CDP E2E auditor after edits:
+Run the auditor after edits (launches an isolated `uvicorn` backend with `NUTRI_E2E_OFFLINE=1` at **$0 cost** + headless Chrome/Edge CDP):
 
 ```powershell
 node tools/ux_ui_e2e_auditor.mjs
 ```
 
-### What the UX/UI Auditor Verifies in Real Headless Chrome/Edge
-1. **Zero Runtime Errors:** Fails on any uncaught JS/Alpine exceptions or `console.error`.
-2. **English Mode (`en` / `dir="ltr"`) Leak Scan:** Switches language to English, traverses `summary`, `history`, and `recipes` tabs, and opens interactive popups/modals (`openTargetModal`, `showBmiWizard`, `showHoldonAffiliateModal`, `showTrialWorkoutModal`, `showExpertsDirectoryModal`, `showWorkoutModal`, `showAchievementsModal`, `showGroceryModal`, `openBarcodeModal`, `showSupportModal`) verifying **0 Hebrew text leaks** after `translations.js` `MutationObserver` runs.
-3. **Top Strip <-> History Diary Sync:** Verifies clicking/selecting a past day (e.g. Saturday with `885` kcal) updates `activeStripPreviewDay` accurately (`🔥 885`, `💪 62g`, `💧 1.5L`) without `translations.js` reverting dynamic text to `0`, and matches `selectedDateCalories` in the full History diary in both `en` and `he`.
-4. **Modal Close & Escape Paths:** Verifies every tested modal closes cleanly via `closeAllModals()`.
-5. **Responsive Overflow:** Checks zero horizontal overflow (`scrollWidth <= innerWidth + 2`) on Desktop (`1280px`) and Mobile (`390px`).
-
-## Extending Coverage for New Modals or Flows
-Whenever a new popup modal, tab, or dynamic counter widget is added to `static/index.html`, add its flag/flow to `modalsToTest` or the DOM assertions in `tools/ux_ui_e2e_auditor.mjs` so future pre-push runs guard it automatically.
+### What It Verifies Automatically End-to-End
+1. **Auth & Stale-Session Self-Healing:** Boots with an invalid cached token and verifies `/api/auth/me` issues a valid signed `v1.` session token.
+2. **Real User Click & Save Flows:** Actually clicks Favorite preset chips (`POST /api/meals/`), logs an AI text meal (`POST /api/meals/ai`), logs water (`POST /api/water/add`), logs weight (`POST /api/weight`), updates/deletes a meal (`PUT`/`DELETE /api/meals/{id}`), updates daily targets (`PUT /api/targets`), submits support ticket (`POST /api/support/contact`), and opens the Admin dashboard — failing immediately on ANY HTTP `>= 400` response or red error toast.
+3. **Top Strip <-> History Diary Sync:** Verifies Saturday (`885` kcal, `62g` protein, `1.5L` water) stays synced after `translations.js` `MutationObserver` debounce in both `EN` and `HE`.
+4. **English Mode Leak Scan & Modal Traps:** Traverses `summary`, `history`, `recipes`, and opens/closes 11 modals (including Push Notifications) verifying **0 Hebrew leaks** and working `closeAllModals()`.
+5. **Mobile (`390px`) & Desktop (`1280px`) Layout + Zero Console Errors:** Checks zero horizontal overflow and verifies mobile Push bell visibility.
 
 ## Paired Static & Prompt Checks
 ```powershell

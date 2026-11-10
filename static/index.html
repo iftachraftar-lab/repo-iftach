@@ -49,7 +49,7 @@
     <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=126"></script>
+    <script src="/static/js/translations.js?v=128"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -2698,7 +2698,7 @@
                     <span>🛒</span>
                     <span>סורק סופר</span>
                 </button>
-                <button type="button" @click="recipesSubTab = 'grocery'; if (!groceryList) initGroceryList()"
+                <button type="button" @click="recipesSubTab = 'grocery'; if (!groceryList) initGroceryList(true)"
                         :class="recipesSubTab === 'grocery' ? 'bg-emerald-600 text-white font-extrabold shadow-xs' : 'text-slate-600 hover:bg-slate-50 font-semibold'"
                         class="py-2.5 px-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
                     <span>📋</span>
@@ -7545,7 +7545,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=126').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=128').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -10800,12 +10800,12 @@
                     return this.groceryList?.aisles.filter(a => a.category === this.groceryAisleFilter);
                 },
 
-                initGroceryList() {
+                initGroceryList(autoGenerate = false) {
                     try {
                         const saved = localStorage.getItem('nutri_grocery_list');
                         if (saved) {
                             this.groceryList = JSON.parse(saved);
-                        } else {
+                        } else if (autoGenerate && this.currentUser) {
                             this.generateGroceryList();
                         }
                     } catch(e) {
@@ -10942,7 +10942,7 @@
 
                 openGroceryListModal() {
                     if (!this.groceryList) {
-                        this.initGroceryList();
+                        this.initGroceryList(true);
                     }
                     this.showGroceryModal = true;
                 },
@@ -11196,7 +11196,7 @@
                     }
                     this.setupPWAInstallListeners();
                     await this.initGoogleAuth();
-                    if (this.currentUser) {
+                    if (this.currentUser || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
                         await this.verifyCurrentUserSession();
                     }
                     if (this.currentUser && (this.currentUser.is_approved !== false || this.currentUser.is_admin)) {
@@ -11887,7 +11887,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=126');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=128');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -14844,19 +14844,24 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 },
 
                 async submitWeightLog() {
-                    if (!this.newWeightKg || this.newWeightKg < 25 || this.newWeightKg > 350) return;
+                    const weightVal = Number(this.newWeightKg);
+                    if (!weightVal || weightVal < 25 || weightVal > 350) return;
                     try {
                         const res = await fetch('/api/weight', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ weight_kg: this.newWeightKg })
+                            body: JSON.stringify({ weight_kg: weightVal })
                         });
-                        if (!res.ok) throw new Error('Failed weight log');
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            if (res.status === 401) this.openUserAuthModal();
+                            throw new Error(err.detail || `שגיאה בשמירת השקילה (${res.status})`);
+                        }
                         this.newWeightKg = null;
                         await this.fetchWeight();
                         this.showToast('⚖️ השקילה נשמרה בהצלחה!');
                     } catch (e) {
-                        this.showToast('שגיאה בשמירת השקילה', 'error');
+                        this.showToast(e.message || 'שגיאה בשמירת השקילה', 'error');
                     }
                 },
 
