@@ -255,6 +255,26 @@ def run_suite_3_serverless(py_src: str, tree: ast.AST) -> List[GuardianCheckResu
         "Dual-channel delivery (Telegram + Web Push) verified" if dual_channel_ok else "Missing Telegram or Web Push channel in send_admin_health_and_billing_push"
     ))
 
+    # 3.4 Strict Push Notification Isolation (Leads, Support & Technical Errors NEVER leak to regular users)
+    admin_push_src = _extract_func_source(py_src, tree, "dispatch_push_to_admins")
+    photo_err_src = _extract_func_source(py_src, tree, "record_user_photo_error")
+    send_all_src = _extract_func_source(py_src, tree, "send_web_push_to_all")
+    push_isolation_ok = (
+        "else all_subs" not in admin_push_src
+        and "if not admin_subs:" in admin_push_src
+        and "dispatch_push_to_admins" in photo_err_src
+        and "send_web_push_to_all" not in photo_err_src
+        and "if is_admin:" in send_all_src
+        and "if not user_id and not allow_broadcast:" in send_all_src
+    )
+    results.append(GuardianCheckResult(
+        cat_id, cat_name,
+        "Strict Push Isolation (Leads, Support & Technical Photo Alerts target Admins only)",
+        push_isolation_ok,
+        "Verified admin push isolation (no fallback to all_subs; photo errors routed to dispatch_push_to_admins)"
+        if push_isolation_ok else "Privacy leak risk: admin/technical push may broadcast to regular users"
+    ))
+
     return results
 
 

@@ -3,6 +3,7 @@ import asyncio
 import io
 import re
 import json
+import html
 import base64
 import hashlib
 import urllib.request
@@ -4452,20 +4453,21 @@ def _detect_device_label(user_agent: str) -> str:
     return "💻 מחשב PC"
 
 
-def send_web_push_to_all(
+def _deliver_web_push_to_subs(
+    subs: List[dict],
     title: str,
     body: str,
     tag: str = "nutriagent-push",
     url: str = "/",
-    user_id: Optional[str] = None,
     icon: Optional[str] = None,
     badge: Optional[str] = None,
     is_admin: bool = False,
-    is_healthy: bool = True
+    is_healthy: bool = True,
+    ttl: int = 3600,
 ) -> dict:
-    subs = get_push_subscriptions_db(user_id=user_id)
+    """Shared Web Push delivery helper with automatic stale-subscription cleanup."""
     if not subs:
-        return {"sent": 0, "failed": 0, "mobile_sent": 0, "total_subscriptions": 0, "devices": []}
+        return {"sent": 0, "failed": 0, "mobile_sent": 0, "total_subscriptions": 0, "total": 0, "devices": []}
 
     vapid = get_or_create_vapid_keys()
     payload = json.dumps({
@@ -4476,7 +4478,7 @@ def send_web_push_to_all(
         "icon": icon or "/static/icon-192.png",
         "badge": badge or "/static/icon-192.png",
         "is_admin": is_admin,
-        "is_healthy": is_healthy
+        "is_healthy": is_healthy,
     }, ensure_ascii=False)
 
     sent = 0
@@ -4496,7 +4498,7 @@ def send_web_push_to_all(
                 data=payload,
                 vapid_private_key=vapid["private_key"],
                 vapid_claims={"sub": "mailto:push@nutriagent.app"},
-                ttl=3600,
+                ttl=ttl,
                 headers={"Urgency": "high"},
             )
             sent += 1
@@ -4513,7 +4515,7 @@ def send_web_push_to_all(
             devices_report.append({"id": sub["id"], "label": label, "is_mobile": is_mob, "status": f"error-{status_code}"})
         except Exception as e:
             failed += 1
-            print(f"ERROR send_web_push_to_all: {type(e).__name__} - {e}")
+            print(f"ERROR webpush delivery: {type(e).__name__} - {e}")
             devices_report.append({"id": sub["id"], "label": label, "is_mobile": is_mob, "status": "error"})
 
     return {
@@ -4521,8 +4523,57 @@ def send_web_push_to_all(
         "mobile_sent": mobile_sent,
         "failed": failed,
         "total_subscriptions": len(subs),
+        "total": len(subs),
         "devices": devices_report,
     }
+
+
+def _send_admin_telegram_text(html_text: str) -> bool:
+    """Best-effort instant Telegram notification to Admin for support/technical alerts."""
+    try:
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        admin_chat_id = get_telegram_admin_chat_id()
+        if not bot_token or not admin_chat_id:
+            return False
+        tg_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        req_data = urllib.parse.urlencode({
+            "chat_id": admin_chat_id,
+            "text": html_text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": "true",
+        }).encode("utf-8")
+        tg_req = urllib.request.Request(tg_url, data=req_data, method="POST")
+        with urllib.request.urlopen(tg_req, timeout=6) as resp:
+            return resp.status == 200
+    except Exception as e:
+        print(f"WARN _send_admin_telegram_text: {e}")
+        return False
+
+
+def send_web_push_to_all(
+    title: str,
+    body: str,
+    tag: str = "nutriagent-push",
+    url: str = "/",
+    user_id: Optional[str] = None,
+    icon: Optional[str] = None,
+    badge: Optional[str] = None,
+    is_admin: bool = False,
+    is_healthy: bool = True,
+    allow_broadcast: bool = False,
+) -> dict:
+    # Admin alerts must NEVER leak to regular user subscriptions
+    if is_admin:
+        return dispatch_push_to_admins(title=title, body=body, tag=tag, url=url, is_healthy=is_healthy)
+    if not user_id and not allow_broadcast:
+        print("WARN send_web_push_to_all blocked un-scoped broadcast without user_id.")
+        return {"sent": 0, "failed": 0, "mobile_sent": 0, "total_subscriptions": 0, "devices": []}
+
+    subs = get_push_subscriptions_db(user_id=user_id)
+    return _deliver_web_push_to_subs(
+        subs=subs, title=title, body=body, tag=tag, url=url,
+        icon=icon, badge=badge, is_admin=False, is_healthy=is_healthy, ttl=3600,
+    )
 
 
 def dispatch_push_to_admins(
@@ -4533,16 +4584,14 @@ def dispatch_push_to_admins(
     is_healthy: bool = True
 ) -> dict:
     """
-    Guaranteed delivery of high-priority push notifications to system admins (Iftach, Itamar).
-    Searches all active push subscriptions and matches by user ID, email, or admin keywords.
-    Falls back to all active subscriptions if no admin-tagged subscription is found.
+    Delivers high-priority push notifications EXCLUSIVELY to verified system admins (Iftach, Itamar).
+    Never falls back to regular users' subscriptions.
     """
     all_subs = get_push_subscriptions_db(user_id=None)
     if not all_subs:
-        print("WARN dispatch_push_to_admins: No push subscriptions found in database.")
+        print("INFO dispatch_push_to_admins: No push subscriptions found in database.")
         return {"sent": 0, "failed": 0, "total": 0}
 
-    # Match subscriptions belonging to admins
     admin_subs = []
     for s in all_subs:
         s_uid = (s.get("user_id") or "").strip().lower()
@@ -4551,55 +4600,20 @@ def dispatch_push_to_admins(
             or is_admin_email(s_uid)
             or s_uid in SUPER_ADMIN_EMAILS
             or s_uid in ADMIN_EMAILS
-            or any(kw in s_uid for kw in ("iftach", "itamar", "admin"))
             or s.get("is_admin") is True
         ):
             admin_subs.append(s)
 
-    # Fallback to all subscriptions if no admin-specific match was found
-    target_subs = admin_subs if admin_subs else all_subs
+    if not admin_subs:
+        print("WARN dispatch_push_to_admins: No admin push subscriptions registered; skipping Web Push to protect user privacy.")
+        return {"sent": 0, "failed": 0, "total": 0}
 
-    vapid = get_or_create_vapid_keys()
-    payload = json.dumps({
-        "title": title,
-        "body": body,
-        "tag": tag,
-        "url": url,
-        "icon": "/static/icon-192.png",
-        "badge": "/static/icon-192.png",
-        "is_admin": True,
-        "is_healthy": is_healthy
-    }, ensure_ascii=False)
-
-    sent = 0
-    failed = 0
-    for sub in target_subs:
-        try:
-            webpush(
-                subscription_info={
-                    "endpoint": sub["endpoint"],
-                    "keys": sub["keys"],
-                },
-                data=payload,
-                vapid_private_key=vapid["private_key"],
-                vapid_claims={"sub": "mailto:push@nutriagent.app"},
-                ttl=86400,
-                headers={"Urgency": "high"},
-            )
-            sent += 1
-        except WebPushException as ex:
-            failed += 1
-            status_code = getattr(getattr(ex, "response", None), "status_code", None)
-            if status_code in (400, 401, 403, 404, 410):
-                remove_push_subscription_db(sub["endpoint"])
-            else:
-                print(f"WARN WebPushException ({status_code}): {ex}")
-        except Exception as e:
-            failed += 1
-            print(f"ERROR dispatch_push_to_admins: {e}")
-
-    print(f"INFO dispatch_push_to_admins: Sent {sent}/{len(target_subs)} notifications (failed: {failed})")
-    return {"sent": sent, "failed": failed, "total": len(target_subs)}
+    res = _deliver_web_push_to_subs(
+        subs=admin_subs, title=title, body=body, tag=tag, url=url,
+        is_admin=True, is_healthy=is_healthy, ttl=86400,
+    )
+    print(f"INFO dispatch_push_to_admins: Sent {res['sent']}/{len(admin_subs)} admin notifications (failed: {res['failed']})")
+    return res
 
 
 
@@ -6195,19 +6209,23 @@ def record_user_photo_error(user_id: str, error_msg: str, caption: str = "", mod
             print(f"WARN saving photo_upload_errors: {e}")
             _LOCAL_PHOTO_ERRORS.insert(0, err_record)
 
-    # Immediately notify Admin via Web Push!
+    # Immediately notify Admin via Web Push + Telegram (NEVER broadcast to regular users)
     try:
         short_err = error_msg.replace("API_ERROR:", "").replace("ClientError:", "").strip()[:80]
-        send_web_push_to_all(
+        dispatch_push_to_admins(
             title=f"🔴 [שגיאת צילום] משתמש: {user_name}",
             body=f"זוהתה שגיאה בהעלאת תמונה למשתמש {user_name}: {short_err}",
             tag="nutriagent-photo-error",
             url="/?tab=admin&subtab=errors",
-            is_admin=True,
             is_healthy=False
         )
+        _send_admin_telegram_text(
+            f"🔴 <b>שגיאה טכנית בצילום ארוחה</b>\n"
+            f"👤 משתמש: <b>{html.escape(str(user_name))}</b>\n"
+            f"⚠️ שגיאה: <code>{html.escape(short_err)}</code>"
+        )
     except Exception as ex:
-        print(f"WARN send_web_push error alert: {ex}")
+        print(f"WARN admin photo error alert: {ex}")
 
     return err_record
 
@@ -10068,13 +10086,19 @@ def api_support_contact(req: SupportContactRequest, request: Request):
         except Exception as e:
             print(f"ERROR saving support inquiry to db: {e}")
 
-    # Broadcast notification to Admin
+    # Broadcast notification exclusively to Admin (Web Push + Telegram)
     try:
         dispatch_push_to_admins(
             title=f"💬 פנייה חדשה: {req.subject}",
             body=f"{req.user_name or uid} ({req.category}): {clean_msg[:100]}",
             tag="nutriagent-support-inquiry",
             url="/?tab=admin"
+        )
+        _send_admin_telegram_text(
+            f"💬 <b>פנייה חדשה לתמיכה</b>\n"
+            f"👤 <b>שולח:</b> {html.escape(str(req.user_name or uid))} ({html.escape(str(req.user_email or ''))})\n"
+            f"🏷️ <b>נושא:</b> {html.escape(str(req.subject))} [{html.escape(str(req.category))}]\n"
+            f"📝 {html.escape(clean_msg[:300])}"
         )
     except Exception as e:
         print(f"ERROR dispatching support push notification: {e}")
