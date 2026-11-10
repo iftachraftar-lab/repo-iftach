@@ -517,12 +517,12 @@
     </header>
 
     <!-- Main Container (Only shown when logged in & approved) -->
-    <main x-cloak x-show="currentUser && (currentUser.is_approved !== false || currentUser.is_admin)" class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-12 space-y-6 sm:space-y-8">
+    <main x-cloak x-show="currentUser && (currentUser.is_approved !== false || currentUser.is_admin)" class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-4 sm:pt-5 pb-12 space-y-4 sm:space-y-5">
 
         <!-- =============================================================== -->
         <!-- TAB 1: DAILY SUMMARY & AI MEAL LOGGER                           -->
         <!-- =============================================================== -->
-        <div x-show="activeTab === 'summary'" x-transition.opacity class="space-y-6">
+        <div x-show="activeTab === 'summary'" x-transition.opacity class="space-y-4 sm:space-y-5">
 
             <!-- Coaching Subtabs Switcher & Quick Add (Restricted Strictly to Coach/Admin) -->
             <div x-show="appMode === 'coaching' && isCoachOrAdmin()" class="p-2 sm:p-2.5 bg-white rounded-3xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-2.5">
@@ -710,7 +710,93 @@
             </div>
 
             <!-- REGULAR METABOLIC JOURNAL & SLOTS (Shown when in Summary sub-tab) -->
-            <div x-show="coachingSubTab === 'summary'" class="space-y-6">
+            <div x-show="coachingSubTab === 'summary'" class="space-y-4 sm:space-y-5">
+
+            <!-- 7-Day Interactive Weekly Strip (Calm Rounded Squares + Hover Highlights Popover) -->
+            <div class="relative"
+                 @mouseleave="hoveredStripDate = null"
+                 @click.outside="pinnedStripDate = null">
+                <div class="bg-white/95 rounded-3xl p-2 sm:p-2.5 shadow-2xs border border-slate-200/80">
+                    <div class="grid grid-cols-7 gap-1.5">
+                        <template x-for="day in weeklyStripDays" :key="day.dateStr">
+                            <button type="button"
+                                    @mouseenter="if (!day.isFuture) hoveredStripDate = day.dateStr"
+                                    @click="togglePinnedStripDay(day)"
+                                    :disabled="day.isFuture"
+                                    :class="[
+                                        day.isToday
+                                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs cursor-pointer'
+                                            : (day.hasLogged
+                                                ? 'bg-emerald-50/70 hover:bg-emerald-100/80 text-slate-900 border-emerald-200/80 cursor-pointer'
+                                                : (day.isFuture
+                                                    ? 'bg-slate-50/50 text-slate-300 border-slate-100 cursor-default'
+                                                    : 'bg-slate-50/80 hover:bg-slate-100 text-slate-600 border-slate-200/70 cursor-pointer')),
+                                        (activeStripPreviewDay && activeStripPreviewDay.dateStr === day.dateStr && !day.isToday) ? 'ring-2 ring-emerald-500/35' : ''
+                                    ]"
+                                    class="py-2 px-1 rounded-2xl border flex flex-col items-center justify-center gap-1 transition">
+                                <span class="text-[10px] font-bold leading-none opacity-75" x-text="day.label"></span>
+                                <span class="text-xs sm:text-sm font-black leading-none" x-text="day.dayNum"></span>
+                                <span class="w-2 h-2 rounded-full transition-all"
+                                      :class="day.isToday
+                                          ? (day.isOver ? 'bg-amber-400 ring-2 ring-amber-400/25' : 'bg-emerald-400 ring-2 ring-emerald-400/25')
+                                          : (day.hasLogged
+                                              ? (day.isOver ? 'bg-amber-400' : 'bg-emerald-500')
+                                              : (day.isFuture ? 'bg-transparent' : 'bg-slate-200'))"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Minimal Floating Hover / Tap Summary Pill (Does NOT navigate away!) -->
+                <div x-cloak
+                     x-show="activeStripPreviewDay"
+                     x-transition:enter="transition ease-out duration-150"
+                     x-transition:enter-start="opacity-0 -translate-y-1 scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave="transition ease-in duration-100"
+                     x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave-end="opacity-0 -translate-y-1 scale-95"
+                     class="absolute left-0 right-0 top-full pt-1.5 z-30">
+                    <div class="bg-white/95 backdrop-blur-md rounded-2xl px-3.5 py-2 shadow-lg border border-slate-200/90 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <!-- Right: Date & Status Dot -->
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full flex-shrink-0"
+                                  :class="activeStripPreviewDay?.hasLogged ? (activeStripPreviewDay?.isOver ? 'bg-amber-400' : 'bg-emerald-500') : 'bg-slate-300'"></span>
+                            <span class="font-black text-slate-900"
+                                  x-text="activeStripPreviewDay ? `${activeStripPreviewDay.label} ${activeStripPreviewDay.dayNum}/${activeStripPreviewDay.monthNum}` : ''"></span>
+                        </div>
+
+                        <!-- Center: Minimal Selected Highlights -->
+                        <div x-show="activeStripPreviewDay?.hasLogged" class="flex items-center gap-2.5 text-[11px] sm:text-xs font-bold text-slate-700">
+                            <span x-text="`🔥 ${(activeStripPreviewDay?.calories || 0).toLocaleString()}`"></span>
+                            <span class="text-slate-300">•</span>
+                            <span x-text="`💪 ${activeStripPreviewDay?.protein || 0}g`"></span>
+                            <span class="text-slate-300">•</span>
+                            <span class="text-sky-700" x-text="`💧 ${activeStripPreviewDay?.waterLiters || '0.0'}L`"></span>
+                        </div>
+                        <div x-show="activeStripPreviewDay && !activeStripPreviewDay.hasLogged" class="text-[11px] text-slate-400 font-medium">
+                            ללא תיעוד
+                        </div>
+
+                        <!-- Left: Optional Full Diary Link / Close -->
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                            <button x-show="activeStripPreviewDay && !activeStripPreviewDay.isToday"
+                                    type="button"
+                                    @click="openStripFullDiary(activeStripPreviewDay?.dateStr)"
+                                    class="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer">
+                                יומן ↗
+                            </button>
+                            <button x-show="pinnedStripDate"
+                                    type="button"
+                                    @click="pinnedStripDate = null; hoveredStripDate = null"
+                                    class="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold flex items-center justify-center cursor-pointer"
+                                    title="סגור">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- ============================================================== -->
             <!-- OPTION 1: COMPACT SIDE-BY-SIDE (APPLE HEALTH / PANGO)          -->
@@ -7400,7 +7486,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=114').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=115').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -7785,6 +7871,8 @@
                 allMeals: [],
                 allWorkouts: [],
                 dailyTrend: [],
+                hoveredStripDate: null,
+                pinnedStripDate: null,
                 activeEntryMode: 'meal',
                 showWorkoutModal: false,
                 workoutMode: 'ai',
@@ -10415,6 +10503,120 @@
                         checkDate.setDate(checkDate.getDate() - 1);
                     }
                     return Math.max(streak, 1);
+                },
+
+                get weeklyStripDays() {
+                    const todayIso = this.todayStr || getIsraelDateStr();
+                    const [y, m, d] = todayIso.split('-').map(Number);
+                    const anchor = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+                    const dow = anchor.getUTCDay();
+
+                    const activeDates = new Set();
+                    const statsByDate = {};
+                    const ensureDay = (dt) => {
+                        if (!statsByDate[dt]) {
+                            statsByDate[dt] = { cals: 0, prot: 0, waterMl: 0, mealsCount: 0, topMeal: '', topCal: -1 };
+                        }
+                        return statsByDate[dt];
+                    };
+
+                    (this.allMeals || []).forEach(meal => {
+                        if (meal.log_date) {
+                            activeDates.add(meal.log_date);
+                            const st = ensureDay(meal.log_date);
+                            const mc = Number(meal.calories) || 0;
+                            st.cals += mc;
+                            st.prot += Number(meal.protein_g) || 0;
+                            st.mealsCount += 1;
+                            if (mc > st.topCal && (meal.description || meal.summary)) {
+                                st.topCal = mc;
+                                st.topMeal = (meal.description || meal.summary || '').trim();
+                            }
+                        }
+                    });
+                    (this.dailyTrend || []).forEach(item => {
+                        if (item.date && (Number(item.calories) > 0 || Number(item.meals_count) > 0 || Number(item.water_ml) > 0)) {
+                            activeDates.add(item.date);
+                            const st = ensureDay(item.date);
+                            st.cals = Math.max(st.cals, Number(item.calories) || 0);
+                            st.prot = Math.max(st.prot, Number(item.protein_g) || 0);
+                            st.waterMl = Math.max(st.waterMl, Number(item.water_ml) || 0);
+                            st.mealsCount = Math.max(st.mealsCount, Number(item.meals_count) || 0);
+                        }
+                    });
+
+                    const todaySt = ensureDay(todayIso);
+                    if ((this.todayMeals || []).length > 0 || Number(this.summary?.total_calories || 0) > 0 || Number(this.summary?.water_ml || 0) > 0) {
+                        activeDates.add(todayIso);
+                        todaySt.cals = Number(this.summary?.total_calories || todaySt.cals || 0);
+                        todaySt.prot = Number(this.summary?.total_protein || todaySt.prot || 0);
+                        todaySt.waterMl = Number(this.summary?.water_ml || todaySt.waterMl || 0);
+                        todaySt.mealsCount = Math.max(todaySt.mealsCount, (this.todayMeals || []).length);
+                        let maxM = -1;
+                        (this.todayMeals || []).forEach(m => {
+                            const mc = Number(m.calories) || 0;
+                            if (mc > maxM && (m.description || m.summary)) {
+                                maxM = mc;
+                                todaySt.topMeal = (m.description || m.summary || '').trim();
+                            }
+                        });
+                    }
+
+                    const targetCal = Math.max(1, Number(this.summary?.target_calories || 1800));
+                    const labels = this.currentLang === 'en'
+                        ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                        : ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+
+                    const days = [];
+                    for (let i = 0; i < 7; i++) {
+                        const dt = new Date(anchor);
+                        dt.setUTCDate(anchor.getUTCDate() - dow + i);
+                        const yy = dt.getUTCFullYear();
+                        const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+                        const dd = String(dt.getUTCDate()).padStart(2, '0');
+                        const dateStr = `${yy}-${mm}-${dd}`;
+                        const st = statsByDate[dateStr] || { cals: 0, prot: 0, waterMl: 0, mealsCount: 0, topMeal: '' };
+                        const cals = Math.round(st.cals);
+                        const calPct = Math.min(100, Math.round((cals / targetCal) * 100));
+                        const isOver = cals > targetCal * 1.08;
+                        days.push({
+                            dateStr,
+                            label: labels[i],
+                            dayNum: dt.getUTCDate(),
+                            monthNum: dt.getUTCMonth() + 1,
+                            isToday: dateStr === todayIso,
+                            isFuture: dateStr > todayIso,
+                            hasLogged: activeDates.has(dateStr),
+                            calories: cals,
+                            protein: Math.round(st.prot),
+                            waterLiters: (st.waterMl / 1000).toFixed(1),
+                            mealsCount: st.mealsCount,
+                            topMeal: st.topMeal,
+                            calPct,
+                            isOver
+                        });
+                    }
+                    return days;
+                },
+
+                get activeStripPreviewDay() {
+                    const targetDate = this.hoveredStripDate || this.pinnedStripDate;
+                    if (!targetDate) return null;
+                    return (this.weeklyStripDays || []).find(d => d.dateStr === targetDate) || null;
+                },
+
+                togglePinnedStripDay(day) {
+                    if (!day || day.isFuture) return;
+                    this.pinnedStripDate = (this.pinnedStripDate === day.dateStr) ? null : day.dateStr;
+                },
+
+                openStripFullDiary(dateStr) {
+                    if (!dateStr) return;
+                    this.pinnedStripDate = null;
+                    this.hoveredStripDate = null;
+                    if (dateStr === this.todayStr) return;
+                    this.selectedDate = dateStr;
+                    this.switchTab('history');
                 },
 
                 get achievementsList() {
