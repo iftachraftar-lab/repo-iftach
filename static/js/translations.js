@@ -1680,7 +1680,12 @@
   "🚨 תקלה טכנית (מצלמה, מודל AI, התחברות)": "🚨 Technical Issue (Camera, AI Model, Login)",
   "🥗 שאלה לגבי תזונה ויעדים": "🥗 Question about Nutrition & Targets",
   "💡 הצעה לשיפור ופיצ'ר חדש": "💡 Feature Request & Improvement Idea",
-  "💬 אחר": "💬 Other"
+  "💬 אחר": "💬 Other",
+  "פוש פעיל": "Push Active",
+  "מכשירים מחוברים בשרת:": "Connected devices on server:",
+  "🚫 הרשאת התראות חסומה בדפדפן": "🚫 Notifications blocked in browser",
+  "כדי לקבל התראות בנייד, לחץ על אייקון המנעול / ההגדרות בשורת הכתובת ואפשר \"התראות (Notifications)\" ולאחר מכן לחץ על כפתור ההפעלה למטה.": "To receive notifications on mobile, tap the lock / site settings icon in the address bar, allow Notifications, then tap Enable below.",
+  "כרגע רק המחשב מחובר להתראות! פתח את האפליקציה בטלפון הנייד, לחץ על 🔔 התראות בראש המסך, ולחץ על הפעל התראות פוש בנייד.": "Only your desktop is connected right now! Open the app on your phone, tap the 🔔 bell icon at the top, and enable Push Notifications."
 };
 
     window.EN_TO_HE = {};

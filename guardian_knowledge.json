@@ -1,9 +1,9 @@
 {
-  "last_audit_at": "2026-11-10T11:16:29.781417+02:00",
-  "total_runs": 49,
-  "sw_version": "124",
+  "last_audit_at": "2026-11-10T11:56:22.917883+02:00",
+  "total_runs": 52,
+  "sw_version": "125",
   "counts": {
-    "api_routes": 112,
+    "api_routes": 114,
     "pydantic_models": 65,
     "alpine_methods": 193
   },
@@ -39,6 +39,7 @@
     "GET /api/coach/trainees",
     "GET /api/coach/trainees/{trainee_id}/details",
     "GET /api/cron/daily-health-check",
+    "GET /api/cron/daily-user-reminders",
     "GET /api/favorites",
     "GET /api/health",
     "GET /api/history",
@@ -78,6 +79,7 @@
     "POST /api/coach/analyze",
     "POST /api/coach/trainees",
     "POST /api/cron/daily-health-check",
+    "POST /api/cron/daily-user-reminders",
     "POST /api/favorites",
     "POST /api/google-fit/sync",
     "POST /api/grocery/generate",

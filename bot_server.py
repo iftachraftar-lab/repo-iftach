@@ -4349,8 +4349,8 @@ def get_or_create_vapid_keys() -> dict:
                 data = doc.to_dict()
                 if data.get("public_key") and data.get("private_key"):
                     _LOCAL_VAPID = {
-                        "public_key": data["public_key"],
-                        "private_key": data["private_key"],
+                        "public_key": str(data["public_key"]).strip(),
+                        "private_key": str(data["private_key"]).strip(),
                     }
                     return _LOCAL_VAPID
             keys = _generate_vapid_keypair()
@@ -4624,12 +4624,14 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"WARN: Failed to set Telegram webhook: {e}")
     
-    # Start automated daily 08:00 Israel time health & billing check background scheduler
+    # Start automated daily 08:00 admin check + 20:00 user nutrition/water push reminders (Israel time)
     scheduler_task = asyncio.create_task(_admin_daily_0800_scheduler())
+    user_reminder_task = asyncio.create_task(_user_daily_2000_scheduler())
 
     yield
 
     scheduler_task.cancel()
+    user_reminder_task.cancel()
     if tg_app:
         await tg_app.stop()
         await tg_app.shutdown()
@@ -5980,6 +5982,100 @@ def api_cron_daily_health_check(force: bool = False):
     if not force and _has_daily_health_been_sent_today():
         return {"status": "already_sent_today", "date": get_israel_today_str()}
     return send_admin_health_and_billing_push(manual_trigger=False)
+
+
+def _has_daily_user_push_been_sent_today() -> bool:
+    today_s = get_israel_today_str()
+    if db:
+        try:
+            doc = db.collection("app_config").document("daily_user_push_cron").get()
+            if doc.exists and (doc.to_dict() or {}).get("last_sent_date") == today_s:
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def dispatch_daily_user_reminders(manual_trigger: bool = False) -> dict:
+    """Sends a personalized evening summary/hydration reminder push to all subscribed users once per day."""
+    all_subs = get_push_subscriptions_db(user_id=None)
+    if not all_subs:
+        return {"status": "no_subscribers", "users": 0, "sent": 0, "failed": 0}
+
+    unique_uids = []
+    seen = set()
+    for s in all_subs:
+        uid = _normalize_user_id(s.get("user_id") or "default")
+        if uid not in seen:
+            seen.add(uid)
+            unique_uids.append(uid)
+
+    total_sent = 0
+    total_failed = 0
+    for uid in unique_uids:
+        try:
+            s = get_day_summary(user_id=uid)
+            rem_cal = s["remaining_calories"]
+            rem_prot = max(0.0, s["target_protein"] - s["total_protein"])
+            water_l = round((s.get("water_ml") or 0) / 1000.0, 1)
+            if s["meal_count"] == 0:
+                title = "🥗 תזכורת ערב מ-NutriAgent"
+                body = f"עדיין לא תיעדת ארוחות היום! היעד שלך: {s['target_calories']} קק\"ל | 💧 שתייה: {water_l}L"
+            elif rem_cal > 0:
+                title = "📊 סיכום ערב להיום"
+                body = f"נותרו לך עוד {rem_cal} קק\"ל ו-{rem_prot:.0f}g חלבון להשלמת היעד | 💧 {water_l}L"
+            else:
+                title = "🎯 הגעת ליעד היומי שלך!"
+                body = f"סה\"כ היום: {s['total_calories']} קק\"ל ו-{s['total_protein']:.0f}g חלבון | 💧 {water_l}L"
+            res = send_web_push_to_all(title=title, body=body, tag="nutriagent-daily-evening", user_id=uid)
+            total_sent += res.get("sent", 0)
+            total_failed += res.get("failed", 0)
+        except Exception as e:
+            print(f"WARN daily user reminder ({uid}): {e}")
+
+    if db and not manual_trigger:
+        try:
+            db.collection("app_config").document("daily_user_push_cron").set({
+                "last_sent_date": get_israel_today_str(),
+                "updated_at": get_israel_now().isoformat(),
+                "users_count": len(unique_uids),
+                "sent": total_sent,
+            }, merge=True)
+        except Exception:
+            pass
+
+    return {"status": "ok", "users": len(unique_uids), "sent": total_sent, "failed": total_failed}
+
+
+async def _user_daily_2000_scheduler():
+    """Background task that sends daily 20:00 Israel time reminders to subscribed mobile/desktop users."""
+    await asyncio.sleep(10)
+    while True:
+        try:
+            now_il = get_israel_now()
+            if now_il.hour >= 20 and not _has_daily_user_push_been_sent_today():
+                dispatch_daily_user_reminders(manual_trigger=False)
+            target = now_il.replace(hour=20, minute=0, second=0, microsecond=0)
+            if target <= now_il:
+                target += timedelta(days=1)
+            sleep_secs = max(30.0, (target - now_il).total_seconds())
+            await asyncio.sleep(sleep_secs)
+            if not _has_daily_user_push_been_sent_today():
+                dispatch_daily_user_reminders(manual_trigger=False)
+        except asyncio.CancelledError:
+            break
+        except Exception as ex:
+            print(f"WARN in _user_daily_2000_scheduler: {ex}")
+            await asyncio.sleep(60)
+
+
+@app.get("/api/cron/daily-user-reminders")
+@app.post("/api/cron/daily-user-reminders")
+def api_cron_daily_user_reminders(force: bool = False):
+    """Cloud Scheduler endpoint to wake up Cloud Run at 20:00 Asia/Jerusalem and dispatch daily user reminders."""
+    if not force and _has_daily_user_push_been_sent_today():
+        return {"status": "already_sent_today", "date": get_israel_today_str()}
+    return dispatch_daily_user_reminders(manual_trigger=False)
 
 
 @app.get("/api/admin/billing-and-costs")
@@ -9528,6 +9624,9 @@ def api_push_test(request: Request, req: Optional[PushMessageRequest] = None):
     res = send_web_push_to_all(title=title, body=body, tag="nutriagent-test", user_id=uid)
     if res["total_subscriptions"] == 0:
         raise HTTPException(status_code=404, detail="לא נמצאו מכשירים רשומים להתראות. הפעל תחילה התראות במכשיר זה.")
+    if res["sent"] == 0 and res["failed"] > 0:
+        err_statuses = ", ".join(d.get("status", "error") for d in res.get("devices", []))
+        raise HTTPException(status_code=502, detail=f"שליחת הפוש נכשלה ({err_statuses}). לחץ על '🔄 סנכרן מחדש' במכשיר הנייד.")
     return res
 
 

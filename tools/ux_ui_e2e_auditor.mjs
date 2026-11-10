@@ -578,6 +578,7 @@ async function runAudit() {
       { flag: 'showGroceryModal', label: 'modal:grocery' },
       { flag: 'openBarcodeModal', label: 'modal:barcode' },
       { flag: 'showSupportModal', label: 'modal:support' },
+      { flag: 'openPushModal', label: 'modal:push_notifications' },
     ];
 
     for (const m of modalsToTest) {
@@ -638,6 +639,18 @@ async function runAudit() {
       report.failed.push(`Mobile (390px) horizontal overflow detected: +${mobileOverflow}px`);
     } else {
       report.passed.push('Mobile viewport (390px) zero horizontal overflow');
+    }
+
+    const mobilePushVisible = await evalJs(`(() => {
+      const btn = Array.from(document.querySelectorAll('button')).find(b => (b.getAttribute('@click') || '').includes('openPushModal'));
+      if (!btn) return false;
+      const r = btn.getBoundingClientRect();
+      return getComputedStyle(btn).display !== 'none' && r.width > 0 && r.height > 0;
+    })()`);
+    if (mobilePushVisible) {
+      report.passed.push('Mobile (390px) Push Notifications bell button is visible and clickable');
+    } else {
+      report.failed.push('Mobile (390px) Push Notifications bell button is hidden!');
     }
 
     if (report.jsErrors.length === 0) {

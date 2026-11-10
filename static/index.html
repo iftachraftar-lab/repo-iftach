@@ -49,7 +49,7 @@
     <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=124"></script>
+    <script src="/static/js/translations.js?v=125"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -464,14 +464,15 @@
                     <span class="font-bold">הורד</span>
                 </button>
 
-                <!-- 5. Push Notifications -->
+                <!-- 5. Push Notifications (Always visible on mobile & desktop) -->
                 <button type="button" @click="openPushModal = true; checkPushStatus()"
-                    class="hidden sm:flex h-8 px-2 sm:px-2.5 rounded-xl text-xs font-bold items-center gap-1 transition cursor-pointer border shadow-2xs flex-shrink-0"
+                    class="relative flex h-8 w-8 sm:w-auto sm:px-2.5 rounded-xl text-xs font-bold items-center justify-center gap-1 transition cursor-pointer border shadow-2xs flex-shrink-0"
                     :class="pushEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'"
                     title="התראות פוש לנייד">
                     <span class="material-symbols-outlined text-[16px]">notifications</span>
                     <span class="hidden lg:inline" x-text="pushEnabled ? 'פוש פעיל' : 'התראות'"></span>
-                    <span x-show="pushEnabled" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span x-show="pushEnabled" class="absolute -top-0.5 -right-0.5 sm:static w-2 h-2 sm:w-1.5 sm:h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span x-show="!pushEnabled" class="absolute -top-0.5 -right-0.5 sm:hidden w-2 h-2 rounded-full bg-amber-400"></span>
                 </button>
 
                 <!-- 6. Daily Targets -->
@@ -6816,6 +6817,12 @@
                 <p>באייפון (iOS 16.4+), התראות פוש עובדות רק כאשר האפליקציה מותקנת ונפתחת מ<strong>מסך הבית (Add to Home Screen)</strong>.</p>
             </div>
 
+            <!-- Permission Blocked Hint -->
+            <div x-show="pushPermissionDenied" class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 text-xs text-rose-800 space-y-1">
+                <p class="font-bold">🚫 הרשאת התראות חסומה בדפדפן</p>
+                <p>כדי לקבל התראות בנייד, לחץ על אייקון המנעול / ההגדרות בשורת הכתובת ואפשר "התראות (Notifications)" ולאחר מכן לחץ על כפתור ההפעלה למטה.</p>
+            </div>
+
             <!-- Unsupported Browser Hint -->
             <div x-show="!pushSupported && !isIOSNotStandalone" class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 text-xs text-rose-800">
                 הדפדפן הנוכחי אינו תומך ב-Web Push או שהאפליקציה עדיין לא הותקנה למסך הבית.
@@ -7538,7 +7545,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=124').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=125').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -7906,11 +7913,13 @@
                 openPushModal: false,
                 pushSupported: false,
                 pushEnabled: false,
+                pushPermissionDenied: false,
                 pushLoading: false,
                 pushTesting: false,
                 isIOSNotStandalone: false,
                 pushDevices: [],
                 mobileSubscribersCount: 0,
+                waterReminderTimerId: null,
 
                 summary: {
                     total_calories: 0,
@@ -11231,6 +11240,7 @@
                     }
                     if (localStorage.getItem('water_reminders_active') === 'true') {
                         this.waterRemindersActive = true;
+                        this.startWaterReminderLoop();
                     }
                 },
 
@@ -11872,31 +11882,57 @@
                     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
                     this.isIOSNotStandalone = isIOS && !isStandalone;
                     this.pushSupported = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
-                    await this.fetchPushDevices();
+                    this.pushPermissionDenied = ('Notification' in window) && Notification.permission === 'denied';
+                    const keyData = await this.fetchPushDevices();
                     if (!this.pushSupported) return;
                     try {
-                        const reg = await navigator.serviceWorker.ready;
+                        let reg = await navigator.serviceWorker.getRegistration('/');
+                        if (!reg) {
+                            reg = await navigator.serviceWorker.register('/sw.js?v=125');
+                        }
+                        reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
                         if (reg.waiting) {
                             reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                         }
                         const sub = await reg.pushManager.getSubscription();
-                        this.pushEnabled = !!sub;
-                        // Auto-sync existing browser subscription to backend so mobile is always registered
-                        if (sub) {
-                            const subJson = sub.toJSON();
-                            if (subJson.endpoint && subJson.keys) {
-                                await fetch('/api/push/subscribe', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        endpoint: subJson.endpoint,
-                                        keys: subJson.keys,
-                                        user_agent: navigator.userAgent
-                                    })
-                                });
-                                await this.fetchPushDevices();
+                        if (sub && Notification.permission === 'granted') {
+                            // Verify subscription VAPID key matches current server public key
+                            let keyMatches = true;
+                            const rawKey = sub.options && sub.options.applicationServerKey;
+                            if (rawKey && keyData && keyData.public_key) {
+                                const bytes = new Uint8Array(rawKey);
+                                let bin = '';
+                                for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+                                const subB64Url = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                                if (subB64Url !== keyData.public_key) {
+                                    keyMatches = false;
+                                }
                             }
+                            if (!keyMatches) {
+                                await sub.unsubscribe().catch(() => {});
+                                this.pushEnabled = false;
+                            } else {
+                                this.pushEnabled = true;
+                                const subJson = sub.toJSON();
+                                if (subJson.endpoint && subJson.keys) {
+                                    await fetch('/api/push/subscribe', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            endpoint: subJson.endpoint,
+                                            keys: subJson.keys,
+                                            user_agent: navigator.userAgent
+                                        })
+                                    });
+                                    await this.fetchPushDevices();
+                                }
+                            }
+                        } else {
+                            if (sub && Notification.permission !== 'granted') {
+                                await sub.unsubscribe().catch(() => {});
+                            }
+                            this.pushEnabled = false;
                         }
                     } catch (e) {
                         console.warn('checkPushStatus error:', e);
@@ -12027,10 +12063,13 @@
                         }
                         const data = await res.json();
                         await this.fetchPushDevices();
+                        if (!data.sent || data.sent === 0) {
+                            throw new Error('התראת הבדיקה נכשלה — לחץ על "🔄 סנכרן מחדש" במכשיר');
+                        }
                         if (data.mobile_sent > 0) {
                             this.showToast(`🚀 נשלח בהצלחה ל-${data.sent} מכשירים (כולל 📱 נייד)!`);
                         } else {
-                            this.showToast(`💻 נשלח למחשב בלבד. פתח את האפליקציה בנייד והפעל שם 🔔 התראות!`);
+                            this.showToast(`💻 נשלח למחשב בלבד (${data.sent}). פתח את האפליקציה בנייד ולחץ על פעמון 🔔 התראות!`);
                         }
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בשליחת פוש', 'error');
@@ -13688,16 +13727,91 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 }
             },
 
-            toggleWaterReminders() {
-                this.waterRemindersActive = !this.waterRemindersActive;
-                if (this.waterRemindersActive) {
-                    if ('Notification' in window && Notification.permission !== 'granted') {
-                        Notification.requestPermission();
+            async showMobileSafeNotification(title, body, tag = 'nutriagent-water-reminder') {
+                try {
+                    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+                    if ('serviceWorker' in navigator) {
+                        const reg = await navigator.serviceWorker.ready;
+                        if (reg && reg.showNotification) {
+                            await reg.showNotification(title, {
+                                body,
+                                icon: '/static/icon-192.png',
+                                badge: '/static/icon-192.png',
+                                tag,
+                                renotify: true,
+                                data: { url: '/?source=water_reminder' }
+                            });
+                            return true;
+                        }
                     }
+                    new Notification(title, { body, icon: '/static/icon-192.png' });
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+
+            startWaterReminderLoop() {
+                if (this.waterReminderTimerId) {
+                    clearInterval(this.waterReminderTimerId);
+                    this.waterReminderTimerId = null;
+                }
+                if (!this.waterRemindersActive) return;
+                // Remind every 90 minutes during daytime while water goal is not yet reached
+                this.waterReminderTimerId = setInterval(() => {
+                    if (!this.waterRemindersActive) return;
+                    const hr = new Date().getHours();
+                    if (hr < 8 || hr > 22) return;
+                    const curWater = Number(this.summary?.water_ml || 0);
+                    const goalWater = Number(this.summary?.water_target_ml || 2500);
+                    if (curWater >= goalWater) return;
+                    const remL = ((goalWater - curWater) / 1000).toFixed(1);
+                    this.showMobileSafeNotification(
+                        '💧 זמן לשתות מים — NutriAgent',
+                        `שתית עד עכשיו ${(curWater / 1000).toFixed(1)}L. נותרו עוד ${remL}L ליעד היומי שלך!`
+                    );
+                }, 90 * 60 * 1000);
+            },
+
+            async toggleWaterReminders() {
+                const nextState = !this.waterRemindersActive;
+                if (nextState) {
+                    const ua = window.navigator.userAgent.toLowerCase();
+                    const isIOS = /iphone|ipad|ipod/.test(ua);
+                    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+                    if (isIOS && !isStandalone) {
+                        this.showToast('📱 באייפון יש להוסיף את האפליקציה למסך הבית כדי לקבל התראות', 'warning');
+                        this.openPushModal = true;
+                        this.checkPushStatus();
+                        return;
+                    }
+                    if ('Notification' in window) {
+                        let perm = Notification.permission;
+                        if (perm !== 'granted' && perm !== 'denied') {
+                            perm = await Notification.requestPermission();
+                        }
+                        if (perm === 'denied') {
+                            this.pushPermissionDenied = true;
+                            this.showToast('🚫 הרשאת ההתראות חסומה בדפדפן — פתח את הגדרות הדפדפן ואפשר התראות', 'warning');
+                            this.openPushModal = true;
+                            return;
+                        }
+                    }
+                    this.waterRemindersActive = true;
                     localStorage.setItem('water_reminders_active', 'true');
-                    this.showToast('🔔 תזכורות שתייה הופעלו! נזכיר לך לשתות כוס מים במהלך היום');
+                    this.startWaterReminderLoop();
+                    await this.showMobileSafeNotification(
+                        '💧 תזכורות השתייה הופעלו!',
+                        'נזכיר לך לשתות מים במהלך היום עד להשלמת היעד.'
+                    );
+                    this.showToast('🔔 תזכורות שתייה הופעלו! תקבל התראה כל 90 דקות');
                 } else {
+                    this.waterRemindersActive = false;
                     localStorage.removeItem('water_reminders_active');
+                    if (this.waterReminderTimerId) {
+                        clearInterval(this.waterReminderTimerId);
+                        this.waterReminderTimerId = null;
+                    }
                     this.showToast('🔕 תזכורות שתייה כובו');
                 }
             },
