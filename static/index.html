@@ -2314,12 +2314,12 @@
                 </div>
             </div>
 
-            <!-- 7-Day Visual Bar Chart Card -->
+            <!-- 14-Day Rolling Visual Bar Chart Card (Horizontal Scroll) -->
             <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
-                <div class="flex items-center justify-between mb-5">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-5">
                     <div>
-                        <h2 class="text-base sm:text-lg font-bold text-slate-900">מגמת קלוריות — 7 ימים אחרונים</h2>
-                        <p class="text-xs text-slate-500">לחץ על כל יום בגרף כדי לצפות בפירוט הארוחות שלו</p>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900">מגמת קלוריות — 14 ימים אחרונים</h2>
+                        <p class="text-xs text-slate-500">14 ימים זוחלים עם גלילה לצדדים — לחץ על כל יום בגרף כדי לצפות בפירוט הארוחות שלו</p>
                     </div>
                     <div class="flex items-center gap-3 text-xs text-slate-500">
                         <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> ביעד</span>
@@ -2327,27 +2327,48 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-7 gap-2 sm:gap-3 items-end h-44 pt-6 pb-2 px-1 border-b border-slate-100">
-                    <template x-for="day in dailyTrend" :key="day.date">
-                        <button @click="selectHistoryDate(day.date)"
-                                class="flex flex-col items-center justify-end h-full group focus:outline-none">
-                            <span class="text-[10px] sm:text-xs font-bold mb-1 transition"
-                                  :class="selectedDate === day.date ? 'text-slate-900 scale-110' : 'text-slate-500'"
-                                  x-text="day.calories > 0 ? day.calories : '-'"></span>
-                            <div class="w-full max-w-[38px] bg-slate-100 rounded-t-xl h-28 flex items-end p-0.5 transition"
-                                 :class="selectedDate === day.date ? 'ring-2 ring-slate-900 ring-offset-2 rounded-xl' : ''">
-                                <div class="w-full rounded-t-lg transition-all duration-500"
-                                     :class="day.calories > summary.target_calories ? 'bg-rose-500' : (day.calories > 0 ? 'bg-emerald-500' : 'bg-slate-200')"
-                                     :style="`height: ${day.calories > 0 ? Math.max(12, Math.min(100, Math.round((day.calories / Math.max(summary.target_calories, 2200)) * 100))) : 6}%`">
+                <div class="flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <button type="button"
+                            @click="$refs.history14Chart.scrollBy({ left: 180, behavior: 'smooth' })"
+                            title="גלול אחורה בימים"
+                            aria-label="גלול ימינה"
+                            class="w-7 h-7 rounded-full bg-slate-100/90 hover:bg-emerald-50 border border-slate-200/90 hover:border-emerald-300 text-slate-500 hover:text-emerald-700 flex items-center justify-center flex-shrink-0 cursor-pointer transition active:scale-90 shadow-2xs">
+                        <span class="text-xs font-black leading-none select-none">›</span>
+                    </button>
+
+                    <div x-ref="history14Chart"
+                         class="flex-1 min-w-0 flex items-end gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar scroll-smooth h-48 pt-6 pb-1 px-1">
+                        <template x-for="day in (rolling14Trend.length ? rolling14Trend : dailyTrend)" :key="day.date">
+                            <button type="button"
+                                    :data-is-today="day.date === todayStr ? 'true' : 'false'"
+                                    @click="selectHistoryDate(day.date)"
+                                    class="min-w-[50px] sm:min-w-[56px] flex-1 flex-shrink-0 flex flex-col items-center justify-end h-full group focus:outline-none cursor-pointer">
+                                <span class="text-[10px] sm:text-xs font-bold mb-1 transition"
+                                      :class="selectedDate === day.date ? 'text-slate-900 scale-110' : 'text-slate-500'"
+                                      x-text="day.calories > 0 ? day.calories : '-'"></span>
+                                <div class="w-full max-w-[36px] bg-slate-100 rounded-t-xl h-28 flex items-end p-0.5 transition"
+                                     :class="selectedDate === day.date ? 'ring-2 ring-slate-900 ring-offset-2 rounded-xl' : ''">
+                                    <div class="w-full rounded-t-lg transition-all duration-500"
+                                         :class="day.calories > summary.target_calories ? 'bg-rose-500' : (day.calories > 0 ? 'bg-emerald-500' : 'bg-slate-200')"
+                                         :style="`height: ${day.calories > 0 ? Math.max(12, Math.min(100, Math.round((day.calories / Math.max(summary.target_calories, 2200)) * 100))) : 6}%`">
+                                    </div>
                                 </div>
-                            </div>
-                            <span class="text-[11px] font-semibold mt-2"
-                                  :class="selectedDate === day.date ? 'text-emerald-700 font-bold' : 'text-slate-600'"
-                                  x-text="shortDayLabel(day.date)"></span>
-                            <span class="text-[10px] text-slate-400" x-text="`${day.protein_g.toFixed(0)}g חלבון`"></span>
-                            <span class="text-[9px] font-extrabold text-sky-600 mt-0.5" x-show="day.water_ml" x-text="`💧 ${((day.water_ml || 0) / 1000).toFixed(1)}L`"></span>
-                        </button>
-                    </template>
+                                <span class="text-[11px] font-semibold mt-2"
+                                      :class="selectedDate === day.date ? 'text-emerald-700 font-bold' : 'text-slate-600'"
+                                      x-text="shortDayLabel(day.date)"></span>
+                                <span class="text-[10px] text-slate-400" x-text="`${day.protein_g.toFixed(0)}g חלבון`"></span>
+                                <span class="text-[9px] font-extrabold text-sky-600 mt-0.5" x-show="day.water_ml" x-text="`💧 ${((day.water_ml || 0) / 1000).toFixed(1)}L`"></span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <button type="button"
+                            @click="$refs.history14Chart.scrollBy({ left: -180, behavior: 'smooth' })"
+                            title="גלול קדימה להיום"
+                            aria-label="גלול שמאלה"
+                            class="w-7 h-7 rounded-full bg-slate-100/90 hover:bg-emerald-50 border border-slate-200/90 hover:border-emerald-300 text-slate-500 hover:text-emerald-700 flex items-center justify-center flex-shrink-0 cursor-pointer transition active:scale-90 shadow-2xs">
+                        <span class="text-xs font-black leading-none select-none">‹</span>
+                    </button>
                 </div>
             </div>
 
@@ -7505,7 +7526,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=116').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=117').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -10624,16 +10645,23 @@
                     return days;
                 },
 
-                scrollStripToToday() {
-                    const strip = this.$refs.rollingDaysStrip;
-                    if (!strip) return;
-                    const todayEl = strip.querySelector('[data-is-today="true"]');
+                scrollContainerToToday(container) {
+                    if (!container) return;
+                    const todayEl = container.querySelector('[data-is-today="true"]');
                     if (!todayEl) return;
-                    const sRect = strip.getBoundingClientRect();
+                    const sRect = container.getBoundingClientRect();
                     const tRect = todayEl.getBoundingClientRect();
-                    if (tRect.left < sRect.left || tRect.right > sRect.right) {
-                        strip.scrollLeft += (tRect.left - sRect.left) - 4;
+                    if (sRect.width > 0 && (tRect.left < sRect.left || tRect.right > sRect.right)) {
+                        container.scrollLeft += (tRect.left - sRect.left) - 4;
                     }
+                },
+
+                scrollStripToToday() {
+                    this.scrollContainerToToday(this.$refs.rollingDaysStrip);
+                },
+
+                scrollHistoryChartToToday() {
+                    this.scrollContainerToToday(this.$refs.history14Chart);
                 },
 
                 get activeStripPreviewDay() {
@@ -12214,6 +12242,7 @@
                     if (tab === 'history') {
                         this.fetchHistory();
                         this.fetchWeight();
+                        setTimeout(() => this.scrollHistoryChartToToday(), 120);
                     } else if (tab === 'admin') {
                         this.fetchAdminUsers(false);
                         setTimeout(() => {
@@ -12862,7 +12891,10 @@
                         this.allWorkouts = data.workouts || [];
                         this.dailyTrend = data.daily_trend || [];
                         this.rolling14Trend = data.rolling_14_trend || data.daily_trend || [];
-                        this.$nextTick(() => this.scrollStripToToday());
+                        this.$nextTick(() => {
+                            this.scrollStripToToday();
+                            this.scrollHistoryChartToToday();
+                        });
                     } catch (e) {
                         console.error(e);
                     }

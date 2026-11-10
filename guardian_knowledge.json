@@ -1,11 +1,11 @@
 {
-  "last_audit_at": "2026-11-10T09:48:25.864499+02:00",
-  "total_runs": 32,
-  "sw_version": "116",
+  "last_audit_at": "2026-11-10T09:52:50.329913+02:00",
+  "total_runs": 34,
+  "sw_version": "117",
   "counts": {
     "api_routes": 112,
     "pydantic_models": 65,
-    "alpine_methods": 190
+    "alpine_methods": 192
   },
   "newly_learned_routes_last_run": [],
   "removed_routes_last_run": [],
@@ -325,6 +325,8 @@
     "saveMealAsFavorite",
     "saveTargets",
     "scanBarcodeImageBase64",
+    "scrollContainerToToday",
+    "scrollHistoryChartToToday",
     "scrollStripToToday",
     "selectAutocompleteQuickLog",
     "selectHistoryDate",
