@@ -51,7 +51,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=138"></script>
+    <script src="/static/js/translations.js?v=139"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -4701,7 +4701,7 @@
                                                 ↩️ החזר לאורגני
                                             </button>
                                             <button type="button"
-                                                    x-show="currentUser && u.id !== currentUser.id && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com'].includes((u.email || '').toLowerCase())"
+                                                    x-show="currentUser && u.id !== currentUser.id && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com', 'orirosental@gmail.com'].includes((u.email || '').toLowerCase())"
                                                     @click="toggleBlockUserAdmin(u)"
                                                     class="px-2 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer"
                                                     :class="u.is_blocked ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white hover:bg-amber-50 text-amber-700 border-slate-200'"
@@ -4709,7 +4709,7 @@
                                                 <span x-text="u.is_blocked ? '🔓' : '🚫'"></span>
                                             </button>
                                             <button type="button"
-                                                    x-show="currentUser && u.id !== currentUser.id && isSuperAdmin() && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com'].includes((u.email || '').toLowerCase())"
+                                                    x-show="currentUser && u.id !== currentUser.id && isSuperAdmin() && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com', 'orirosental@gmail.com'].includes((u.email || '').toLowerCase())"
                                                     @click="deleteUserAdmin(u)"
                                                     class="px-2 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-[11px] font-bold transition cursor-pointer"
                                                     title="מחק משתמש וכל נתוניו (סופר-אדמין בלבד)">
@@ -8117,7 +8117,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=138').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=139').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -11899,7 +11899,7 @@
                     }
                     if (this.currentUser) {
                         const em = (this.currentUser.email || '').toLowerCase().trim();
-                        if (['iftach.raftar@gmail.com', 'iftachraftar@gmail.com', 'itamarfitk@gmail.com'].includes(em)) {
+                        if (['iftach.raftar@gmail.com', 'iftachraftar@gmail.com', 'orirosental@gmail.com', 'itamarfitk@gmail.com'].includes(em)) {
                             this.currentUser.is_admin = true;
                             this.currentUser.is_super_admin = true;
                             this.currentUser.is_approved = true;
@@ -12728,7 +12728,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=138');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=139');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -15321,7 +15321,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 if (!this.currentUser) return false;
                 if (this.currentUser.is_admin || this.currentUser.is_super_admin || this.currentUser.is_owner) return true;
                 const em = (this.currentUser.email || '').toLowerCase().trim();
-                if (['iftach.raftar@gmail.com', 'iftachraftar@gmail.com', 'itamarfitk@gmail.com'].includes(em)) {
+                if (['iftach.raftar@gmail.com', 'iftachraftar@gmail.com', 'orirosental@gmail.com', 'itamarfitk@gmail.com'].includes(em)) {
                     this.currentUser.is_admin = true;
                     this.currentUser.is_super_admin = true;
                     return true;

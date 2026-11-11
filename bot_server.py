@@ -914,6 +914,7 @@ def claim_legacy_data_for_user(user_id: str) -> dict:
 SUPER_ADMIN_EMAILS = {
     "iftach.raftar@gmail.com",
     "iftachraftar@gmail.com",
+    "orirosental@gmail.com",
     *[e.strip().lower() for e in os.getenv("SUPER_ADMIN_EMAILS", "").split(",") if e.strip()],
 }
 
