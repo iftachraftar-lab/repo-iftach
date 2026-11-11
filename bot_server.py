@@ -1468,6 +1468,65 @@ def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
         )
         res.append(rec)
 
+    # Also include existing Google/app users explicitly bound to this coach_id (e.g. coach_id == "itamar")
+    if coach_id == "itamar":
+        seen_ids = {r["id"] for r in res}
+        linked_users = []
+        if not db:
+            for uid_k, u_v in _LOCAL_USERS.items():
+                if (u_v.get("coach_id") or "") == "itamar" and not is_coach_email(u_v.get("email") or "") and not is_super_admin_email(u_v.get("email") or ""):
+                    linked_users.append(dict(u_v, id=u_v.get("id") or uid_k))
+        else:
+            try:
+                for doc in db.collection("users").where("coach_id", "==", "itamar").stream():
+                    d = doc.to_dict() or {}
+                    d["id"] = doc.id
+                    em = (d.get("email") or "").strip().lower()
+                    if not is_coach_email(em) and not is_super_admin_email(em):
+                        linked_users.append(d)
+            except Exception as e:
+                print(f"ERROR list_coach_trainees users: {e}")
+
+        for u in linked_users:
+            uid = u["id"]
+            if uid in seen_ids:
+                continue
+            seen_ids.add(uid)
+            s = get_day_summary(user_id=uid)
+            w = get_daily_water_db(user_id=uid)
+            t_cal = int(s.get("target_calories") or u.get("target_calories") or 1800)
+            t_prot = float(s.get("target_protein") or u.get("target_protein") or 120.0)
+            l_code = u.get("link_code") or uid
+            res.append({
+                "id": uid,
+                "coach_id": "itamar",
+                "coach_name": u.get("coach_name") or "איתמר",
+                "name": u.get("name") or (u.get("email") or "").split("@")[0] or uid,
+                "phone": u.get("phone") or "",
+                "email": u.get("email") or "",
+                "invite_code": l_code,
+                "telegram_linked": is_telegram_linked_for_user(uid),
+                "target_calories": t_cal,
+                "target_protein": t_prot,
+                "target_water_ml": int(u.get("water_target_ml") or 2500),
+                "status": "active",
+                "source_type": "google_user",
+                "created_at": u.get("coach_bound_at") or u.get("created_at") or "",
+                "today_calories": s.get("total_calories", 0),
+                "remaining_calories": s.get("remaining_calories", t_cal),
+                "today_protein": s.get("total_protein", 0),
+                "today_water_ml": w.get("water_ml", 0),
+                "meals_count": len(s.get("meals", [])),
+                "telegram_link": f"https://t.me/{bot_name}?start=link_{l_code}",
+                "web_link": f"{app_base}/itamar",
+                "whatsapp_share_text": (
+                    f"היי {u.get('name') or ''}, כאן איתמר המאמן שלך!\n"
+                    f"חיברתי אותך לתוכנית התזונה המלאה שלי ב-NutriAgent 💪\n\n"
+                    f"לכניסה ישירה למסך המעקב שלך:\n{app_base}/itamar\n\n"
+                    f"ולחיבור מהיר לבוט בטלגרם:\nhttps://t.me/{bot_name}?start=link_{l_code}"
+                ),
+            })
+
     # Sort newest first
     res.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return res
@@ -7950,12 +8009,23 @@ def api_coach_trainee_details(trainee_id: str, request: Request):
             t = snap.to_dict()
             t["id"] = snap.id
     if not t:
+        udoc = get_user_doc_db(trainee_id)
+        if udoc and udoc.get("coach_id") == "itamar":
+            t = {
+                "id": trainee_id,
+                "name": udoc.get("name") or (udoc.get("email") or "").split("@")[0] or trainee_id,
+                "email": udoc.get("email") or "",
+                "phone": udoc.get("phone") or "",
+                "coach_id": "itamar",
+                "source_type": "google_user",
+            }
+    if not t:
         raise HTTPException(status_code=404, detail="מתאמן לא נמצא")
 
     s = get_day_summary(user_id=trainee_id)
     w = get_daily_water_db(user_id=trainee_id)
     weights = get_weights_db(limit=7, user_id=trainee_id)
-    meals = get_meals_db(limit=20, user_id=trainee_id)
+    meals = (s.get("meals") or [])[:20]
     return {
         "trainee": t,
         "summary": s,
@@ -7968,8 +8038,25 @@ def api_coach_trainee_details(trainee_id: str, request: Request):
 @app.delete("/api/coach/trainees/{trainee_id}")
 def api_coach_delete_trainee(trainee_id: str, request: Request):
     is_coach_or_admin(request)
-    ok = delete_trainee_record(trainee_id)
-    return {"ok": ok, "deleted_id": trainee_id}
+    is_tr_doc = trainee_id in _LOCAL_TRAINEES
+    if not is_tr_doc and db:
+        is_tr_doc = db.collection("trainees").document(trainee_id).get().exists
+    if is_tr_doc:
+        ok = delete_trainee_record(trainee_id)
+        return {"ok": ok, "deleted_id": trainee_id}
+    # For Google users linked to Itamar, unlink coach_id instead of deleting user account
+    now_iso = get_israel_now().isoformat()
+    if db:
+        db.collection("users").document(trainee_id).set({
+            "coach_id": None,
+            "coach_name": None,
+            "updated_at": now_iso,
+        }, merge=True)
+    elif trainee_id in _LOCAL_USERS:
+        _LOCAL_USERS[trainee_id].pop("coach_id", None)
+        _LOCAL_USERS[trainee_id].pop("coach_name", None)
+    _safe_invalidate_admin_cache()
+    return {"ok": True, "deleted_id": trainee_id, "unlinked_google_user": True}
 
 
 @app.post("/api/auth/invite/{invite_code}")
@@ -11148,6 +11235,52 @@ def api_trainer_unlink_trainee(trainee_uid: str, request: Request):
 
     _safe_invalidate_admin_cache()
     return {"ok": True, "unlinked_id": trainee_uid, "message": "המתאמן נותק בהצלחה"}
+
+
+class AdminItamarLinkRequest(BaseModel):
+    link_itamar: bool = True
+
+
+@app.put("/api/admin/users/{target_uid}/itamar-link")
+def api_admin_toggle_itamar_link(target_uid: str, req: AdminItamarLinkRequest, request: Request):
+    """Moves an existing organic user into Itamar's coaching UI/roster (or back to organic) without losing any data."""
+    require_admin_user(request)
+    uid = _normalize_user_id(target_uid)
+    if not uid or uid == "default":
+        raise HTTPException(status_code=400, detail="מזהה משתמש לא תקין")
+    now_iso = get_israel_now().isoformat()
+    if req.link_itamar:
+        updates = {
+            "coach_id": "itamar",
+            "coach_name": "Coach Itamar (איתמר)",
+            "coach_bound_at": now_iso,
+            "approved_by_owner": True,
+            "updated_at": now_iso,
+        }
+    else:
+        updates = {
+            "coach_id": None,
+            "coach_name": None,
+            "updated_at": now_iso,
+        }
+    if db:
+        db.collection("users").document(uid).set(updates, merge=True)
+    elif uid in _LOCAL_USERS:
+        if req.link_itamar:
+            _LOCAL_USERS[uid].update(updates)
+        else:
+            _LOCAL_USERS[uid].pop("coach_id", None)
+            _LOCAL_USERS[uid].pop("coach_name", None)
+            _LOCAL_USERS[uid]["updated_at"] = now_iso
+    else:
+        raise HTTPException(status_code=404, detail="משתמש לא נמצא")
+    _safe_invalidate_admin_cache()
+    return {
+        "ok": True,
+        "user_id": uid,
+        "coach_id": "itamar" if req.link_itamar else None,
+        "message": "המשתמש הועבר למתאמן של איתמר בהצלחה!" if req.link_itamar else "המשתמש הוחזר למצב אורגני",
+    }
 
 
 @app.get("/api/admin/coaches")

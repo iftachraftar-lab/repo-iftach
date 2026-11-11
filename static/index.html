@@ -51,7 +51,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=135"></script>
+    <script src="/static/js/translations.js?v=136"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -4686,6 +4686,20 @@
                                                 🎯 יעדים
                                             </button>
                                             <button type="button"
+                                                    x-show="!u.is_owner && u.user_type !== 'itamar_coach' && u.user_type !== 'itamar_trainee'"
+                                                    @click="toggleUserItamarLink(u, true)"
+                                                    class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-[11px] font-bold transition cursor-pointer"
+                                                    title="העבר משתמש זה למצב איתמר (כולל כל ה-UI וה-5 ארוחות)">
+                                                🎯 העבר לאיתמר
+                                            </button>
+                                            <button type="button"
+                                                    x-show="u.user_type === 'itamar_trainee'"
+                                                    @click="toggleUserItamarLink(u, false)"
+                                                    class="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-bold transition cursor-pointer"
+                                                    title="החזר משתמש זה למצב אורגני רגיל">
+                                                ↩️ החזר לאורגני
+                                            </button>
+                                            <button type="button"
                                                     x-show="currentUser && u.id !== currentUser.id && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com'].includes((u.email || '').toLowerCase())"
                                                     @click="toggleBlockUserAdmin(u)"
                                                     class="px-2 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer"
@@ -8102,7 +8116,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=135').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=136').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -11661,6 +11675,19 @@
                         return;
                     }
 
+                    // Automatic coaching mode for users bound to Coach Itamar (preserves full Itamar 5-slot UI on any URL)
+                    const savedUserRaw = localStorage.getItem('nutri_user');
+                    if (savedUserRaw) {
+                        try {
+                            const u = JSON.parse(savedUserRaw);
+                            if ((u?.email || '').toLowerCase().includes('itamar') || (u?.coach_id === 'itamar' && !u?.is_admin)) {
+                                this.appPartner = 'itamar';
+                                this.appMode = 'coaching';
+                                return;
+                            }
+                        } catch(e) {}
+                    }
+
                     // Explicit root path '/' or '/index.html' -> Organic platform by default!
                     // A past visit to /itamar must NEVER permanently hijack the root URL.
                     if (pathname === '/' || pathname === '' || pathname === '/index.html') {
@@ -11674,19 +11701,6 @@
                         this.appMode = 'full';
                         localStorage.removeItem('app_partner');
                         return;
-                    }
-
-                    // Automatic detection for Itamar himself (only if logged in with Itamar account)
-                    const savedUserRaw = localStorage.getItem('nutri_user');
-                    if (savedUserRaw) {
-                        try {
-                            const u = JSON.parse(savedUserRaw);
-                            if ((u?.email || '').toLowerCase().includes('itamar')) {
-                                this.appPartner = 'itamar';
-                                this.appMode = 'coaching';
-                                return;
-                            }
-                        } catch(e) {}
                     }
 
                     const savedOverride = localStorage.getItem('app_mode_override');
@@ -12045,6 +12059,10 @@
                                 session_token: me.session_token || this.currentUser?.session_token || ''
                             };
                             localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                            if (this.currentUser.coach_id === 'itamar' && !this.isUserAdmin()) {
+                                this.appPartner = 'itamar';
+                                this.appMode = 'coaching';
+                            }
                             if (!this.currentUser.is_admin && this.activeTab === 'admin') {
                                 this.activeTab = 'summary';
                             } else if (this.currentUser.is_admin) {
@@ -12182,6 +12200,10 @@
                     }
                     this.openAuthModal = false;
                     this.coachInsight = null;
+                    if (this.currentUser?.coach_id === 'itamar' && !this.isUserAdmin()) {
+                        this.appPartner = 'itamar';
+                        this.appMode = 'coaching';
+                    }
                     if (this.pendingJoinCoachCode) {
                         await this.autoBindPendingCoachCode();
                     }
@@ -12393,6 +12415,10 @@
                             } else {
                                 this.currentUser.coach_id = data.coach_id;
                                 this.currentUser.coach_name = data.coach_name;
+                                if (data.coach_id === 'itamar' && !this.isUserAdmin()) {
+                                    this.appPartner = 'itamar';
+                                    this.appMode = 'coaching';
+                                }
                                 this.showToast('🎉 חוברת בהצלחה למאמן: ' + data.coach_name, 'success');
                             }
                             localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
@@ -12651,7 +12677,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=135');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=136');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -15212,6 +15238,32 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     }
                 } catch (e) {
                     this.showToast('שגיאה בעדכון מאמן', 'error');
+                }
+            },
+            async toggleUserItamarLink(u, linkItamar) {
+                if (!u || !u.id) return;
+                const actionTxt = linkItamar
+                    ? `להעביר את ${u.name || u.email} למתאמן של איתמר (כולל ה-UI המלא של איתמר)?`
+                    : `להחזיר את ${u.name || u.email} למצב אורגני רגיל?`;
+                if (!confirm(actionTxt)) return;
+                try {
+                    const res = await fetch(`/api/admin/users/${encodeURIComponent(u.id)}/itamar-link`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ link_itamar: Boolean(linkItamar) })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok) {
+                        this.showToast('✅ ' + (data.message || 'עודכן בהצלחה'));
+                        await this.fetchAdminUsers(true);
+                        if (this.appMode === 'coaching' || this.isCoachOrAdmin()) {
+                            this.fetchCoachTrainees();
+                        }
+                    } else {
+                        this.showToast(data.detail || 'שגיאה בעדכון השיוך', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בתקשורת עם השרת', 'error');
                 }
             },
             isUserAdmin() {
