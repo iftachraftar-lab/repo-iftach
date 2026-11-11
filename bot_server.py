@@ -584,6 +584,7 @@ _LOCAL_PUSH_SUBS: List[dict] = []
 _LOCAL_WATER: dict = {}
 _LOCAL_USERS: dict = {}
 _LOCAL_TRAINEES: dict = {}
+_LOCAL_COACHES: dict = {}
 _LOCAL_LEADS: List[dict] = []
 _LOCAL_TG_LINKS: dict = {}
 _LOCAL_FEATURES: dict = {
@@ -1300,8 +1301,11 @@ def create_trainee_record(
     target_calories: int = 1800,
     target_protein: float = 120.0,
     notes: str = "",
+    coach_name: str = "",
+    code_prefix: str = "",
+    app_base_override: str = "",
 ) -> dict:
-    c_name = "איתמר"
+    c_name = (coach_name or "").strip() or "איתמר"
     clean_name = (name or "").strip()
     if not clean_name:
         raise ValueError("שם המתאמן הוא שדה חובה")
@@ -1309,10 +1313,11 @@ def create_trainee_record(
     clean_phone = (phone or "").strip()
     clean_email = (email or "").strip().lower()
 
-    # Generate clean, memorable invite code: e.g. ITAMAR-DANNY-3A
+    # Generate clean, memorable invite code: e.g. ITAMAR-DANNY-3A or COACHCODE-DANNY-3A
     safe_name_prefix = re.sub(r"[^a-zA-Z0-9]", "", clean_name)[:8].upper() or "TRAINEE"
     rand_suffix = secrets.token_hex(2).upper()
-    invite_code = f"ITAMAR-{safe_name_prefix}-{rand_suffix}"
+    prefix_token = re.sub(r"[^a-zA-Z0-9]", "", (code_prefix or "ITAMAR").upper())[:10] or "ITAMAR"
+    invite_code = f"{prefix_token}-{safe_name_prefix}-{rand_suffix}"
     trainee_id = f"tr_{secrets.token_hex(6)}"
 
     now_iso = get_israel_now().isoformat()
@@ -1365,7 +1370,7 @@ def create_trainee_record(
             print(f"ERROR saving trainee to firestore: {e}")
 
     bot_name = os.getenv("TELEGRAM_BOT_USERNAME", "Iftachtaskbot").lstrip("@")
-    app_base = "https://nutrition-service-313955139672.me-west1.run.app"
+    app_base = (app_base_override or os.getenv("PUBLIC_APP_URL") or "https://nutrition-service-313955139672.me-west1.run.app").rstrip("/")
     record["telegram_link"] = f"https://t.me/{bot_name}?start=pair_{invite_code}"
     record["web_link"] = f"{app_base}/?invite={invite_code}"
     record["whatsapp_share_text"] = (
@@ -1438,6 +1443,8 @@ def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
             trainee_items = list(_LOCAL_TRAINEES.values())
 
     for t in trainee_items:
+        if (t.get("coach_id") or "itamar") != coach_id:
+            continue
         uid = t["id"]
         # Attach live today metrics
         s = get_day_summary(user_id=uid)
@@ -1476,6 +1483,211 @@ def delete_trainee_record(trainee_id: str) -> bool:
             print(f"ERROR delete_trainee_record: {e}")
             return False
     return True
+
+
+# ---------------------------------------------------------------------------
+# Premium Trainers Portal (Multi-Coach SaaS — Separate from Itamar Flow)
+# ---------------------------------------------------------------------------
+
+TRAINER_PLANS = {
+    "trial": {
+        "id": "trial",
+        "name_he": "ניסיון חינם (14 יום)",
+        "name_en": "14-Day Free Trial",
+        "monthly_price_ils": 0,
+        "max_trainees": 5,
+        "features_he": [
+            "עד 5 מתאמנים פעילים",
+            "קוד מאמן אישי, קישור ו-QR לסריקה מיידית",
+            "צפייה ביומן קלורי וחלבון של המתאמנים",
+            "שליחת תזכורות פוש וטלגרם בלחיצה",
+        ],
+    },
+    "pro": {
+        "id": "pro",
+        "name_he": "Trainer Pro",
+        "name_en": "Trainer Pro",
+        "monthly_price_ils": 149,
+        "max_trainees": 30,
+        "features_he": [
+            "עד 30 מתאמנים פעילים",
+            "קוד + קישור + QR ממותג לסטודיו/מאמן",
+            "צפייה ביומן + מגמות שבועיות + עדכון יעדים",
+            "תזכורות פוש וטלגרם ללא הגבלה",
+        ],
+    },
+    "studio": {
+        "id": "studio",
+        "name_he": "Studio Elite",
+        "name_en": "Studio Elite",
+        "monthly_price_ils": 349,
+        "max_trainees": 100,
+        "features_he": [
+            "עד 100 מתאמנים פעילים",
+            "מתאים לסטודיו, דיאטנים ומאמנים מובילים",
+            "תמיכה מועדפת והכנה לחיבור סליקה אוטומטית",
+        ],
+    },
+}
+
+
+def _generate_unique_coach_code(seed_name: str = "") -> str:
+    clean_prefix = re.sub(r"[^a-zA-Z0-9]", "", (seed_name or "").strip())[:4].upper()
+    if len(clean_prefix) < 2:
+        clean_prefix = "FIT"
+    for _ in range(12):
+        code = f"{clean_prefix}-{secrets.token_hex(2).upper()}"
+        if not find_coach_by_code(code):
+            return code
+    return f"TR-{secrets.token_hex(3).upper()}"
+
+
+def list_coaches_db() -> List[dict]:
+    items = []
+    if not db:
+        items = [dict(v, id=k) for k, v in _LOCAL_COACHES.items()]
+    else:
+        try:
+            for doc in db.collection("coaches").stream():
+                d = doc.to_dict() or {}
+                d["id"] = doc.id
+                _LOCAL_COACHES[doc.id] = d
+                items.append(d)
+        except Exception as e:
+            print(f"ERROR list_coaches_db: {e}")
+            items = [dict(v, id=k) for k, v in _LOCAL_COACHES.items()]
+    items.sort(key=lambda x: str(x.get("created_at") or ""), reverse=True)
+    return items
+
+
+def get_coach_by_id(coach_id: str) -> Optional[dict]:
+    cid = (coach_id or "").strip()
+    if not cid or cid == "itamar":
+        return None
+    if cid in _LOCAL_COACHES:
+        return dict(_LOCAL_COACHES[cid])
+    if db:
+        try:
+            snap = db.collection("coaches").document(cid).get()
+            if snap.exists:
+                d = snap.to_dict() or {}
+                d["id"] = snap.id
+                _LOCAL_COACHES[snap.id] = d
+                return d
+        except Exception as e:
+            print(f"ERROR get_coach_by_id: {e}")
+    return None
+
+
+def get_coach_by_owner_uid(uid: str) -> Optional[dict]:
+    norm_uid = _normalize_user_id(uid)
+    if not norm_uid or norm_uid == "default":
+        return None
+    for c in _LOCAL_COACHES.values():
+        if _normalize_user_id(c.get("owner_uid")) == norm_uid:
+            return dict(c)
+    if db:
+        try:
+            for doc in db.collection("coaches").where("owner_uid", "==", norm_uid).limit(1).stream():
+                d = doc.to_dict() or {}
+                d["id"] = doc.id
+                _LOCAL_COACHES[doc.id] = d
+                return d
+        except Exception as e:
+            print(f"ERROR get_coach_by_owner_uid: {e}")
+    return None
+
+
+def find_coach_by_code(code: str) -> Optional[dict]:
+    clean = (code or "").strip().upper()
+    if not clean:
+        return None
+    for c in _LOCAL_COACHES.values():
+        if (c.get("coach_code") or "").strip().upper() == clean:
+            return dict(c)
+    if db:
+        try:
+            for doc in db.collection("coaches").stream():
+                d = doc.to_dict() or {}
+                d["id"] = doc.id
+                _LOCAL_COACHES[doc.id] = d
+                if (d.get("coach_code") or "").strip().upper() == clean:
+                    return d
+        except Exception as e:
+            print(f"ERROR find_coach_by_code: {e}")
+    return None
+
+
+def is_coach_subscription_active(coach: dict) -> bool:
+    if not coach:
+        return False
+    status = (coach.get("subscription_status") or "").lower()
+    return status in ("trialing", "active")
+
+
+def _get_coach_linked_users_raw(coach_id: str) -> List[dict]:
+    """Returns raw user docs linked via trainer_coach_id to this coach."""
+    linked = []
+    if not db:
+        for uid, u in _LOCAL_USERS.items():
+            if u.get("trainer_coach_id") == coach_id:
+                rec = dict(u)
+                rec["id"] = rec.get("id") or uid
+                linked.append(rec)
+    else:
+        try:
+            for doc in db.collection("users").where("trainer_coach_id", "==", coach_id).stream():
+                d = doc.to_dict() or {}
+                d["id"] = doc.id
+                linked.append(d)
+        except Exception as e:
+            print(f"ERROR _get_coach_linked_users_raw: {e}")
+    return linked
+
+
+def count_coach_active_trainees(coach_id: str) -> int:
+    seen_ids = set()
+    for u in _get_coach_linked_users_raw(coach_id):
+        seen_ids.add(u["id"])
+    for t in list_coach_trainees(coach_id=coach_id):
+        seen_ids.add(t["id"])
+    return len(seen_ids)
+
+
+def send_telegram_message_to_user(uid: str, html_text: str) -> bool:
+    """Best-effort Telegram Bot message delivery to a specific user if linked."""
+    try:
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if not bot_token or not uid:
+            return False
+        chat_id = None
+        udoc = get_user_doc_db(uid)
+        if udoc and udoc.get("telegram_chat_id"):
+            chat_id = str(udoc["telegram_chat_id"])
+        if not chat_id:
+            for cid, mapped_uid in _LOCAL_TG_LINKS.items():
+                if mapped_uid == uid:
+                    chat_id = str(cid)
+                    break
+        if not chat_id and db:
+            for ldoc in db.collection("telegram_links").where("user_id", "==", uid).limit(1).stream():
+                chat_id = str(ldoc.id)
+                break
+        if not chat_id:
+            return False
+        tg_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        req_data = urllib.parse.urlencode({
+            "chat_id": chat_id,
+            "text": html_text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": "true",
+        }).encode("utf-8")
+        tg_req = urllib.request.Request(tg_url, data=req_data, method="POST")
+        with urllib.request.urlopen(tg_req, timeout=6) as resp:
+            return resp.status == 200
+    except Exception as e:
+        print(f"WARN send_telegram_message_to_user({uid}): {e}")
+        return False
 
 
 def link_telegram_Account(tg_chat_id: int, code_or_email: str) -> Optional[dict]:
@@ -4809,8 +5021,10 @@ def serve_oauth_protected_resource_metadata(request: Request):
 
 @app.get("/")
 @app.get("/itamar")
+@app.get("/trainers")
+@app.get("/join/{coach_code}")
 @app.get("/p/{partner_slug}")
-def serve_pwa(request: Request, partner_slug: str = None):
+def serve_pwa(request: Request, partner_slug: str = None, coach_code: str = None):
     accept_hdr = (request.headers.get("accept") or "").lower()
     if "text/markdown" in accept_hdr and (
         "text/html" not in accept_hdr or accept_hdr.find("text/markdown") < accept_hdr.find("text/html")
@@ -5025,6 +5239,14 @@ def api_auth_me(request: Request, response: Response):
                 "onboarding_completed": True,
                 "height_cm": 178,
                 "weight_kg": 75,
+                "coach_id": _LOCAL_USERS.get(local_uid, {}).get("coach_id"),
+                "coach_name": _LOCAL_USERS.get(local_uid, {}).get("coach_name"),
+                "trainer_coach_id": _LOCAL_USERS.get(local_uid, {}).get("trainer_coach_id"),
+                "trainer_coach_name": _LOCAL_USERS.get(local_uid, {}).get("trainer_coach_name"),
+                "trainer_studio_name": _LOCAL_USERS.get(local_uid, {}).get("trainer_studio_name"),
+                "trainer_linked_at": _LOCAL_USERS.get(local_uid, {}).get("trainer_linked_at"),
+                "last_trainer_reminder": _LOCAL_USERS.get(local_uid, {}).get("last_trainer_reminder"),
+                "has_trainer_portal": bool(get_coach_by_owner_uid(local_uid)),
                 "features": get_feature_flags(),
             }
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -5086,6 +5308,14 @@ def api_auth_me(request: Request, response: Response):
         "experts_access_status": user_doc.get("experts_access_status", "none"),
         "trial_workout_access_status": user_doc.get("trial_workout_access_status", "none"),
         "supplements_access_status": user_doc.get("supplements_access_status", "none"),
+        "coach_id": user_doc.get("coach_id"),
+        "coach_name": user_doc.get("coach_name"),
+        "trainer_coach_id": user_doc.get("trainer_coach_id"),
+        "trainer_coach_name": user_doc.get("trainer_coach_name"),
+        "trainer_studio_name": user_doc.get("trainer_studio_name"),
+        "trainer_linked_at": user_doc.get("trainer_linked_at"),
+        "last_trainer_reminder": user_doc.get("last_trainer_reminder"),
+        "has_trainer_portal": bool(get_coach_by_owner_uid(uid)),
         "telegram_linked": is_telegram_linked_for_user(uid),
         "features": get_feature_flags(),
     }
@@ -7697,13 +7927,17 @@ def api_auth_invite(invite_code: str, response: Response):
         samesite="lax",
         path="/",
     )
+    t_coach_id = trainee.get("coach_id", "itamar")
     return {
         "id": uid,
         "name": trainee.get("name", ""),
         "email": trainee.get("email", ""),
         "phone": trainee.get("phone", ""),
-        "coach_id": trainee.get("coach_id", "itamar"),
-        "coach_name": trainee.get("coach_name", "איתמר"),
+        "coach_id": t_coach_id if t_coach_id == "itamar" else None,
+        "coach_name": trainee.get("coach_name", "איתמר") if t_coach_id == "itamar" else None,
+        "trainer_coach_id": None if t_coach_id == "itamar" else t_coach_id,
+        "trainer_coach_name": None if t_coach_id == "itamar" else trainee.get("coach_name", ""),
+        "coach_type": "itamar" if t_coach_id == "itamar" else "premium_trainer",
         "target_calories": trainee.get("target_calories", 1800),
         "target_protein": trainee.get("target_protein", 120.0),
         "is_approved": True,
@@ -9995,14 +10229,19 @@ class BindCoachCodeRequest(BaseModel):
 @app.post("/api/user/bind-coach-code")
 def api_bind_coach_code(req: BindCoachCodeRequest, request: Request):
     """
-    Binds a user directly to a coach using an invite code (e.g. 'ITAMAR', 'איתמר', 'FIT2026').
+    Binds a user directly to either Coach Itamar (legacy/Itamar codes) or a Premium Trainer
+    using their Coach Code (e.g. 'DAN-4A2B') or personal Trainee Invite Code.
     """
     uid = get_request_user_id(request)
     if uid == "default":
         raise HTTPException(status_code=401, detail="יש להתחבר לחשבון כדי להזין קוד מאמן")
 
-    clean_code = (req.coach_code or "").strip().lower()
-    valid_codes = {
+    raw_code = (req.coach_code or "").strip()
+    clean_code = raw_code.lower()
+    if not clean_code:
+        raise HTTPException(status_code=400, detail="נא להזין קוד מאמן")
+
+    valid_itamar_codes = {
         "itamar": "itamar",
         "איתמר": "itamar",
         "coach-itamar": "itamar",
@@ -10010,33 +10249,161 @@ def api_bind_coach_code(req: BindCoachCodeRequest, request: Request):
         "nutriagent": "itamar",
         "100": "itamar"
     }
-    coach_id = valid_codes.get(clean_code)
-    if not coach_id:
-        raise HTTPException(status_code=400, detail="קוד מאמן לא תקין. בדוק עם המאמן שלך ונסה שוב")
-
     now_iso = get_israel_now().isoformat()
-    coach_data = {
-        "coach_id": coach_id,
-        "coach_name": "Coach Itamar (איתמר)",
-        "coach_bound_at": now_iso,
-        "coach_code_used": clean_code,
-        "updated_at": now_iso
+
+    # 1. Preserve Itamar flow untouched
+    if clean_code in valid_itamar_codes:
+        coach_id = valid_itamar_codes[clean_code]
+        coach_data = {
+            "coach_id": coach_id,
+            "coach_name": "Coach Itamar (איתמר)",
+            "coach_bound_at": now_iso,
+            "coach_code_used": clean_code,
+            "updated_at": now_iso
+        }
+        if db:
+            try:
+                db.collection("users").document(uid).set(coach_data, merge=True)
+            except Exception as e:
+                print(f"ERROR api_bind_coach_code: {e}")
+                raise HTTPException(status_code=500, detail="שגיאה בעדכון שיוך המאמן")
+        elif uid in _LOCAL_USERS:
+            _LOCAL_USERS[uid].update(coach_data)
+        return {
+            "status": "ok",
+            "coach_type": "itamar",
+            "coach_id": coach_id,
+            "coach_name": "Coach Itamar (איתמר)",
+            "message": "חוברת בהצלחה למאמן איתמר!"
+        }
+
+    # 2. Check Premium Trainers registry by coach_code
+    matched_coach = find_coach_by_code(raw_code)
+    matched_invite = None
+    if not matched_coach:
+        # 3. Check personal pre-provisioned trainee invite_code belonging to a Premium Trainer
+        inv = find_trainee_by_invite_code(raw_code)
+        if inv and inv.get("coach_id") and inv.get("coach_id") != "itamar":
+            matched_coach = get_coach_by_id(inv["coach_id"])
+            matched_invite = inv
+
+    if not matched_coach:
+        raise HTTPException(status_code=400, detail="קוד מאמן לא נמצא. בדוק עם המאמן שלך ונסה שוב")
+
+    if not is_coach_subscription_active(matched_coach):
+        raise HTTPException(status_code=403, detail="חשבון המאמן אינו פעיל כרגע לקליטת מתאמנים חדשים")
+
+    udoc = get_user_doc_db(uid)
+    already_linked_to_same = (udoc.get("trainer_coach_id") == matched_coach["id"])
+    max_seats = int(matched_coach.get("max_trainees") or 5)
+    if not already_linked_to_same and count_coach_active_trainees(matched_coach["id"]) >= max_seats:
+        raise HTTPException(status_code=403, detail="המאמן הגיע למכסת המתאמנים המקסימלית בחבילה שלו")
+
+    c_display = matched_coach.get("display_name") or "מאמן אישי"
+    c_studio = matched_coach.get("studio_name") or c_display
+    bind_payload = {
+        "trainer_coach_id": matched_coach["id"],
+        "trainer_coach_name": c_display,
+        "trainer_studio_name": c_studio,
+        "trainer_code_used": raw_code.upper(),
+        "trainer_linked_at": now_iso,
+        "approved_by_owner": True,
+        "updated_at": now_iso,
     }
+    if matched_invite:
+        t_cal = int(matched_invite.get("target_calories") or 1800)
+        t_prot = float(matched_invite.get("target_protein") or 120.0)
+        bind_payload["target_calories"] = t_cal
+        bind_payload["target_protein"] = t_prot
+        set_targets(t_cal, t_prot, user_id=uid)
+
     if db:
         try:
-            db.collection("users").document(uid).set(coach_data, merge=True)
+            db.collection("users").document(uid).set(bind_payload, merge=True)
+            if matched_invite:
+                db.collection("trainees").document(matched_invite["id"]).set({
+                    "linked_user_id": uid,
+                    "status": "linked_to_user",
+                    "updated_at": now_iso,
+                }, merge=True)
         except Exception as e:
-            print(f"ERROR api_bind_coach_code: {e}")
+            print(f"ERROR api_bind_coach_code trainer: {e}")
             raise HTTPException(status_code=500, detail="שגיאה בעדכון שיוך המאמן")
-    elif uid in _LOCAL_USERS:
-        _LOCAL_USERS[uid].update(coach_data)
+    else:
+        if uid not in _LOCAL_USERS:
+            _LOCAL_USERS[uid] = {"id": uid}
+        _LOCAL_USERS[uid].update(bind_payload)
+        if matched_invite and matched_invite["id"] in _LOCAL_TRAINEES:
+            _LOCAL_TRAINEES[matched_invite["id"]]["linked_user_id"] = uid
+            _LOCAL_TRAINEES[matched_invite["id"]]["status"] = "linked_to_user"
+
+    # Best-effort notify trainer that a trainee connected
+    try:
+        trainee_name = udoc.get("name") or udoc.get("email") or "מתאמן חדש"
+        owner_uid = matched_coach.get("owner_uid")
+        if owner_uid:
+            send_web_push_to_all(
+                title="🎉 מתאמן חדש התחבר אליך!",
+                body=f"{trainee_name} התחבר לרשימת המתאמנים שלך עם הקוד {matched_coach.get('coach_code')}",
+                tag=f"trainer-new-trainee-{uid}",
+                url="/trainers",
+                user_id=owner_uid,
+            )
+    except Exception:
+        pass
 
     return {
         "status": "ok",
-        "coach_id": coach_id,
-        "coach_name": "Coach Itamar (איתמר)",
-        "message": "חוברת בהצלחה למאמן איתמר!"
+        "coach_type": "premium_trainer",
+        "trainer_coach_id": matched_coach["id"],
+        "trainer_coach_name": c_display,
+        "trainer_studio_name": c_studio,
+        "is_approved": True,
+        "message": f"חוברת בהצלחה למאמן {c_display}!"
     }
+
+
+@app.post("/api/user/unlink-coach")
+def api_user_unlink_coach(request: Request):
+    """Allows a trainee to disconnect from their connected trainer/coach at any time."""
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר לחשבון תחילה")
+    now_iso = get_israel_now().isoformat()
+    if db:
+        try:
+            db.collection("users").document(uid).set({
+                "trainer_coach_id": None,
+                "trainer_coach_name": None,
+                "trainer_studio_name": None,
+                "trainer_code_used": None,
+                "trainer_linked_at": None,
+                "updated_at": now_iso,
+            }, merge=True)
+        except Exception as e:
+            print(f"ERROR api_user_unlink_coach: {e}")
+            raise HTTPException(status_code=500, detail="שגיאה בניתוק המאמן")
+    elif uid in _LOCAL_USERS:
+        for k in ("trainer_coach_id", "trainer_coach_name", "trainer_studio_name", "trainer_code_used", "trainer_linked_at"):
+            _LOCAL_USERS[uid].pop(k, None)
+        _LOCAL_USERS[uid]["updated_at"] = now_iso
+
+    return {"status": "ok", "message": "נותקת בהצלחה מהמאמן"}
+
+
+@app.post("/api/user/dismiss-trainer-reminder")
+def api_dismiss_trainer_reminder(request: Request):
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if db:
+        try:
+            db.collection("users").document(uid).set({"last_trainer_reminder": None}, merge=True)
+        except Exception:
+            pass
+    elif uid in _LOCAL_USERS:
+        _LOCAL_USERS[uid].pop("last_trainer_reminder", None)
+    return {"status": "ok"}
 
 
 class DeleteAccountSelfRequest(BaseModel):
@@ -10159,6 +10526,605 @@ def api_ping_admin_approval(req: PingAdminApprovalRequest, request: Request):
         "message": "תזכורת נשלחה למנהל המערכת בהצלחה!",
         "push_result": push_res
     }
+
+
+# ---------------------------------------------------------------------------
+# Premium Trainers Portal & Billing-Ready Infrastructure Endpoints
+# ---------------------------------------------------------------------------
+
+def _resolve_app_base_url(request: Request) -> str:
+    env_url = (os.getenv("PUBLIC_APP_URL") or "").strip().rstrip("/")
+    if env_url:
+        return env_url
+    try:
+        base = str(request.base_url).rstrip("/")
+        if base:
+            return base
+    except Exception:
+        pass
+    return "https://nutrition-service-313955139672.me-west1.run.app"
+
+
+def _require_trainer_coach(request: Request) -> tuple[str, dict]:
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר עם חשבון Google כדי להיכנס לפורטל המאמנים")
+    coach = get_coach_by_owner_uid(uid)
+    if not coach:
+        raise HTTPException(status_code=404, detail="עדיין לא נרשמת כמאמן פרימיום במערכת")
+    return uid, coach
+
+
+def _verify_trainee_belongs_to_coach(coach_id: str, trainee_uid: str) -> tuple[str, dict]:
+    """Verifies that trainee_uid belongs to coach_id (either as a linked user or pre-created invite)."""
+    udoc = get_user_doc_db(trainee_uid)
+    if udoc and udoc.get("trainer_coach_id") == coach_id:
+        return "user", udoc
+    t = _LOCAL_TRAINEES.get(trainee_uid)
+    if not t and db:
+        snap = db.collection("trainees").document(trainee_uid).get()
+        if snap.exists:
+            t = snap.to_dict() or {}
+            t["id"] = snap.id
+            _LOCAL_TRAINEES[snap.id] = t
+    if t and t.get("coach_id") == coach_id:
+        return "invite", t
+    raise HTTPException(status_code=403, detail="אין הרשאה: מתאמן זה אינו משויך אליך")
+
+
+class TrainerRegisterRequest(BaseModel):
+    display_name: str
+    studio_name: Optional[str] = ""
+    phone: Optional[str] = ""
+    specialty: Optional[str] = "fitness_trainer"
+
+
+class TrainerProfileUpdateRequest(BaseModel):
+    display_name: Optional[str] = None
+    studio_name: Optional[str] = None
+    phone: Optional[str] = None
+    specialty: Optional[str] = None
+
+
+class TrainerUpgradeRequest(BaseModel):
+    plan_tier: str = "pro"
+    notes: Optional[str] = ""
+
+
+class TrainerTraineeTargetsRequest(BaseModel):
+    target_calories: int
+    target_protein: float
+    coach_note: Optional[str] = ""
+
+
+class TrainerRemindTraineeRequest(BaseModel):
+    title: Optional[str] = "תזכורת מהמאמן שלך 💪"
+    message: str
+
+
+class AdminCoachUpdateRequest(BaseModel):
+    plan_tier: Optional[str] = None
+    subscription_status: Optional[str] = None
+    max_trainees: Optional[int] = None
+    monthly_price_ils: Optional[int] = None
+    extend_days: Optional[int] = None
+
+
+@app.get("/api/trainer/public/{coach_code}")
+def api_trainer_public_preview(coach_code: str):
+    """Public preview of a trainer when a trainee opens /join/{coach_code} or ?join_coach=."""
+    coach = find_coach_by_code(coach_code)
+    if not coach:
+        inv = find_trainee_by_invite_code(coach_code)
+        if inv and inv.get("coach_id") and inv.get("coach_id") != "itamar":
+            coach = get_coach_by_id(inv["coach_id"])
+    if not coach:
+        raise HTTPException(status_code=404, detail="קוד מאמן לא נמצא")
+    active_count = count_coach_active_trainees(coach["id"])
+    max_seats = int(coach.get("max_trainees") or 5)
+    return {
+        "coach_id": coach["id"],
+        "coach_code": coach.get("coach_code"),
+        "display_name": coach.get("display_name") or "מאמן אישי",
+        "studio_name": coach.get("studio_name") or coach.get("display_name") or "",
+        "specialty": coach.get("specialty") or "fitness_trainer",
+        "accepting_trainees": is_coach_subscription_active(coach) and active_count < max_seats,
+    }
+
+
+@app.get("/api/trainer/me")
+def api_trainer_me(request: Request):
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר תחילה")
+    coach = get_coach_by_owner_uid(uid)
+    app_base = _resolve_app_base_url(request)
+    bot_name = os.getenv("TELEGRAM_BOT_USERNAME", "Iftachtaskbot").lstrip("@")
+    if not coach:
+        return {
+            "has_coach_profile": False,
+            "plans": TRAINER_PLANS,
+        }
+    active_count = count_coach_active_trainees(coach["id"])
+    code = coach.get("coach_code", "")
+    join_link = f"{app_base}/join/{code}"
+    return {
+        "has_coach_profile": True,
+        "coach": {
+            **coach,
+            "active_trainees_count": active_count,
+            "join_link": join_link,
+            "join_query_link": f"{app_base}/?join_coach={code}",
+            "telegram_bot_username": bot_name,
+        },
+        "plans": TRAINER_PLANS,
+    }
+
+
+@app.post("/api/trainer/register")
+def api_trainer_register(req: TrainerRegisterRequest, request: Request):
+    """Registers an authenticated user into the Premium Trainers Portal (starts 14-day Free Trial)."""
+    uid = get_request_user_id(request)
+    if uid == "default":
+        raise HTTPException(status_code=401, detail="יש להתחבר עם חשבון Google תחילה")
+
+    existing = get_coach_by_owner_uid(uid)
+    if existing:
+        return {"ok": True, "already_exists": True, "coach": existing}
+
+    clean_name = (req.display_name or "").strip()
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="נא להזין שם מלא של המאמן / תזונאי")
+
+    udoc = get_user_doc_db(uid)
+    owner_email = (udoc.get("email") or "").strip().lower()
+    now_dt = get_israel_now()
+    now_iso = now_dt.isoformat()
+    trial_end_iso = (now_dt + timedelta(days=14)).isoformat()
+
+    coach_id = f"coach_{secrets.token_hex(6)}"
+    coach_code = _generate_unique_coach_code(clean_name)
+    trial_plan = TRAINER_PLANS["trial"]
+
+    coach_doc = {
+        "id": coach_id,
+        "owner_uid": uid,
+        "owner_email": owner_email,
+        "display_name": clean_name,
+        "studio_name": (req.studio_name or "").strip() or clean_name,
+        "phone": (req.phone or "").strip(),
+        "specialty": (req.specialty or "fitness_trainer").strip(),
+        "coach_code": coach_code,
+        # Billing-ready infrastructure fields (ready for future Stripe/PayPlus/Grow integration)
+        "plan_tier": "trial",
+        "subscription_status": "trialing",
+        "billing_provider": None,
+        "external_customer_id": None,
+        "external_subscription_id": None,
+        "monthly_price_ils": trial_plan["monthly_price_ils"],
+        "max_trainees": trial_plan["max_trainees"],
+        "trial_ends_at": trial_end_iso,
+        "current_period_end": trial_end_iso,
+        "pending_upgrade_plan": None,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+
+    _LOCAL_COACHES[coach_id] = dict(coach_doc)
+    if db:
+        try:
+            db.collection("coaches").document(coach_id).set(coach_doc, merge=True)
+            db.collection("users").document(uid).set({
+                "is_trainer_portal": True,
+                "trainer_profile_id": coach_id,
+                "approved_by_owner": True,
+                "updated_at": now_iso,
+            }, merge=True)
+        except Exception as e:
+            print(f"ERROR api_trainer_register Firestore: {e}")
+    elif uid in _LOCAL_USERS:
+        _LOCAL_USERS[uid]["is_trainer_portal"] = True
+        _LOCAL_USERS[uid]["trainer_profile_id"] = coach_id
+        _LOCAL_USERS[uid]["approved_by_owner"] = True
+
+    try:
+        dispatch_push_to_admins(
+            title="🏋️‍♂️ מאמן חדש הצטרף לפורטל הפרימיום!",
+            body=f"{clean_name} ({coach_doc['studio_name']}) — קוד: {coach_code} (ניסיון 14 יום)",
+            tag=f"new-trainer-{coach_id}",
+            url="/?tab=admin",
+        )
+        _send_admin_telegram_text(
+            f"🏋️‍♂️ <b>מאמן חדש נרשם לפורטל Pro (תקופת ניסיון)</b>\n"
+            f"👤 <b>שם:</b> {html.escape(clean_name)}\n"
+            f"🏢 <b>סטודיו:</b> {html.escape(coach_doc['studio_name'])}\n"
+            f"🔑 <b>קוד מאמן:</b> <code>{coach_code}</code>\n"
+            f"📧 {html.escape(owner_email)}"
+        )
+    except Exception:
+        pass
+
+    app_base = _resolve_app_base_url(request)
+    coach_doc["join_link"] = f"{app_base}/join/{coach_code}"
+    coach_doc["active_trainees_count"] = 0
+    return {"ok": True, "coach": coach_doc}
+
+
+@app.put("/api/trainer/profile")
+def api_trainer_update_profile(req: TrainerProfileUpdateRequest, request: Request):
+    _, coach = _require_trainer_coach(request)
+    coach_id = coach["id"]
+    updates = {"updated_at": get_israel_now().isoformat()}
+    if req.display_name is not None and req.display_name.strip():
+        updates["display_name"] = req.display_name.strip()
+    if req.studio_name is not None:
+        updates["studio_name"] = req.studio_name.strip() or coach.get("display_name", "")
+    if req.phone is not None:
+        updates["phone"] = req.phone.strip()
+    if req.specialty is not None:
+        updates["specialty"] = req.specialty.strip()
+
+    coach.update(updates)
+    _LOCAL_COACHES[coach_id] = dict(coach)
+    if db:
+        try:
+            db.collection("coaches").document(coach_id).set(updates, merge=True)
+        except Exception as e:
+            print(f"ERROR api_trainer_update_profile: {e}")
+    return {"ok": True, "coach": coach}
+
+
+@app.post("/api/trainer/upgrade-request")
+def api_trainer_upgrade_request(req: TrainerUpgradeRequest, request: Request):
+    """Billing-ready hook: records plan upgrade intent and alerts Admin (until payment gateway is connected)."""
+    _, coach = _require_trainer_coach(request)
+    tier = (req.plan_tier or "pro").strip().lower()
+    if tier not in TRAINER_PLANS:
+        raise HTTPException(status_code=400, detail="מסלול לא תקין")
+    plan_info = TRAINER_PLANS[tier]
+    now_iso = get_israel_now().isoformat()
+    updates = {
+        "pending_upgrade_plan": tier,
+        "upgrade_requested_at": now_iso,
+        "upgrade_notes": (req.notes or "").strip(),
+        "updated_at": now_iso,
+    }
+    _LOCAL_COACHES[coach["id"]].update(updates)
+    if db:
+        try:
+            db.collection("coaches").document(coach["id"]).set(updates, merge=True)
+        except Exception as e:
+            print(f"ERROR api_trainer_upgrade_request: {e}")
+    try:
+        dispatch_push_to_admins(
+            title=f"💳 בקשת שדרוג ממאמן למסלול {plan_info['name_he']}",
+            body=f"{coach.get('display_name')} ({coach.get('owner_email')}) מבקש לשדרג ל-{plan_info['name_he']} ({plan_info['monthly_price_ils']} ₪/חודש)",
+            tag=f"trainer-upgrade-{coach['id']}",
+            url="/?tab=admin",
+        )
+        _send_admin_telegram_text(
+            f"💳 <b>בקשת שדרוג ממאמן</b>\n"
+            f"👤 <b>מאמן:</b> {html.escape(str(coach.get('display_name')))}\n"
+            f"📦 <b>מסלול מבוקש:</b> {html.escape(plan_info['name_he'])} ({plan_info['monthly_price_ils']} ₪)\n"
+            f"📞 <b>טלפון:</b> {html.escape(str(coach.get('phone') or 'לא הוזן'))}\n"
+            f"📝 {html.escape(str(req.notes or ''))}"
+        )
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "message": f"בקשת השדרוג למסלול {plan_info['name_he']} התקבלה! צוות המערכת יפעיל עבורך את החבילה.",
+        "pending_upgrade_plan": tier,
+    }
+
+
+@app.get("/api/trainer/trainees")
+def api_trainer_list_trainees(request: Request):
+    """Lists all trainees belonging strictly to the authenticated Premium Trainer."""
+    _, coach = _require_trainer_coach(request)
+    coach_id = coach["id"]
+    app_base = _resolve_app_base_url(request)
+    bot_name = os.getenv("TELEGRAM_BOT_USERNAME", "Iftachtaskbot").lstrip("@")
+
+    roster = []
+    seen_uids = set()
+
+    # 1. Google/app users who linked via coach code or QR
+    for u in _get_coach_linked_users_raw(coach_id):
+        t_uid = u["id"]
+        seen_uids.add(t_uid)
+        s = get_day_summary(user_id=t_uid)
+        w = get_daily_water_db(user_id=t_uid)
+        subs = get_push_subscriptions_db(user_id=t_uid)
+        t_cal = int(s.get("target_calories") or u.get("target_calories") or 1800)
+        t_prot = float(s.get("target_protein") or u.get("target_protein") or 120.0)
+        roster.append({
+            "id": t_uid,
+            "source_type": "user",
+            "name": u.get("name") or (u.get("email") or "").split("@")[0] or "מתאמן",
+            "email": u.get("email") or "",
+            "phone": u.get("phone") or "",
+            "picture": u.get("picture") or "",
+            "status": "active",
+            "linked_at": u.get("trainer_linked_at") or "",
+            "telegram_linked": is_telegram_linked_for_user(t_uid),
+            "push_devices_count": len(subs),
+            "today_calories": s.get("total_calories", 0),
+            "target_calories": t_cal,
+            "today_protein": s.get("total_protein", 0),
+            "target_protein": t_prot,
+            "today_water_ml": w.get("water_ml", 0),
+            "meals_count": len(s.get("meals", [])),
+            "coach_note": u.get("trainer_coach_note") or "",
+            "last_reminder_at": (u.get("last_trainer_reminder") or {}).get("sent_at") if isinstance(u.get("last_trainer_reminder"), dict) else None,
+        })
+
+    # 2. Pre-created personal invite records not yet bound to a separate Google user
+    for t in list_coach_trainees(coach_id=coach_id):
+        if t.get("linked_user_id") and t["linked_user_id"] in seen_uids:
+            continue
+        t_uid = t["id"]
+        inv = t.get("invite_code", "")
+        subs = get_push_subscriptions_db(user_id=t_uid)
+        web_link = f"{app_base}/?invite={inv}"
+        tg_link = f"https://t.me/{bot_name}?start=pair_{inv}"
+        roster.append({
+            "id": t_uid,
+            "source_type": "invite",
+            "name": t.get("name") or "מתאמן מוזמן",
+            "email": t.get("email") or "",
+            "phone": t.get("phone") or "",
+            "picture": "",
+            "status": t.get("status") or "pending",
+            "invite_code": inv,
+            "web_link": web_link,
+            "telegram_link": tg_link,
+            "whatsapp_share_text": (
+                f"היי {t.get('name')}, כאן {coach.get('display_name')} המאמן שלך!\n"
+                f"הכנתי לך חשבון מעקב תזונה אישי 💪\n\n"
+                f"להצטרפות באפליקציה:\n{web_link}\n\n"
+                f"או לחיבור ישיר לבוט בטלגרם:\n{tg_link}\n\n"
+                f"קוד אישי להזנה באפליקציה: {inv}"
+            ),
+            "linked_at": t.get("created_at") or "",
+            "telegram_linked": bool(t.get("telegram_linked")),
+            "push_devices_count": len(subs),
+            "today_calories": t.get("today_calories", 0),
+            "target_calories": int(t.get("target_calories") or 1800),
+            "today_protein": t.get("today_protein", 0),
+            "target_protein": float(t.get("target_protein") or 120.0),
+            "today_water_ml": t.get("today_water_ml", 0),
+            "meals_count": t.get("meals_count", 0),
+            "coach_note": t.get("notes") or "",
+        })
+
+    return {
+        "coach": coach,
+        "active_count": len(roster),
+        "max_trainees": int(coach.get("max_trainees") or 5),
+        "trainees": roster,
+    }
+
+
+@app.post("/api/trainer/trainees")
+def api_trainer_create_trainee(req: CoachTraineeCreateRequest, request: Request):
+    """Creates a pre-configured trainee invite owned by this Premium Trainer (with Web + Telegram + QR)."""
+    _, coach = _require_trainer_coach(request)
+    if not is_coach_subscription_active(coach):
+        raise HTTPException(status_code=403, detail="המנוי שלך אינו פעיל כרגע")
+    max_seats = int(coach.get("max_trainees") or 5)
+    if count_coach_active_trainees(coach["id"]) >= max_seats:
+        raise HTTPException(status_code=403, detail=f"הגעת למכסת המתאמנים בחבילה ({max_seats}). שדרג חבילה כדי להוסיף עוד מתאמנים.")
+    if not (req.name or "").strip():
+        raise HTTPException(status_code=400, detail="שם המתאמן הוא שדה חובה")
+
+    app_base = _resolve_app_base_url(request)
+    record = create_trainee_record(
+        coach_id=coach["id"],
+        name=req.name,
+        phone=req.phone or "",
+        email=req.email or "",
+        target_calories=req.target_calories or 1800,
+        target_protein=req.target_protein or 120.0,
+        notes=req.notes or "",
+        coach_name=coach.get("display_name") or "המאמן שלך",
+        code_prefix=coach.get("coach_code") or "TR",
+        app_base_override=app_base,
+    )
+    return {"ok": True, "trainee": record}
+
+
+@app.get("/api/trainer/trainees/{trainee_uid}/diary")
+def api_trainer_trainee_diary(trainee_uid: str, request: Request, log_date: Optional[str] = None):
+    """Returns a trainee's calorie & nutrition diary for the owning Premium Trainer."""
+    _, coach = _require_trainer_coach(request)
+    kind, rec = _verify_trainee_belongs_to_coach(coach["id"], trainee_uid)
+    d_str = log_date or get_israel_today_str()
+    summary = get_day_summary(d_str, user_id=trainee_uid)
+    water = get_daily_water_db(d_str, user_id=trainee_uid)
+    weights = get_weights_db(limit=7, user_id=trainee_uid)
+    hist = _fetch_user_history(uid=trainee_uid, days=7)
+    return {
+        "trainee": {
+            "id": trainee_uid,
+            "source_type": kind,
+            "name": rec.get("name") or "מתאמן",
+            "email": rec.get("email") or "",
+            "phone": rec.get("phone") or "",
+            "telegram_linked": is_telegram_linked_for_user(trainee_uid) if kind == "user" else bool(rec.get("telegram_linked")),
+            "push_devices_count": len(get_push_subscriptions_db(user_id=trainee_uid)),
+            "coach_note": rec.get("trainer_coach_note") or rec.get("notes") or "",
+        },
+        "summary": summary,
+        "water": water,
+        "weights": weights,
+        "daily_trend": hist.get("daily_trend", []),
+    }
+
+
+@app.put("/api/trainer/trainees/{trainee_uid}/targets")
+def api_trainer_update_trainee_targets(trainee_uid: str, req: TrainerTraineeTargetsRequest, request: Request):
+    """Allows the owning trainer to update a trainee's calorie/protein targets and coach note."""
+    _, coach = _require_trainer_coach(request)
+    kind, _ = _verify_trainee_belongs_to_coach(coach["id"], trainee_uid)
+    cal = max(800, min(8000, int(req.target_calories)))
+    prot = max(20.0, min(500.0, float(req.target_protein)))
+    set_targets(cal, prot, user_id=trainee_uid)
+    now_iso = get_israel_now().isoformat()
+    note = (req.coach_note or "").strip()
+
+    if kind == "user":
+        updates = {"target_calories": cal, "target_protein": prot, "trainer_coach_note": note, "updated_at": now_iso}
+        if db:
+            db.collection("users").document(trainee_uid).set(updates, merge=True)
+        elif trainee_uid in _LOCAL_USERS:
+            _LOCAL_USERS[trainee_uid].update(updates)
+    else:
+        updates = {"target_calories": cal, "target_protein": prot, "notes": note, "updated_at": now_iso}
+        if trainee_uid in _LOCAL_TRAINEES:
+            _LOCAL_TRAINEES[trainee_uid].update(updates)
+        if db:
+            db.collection("trainees").document(trainee_uid).set(updates, merge=True)
+
+    return {"ok": True, "target_calories": cal, "target_protein": prot, "coach_note": note}
+
+
+@app.post("/api/trainer/trainees/{trainee_uid}/remind")
+def api_trainer_remind_trainee(trainee_uid: str, req: TrainerRemindTraineeRequest, request: Request):
+    """
+    Sends a simple push reminder from Trainer -> Trainee across all available channels:
+    Web Push + Telegram (if linked) + In-app banner fallback.
+    """
+    _, coach = _require_trainer_coach(request)
+    kind, rec = _verify_trainee_belongs_to_coach(coach["id"], trainee_uid)
+    clean_msg = (req.message or "").strip()
+    if not clean_msg:
+        raise HTTPException(status_code=400, detail="נא להזין הודעת תזכורת קצרה")
+
+    coach_name = coach.get("display_name") or "המאמן שלך"
+    title = (req.title or "").strip() or f"תזכורת מהמאמן {coach_name} 💪"
+    now_iso = get_israel_now().isoformat()
+
+    # 1. Web Push delivery
+    push_res = send_web_push_to_all(
+        title=title,
+        body=clean_msg[:220],
+        tag=f"trainer-reminder-{coach['id']}",
+        url="/",
+        user_id=trainee_uid,
+    )
+
+    # 2. Telegram delivery (if trainee linked Telegram)
+    tg_sent = send_telegram_message_to_user(
+        trainee_uid,
+        f"💬 <b>תזכורת מ{html.escape(coach_name)}:</b>\n{html.escape(clean_msg)}"
+    )
+
+    # 3. Save in-app reminder banner so trainee always sees it upon opening the app
+    reminder_obj = {
+        "coach_id": coach["id"],
+        "coach_name": coach_name,
+        "title": title,
+        "message": clean_msg[:300],
+        "sent_at": now_iso,
+    }
+    if db:
+        try:
+            col = "users" if kind == "user" else "trainees"
+            db.collection(col).document(trainee_uid).set({"last_trainer_reminder": reminder_obj}, merge=True)
+        except Exception as e:
+            print(f"WARN saving in-app reminder: {e}")
+    else:
+        if kind == "user" and trainee_uid in _LOCAL_USERS:
+            _LOCAL_USERS[trainee_uid]["last_trainer_reminder"] = reminder_obj
+        elif kind == "invite" and trainee_uid in _LOCAL_TRAINEES:
+            _LOCAL_TRAINEES[trainee_uid]["last_trainer_reminder"] = reminder_obj
+
+    return {
+        "ok": True,
+        "push_sent": int(push_res.get("sent", 0)),
+        "telegram_sent": bool(tg_sent),
+        "in_app_saved": True,
+        "message": "התזכורת נשלחה בהצלחה!",
+    }
+
+
+@app.post("/api/trainer/trainees/{trainee_uid}/unlink")
+@app.delete("/api/trainer/trainees/{trainee_uid}")
+def api_trainer_unlink_trainee(trainee_uid: str, request: Request):
+    """Allows a trainer to disconnect/remove a trainee from their roster for any reason."""
+    _, coach = _require_trainer_coach(request)
+    kind, _ = _verify_trainee_belongs_to_coach(coach["id"], trainee_uid)
+    now_iso = get_israel_now().isoformat()
+
+    if kind == "user":
+        if db:
+            db.collection("users").document(trainee_uid).set({
+                "trainer_coach_id": None,
+                "trainer_coach_name": None,
+                "trainer_studio_name": None,
+                "trainer_code_used": None,
+                "trainer_linked_at": None,
+                "updated_at": now_iso,
+            }, merge=True)
+        elif trainee_uid in _LOCAL_USERS:
+            for k in ("trainer_coach_id", "trainer_coach_name", "trainer_studio_name", "trainer_code_used", "trainer_linked_at"):
+                _LOCAL_USERS[trainee_uid].pop(k, None)
+            _LOCAL_USERS[trainee_uid]["updated_at"] = now_iso
+    else:
+        delete_trainee_record(trainee_uid)
+
+    return {"ok": True, "unlinked_id": trainee_uid, "message": "המתאמן נותק בהצלחה"}
+
+
+@app.get("/api/admin/coaches")
+def api_admin_list_coaches(request: Request):
+    require_admin_user(request)
+    coaches = list_coaches_db()
+    enriched = []
+    for c in coaches:
+        item = dict(c)
+        item["active_trainees_count"] = count_coach_active_trainees(c["id"])
+        enriched.append(item)
+    return {"coaches": enriched, "plans": TRAINER_PLANS}
+
+
+@app.put("/api/admin/coaches/{coach_id}")
+def api_admin_update_coach(coach_id: str, req: AdminCoachUpdateRequest, request: Request):
+    require_admin_user(request)
+    coach = get_coach_by_id(coach_id)
+    if not coach:
+        raise HTTPException(status_code=404, detail="מאמן לא נמצא")
+    now_dt = get_israel_now()
+    updates = {"updated_at": now_dt.isoformat(), "pending_upgrade_plan": None}
+
+    if req.plan_tier and req.plan_tier in TRAINER_PLANS:
+        plan = TRAINER_PLANS[req.plan_tier]
+        updates["plan_tier"] = req.plan_tier
+        updates["max_trainees"] = req.max_trainees if req.max_trainees is not None else plan["max_trainees"]
+        updates["monthly_price_ils"] = req.monthly_price_ils if req.monthly_price_ils is not None else plan["monthly_price_ils"]
+    else:
+        if req.max_trainees is not None:
+            updates["max_trainees"] = max(1, int(req.max_trainees))
+        if req.monthly_price_ils is not None:
+            updates["monthly_price_ils"] = max(0, int(req.monthly_price_ils))
+
+    if req.subscription_status in ("trialing", "active", "paused", "past_due", "cancelled"):
+        updates["subscription_status"] = req.subscription_status
+
+    if req.extend_days and int(req.extend_days) > 0:
+        updates["current_period_end"] = (now_dt + timedelta(days=int(req.extend_days))).isoformat()
+
+    coach.update(updates)
+    _LOCAL_COACHES[coach_id] = dict(coach)
+    if db:
+        try:
+            db.collection("coaches").document(coach_id).set(updates, merge=True)
+        except Exception as e:
+            print(f"ERROR api_admin_update_coach: {e}")
+
+    return {"ok": True, "coach": coach}
+
 
 
 

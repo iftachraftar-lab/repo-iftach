@@ -48,6 +48,8 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
+    <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
     <script src="/static/js/translations.js?v=131"></script>
     <style>
@@ -282,6 +284,28 @@
                 </p>
             </article>
 
+            <!-- Join-by-Coach Preview Banner (when arriving via /join/CODE or QR scan) -->
+            <div x-cloak x-show="pendingJoinCoachPreview" class="p-3.5 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 text-right space-y-1">
+                <div class="flex items-center gap-2 text-xs font-black text-indigo-950">
+                    <span>🏋️‍♂️</span>
+                    <span>הוזמנת לליווי תזונתי ע״י <span x-text="pendingJoinCoachPreview?.studio_name || pendingJoinCoachPreview?.display_name"></span></span>
+                </div>
+                <p class="text-[11px] text-indigo-800">
+                    התחבר עם Google למטה ומיד תחובר אוטומטית למאמן שלך (<span class="font-mono font-bold" x-text="pendingJoinCoachPreview?.coach_code"></span>).
+                </p>
+            </div>
+
+            <!-- Trainer Portal Entrance Banner (when arriving via /trainers) -->
+            <div x-cloak x-show="wantsTrainerPortal && !pendingJoinCoachPreview" class="p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950 text-white text-right space-y-1">
+                <div class="flex items-center gap-2 text-xs font-black text-amber-300">
+                    <span>👑</span>
+                    <span>כניסת מאמנים ודיאטנים — שירות פרימיום</span>
+                </div>
+                <p class="text-[11px] text-slate-200">
+                    התחבר עם Google כדי להיכנס לפורטל המאמנים, להפיק קוד/QR אישי ולנהל את המתאמנים שלך (14 יום ניסיון בחינם).
+                </p>
+            </div>
+
             <!-- Official Google Identity Services Sign-In Box (x-cloak prevents flashing on refresh for logged-in users) -->
             <div x-cloak x-show="!currentUser && googleClientId" class="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center space-y-3.5 text-center">
                 <div class="space-y-0.5">
@@ -300,6 +324,16 @@
                         לתנאי השימוש ומדיניות הפרטיות
                     </button>
                 </div>
+            </div>
+
+            <!-- Trainers Entrance Switcher (Separate Premium Service) -->
+            <div x-cloak x-show="!currentUser && appMode !== 'coaching'" class="pt-1">
+                <button type="button" @click="enterTrainerPortalFromGate()"
+                        class="w-full py-2.5 px-4 rounded-2xl border text-xs font-black transition cursor-pointer flex items-center justify-center gap-2"
+                        :class="wantsTrainerPortal ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-indigo-50/80 hover:bg-indigo-100 text-indigo-950 border-indigo-200'">
+                    <span>🏋️‍♂️</span>
+                    <span x-text="wantsTrainerPortal ? '✓ מצב כניסת מאמנים פעיל (לחץ למעבר)' : 'מאמן כושר או תזונאי? כניסת מאמנים (Pro)'"></span>
+                </button>
             </div>
         </div>
     </div>
@@ -327,6 +361,20 @@
             <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 space-y-1.5 text-right">
                 <div class="font-bold text-slate-800">💡 מה קורה עכשיו?</div>
                 <p>ברגע שמנהל המערכת יאשר את החשבון שלך בלוח הבקרה, תוכל ללחוץ על הכפתור למטה ולהיכנס מיידית ליומן האישי שלך.</p>
+            </div>
+
+            <!-- Fast Coach Code Unlock on Pending Gate -->
+            <div class="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-200 text-right space-y-2">
+                <div class="text-xs font-black text-indigo-950">🔑 קיבלת קוד ממאמן אישי?</div>
+                <div class="flex gap-2">
+                    <input type="text" x-model="coachCodeInput" @keyup.enter="submitCoachCode()"
+                           placeholder="הזן קוד מאמן (למשל FIT-4A2B)"
+                           class="flex-1 px-3 py-2 rounded-xl bg-white border border-indigo-200 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500">
+                    <button type="button" @click="submitCoachCode()" :disabled="coachCodeBinding"
+                            class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer transition flex-shrink-0">
+                        <span x-text="coachCodeBinding ? 'מחבר...' : 'התחבר'"></span>
+                    </button>
+                </div>
             </div>
 
             <div class="space-y-2.5 pt-1">
@@ -396,14 +444,24 @@
                     <svg class="w-4 h-4 text-emerald-700 flex-shrink-0"><use href="#icon-wolt-dish"></use></svg>
                     <span x-text="t('tabRecipes', 'מתכונים ו-Wolt')">מתכונים ו-Wolt</span>
                 </button>
-                <!-- Organic Experts Directory (Dietitians, Instructors & Trainers) -->
+                <!-- Organic Experts & Gyms Directory -->
                 <button x-cloak x-show="appMode !== 'coaching'"
                     type="button"
                     @click="openExpertsDirectory('dietitian')"
                     class="h-8 px-2.5 sm:px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 font-medium hover:bg-white/60"
-                    title="נבחרת מאמני כושר, מדריכים ותזונאים קליניים עם הטבת שיחת ייעוץ חינם">
-                    <span>🤝</span>
-                    <span>מאמנים ותזונאים</span>
+                    title="נבחרת מכוני כושר, סטודיו ומתחמי אימון עם הטבת היכרות">
+                    <span>🏋️</span>
+                    <span>מכוני כושר</span>
+                </button>
+                <!-- Active Trainer Studio Shortcut (shown in top nav only once registered as a Pro Trainer) -->
+                <button x-cloak x-show="currentUser?.has_trainer_portal || activeTab === 'trainer_portal'"
+                    type="button"
+                    @click="openTrainerPortal()"
+                    :class="activeTab === 'trainer_portal' ? 'bg-indigo-600 text-white shadow-2xs font-bold' : 'text-indigo-700 hover:bg-indigo-50 font-semibold'"
+                    class="h-8 px-2.5 sm:px-3 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="ניהול המתאמנים שלך בפורטל המאמנים (Pro)">
+                    <span>🏋️‍♂️</span>
+                    <span>המתאמנים שלי</span>
                 </button>
                 <!-- Coach / Trainees Hub Tab for Coach & Admin -->
                 <button x-cloak x-show="appMode === 'coaching' && isCoachOrAdmin()"
@@ -721,6 +779,37 @@
 
             <!-- REGULAR METABOLIC JOURNAL & SLOTS (Shown when in Summary sub-tab) -->
             <div x-show="coachingSubTab === 'summary'" class="space-y-4 sm:space-y-5">
+
+            <!-- In-App Reminder Banner from Personal Trainer -->
+            <div x-cloak x-show="currentUser?.last_trainer_reminder"
+                 class="p-3.5 sm:p-4 rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white shadow-md flex items-center justify-between gap-3">
+                <div class="flex items-start gap-2.5 min-w-0">
+                    <span class="text-xl flex-shrink-0">🔔</span>
+                    <div class="min-w-0">
+                        <div class="text-xs font-black text-amber-200" x-text="currentUser?.last_trainer_reminder?.title || 'תזכורת מהמאמן שלך'"></div>
+                        <p class="text-xs sm:text-sm font-bold text-white leading-snug break-words" x-text="currentUser?.last_trainer_reminder?.message"></p>
+                    </div>
+                </div>
+                <button type="button" @click="dismissTrainerReminder()"
+                        class="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-black flex-shrink-0 cursor-pointer transition">
+                    ✓ הבנתי
+                </button>
+            </div>
+
+            <!-- Connected Personal Trainer Status Pill (Organic/Full Mode) -->
+            <div x-cloak x-show="appMode !== 'coaching' && currentUser?.trainer_coach_id"
+                 class="px-4 py-2.5 rounded-2xl bg-indigo-50/90 border border-indigo-200 flex items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-base">🏋️‍♂️</span>
+                    <span class="font-bold text-indigo-950 truncate">
+                        מלווה ע״י: <strong x-text="currentUser?.trainer_studio_name || currentUser?.trainer_coach_name"></strong>
+                    </span>
+                </div>
+                <button type="button" @click="openUserAuthModal()"
+                        class="text-[11px] font-extrabold text-indigo-700 hover:text-indigo-950 underline cursor-pointer flex-shrink-0">
+                    ניהול חיבור
+                </button>
+            </div>
 
             <!-- 14-Day Rolling Interactive Strip (Calm Rounded Squares + Horizontal Scroll + Hover Pill) -->
             <div class="relative"
@@ -3412,9 +3501,301 @@
 
                 </div>
             </div>
+        </div>
 
         <!-- =============================================================== -->
+        <!-- TAB: PREMIUM TRAINERS PORTAL (MULTI-COACH SAAS, SEPARATE FROM ITAMAR) -->
+        <!-- =============================================================== -->
+        <div x-show="activeTab === 'trainer_portal'" x-cloak x-transition.opacity class="space-y-6">
+
+            <!-- Loading State -->
+            <div x-show="trainerPortalLoading" class="bg-white rounded-3xl p-10 text-center border border-slate-200/80 shadow-xs space-y-2">
+                <div class="text-2xl animate-spin inline-block">🔄</div>
+                <p class="text-xs font-bold text-slate-500">טוען את פורטל המאמנים...</p>
+            </div>
+
+            <!-- STATE A: Not Registered Yet -> Premium Trainers Entrance & 14-Day Free Trial Onboarding -->
+            <div x-show="!trainerPortalLoading && (!trainerMe || !trainerMe.has_coach_profile)" class="space-y-6">
+                <div class="bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-5">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-black">
+                        <span>👑</span>
+                        <span>כניסת מאמנים ודיאטנים — שירות פרימיום</span>
+                    </div>
+                    <div class="space-y-2">
+                        <h2 class="text-2xl sm:text-3xl font-black">נהל את כל המתאמנים שלך ממקום אחד</h2>
+                        <p class="text-xs sm:text-sm text-indigo-100/90 max-w-2xl leading-relaxed">
+                            קבל קוד מאמן אישי, קישור הצטרפות וברקוד QR לסריקה מיידית. המתאמנים מתעדים ארוחות בצילום, טקסט, קול או בטלגרם — ואתה צופה ביומן הקלורי, מעדכן יעדים ושולח תזכורות פוש בלחיצה.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                        <div class="p-4 rounded-2xl bg-white/10 border border-white/15 space-y-1.5">
+                            <div class="text-xs font-black text-emerald-300">ניסיון חינם 14 יום</div>
+                            <div class="text-xl font-black">0 ₪</div>
+                            <p class="text-[11px] text-slate-200">עד 5 מתאמנים פעילים • קוד + קישור + QR מלא</p>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-indigo-500/25 border border-indigo-400/40 space-y-1.5">
+                            <div class="text-xs font-black text-amber-300">Trainer Pro (מומלץ)</div>
+                            <div class="text-xl font-black">149 ₪ <span class="text-xs font-normal text-indigo-200">/ לחודש</span></div>
+                            <p class="text-[11px] text-slate-200">עד 30 מתאמנים פעילים • יומן מלא + תזכורות פוש</p>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-white/10 border border-white/15 space-y-1.5">
+                            <div class="text-xs font-black text-purple-300">Studio Elite</div>
+                            <div class="text-xl font-black">349 ₪ <span class="text-xs font-normal text-indigo-200">/ לחודש</span></div>
+                            <p class="text-[11px] text-slate-200">עד 100 מתאמנים • מותאם לסטודיו וקליניקות</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trainer Registration Form -->
+                <form @submit.prevent="registerAsTrainer()" class="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-4">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h3 class="text-lg font-black text-slate-900">🚀 פתיחת חשבון מאמן (14 יום ניסיון בחינם)</h3>
+                        <p class="text-xs text-slate-500">מיד לאחר הרישום יופקו עבורך קוד מאמן, קישור הצטרפות וברקוד QR אישי</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">שם מלא של המאמן / תזונאי *</label>
+                            <input type="text" required x-model="trainerRegForm.display_name" placeholder="למשל: דן לוי"
+                                   class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">שם הסטודיו / המותג (יוצג למתאמנים)</label>
+                            <input type="text" x-model="trainerRegForm.studio_name" placeholder="למשל: DanFit Studio"
+                                   class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">טלפון ליצירת קשר</label>
+                            <input type="tel" x-model="trainerRegForm.phone" placeholder="050-0000000"
+                                   class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">התמחות</label>
+                            <select x-model="trainerRegForm.specialty"
+                                    class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500">
+                                <option value="fitness_trainer">מאמן/ת כושר אישי</option>
+                                <option value="dietitian">דיאטן/ית קליני/ת</option>
+                                <option value="nutrition_coach">מאמן/ת תזונה וחיטוב</option>
+                                <option value="pilates_yoga">פילאטיס / סטודיו בוטיק</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="pt-2 flex justify-end">
+                        <button type="submit" :disabled="trainerRegistering"
+                                class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-xs sm:text-sm shadow-md transition cursor-pointer">
+                            <span x-text="trainerRegistering ? 'פותח פורטל מאמן...' : 'התחל ניסיון חינם והפק קוד + QR ➔'"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- STATE B: Active / Trial Trainer Studio Dashboard -->
+            <div x-show="!trainerPortalLoading && trainerMe && trainerMe.has_coach_profile" class="space-y-5">
+
+                <!-- Studio Header & Subscription Status Bar -->
+                <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-black"
+                                  :class="trainerMe?.coach?.subscription_status === 'active' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' : 'bg-amber-400/20 text-amber-300 border border-amber-400/30'"
+                                  x-text="trainerMe?.coach?.plan_tier === 'pro' ? '👑 Trainer Pro' : (trainerMe?.coach?.plan_tier === 'studio' ? '🏢 Studio Elite' : '⏳ תקופת ניסיון (14 יום)')"></span>
+                            <span class="px-2.5 py-0.5 rounded-full bg-white/10 text-indigo-100 text-[11px] font-bold">
+                                👥 <span x-text="trainerTrainees.length"></span> / <span x-text="trainerMe?.coach?.max_trainees || 5"></span> מתאמנים
+                            </span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-black" x-text="trainerMe?.coach?.studio_name || trainerMe?.coach?.display_name || 'פורטל מאמן'"></h2>
+                        <p class="text-xs text-indigo-200">
+                            ניהול מתאמנים עצמאי • מעקב יומן קלורי ושליחת תזכורות פוש ישירות
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" @click="fetchTrainerDashboard()"
+                                class="px-3.5 py-2 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition cursor-pointer">
+                            🔄 רענן
+                        </button>
+                        <button type="button" @click="showTrainerUpgradeModal = true"
+                                class="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xs transition cursor-pointer shadow-md">
+                            👑 שדרג חבילה / הרחב מכסה
+                        </button>
+                    </div>
+                </div>
+
+                <!-- In-House Trainer Share Kit: Code + Link + Live QR Barcode -->
+                <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+                        <div class="lg:col-span-8 space-y-4">
+                            <div>
+                                <h3 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                                    <span>🔗</span>
+                                    <span>ערכת חיבור מתאמנים (קוד אישי, קישור ו-QR)</span>
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-0.5">
+                                    המתאמן יכול <strong>לסרוק את ה-QR</strong>, ללחוץ על <strong>הקישור</strong>, או להקליד את <strong>קוד המאמן</strong> בתוך האפליקציה כדי להתחבר אליך מיידית.
+                                </p>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <!-- Code Box -->
+                                <div class="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-200 space-y-1.5">
+                                    <span class="text-[11px] font-bold text-indigo-800 block">קוד מאמן להזנה באפליקציה:</span>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="font-mono text-lg font-black text-indigo-950 tracking-wider select-all" dir="ltr" x-text="trainerMe?.coach?.coach_code"></span>
+                                        <button type="button" @click="copyTextWithToast(trainerMe?.coach?.coach_code, 'קוד המאמן הועתק!')"
+                                                class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition">
+                                            העתק קוד
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Join Link Box -->
+                                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                                    <span class="text-[11px] font-bold text-slate-600 block">קישור ישיר להצטרפות מתאמנים:</span>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="font-mono text-[11px] text-slate-800 truncate select-all" dir="ltr" x-text="trainerMe?.coach?.join_link"></span>
+                                        <button type="button" @click="copyTextWithToast(trainerMe?.coach?.join_link, 'קישור ההצטרפות הועתק!')"
+                                                class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer transition flex-shrink-0">
+                                            העתק
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" @click="shareTrainerCodeWhatsApp()"
+                                        class="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs">
+                                    <span>💬</span>
+                                    <span>שתף קוד וקישור בוואטסאפ</span>
+                                </button>
+                                <button type="button" @click="openBigQrModal(trainerMe?.coach?.join_link, trainerMe?.coach?.coach_code, trainerMe?.coach?.studio_name || trainerMe?.coach?.display_name)"
+                                        class="px-4 py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-black text-xs transition cursor-pointer flex items-center gap-1.5">
+                                    <span>📱</span>
+                                    <span>הגדל ברקוד QR לסריקה</span>
+                                </button>
+                                <button type="button" @click="showTrainerAddTraineeModal = true"
+                                        class="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs transition cursor-pointer flex items-center gap-1.5">
+                                    <span>➕</span>
+                                    <span>הוסף מתאמן עם יעדים + טלגרם</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live QR Code Preview -->
+                        <div class="lg:col-span-4 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-2">
+                            <div @click="openBigQrModal(trainerMe?.coach?.join_link, trainerMe?.coach?.coach_code, trainerMe?.coach?.studio_name || trainerMe?.coach?.display_name)"
+                                 class="w-36 h-36 bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-center cursor-pointer hover:scale-105 transition"
+                                 x-html="generateQrSvg(trainerMe?.coach?.join_link || '')"></div>
+                            <span class="text-[11px] font-bold text-slate-600">סרוק עם מצלמת הטלפון לחיבור מיידי</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trainees Roster & Triage Filters -->
+                <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div>
+                            <h3 class="text-base sm:text-lg font-black text-slate-900">👥 המתאמנים שלי (<span x-text="filteredTrainerTrainees.length"></span>)</h3>
+                            <p class="text-xs text-slate-500">מעקב יומי, צפייה ביומן הקלורי, שליחת תזכורות פוש או ניתוק מתאמן</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <button type="button" @click="trainerFilter = 'all'"
+                                    :class="trainerFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                                    class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">הכל</button>
+                            <button type="button" @click="trainerFilter = 'no_logs'"
+                                    :class="trainerFilter === 'no_logs' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                                    class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">טרם דיווחו היום</button>
+                            <button type="button" @click="trainerFilter = 'pending'"
+                                    :class="trainerFilter === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                                    class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">הזמנות ממתינות</button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div x-show="filteredTrainerTrainees.length === 0" class="text-center py-10 space-y-2">
+                        <div class="text-3xl">🏋️‍♂️</div>
+                        <p class="text-sm font-black text-slate-800">אין מתאמנים בתצוגה זו</p>
+                        <p class="text-xs text-slate-500 max-w-sm mx-auto">
+                            שתף את קוד המאמן או ה-QR למעלה עם מתאמנים שלך, או הוסף מתאמן חדש עם יעדים מראש.
+                        </p>
+                    </div>
+
+                    <!-- Cards Grid -->
+                    <div x-show="filteredTrainerTrainees.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <template x-for="tr in filteredTrainerTrainees" :key="tr.id">
+                            <div class="p-4 rounded-3xl border border-slate-200/90 hover:border-indigo-300 bg-white space-y-3 flex flex-col justify-between transition shadow-2xs">
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-900 font-black text-sm flex items-center justify-center flex-shrink-0"
+                                                 x-text="(tr.name || 'מ')[0]"></div>
+                                            <div class="min-w-0">
+                                                <h4 class="text-sm font-black text-slate-900 truncate" x-text="tr.name"></h4>
+                                                <p class="text-[11px] text-slate-500 truncate" x-text="tr.email || tr.phone || (tr.source_type === 'invite' ? 'הזמנה אישית' : '')"></p>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                                            <span x-show="tr.source_type === 'user'" class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 text-[10px] font-black">✓ מחובר</span>
+                                            <span x-show="tr.source_type === 'invite'" class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[10px] font-black">⏳ ממתין</span>
+                                            <span x-show="tr.telegram_linked" class="text-[10px] font-bold text-sky-700">✈️ טלגרם</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Today Calorie & Protein Bars -->
+                                    <div class="space-y-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+                                        <div class="space-y-1">
+                                            <div class="flex justify-between text-[11px]">
+                                                <span class="font-bold text-slate-600">קלוריות היום:</span>
+                                                <span class="font-black text-slate-900" x-text="`${tr.today_calories || 0} / ${tr.target_calories || 1800}`"></span>
+                                            </div>
+                                            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                                <div class="bg-emerald-500 h-full rounded-full"
+                                                     :style="`width: ${Math.min(100, Math.round(((tr.today_calories || 0) / (tr.target_calories || 1800)) * 100))}%`"></div>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <div class="flex justify-between text-[11px]">
+                                                <span class="font-bold text-slate-600">חלבון:</span>
+                                                <span class="font-black text-indigo-900" x-text="`${Math.round(tr.today_protein || 0)} / ${tr.target_protein || 120}g`"></span>
+                                            </div>
+                                            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                                <div class="bg-indigo-500 h-full rounded-full"
+                                                     :style="`width: ${Math.min(100, Math.round(((tr.today_protein || 0) / (tr.target_protein || 120)) * 100))}%`"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="pt-2 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
+                                    <button type="button" @click="openTrainerTraineeDiary(tr)"
+                                            class="flex-1 py-1.5 px-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-extrabold text-[11px] transition cursor-pointer flex items-center justify-center gap-1">
+                                        <span>👁️</span>
+                                        <span>יומן קלורי</span>
+                                    </button>
+                                    <button type="button" @click="openTrainerRemindModal(tr)"
+                                            class="py-1.5 px-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1"
+                                            title="שלח תזכורת פוש פשוטה למתאמן">
+                                        <span>🔔</span>
+                                        <span>תזכורת</span>
+                                    </button>
+                                    <button x-show="tr.source_type === 'invite'" type="button"
+                                            @click="openBigQrModal(tr.web_link, tr.invite_code, tr.name, tr.telegram_link, tr.whatsapp_share_text)"
+                                            class="py-1.5 px-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 font-extrabold text-[11px] transition cursor-pointer"
+                                            title="קישור אישי, טלגרם ו-QR למתאמן">
+                                        <span>🔗</span>
+                                    </button>
+                                    <button type="button" @click="unlinkTrainerTrainee(tr)"
+                                            class="py-1.5 px-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 font-bold text-[11px] transition cursor-pointer"
+                                            title="נתק מתאמן מהרשימה שלי">
+                                        <span>🔌</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- =============================================================== -->
         <!-- TAB 4: ADMIN USER MANAGEMENT DASHBOARD (OWNER ONLY)             -->
         <!-- =============================================================== -->
         <div x-show="activeTab === 'admin' && isUserAdmin()" x-cloak x-transition.opacity class="space-y-6">
@@ -3507,6 +3888,12 @@
                     <span>LLMOps & Evals</span>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900"
                           x-text="`${adminLlmops?.last_eval_score || 100}%`"></span>
+                </button>
+                <button type="button" @click="adminNavTab = 'coaches'; fetchAdminCoaches()"
+                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                        :class="adminNavTab === 'coaches' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+                    <span>🏋️‍♂️</span>
+                    <span>מאמנים (Pro)</span>
                 </button>
             </div>
 
@@ -4882,6 +5269,56 @@
                     </template>
                 </div>
             </div>
+
+            <!-- Admin Subtab: Premium Trainers Management (Billing-Ready Controls) -->
+            <div x-show="adminNavTab === 'coaches'" class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900">🏋️‍♂️ ניהול מאמני פרימיום ומינויים</h3>
+                        <p class="text-xs text-slate-500">אישור ושדרוג חבילות (Trial / Pro / Studio), מכסת מתאמנים והארכת תוקף</p>
+                    </div>
+                    <button type="button" @click="fetchAdminCoaches()"
+                            class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 cursor-pointer">
+                        🔄 רענן רשימת מאמנים
+                    </button>
+                </div>
+
+                <div x-show="adminCoachesLoading" class="py-8 text-center text-xs text-slate-500 animate-pulse">טוען מאמנים...</div>
+                <div x-show="!adminCoachesLoading && (!adminCoaches || adminCoaches.length === 0)" class="py-8 text-center text-xs text-slate-500">
+                    עדיין לא נרשמו מאמנים בפורטל הפרימיום.
+                </div>
+                <div x-show="!adminCoachesLoading && adminCoaches && adminCoaches.length > 0" class="space-y-3">
+                    <template x-for="c in adminCoaches" :key="c.id">
+                        <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-black text-sm text-slate-900" x-text="c.studio_name || c.display_name"></span>
+                                    <span class="font-mono px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 font-bold" x-text="c.coach_code"></span>
+                                    <span class="px-2 py-0.5 rounded-full font-black text-[10px]"
+                                          :class="c.subscription_status === 'active' ? 'bg-emerald-100 text-emerald-900' : (c.subscription_status === 'trialing' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800')"
+                                          x-text="`${c.plan_tier} (${c.subscription_status})`"></span>
+                                    <span x-show="c.pending_upgrade_plan" class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 font-black text-[10px]"
+                                          x-text="`מבקש שדרוג ל: ${c.pending_upgrade_plan}`"></span>
+                                </div>
+                                <div class="text-slate-600">
+                                    <span x-text="c.display_name"></span> • <span class="font-mono" dir="ltr" x-text="c.owner_email"></span> •
+                                    מתאמנים: <strong x-text="`${c.active_trainees_count || 0} / ${c.max_trainees || 5}`"></strong> •
+                                    מחיר חודשי: <strong x-text="`${c.monthly_price_ils || 0} ₪`"></strong>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <button type="button" @click="adminUpdateCoach(c.id, {plan_tier: 'pro', subscription_status: 'active', extend_days: 30})"
+                                        class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer">הפעל Pro (30 מושבים)</button>
+                                <button type="button" @click="adminUpdateCoach(c.id, {plan_tier: 'studio', subscription_status: 'active', extend_days: 30})"
+                                        class="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold cursor-pointer">Studio (100)</button>
+                                <button type="button" @click="adminUpdateCoach(c.id, {subscription_status: c.subscription_status === 'paused' ? 'active' : 'paused'})"
+                                        class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold cursor-pointer"
+                                        x-text="c.subscription_status === 'paused' ? 'הפעל מחדש' : 'השהה מנוי'"></button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
         </div>
 
         <!-- App Global Footer with Legal Terms, Health Disclaimer & Fast Support -->
@@ -4942,6 +5379,15 @@
                     class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer">
                 <svg class="w-5 h-5 mb-0.5"><use href="#icon-wolt-dish"></use></svg>
                 <span class="text-[10px]" x-text="t('bottomRecipes', 'מתכונים')">מתכונים</span>
+            </button>
+
+            <button x-cloak x-show="currentUser?.has_trainer_portal || activeTab === 'trainer_portal'"
+                    @click="openTrainerPortal()"
+                    :class="activeTab === 'trainer_portal' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'"
+                    class="flex-1 py-1 flex flex-col items-center justify-center transition cursor-pointer"
+                    title="פורטל מאמנים Pro">
+                <span class="text-base leading-none mb-0.5">🏋️‍♂️</span>
+                <span class="text-[10px]">מאמן Pro</span>
             </button>
 
             <button x-cloak x-show="isUserAdmin()"
@@ -5471,6 +5917,21 @@
                         </div>
                     </label>
                 </div>
+            </div>
+
+            <!-- Trainer Portal Entrance Card (Inside Settings Modal) -->
+            <div class="p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between gap-3 shadow-sm">
+                <div class="min-w-0 space-y-0.5">
+                    <div class="flex items-center gap-1.5 text-xs font-black text-amber-300">
+                        <span>👑</span>
+                        <span>כניסת מאמן / פורטל מאמנים (Pro)</span>
+                    </div>
+                    <p class="text-[11px] text-indigo-100 truncate">נהל מתאמנים, הפק קוד/QR ושלח תזכורות פוש</p>
+                </div>
+                <button type="button" @click="openTargetModal = false; openTrainerPortal()"
+                        class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs cursor-pointer flex-shrink-0 transition shadow-xs">
+                    <span x-text="currentUser?.has_trainer_portal ? 'פתח פורטל ➔' : 'כניסת מאמן ➔'"></span>
+                </button>
             </div>
 
             <!-- Modal Legal Link -->
@@ -7209,23 +7670,35 @@
                         </div>
                     </div>
 
-                    <!-- Coach Code Connection (Kaloria-inspired B2B trainer binding) -->
-                    <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2 text-right">
+                    <!-- Coach Code Connection (In-House Trainer & Itamar Binding + Unlink) -->
+                    <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2.5 text-right">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
                                 <span>🔑</span> <span>חיבור למאמן אישי באמצעות קוד</span>
                             </span>
-                            <template x-if="currentUser.coach_id">
+                            <template x-if="currentUser.trainer_coach_id || currentUser.coach_id">
                                 <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                                     משויך למאמן ✓
                                 </span>
                             </template>
                         </div>
-                        <template x-if="currentUser.coach_id">
+                        <template x-if="currentUser.trainer_coach_id">
+                            <div class="p-2.5 rounded-xl bg-white border border-indigo-200 flex items-center justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="text-[11px] text-indigo-950 font-black truncate" x-text="'מאמן מלווה: ' + (currentUser.trainer_studio_name || currentUser.trainer_coach_name)"></p>
+                                    <p class="text-[10px] text-slate-500">למאמן יש גישה לצפות ביומן הקלורי ולעדכן יעדים</p>
+                                </div>
+                                <button type="button" @click="unlinkMyCoach()" :disabled="coachCodeUnlinking"
+                                        class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold cursor-pointer flex-shrink-0 transition">
+                                    <span x-text="coachCodeUnlinking ? 'מנתק...' : '🔌 התנתק'"></span>
+                                </button>
+                            </div>
+                        </template>
+                        <template x-if="!currentUser.trainer_coach_id && currentUser.coach_id">
                             <p class="text-[11px] text-indigo-900 font-semibold" x-text="'מאמן מלווה: ' + (currentUser.coach_name || 'Coach Itamar (איתמר)')"></p>
                         </template>
                         <div class="flex gap-2">
-                            <input type="text" x-model="coachCodeInput" placeholder="הזן קוד מאמן (לדוגמה: ITAMAR)"
+                            <input type="text" x-model="coachCodeInput" placeholder="הזן קוד מאמן (לדוגמה: FIT-4A2B)"
                                    @keyup.enter="submitCoachCode()"
                                    class="flex-1 px-3 py-2 text-xs rounded-xl bg-white border border-indigo-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right">
                             <button type="button" @click="submitCoachCode()" :disabled="coachCodeBinding"
@@ -7233,6 +7706,21 @@
                                 <span x-text="coachCodeBinding ? 'מחבר...' : 'חבר למאמן'"></span>
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Trainer Entrance inside User Profile / Settings -->
+                    <div class="p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between gap-3">
+                        <div class="min-w-0 space-y-0.5">
+                            <div class="flex items-center gap-1.5 text-xs font-black text-amber-300">
+                                <span>🏋️‍♂️</span>
+                                <span>כניסת מאמנים (שירות פרימיום Pro)</span>
+                            </div>
+                            <p class="text-[11px] text-indigo-100">פתח פורטל מאמן, קוד אישי + QR וצפה במתאמנים שלך</p>
+                        </div>
+                        <button type="button" @click="openAuthModal = false; openTrainerPortal()"
+                                class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs cursor-pointer flex-shrink-0 transition">
+                            <span x-text="currentUser?.has_trainer_portal ? 'הפורטל שלי ➔' : 'כניסת מאמן ➔'"></span>
+                        </button>
                     </div>
 
                     <!-- Quick Support & Sharing Tools (Kaloria-inspired) -->
@@ -8430,6 +8918,53 @@
                 showAttachMenu: false,
                 coachCodeInput: '',
                 coachCodeBinding: false,
+                coachCodeUnlinking: false,
+                wantsTrainerPortal: false,
+                pendingJoinCoachCode: '',
+                pendingJoinCoachPreview: null,
+                trainerPortalLoading: false,
+                trainerRegistering: false,
+                trainerMe: null,
+                trainerTrainees: [],
+                trainerFilter: 'all',
+                trainerRegForm: {
+                    display_name: '',
+                    studio_name: '',
+                    phone: '',
+                    specialty: 'fitness_trainer'
+                },
+                showTrainerQrModal: false,
+                trainerQrData: null,
+                showTrainerAddTraineeModal: false,
+                trainerNewTraineeForm: {
+                    name: '',
+                    phone: '',
+                    target_calories: 2000,
+                    target_protein: 140,
+                    notes: ''
+                },
+                showTrainerCreatedModal: false,
+                trainerCreatedTrainee: null,
+                showTrainerDiaryModal: false,
+                trainerDiaryLoading: false,
+                trainerDiaryData: null,
+                trainerDiaryTargetTrainee: null,
+                trainerEditTargetsForm: {
+                    target_calories: 1800,
+                    target_protein: 120,
+                    coach_note: ''
+                },
+                trainerSavingTargets: false,
+                showTrainerRemindModal: false,
+                trainerRemindTarget: null,
+                trainerRemindMessage: '',
+                trainerSendingReminder: false,
+                showTrainerUpgradeModal: false,
+                trainerUpgradeTier: 'pro',
+                trainerUpgradeNotes: '',
+                trainerUpgrading: false,
+                adminCoaches: [],
+                adminCoachesLoading: false,
                 showDeleteAccountModal: false,
                 deleteAccountConfirmText: '',
                 deletingAccount: false,
@@ -11229,6 +11764,23 @@
                         this.$nextTick(() => { window.applyTranslations('en'); });
                     }
                     const urlParams = new URLSearchParams(window.location.search);
+                    const pathnameLower = (window.location.pathname || '').toLowerCase();
+                    if (pathnameLower === '/trainers' || pathnameLower === '/trainers/' || urlParams.get('trainer_portal') === '1') {
+                        this.wantsTrainerPortal = true;
+                        localStorage.setItem('nutri_wants_trainer_portal', '1');
+                    }
+                    let joinCoachParam = urlParams.get('join_coach') || '';
+                    if (!joinCoachParam && pathnameLower.startsWith('/join/')) {
+                        const jParts = window.location.pathname.split('/').filter(Boolean);
+                        if (jParts.length >= 2) joinCoachParam = decodeURIComponent(jParts[1]);
+                    }
+                    if (joinCoachParam) {
+                        this.pendingJoinCoachCode = joinCoachParam.trim();
+                        localStorage.setItem('nutri_pending_join_coach', this.pendingJoinCoachCode);
+                        this.loadPublicCoachPreview(this.pendingJoinCoachCode);
+                    } else if (localStorage.getItem('nutri_pending_join_coach')) {
+                        this.pendingJoinCoachCode = localStorage.getItem('nutri_pending_join_coach');
+                    }
                     const inviteParam = urlParams.get('invite');
                     if (inviteParam) {
                         try {
@@ -11236,7 +11788,9 @@
                             if (inviteRes.ok) {
                                 const traineeUser = await inviteRes.json();
                                 await this.setLoggedInUser(traineeUser);
-                                this.appMode = 'coaching';
+                                if (traineeUser.coach_type !== 'premium_trainer') {
+                                    this.appMode = 'coaching';
+                                }
                                 this.showToast('🎉 ברוך הבא לתוכנית הליווי, ' + (traineeUser.name || '') + '!');
                             } else {
                                 const err = await inviteRes.json().catch(() => ({}));
@@ -11270,7 +11824,19 @@
                     if (this.currentUser && (this.currentUser.is_approved !== false || this.currentUser.is_admin)) {
                         this.checkPushStatus();
                         this.fetchMessagingStatus();
-                        this.fetchCoachTrainees();
+                        if (this.isCoachOrAdmin() && this.appMode === 'coaching') {
+                            this.fetchCoachTrainees();
+                        }
+                        if (this.pendingJoinCoachCode) {
+                            await this.autoBindPendingCoachCode();
+                        }
+                        if (this.wantsTrainerPortal || localStorage.getItem('nutri_wants_trainer_portal') === '1') {
+                            localStorage.removeItem('nutri_wants_trainer_portal');
+                            this.wantsTrainerPortal = false;
+                            if (this.appMode !== 'coaching') {
+                                this.openTrainerPortal();
+                            }
+                        }
                         await this.fetchVisionLogs();
                         await Promise.all([
                             this.fetchSummary(),
@@ -11279,6 +11845,8 @@
                             this.fetchFavorites(),
                             this.fetchWeight()
                         ]);
+                    } else if (this.currentUser && this.pendingJoinCoachCode) {
+                        await this.autoBindPendingCoachCode();
                     }
                     this.loading = false;
                     // Load any stored slot suggestions into reactive state
@@ -11535,7 +12103,10 @@
                     }
                     this.openAuthModal = false;
                     this.coachInsight = null;
-                    if (verifiedUser.is_approved === false && !verifiedUser.is_admin) {
+                    if (this.pendingJoinCoachCode) {
+                        await this.autoBindPendingCoachCode();
+                    }
+                    if (this.currentUser?.is_approved === false && !this.currentUser?.is_admin && !this.wantsTrainerPortal) {
                         this.loading = false;
                         this.showToast('⏳ החשבון נוצר וממתין לאישור מנהל המערכת');
                         return;
@@ -11550,6 +12121,13 @@
                         this.checkPushStatus()
                     ]);
                     this.loading = false;
+                    if (this.wantsTrainerPortal || localStorage.getItem('nutri_wants_trainer_portal') === '1') {
+                        localStorage.removeItem('nutri_wants_trainer_portal');
+                        this.wantsTrainerPortal = false;
+                        if (this.appMode !== 'coaching') {
+                            this.openTrainerPortal();
+                        }
+                    }
                     const claimedMeals = user.claimed?.claimed_meals || 0;
                     if (claimedMeals > 0) {
                         this.showToast(`🎉 ברוך הבא ${user.name}! שויכו ${claimedMeals} ארוחות קיימות לחשבונך.`);
@@ -11710,7 +12288,7 @@
                 async submitCoachCode() {
                     const code = (this.coachCodeInput || '').trim();
                     if (!code) {
-                        this.showToast('אנא הזן קוד מאמן (לדוגמה: ITAMAR)', 'error');
+                        this.showToast('אנא הזן קוד מאמן', 'error');
                         return;
                     }
                     if (!this.currentUser) {
@@ -11727,11 +12305,21 @@
                         });
                         const data = await res.json();
                         if (res.ok) {
-                            this.currentUser.coach_id = data.coach_id;
-                            this.currentUser.coach_name = data.coach_name;
+                            if (data.coach_type === 'premium_trainer') {
+                                this.currentUser.trainer_coach_id = data.trainer_coach_id;
+                                this.currentUser.trainer_coach_name = data.trainer_coach_name;
+                                this.currentUser.trainer_studio_name = data.trainer_studio_name;
+                                this.currentUser.is_approved = true;
+                                this.showToast('🎉 חוברת בהצלחה למאמן: ' + (data.trainer_studio_name || data.trainer_coach_name), 'success');
+                            } else {
+                                this.currentUser.coach_id = data.coach_id;
+                                this.currentUser.coach_name = data.coach_name;
+                                this.showToast('🎉 חוברת בהצלחה למאמן: ' + data.coach_name, 'success');
+                            }
                             localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
                             this.coachCodeInput = '';
-                            this.showToast('🎉 חוברת בהצלחה למאמן: ' + data.coach_name, 'success');
+                            await this.verifyCurrentUserSession();
+                            await this.fetchSummary();
                         } else {
                             this.showToast(data.detail || 'קוד מאמן שגוי', 'error');
                         }
@@ -11740,6 +12328,35 @@
                     } finally {
                         this.coachCodeBinding = false;
                     }
+                },
+                async unlinkMyCoach() {
+                    if (!this.currentUser?.trainer_coach_id) return;
+                    if (!confirm('האם לנתק את החיבור למאמן שלך? היסטוריית הארוחות שלך תישמר במלואה.')) return;
+                    this.coachCodeUnlinking = true;
+                    try {
+                        const res = await fetch('/api/user/unlink-coach', { method: 'POST' });
+                        if (res.ok) {
+                            this.currentUser.trainer_coach_id = null;
+                            this.currentUser.trainer_coach_name = null;
+                            this.currentUser.trainer_studio_name = null;
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                            this.showToast('נותקת בהצלחה מהמאמן');
+                        } else {
+                            this.showToast('שגיאה בניתוק המאמן', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('שגיאה בניתוק המאמן', 'error');
+                    } finally {
+                        this.coachCodeUnlinking = false;
+                    }
+                },
+                async dismissTrainerReminder() {
+                    if (!this.currentUser) return;
+                    this.currentUser.last_trainer_reminder = null;
+                    localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                    try {
+                        await fetch('/api/user/dismiss-trainer-reminder', { method: 'POST' });
+                    } catch (e) {}
                 },
 
                 async confirmDeleteAccountSelf() {
@@ -14168,6 +14785,356 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 this.resetViewingTrainee();
                 this.fetchCoachTrainees();
             },
+            // ================= PREMIUM TRAINERS PORTAL METHODS =================
+            get filteredTrainerTrainees() {
+                const list = this.trainerTrainees || [];
+                if (this.trainerFilter === 'no_logs') {
+                    return list.filter(t => (t.meals_count || 0) === 0);
+                }
+                if (this.trainerFilter === 'pending') {
+                    return list.filter(t => t.source_type === 'invite');
+                }
+                return list;
+            },
+            enterTrainerPortalFromGate() {
+                this.wantsTrainerPortal = !this.wantsTrainerPortal;
+                if (this.wantsTrainerPortal) {
+                    localStorage.setItem('nutri_wants_trainer_portal', '1');
+                } else {
+                    localStorage.removeItem('nutri_wants_trainer_portal');
+                }
+            },
+            async loadPublicCoachPreview(code) {
+                if (!code) return;
+                try {
+                    const res = await fetch('/api/trainer/public/' + encodeURIComponent(code));
+                    if (res.ok) {
+                        this.pendingJoinCoachPreview = await res.json();
+                    }
+                } catch (e) {}
+            },
+            async autoBindPendingCoachCode() {
+                const code = (this.pendingJoinCoachCode || '').trim();
+                if (!code || !this.currentUser) return;
+                try {
+                    const res = await fetch('/api/user/bind-coach-code', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ coach_code: code, user_id: this.currentUser.id })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.coach_type === 'premium_trainer') {
+                        this.currentUser.trainer_coach_id = data.trainer_coach_id;
+                        this.currentUser.trainer_coach_name = data.trainer_coach_name;
+                        this.currentUser.trainer_studio_name = data.trainer_studio_name;
+                        this.currentUser.is_approved = true;
+                        localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        this.showToast('🎉 חוברת אוטומטית למאמן: ' + (data.trainer_studio_name || data.trainer_coach_name), 'success');
+                    }
+                } catch (e) {
+                    console.warn('autoBindPendingCoachCode warn:', e);
+                } finally {
+                    this.pendingJoinCoachCode = '';
+                    this.pendingJoinCoachPreview = null;
+                    localStorage.removeItem('nutri_pending_join_coach');
+                }
+            },
+            async openTrainerPortal() {
+                this.activeTab = 'trainer_portal';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (this.currentUser && !this.trainerRegForm.display_name) {
+                    this.trainerRegForm.display_name = this.currentUser.name || '';
+                }
+                await this.fetchTrainerDashboard();
+            },
+            async fetchTrainerDashboard() {
+                this.trainerPortalLoading = true;
+                try {
+                    const res = await fetch('/api/trainer/me');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.trainerMe = data;
+                        if (data.has_coach_profile) {
+                            const tRes = await fetch('/api/trainer/trainees');
+                            if (tRes.ok) {
+                                const tData = await tRes.json();
+                                this.trainerTrainees = tData.trainees || [];
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('fetchTrainerDashboard error:', e);
+                } finally {
+                    this.trainerPortalLoading = false;
+                }
+            },
+            async registerAsTrainer() {
+                if (!this.trainerRegForm.display_name || !this.trainerRegForm.display_name.trim()) {
+                    this.showToast('נא להזין שם מלא של המאמן', 'error');
+                    return;
+                }
+                this.trainerRegistering = true;
+                try {
+                    const res = await fetch('/api/trainer/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.trainerRegForm)
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        if (this.currentUser) {
+                            this.currentUser.has_trainer_portal = true;
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        }
+                        this.showToast('🎉 פורטל המאמנים נפתח! 14 יום ניסיון חינם הופעלו.', 'success');
+                        await this.fetchTrainerDashboard();
+                    } else {
+                        this.showToast(data.detail || 'שגיאה ברישום כמאמן', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בתקשורת עם השרת', 'error');
+                } finally {
+                    this.trainerRegistering = false;
+                }
+            },
+            generateQrSvg(text) {
+                if (!text) return '';
+                try {
+                    if (typeof window.qrcode === 'function') {
+                        const qr = window.qrcode(0, 'M');
+                        qr.addData(String(text));
+                        qr.make();
+                        return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+                    }
+                } catch (e) {
+                    console.warn('QR generation error:', e);
+                }
+                return `<div class="text-[10px] font-mono text-slate-500 p-2 break-all">${String(text)}</div>`;
+            },
+            copyTextWithToast(text, msg = 'הועתק ללוח!') {
+                if (!text) return;
+                navigator.clipboard.writeText(String(text));
+                this.showToast('✓ ' + msg);
+            },
+            shareTrainerCodeWhatsApp() {
+                const c = this.trainerMe?.coach;
+                if (!c) return;
+                const name = c.studio_name || c.display_name || 'המאמן שלך';
+                const text = encodeURIComponent(
+                    `היי! כאן ${name} 💪\n` +
+                    `כדי שנתעד ונעקוב יחד אחרי התזונה שלך ב-NutriAgent AI:\n\n` +
+                    `🔗 לחץ על הקישור לחיבור ישיר:\n${c.join_link}\n\n` +
+                    `🔑 או הזן באפליקציה (בפרופיל) את קוד המאמן:\n${c.coach_code}`
+                );
+                window.open(`https://wa.me/?text=${text}`, '_blank');
+            },
+            openBigQrModal(url, code, title, telegramUrl = '', whatsappText = '') {
+                this.trainerQrData = { url, code, title, telegramUrl, whatsappText };
+                this.showTrainerQrModal = true;
+            },
+            downloadTrainerQrSvg() {
+                const svg = this.generateQrSvg(this.trainerQrData?.url || '');
+                if (!svg || !svg.includes('<svg')) return;
+                const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+                const dlUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = dlUrl;
+                a.download = `trainer-qr-${this.trainerQrData?.code || 'nutriagent'}.svg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(dlUrl);
+            },
+            async createTrainerTrainee() {
+                if (!this.trainerNewTraineeForm.name || !this.trainerNewTraineeForm.name.trim()) {
+                    this.showToast('נא להזין שם מלא של המתאמן', 'error');
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/trainer/trainees', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.trainerNewTraineeForm)
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.trainerCreatedTrainee = data.trainee;
+                        this.showTrainerAddTraineeModal = false;
+                        this.showTrainerCreatedModal = true;
+                        this.trainerNewTraineeForm = { name: '', phone: '', target_calories: 2000, target_protein: 140, notes: '' };
+                        await this.fetchTrainerDashboard();
+                    } else {
+                        this.showToast(data.detail || 'שגיאה ביצירת מתאמן', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בתקשורת עם השרת', 'error');
+                }
+            },
+            async openTrainerTraineeDiary(trainee) {
+                if (!trainee) return;
+                this.trainerDiaryTargetTrainee = trainee;
+                this.showTrainerDiaryModal = true;
+                this.trainerDiaryLoading = true;
+                try {
+                    const res = await fetch(`/api/trainer/trainees/${encodeURIComponent(trainee.id)}/diary`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.trainerDiaryData = data;
+                        this.trainerEditTargetsForm = {
+                            target_calories: data.summary?.target_calories || trainee.target_calories || 1800,
+                            target_protein: data.summary?.target_protein || trainee.target_protein || 120,
+                            coach_note: data.trainee?.coach_note || ''
+                        };
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        this.showToast(err.detail || 'לא ניתן לטעון יומן', 'error');
+                        this.showTrainerDiaryModal = false;
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בטעינת יומן המתאמן', 'error');
+                } finally {
+                    this.trainerDiaryLoading = false;
+                }
+            },
+            async saveTrainerTraineeTargets() {
+                const t = this.trainerDiaryTargetTrainee;
+                if (!t) return;
+                this.trainerSavingTargets = true;
+                try {
+                    const res = await fetch(`/api/trainer/trainees/${encodeURIComponent(t.id)}/targets`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.trainerEditTargetsForm)
+                    });
+                    if (res.ok) {
+                        this.showToast('✓ יעדי המתאמן עודכנו בהצלחה!');
+                        await this.openTrainerTraineeDiary(t);
+                        await this.fetchTrainerDashboard();
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        this.showToast(err.detail || 'שגיאה בעדכון יעדים', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בתקשורת', 'error');
+                } finally {
+                    this.trainerSavingTargets = false;
+                }
+            },
+            openTrainerRemindModal(trainee) {
+                if (!trainee) return;
+                this.trainerRemindTarget = trainee;
+                this.trainerRemindMessage = 'היי! תזכורת קצרה לתעד היום את הארוחות שלך באפליקציה 📸';
+                this.showTrainerRemindModal = true;
+            },
+            async sendTrainerReminder() {
+                const t = this.trainerRemindTarget;
+                if (!t || !this.trainerRemindMessage.trim()) {
+                    this.showToast('נא להזין הודעת תזכורת', 'error');
+                    return;
+                }
+                this.trainerSendingReminder = true;
+                try {
+                    const res = await fetch(`/api/trainer/trainees/${encodeURIComponent(t.id)}/remind`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: `תזכורת מהמאמן ${this.trainerMe?.coach?.display_name || ''} 💪`,
+                            message: this.trainerRemindMessage.trim()
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.showTrainerRemindModal = false;
+                        const channels = [];
+                        if (data.push_sent > 0) channels.push('פוש לנייד');
+                        if (data.telegram_sent) channels.push('טלגרם');
+                        channels.push('באנר באפליקציה');
+                        this.showToast(`🔔 התזכורת נשלחה (${channels.join(' + ')})!`);
+                    } else {
+                        this.showToast(data.detail || 'שגיאה בשליחת התזכורת', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בשליחת התזכורת', 'error');
+                } finally {
+                    this.trainerSendingReminder = false;
+                }
+            },
+            async unlinkTrainerTrainee(trainee) {
+                if (!trainee) return;
+                if (!confirm(`האם לנתק את המתאמן ${trainee.name} מהרשימה שלך?`)) return;
+                try {
+                    const res = await fetch(`/api/trainer/trainees/${encodeURIComponent(trainee.id)}/unlink`, {
+                        method: 'POST'
+                    });
+                    if (res.ok) {
+                        this.showToast(`המתאמן ${trainee.name} נותק בהצלחה`);
+                        await this.fetchTrainerDashboard();
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        this.showToast(err.detail || 'שגיאה בניתוק מתאמן', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בניתוק מתאמן', 'error');
+                }
+            },
+            async submitTrainerUpgradeRequest() {
+                this.trainerUpgrading = true;
+                try {
+                    const res = await fetch('/api/trainer/upgrade-request', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            plan_tier: this.trainerUpgradeTier,
+                            notes: this.trainerUpgradeNotes
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.showTrainerUpgradeModal = false;
+                        this.trainerUpgradeNotes = '';
+                        this.showToast('✅ ' + (data.message || 'בקשת השדרוג נשלחה!'));
+                        await this.fetchTrainerDashboard();
+                    } else {
+                        this.showToast(data.detail || 'שגיאה בשליחת הבקשה', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בתקשורת', 'error');
+                } finally {
+                    this.trainerUpgrading = false;
+                }
+            },
+            async fetchAdminCoaches() {
+                this.adminCoachesLoading = true;
+                try {
+                    const res = await fetch('/api/admin/coaches');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.adminCoaches = data.coaches || [];
+                    }
+                } catch (e) {
+                    console.error('fetchAdminCoaches error:', e);
+                } finally {
+                    this.adminCoachesLoading = false;
+                }
+            },
+            async adminUpdateCoach(coachId, payload) {
+                try {
+                    const res = await fetch(`/api/admin/coaches/${encodeURIComponent(coachId)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        this.showToast('✓ הגדרות המאמן עודכנו!');
+                        await this.fetchAdminCoaches();
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        this.showToast(err.detail || 'שגיאה בעדכון מאמן', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('שגיאה בעדכון מאמן', 'error');
+                }
+            },
             isUserAdmin() {
                 if (!this.currentUser) return false;
                 if (this.currentUser.is_admin || this.currentUser.is_super_admin || this.currentUser.is_owner) return true;
@@ -16172,6 +17139,302 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         סגור
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- ================= PREMIUM TRAINER PORTAL MODALS ================= -->
+        <!-- 1. Big QR Code & Share Modal -->
+        <div x-cloak x-show="showTrainerQrModal"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs"
+             @click.self="showTrainerQrModal = false">
+            <div @click.stop class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-indigo-200 text-center space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-black text-slate-900 truncate" x-text="trainerQrData?.title || 'קוד QR לחיבור מתאמנים'"></h3>
+                    <button type="button" @click="showTrainerQrModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+                <div class="mx-auto w-56 h-56 p-3 rounded-3xl bg-white border-2 border-indigo-100 shadow-inner flex items-center justify-center"
+                     x-html="generateQrSvg(trainerQrData?.url || '')"></div>
+                <div class="p-3 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-1">
+                    <span class="text-[11px] font-bold text-indigo-800 block">קוד להזנה ידנית באפליקציה:</span>
+                    <span class="font-mono text-lg font-black text-indigo-950 tracking-wider select-all" dir="ltr" x-text="trainerQrData?.code"></span>
+                </div>
+                <div x-show="trainerQrData?.telegramUrl" class="p-2.5 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-between gap-2 text-xs">
+                    <span class="font-bold text-sky-900">קישור לטלגרם:</span>
+                    <button type="button" @click="copyTextWithToast(trainerQrData?.telegramUrl, 'קישור הטלגרם הועתק!')"
+                            class="px-3 py-1 rounded-xl bg-sky-600 text-white font-bold cursor-pointer">העתק טלגרם</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" @click="copyTextWithToast(trainerQrData?.url, 'הקישור הועתק!')"
+                            class="py-2.5 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer">
+                        🔗 העתק קישור
+                    </button>
+                    <button type="button" @click="downloadTrainerQrSvg()"
+                            class="py-2.5 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs cursor-pointer">
+                        ⬇️ הורד ברקוד QR
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Trainer Add Pre-Configured Trainee Modal -->
+        <div x-cloak x-show="showTrainerAddTraineeModal"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs"
+             @click.self="showTrainerAddTraineeModal = false">
+            <div @click.stop class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 text-right space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 class="text-base sm:text-lg font-black text-slate-900">➕ הוספת מתאמן והפקת קישור + QR</h3>
+                    <button type="button" @click="showTrainerAddTraineeModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">שם מלא של המתאמן *</label>
+                        <input type="text" x-model="trainerNewTraineeForm.name" placeholder="למשל: דני כהן"
+                               class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 font-bold outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">טלפון (לשליחה בוואטסאפ)</label>
+                        <input type="tel" x-model="trainerNewTraineeForm.phone" placeholder="050-1234567"
+                               class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 font-bold outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">יעד קלוריות יומי</label>
+                            <input type="number" x-model.number="trainerNewTraineeForm.target_calories"
+                                   class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 font-bold outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">יעד חלבון יומי (גרם)</label>
+                            <input type="number" x-model.number="trainerNewTraineeForm.target_protein"
+                                   class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 font-bold outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">דגשים למתאמן</label>
+                        <textarea x-model="trainerNewTraineeForm.notes" rows="2" placeholder="הנחיות תזונה או הערות..."
+                                  class="w-full px-3.5 py-2 rounded-2xl border border-slate-200 focus:border-indigo-500 text-xs outline-none resize-none"></textarea>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="showTrainerAddTraineeModal = false"
+                            class="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer">ביטול</button>
+                    <button type="button" @click="createTrainerTrainee()"
+                            class="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-xs shadow-md cursor-pointer">
+                        צור והפק קישורים + QR ➔
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Trainer Trainee Created Modal (Web + Telegram + Personal Code + QR) -->
+        <div x-cloak x-show="showTrainerCreatedModal"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs"
+             @click.self="showTrainerCreatedModal = false">
+            <div @click.stop class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-emerald-200 text-right space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-base font-black text-slate-900">🎉 המתאמן מוכן לחיבור!</h3>
+                        <p class="text-[11px] text-slate-500" x-text="trainerCreatedTrainee?.name"></p>
+                    </div>
+                    <button type="button" @click="showTrainerCreatedModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+                <div class="mx-auto w-36 h-36 p-2 rounded-2xl bg-white border border-slate-200 flex items-center justify-center"
+                     x-html="generateQrSvg(trainerCreatedTrainee?.web_link || '')"></div>
+                <div class="space-y-2 text-xs">
+                    <div class="p-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-between gap-2">
+                        <span class="font-bold text-indigo-900">קוד אישי: <span class="font-mono" x-text="trainerCreatedTrainee?.invite_code"></span></span>
+                        <button type="button" @click="copyTextWithToast(trainerCreatedTrainee?.invite_code, 'הקוד האישי הועתק!')"
+                                class="px-2.5 py-1 rounded-xl bg-indigo-600 text-white font-bold cursor-pointer">העתק</button>
+                    </div>
+                    <div class="p-2.5 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-between gap-2">
+                        <span class="font-mono text-[11px] text-slate-800 truncate" dir="ltr" x-text="trainerCreatedTrainee?.web_link"></span>
+                        <button type="button" @click="copyTextWithToast(trainerCreatedTrainee?.web_link, 'קישור האפליקציה הועתק!')"
+                                class="px-2.5 py-1 rounded-xl bg-slate-800 text-white font-bold cursor-pointer flex-shrink-0">קישור אפליקציה</button>
+                    </div>
+                    <div class="p-2.5 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-between gap-2">
+                        <span class="font-mono text-[11px] text-sky-900 truncate" dir="ltr" x-text="trainerCreatedTrainee?.telegram_link"></span>
+                        <button type="button" @click="copyTextWithToast(trainerCreatedTrainee?.telegram_link, 'קישור הטלגרם הועתק!')"
+                                class="px-2.5 py-1 rounded-xl bg-sky-600 text-white font-bold cursor-pointer flex-shrink-0">קישור טלגרם</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" @click="shareTraineeWhatsApp(trainerCreatedTrainee)"
+                            class="py-2.5 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer">
+                        💬 שלח בוואטסאפ
+                    </button>
+                    <button type="button" @click="showTrainerCreatedModal = false"
+                            class="py-2.5 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer">
+                        סגור
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Trainer Trainee Calorie Diary & Targets Modal -->
+        <div x-cloak x-show="showTrainerDiaryModal"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+             @click.self="showTrainerDiaryModal = false">
+            <div @click.stop class="w-full max-w-2xl bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 text-right space-y-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900">
+                            👁️ יומן קלורי — <span class="text-indigo-700" x-text="trainerDiaryData?.trainee?.name"></span>
+                        </h3>
+                        <p class="text-[11px] text-slate-500" x-text="trainerDiaryData?.trainee?.email || trainerDiaryData?.trainee?.phone || ''"></p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="openTrainerRemindModal(trainerDiaryTargetTrainee)"
+                                class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 text-xs font-black cursor-pointer">
+                            🔔 שלח תזכורת
+                        </button>
+                        <button type="button" @click="showTrainerDiaryModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                    </div>
+                </div>
+
+                <div x-show="trainerDiaryLoading" class="py-10 text-center text-xs text-slate-500 animate-pulse">טוען יומן מתאמן...</div>
+
+                <div x-show="!trainerDiaryLoading && trainerDiaryData" class="space-y-4">
+                    <!-- Summary Metrics -->
+                    <div class="grid grid-cols-3 gap-2.5 text-center">
+                        <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+                            <span class="text-[11px] font-bold text-emerald-800 block">קלוריות היום</span>
+                            <span class="text-base font-black text-slate-900" x-text="`${trainerDiaryData?.summary?.total_calories || 0} / ${trainerDiaryData?.summary?.target_calories || 1800}`"></span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-indigo-50 border border-indigo-200">
+                            <span class="text-[11px] font-bold text-indigo-800 block">חלבון היום</span>
+                            <span class="text-base font-black text-slate-900" x-text="`${Math.round(trainerDiaryData?.summary?.total_protein || 0)} / ${trainerDiaryData?.summary?.target_protein || 120}g`"></span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-sky-50 border border-sky-200">
+                            <span class="text-[11px] font-bold text-sky-800 block">שתיית מים</span>
+                            <span class="text-base font-black text-slate-900" x-text="`${trainerDiaryData?.water?.water_ml || 0} מ״ל`"></span>
+                        </div>
+                    </div>
+
+                    <!-- Today's Meals Breakdown -->
+                    <div class="space-y-2">
+                        <h4 class="text-xs font-black text-slate-800">🍽️ ארוחות שתועדו היום (<span x-text="trainerDiaryData?.summary?.meals?.length || 0"></span>)</h4>
+                        <div x-show="!trainerDiaryData?.summary?.meals || trainerDiaryData.summary.meals.length === 0"
+                             class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-500 text-center">
+                            טרם תועדו ארוחות היום.
+                        </div>
+                        <div class="space-y-2 max-h-56 overflow-y-auto">
+                            <template x-for="m in (trainerDiaryData?.summary?.meals || [])" :key="m.id">
+                                <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2 text-xs">
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-slate-900 truncate" x-text="m.description"></div>
+                                        <div class="text-[10px] text-slate-500" x-text="`${m.log_time || ''} • ${m.meal_type || ''}`"></div>
+                                    </div>
+                                    <div class="text-left flex-shrink-0 font-mono">
+                                        <span class="font-black text-emerald-700" x-text="`${m.calories} קק״ל`"></span>
+                                        <span class="text-indigo-700 block text-[11px] font-bold" x-text="`${m.protein_g || 0}g חלבון`"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Edit Trainee Targets Form -->
+                    <div class="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-3 text-xs">
+                        <h4 class="font-black text-indigo-950">🎯 עדכון יעדים והנחיית מאמן</h4>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">יעד קלוריות</label>
+                                <input type="number" x-model.number="trainerEditTargetsForm.target_calories"
+                                       class="w-full px-3 py-2 rounded-xl bg-white border border-indigo-200 font-bold outline-none">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">יעד חלבון (גרם)</label>
+                                <input type="number" x-model.number="trainerEditTargetsForm.target_protein"
+                                       class="w-full px-3 py-2 rounded-xl bg-white border border-indigo-200 font-bold outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">הערה / דגש אישי למתאמן</label>
+                            <input type="text" x-model="trainerEditTargetsForm.coach_note" placeholder="למשל: להוסיף עוד 20 גרם חלבון בצהריים"
+                                   class="w-full px-3 py-2 rounded-xl bg-white border border-indigo-200 outline-none">
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="button" @click="saveTrainerTraineeTargets()" :disabled="trainerSavingTargets"
+                                    class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black cursor-pointer">
+                                <span x-text="trainerSavingTargets ? 'שומר...' : 'שמור יעדים למתאמן'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Trainer Send Simple Push Reminder Modal -->
+        <div x-cloak x-show="showTrainerRemindModal"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs"
+             @click.self="showTrainerRemindModal = false">
+            <div @click.stop class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-amber-200 text-right space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-base font-black text-slate-900">🔔 שליחת תזכורת פוש למתאמן</h3>
+                        <p class="text-[11px] text-slate-500" x-text="trainerRemindTarget?.name"></p>
+                    </div>
+                    <button type="button" @click="showTrainerRemindModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <span class="font-bold text-slate-700 block">תבניות מהירות בלחיצה:</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" @click="trainerRemindMessage = 'היי! תזכורת קצרה לתעד היום את הארוחות שלך באפליקציה 📸'"
+                                class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-800 font-bold cursor-pointer">📸 תעד ארוחות</button>
+                        <button type="button" @click="trainerRemindMessage = 'בוא נסגור היום את יעד החלבון שלך! אל תשכח ארוחת ערב עשירה בחלבון 💪'"
+                                class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-800 font-bold cursor-pointer">💪 סגור יעד חלבון</button>
+                        <button type="button" @click="trainerRemindMessage = 'תזכורת לשתות מים ולהישקל הבוקר 💧⚖️'"
+                                class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-800 font-bold cursor-pointer">💧 מים ושקילה</button>
+                    </div>
+                    <textarea x-model="trainerRemindMessage" rows="3" placeholder="כתוב הודעת תזכורת קצרה למתאמן..."
+                              class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:border-indigo-500 text-xs outline-none resize-none mt-2"></textarea>
+                    <p class="text-[10px] text-slate-500">ההודעה תישלח בהתראת פוש לנייד, לטלגרם (אם מחובר) וכהודעה בראש היומן באפליקציה.</p>
+                </div>
+                <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="showTrainerRemindModal = false"
+                            class="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer">ביטול</button>
+                    <button type="button" @click="sendTrainerReminder()" :disabled="trainerSendingReminder"
+                            class="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs shadow-md cursor-pointer">
+                        <span x-text="trainerSendingReminder ? 'שולח תזכורת...' : '🔔 שלח תזכורת עכשיו'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Trainer Upgrade Plan Modal (Billing-Ready) -->
+        <div x-cloak x-show="showTrainerUpgradeModal"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs"
+             @click.self="showTrainerUpgradeModal = false">
+            <div @click.stop class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-amber-200 text-right space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-black text-slate-900">👑 שדרוג חבילת מאמנים</h3>
+                    <button type="button" @click="showTrainerUpgradeModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
+                </div>
+                <div class="space-y-2.5 text-xs">
+                    <button type="button" @click="trainerUpgradeTier = 'pro'"
+                            :class="trainerUpgradeTier === 'pro' ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200' : 'border-slate-200 bg-white'"
+                            class="w-full p-3.5 rounded-2xl border text-right space-y-1 cursor-pointer transition">
+                        <div class="flex items-center justify-between font-black text-slate-900">
+                            <span>Trainer Pro — עד 30 מתאמנים</span>
+                            <span class="text-indigo-700">149 ₪ / חודש</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500">קוד, קישור, QR, יומן מלא ותזכורות פוש ללא הגבלה</p>
+                    </button>
+                    <button type="button" @click="trainerUpgradeTier = 'studio'"
+                            :class="trainerUpgradeTier === 'studio' ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-200' : 'border-slate-200 bg-white'"
+                            class="w-full p-3.5 rounded-2xl border text-right space-y-1 cursor-pointer transition">
+                        <div class="flex items-center justify-between font-black text-slate-900">
+                            <span>Studio Elite — עד 100 מתאמנים</span>
+                            <span class="text-purple-700">349 ₪ / חודש</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500">מיועד לסטודיו כושר, קליניקות תזונה ומאמנים מובילים</p>
+                    </button>
+                    <input type="text" x-model="trainerUpgradeNotes" placeholder="הערות / בקשה מיוחדת (אופציונלי)"
+                           class="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs outline-none">
+                </div>
+                <button type="button" @click="submitTrainerUpgradeRequest()" :disabled="trainerUpgrading"
+                        class="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-xs shadow-md cursor-pointer">
+                    <span x-text="trainerUpgrading ? 'שולח בקשה...' : 'בקש הפעלת חבילה ➔'"></span>
+                </button>
             </div>
         </div>
 
