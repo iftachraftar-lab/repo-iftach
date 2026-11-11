@@ -1174,6 +1174,11 @@ def upsert_user_profile(email: str, name: str = "", picture: str = "") -> dict:
         "experts_access_status": existing_doc_data.get("experts_access_status", "none"),
         "trial_workout_access_status": existing_doc_data.get("trial_workout_access_status", "none"),
         "supplements_access_status": existing_doc_data.get("supplements_access_status", "none"),
+        "coach_id": existing_doc_data.get("coach_id"),
+        "coach_name": existing_doc_data.get("coach_name"),
+        "trainer_coach_id": existing_doc_data.get("trainer_coach_id"),
+        "trainer_coach_name": existing_doc_data.get("trainer_coach_name"),
+        "trainer_studio_name": existing_doc_data.get("trainer_studio_name"),
     }
 
     if not db:
@@ -11265,6 +11270,22 @@ def api_admin_toggle_itamar_link(target_uid: str, req: AdminItamarLinkRequest, r
         }
     if db:
         db.collection("users").document(uid).set(updates, merge=True)
+        if not req.link_itamar:
+            # Also clean any matching trainee record so user is cleanly restored to organic
+            try:
+                user_snap = db.collection("users").document(uid).get()
+                u_email = ((user_snap.to_dict() or {}).get("email") or "").strip().lower() if user_snap.exists else ""
+                tr_snap = db.collection("trainees").document(uid).get()
+                if tr_snap.exists and (tr_snap.to_dict() or {}).get("coach_id") == "itamar":
+                    db.collection("trainees").document(uid).delete()
+                    _LOCAL_TRAINEES.pop(uid, None)
+                if u_email:
+                    for tdoc in db.collection("trainees").where("email", "==", u_email).stream():
+                        if (tdoc.to_dict() or {}).get("coach_id") == "itamar":
+                            tdoc.reference.delete()
+                            _LOCAL_TRAINEES.pop(tdoc.id, None)
+            except Exception as e:
+                print(f"WARN cleanup trainees on return to organic: {e}")
     elif uid in _LOCAL_USERS:
         if req.link_itamar:
             _LOCAL_USERS[uid].update(updates)
@@ -11272,6 +11293,7 @@ def api_admin_toggle_itamar_link(target_uid: str, req: AdminItamarLinkRequest, r
             _LOCAL_USERS[uid].pop("coach_id", None)
             _LOCAL_USERS[uid].pop("coach_name", None)
             _LOCAL_USERS[uid]["updated_at"] = now_iso
+            _LOCAL_TRAINEES.pop(uid, None)
     else:
         raise HTTPException(status_code=404, detail="משתמש לא נמצא")
     _safe_invalidate_admin_cache()
