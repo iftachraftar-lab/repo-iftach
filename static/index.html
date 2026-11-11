@@ -51,7 +51,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=131"></script>
+    <script src="/static/js/translations.js?v=132"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -3602,7 +3602,7 @@
                                 👥 <span x-text="trainerTrainees.length"></span> / <span x-text="trainerMe?.coach?.max_trainees || 5"></span> מתאמנים
                             </span>
                         </div>
-                        <h2 class="text-xl sm:text-2xl font-black" x-text="trainerMe?.coach?.studio_name || trainerMe?.coach?.display_name || 'פורטל מאמן'"></h2>
+                        <h2 class="text-xl sm:text-2xl font-black" x-text="trainerMe?.coach?.studio_name || trainerMe?.coach?.display_name || 'פורטל מאמן'">פורטל מאמן</h2>
                         <p class="text-xs text-indigo-200">
                             ניהול מתאמנים עצמאי • מעקב יומן קלורי ושליחת תזכורות פוש ישירות
                         </p>
@@ -3727,7 +3727,7 @@
                                             <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-900 font-black text-sm flex items-center justify-center flex-shrink-0"
                                                  x-text="(tr.name || 'מ')[0]"></div>
                                             <div class="min-w-0">
-                                                <h4 class="text-sm font-black text-slate-900 truncate" x-text="tr.name"></h4>
+                                                <h4 class="text-sm font-black text-slate-900 truncate" x-text="tr.name">מתאמן</h4>
                                                 <p class="text-[11px] text-slate-500 truncate" x-text="tr.email || tr.phone || (tr.source_type === 'invite' ? 'הזמנה אישית' : '')"></p>
                                             </div>
                                         </div>
@@ -8043,7 +8043,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=131').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=132').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12572,7 +12572,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=131');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=132');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -17149,7 +17149,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
              @click.self="showTrainerQrModal = false">
             <div @click.stop class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-indigo-200 text-center space-y-4">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h3 class="text-base font-black text-slate-900 truncate" x-text="trainerQrData?.title || 'קוד QR לחיבור מתאמנים'"></h3>
+                    <h3 class="text-base font-black text-slate-900 truncate" x-text="trainerQrData?.title || 'קוד QR לחיבור מתאמנים'">קוד QR לחיבור מתאמנים</h3>
                     <button type="button" @click="showTrainerQrModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">✕</button>
                 </div>
                 <div class="mx-auto w-56 h-56 p-3 rounded-3xl bg-white border-2 border-indigo-100 shadow-inner flex items-center justify-center"
