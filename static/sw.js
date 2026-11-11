@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutriagent-v132";
+const CACHE_NAME = "nutriagent-v133";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -68,8 +68,8 @@ self.addEventListener("push", (event) => {
   const isAdminHealth = payload.tag === "nutriagent-admin-health" || payload.is_admin;
   const options = {
     body: payload.body,
-    icon: payload.icon || "/static/icon-192.png",
-    badge: payload.badge || "/static/icon-192.png",
+    icon: payload.icon || "/static/push-icon-192.png",
+    badge: payload.badge || "/static/badge-96.png",
     dir: "rtl",
     lang: "he",
     tag: payload.tag || "nutriagent-push",
@@ -86,7 +86,7 @@ self.addEventListener("push", (event) => {
       // Fallback for iOS / strict mobile browsers that reject extra notification options
       self.registration.showNotification(payload.title, {
         body: payload.body,
-        icon: "/static/icon-192.png",
+        icon: "/static/push-icon-192.png",
         data: { url: payload.url || "/?source=push" },
       })
     )

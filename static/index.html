@@ -51,7 +51,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=132"></script>
+    <script src="/static/js/translations.js?v=133"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -8043,7 +8043,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=132').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=133').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12572,7 +12572,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=132');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=133');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});

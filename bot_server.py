@@ -4690,8 +4690,8 @@ def _deliver_web_push_to_subs(
         "body": body,
         "tag": tag,
         "url": url,
-        "icon": icon or "/static/icon-192.png",
-        "badge": badge or "/static/icon-192.png",
+        "icon": icon or "/static/push-icon-192.png",
+        "badge": badge or "/static/badge-96.png",
         "is_admin": is_admin,
         "is_healthy": is_healthy,
     }, ensure_ascii=False)
