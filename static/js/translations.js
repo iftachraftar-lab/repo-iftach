@@ -1329,6 +1329,8 @@
   "↩️ החזר לאורגני": "↩️ Return to Organic",
   "העבר משתמש זה למצב איתמר (כולל כל ה-UI וה-5 ארוחות)": "Move this user to Itamar coaching mode (full 5-slot UI)",
   "החזר משתמש זה למצב אורגני רגיל": "Return this user to regular organic mode",
+  "פעם אחת ביום": "Once a day",
+  "✓ הניתוח היומי הופק (1 ליום)": "✓ Daily analysis generated (1/day)",
   "לא נמצאו משתמשים התואמים לסינון זה": "No users match this filter",
   "נבחרת מאמני כושר, מדריכים ותזונאים קליניים עם הטבת שיחת ייעוץ חינם": "Certified Fitness Trainers & Clinical Dietitians with free consultation perk",
   "⚖️ כיול": "⚖️ Calibrate",

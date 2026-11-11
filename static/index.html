@@ -51,7 +51,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=137"></script>
+    <script src="/static/js/translations.js?v=138"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -2129,7 +2129,7 @@
                             <div class="flex items-center gap-2">
                                 <h2 class="text-base sm:text-lg font-bold text-white" x-text="t('aiCoachTitle', 'המאמן היומי שלי (AI Coach)')">המאמן היומי שלי (AI Coach)</h2>
                                 <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
-                                    NutriAgent AI
+                                    פעם אחת ביום
                                 </span>
                             </div>
                             <p class="text-xs text-indigo-200/80 mt-0.5">
@@ -2140,9 +2140,10 @@
 
                     <button type="button"
                             @click="analyzeDayWithCoach()"
-                            :disabled="coachLoading"
-                            class="px-4 py-2.5 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 disabled:opacity-60 text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition cursor-pointer flex-shrink-0">
-                        <span x-show="!coachLoading" x-text="coachInsight ? '🔄 רענן ניתוח מאמן' : '✨ נתח את היום שלי וקבל ציון'"></span>
+                            :disabled="coachLoading || isCoachAnalyzedToday"
+                            :class="isCoachAnalyzedToday ? 'bg-emerald-600/30 border border-emerald-400/40 text-emerald-200 cursor-not-allowed' : 'bg-gradient-to-l from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white cursor-pointer shadow-md'"
+                            class="px-4 py-2.5 rounded-2xl disabled:opacity-75 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition flex-shrink-0">
+                        <span x-show="!coachLoading" x-text="isCoachAnalyzedToday ? '✓ הניתוח היומי הופק (1 ליום)' : '✨ נתח את היום שלי וקבל ציון'"></span>
                         <span x-show="coachLoading" class="flex items-center gap-2">
                             <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -8116,7 +8117,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=137').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=138').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12079,6 +12080,9 @@
                                     }
                                 }
                             }
+                            if (this.currentUser.coach_analyze_last_date === this.todayStr && this.currentUser.coach_analyze_cached_insight) {
+                                this.coachInsight = this.currentUser.coach_analyze_cached_insight;
+                            }
                             if (!this.currentUser.is_admin && this.activeTab === 'admin') {
                                 this.activeTab = 'summary';
                             } else if (this.currentUser.is_admin) {
@@ -12534,7 +12538,15 @@
                     this.showToast('📋 הפקודה הועתקה! הדבק ושלח אותה לבוט בטלגרם.');
                 },
 
+                get isCoachAnalyzedToday() {
+                    if (!this.currentUser) return false;
+                    return this.currentUser.coach_analyze_last_date === this.todayStr;
+                },
                 async analyzeDayWithCoach() {
+                    if (this.isCoachAnalyzedToday) {
+                        this.showToast('ניתן להפיק ניתוח מאמן אישי פעם אחת בלבד ביום', 'error');
+                        return;
+                    }
                     this.coachLoading = true;
                     try {
                         const res = await fetch('/api/coach/analyze', {
@@ -12544,9 +12556,19 @@
                         });
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
+                            if (res.status === 429 && this.currentUser) {
+                                this.currentUser.coach_analyze_last_date = this.todayStr;
+                                localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                            }
                             throw new Error(err.detail || 'שגיאה בקבלת ניתוח מהמאמן');
                         }
-                        this.coachInsight = await res.json();
+                        const insight = await res.json();
+                        this.coachInsight = insight;
+                        if (this.currentUser) {
+                            this.currentUser.coach_analyze_last_date = this.todayStr;
+                            this.currentUser.coach_analyze_cached_insight = insight;
+                            localStorage.setItem('nutri_user', JSON.stringify(this.currentUser));
+                        }
                     } catch (e) {
                         this.showToast(e.message || 'שגיאה בניתוח המאמן היומי', 'error');
                     } finally {
@@ -12706,7 +12728,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=137');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=138');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});

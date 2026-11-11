@@ -5311,6 +5311,12 @@ def api_auth_me(request: Request, response: Response):
                 "trainer_linked_at": _LOCAL_USERS.get(local_uid, {}).get("trainer_linked_at"),
                 "last_trainer_reminder": _LOCAL_USERS.get(local_uid, {}).get("last_trainer_reminder"),
                 "has_trainer_portal": bool(get_coach_by_owner_uid(local_uid)),
+                "coach_analyze_last_date": _LOCAL_USERS.get(local_uid, {}).get("coach_analyze_last_date"),
+                "coach_analyze_cached_insight": (
+                    _LOCAL_USERS.get(local_uid, {}).get("coach_analyze_cached_insight")
+                    if _LOCAL_USERS.get(local_uid, {}).get("coach_analyze_last_date") == get_israel_today_str()
+                    else None
+                ),
                 "features": get_feature_flags(),
             }
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -5380,6 +5386,12 @@ def api_auth_me(request: Request, response: Response):
         "trainer_linked_at": user_doc.get("trainer_linked_at"),
         "last_trainer_reminder": user_doc.get("last_trainer_reminder"),
         "has_trainer_portal": bool(get_coach_by_owner_uid(uid)),
+        "coach_analyze_last_date": user_doc.get("coach_analyze_last_date"),
+        "coach_analyze_cached_insight": (
+            user_doc.get("coach_analyze_cached_insight")
+            if user_doc.get("coach_analyze_last_date") == today_str
+            else None
+        ),
         "telegram_linked": is_telegram_linked_for_user(uid),
         "features": get_feature_flags(),
     }
@@ -8104,11 +8116,38 @@ def api_auth_invite(invite_code: str, response: Response):
 @app.post("/api/coach/analyze")
 def api_coach_analyze(request: Request, req: Optional[CoachAnalyzeRequest] = None):
     uid = require_approved_user(request)
+    today_il = get_israel_today_str()
+
+    # Enforce strict 1 analysis per day per user (Israel date)
+    udoc = get_user_doc_db(uid)
+    if (udoc.get("coach_analyze_last_date") or "") == today_il:
+        raise HTTPException(
+            status_code=429,
+            detail="ניתן להפיק ניתוח מאמן אישי פעם אחת בלבד ביום. הניתוח היומי שלך כבר הופק להיום!",
+        )
+
     check_and_increment_ai_quota(uid)
-    d_str = (req.log_date if req and req.log_date else None) or get_israel_today_str()
+    d_str = (req.log_date if req and req.log_date else None) or today_il
     day_summary = get_day_summary(d_str, user_id=uid)
     hist = _fetch_user_history(uid=uid, days=7)
-    return generate_daily_coach_insight(day_summary=day_summary, daily_trend=hist.get("daily_trend", []))
+    insight = generate_daily_coach_insight(day_summary=day_summary, daily_trend=hist.get("daily_trend", []))
+
+    # Persist today's usage & insight so refresh shows today's card and blocks repeat calls
+    coach_cache_update = {
+        "coach_analyze_last_date": today_il,
+        "coach_analyze_cached_insight": insight,
+    }
+    if db and uid != "default":
+        try:
+            db.collection("users").document(uid).set(coach_cache_update, merge=True)
+        except Exception as e:
+            print(f"WARN saving coach_analyze_last_date: {e}")
+    else:
+        if uid not in _LOCAL_USERS:
+            _LOCAL_USERS[uid] = {"id": uid}
+        _LOCAL_USERS[uid].update(coach_cache_update)
+
+    return insight
 
 
 @app.put("/api/meals/{meal_id}")
