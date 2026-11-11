@@ -5446,6 +5446,23 @@ def list_all_users_admin_db(force_refresh: bool = False) -> dict:
 
     admin_uid_set = {_make_user_id_from_email(a_em) for a_em in ADMIN_EMAILS}
 
+    # Build coach & trainee classification lookup maps
+    coaches_list = list_coaches_db()
+    coaches_by_id = {c["id"]: c for c in coaches_list if c.get("id")}
+    coaches_by_owner_uid = {_normalize_user_id(c.get("owner_uid")): c for c in coaches_list if c.get("owner_uid")}
+    trainee_records_map = {}
+    if not db:
+        for tid, tr in _LOCAL_TRAINEES.items():
+            trainee_records_map[tid] = dict(tr)
+    else:
+        try:
+            for doc in db.collection("trainees").stream():
+                d = doc.to_dict() or {}
+                d["id"] = doc.id
+                trainee_records_map[doc.id] = d
+        except Exception as e:
+            print(f"ERROR reading trainees in admin: {e}")
+
     # Pre-index meals, weights, and push subscriptions by normalized user_id in O(N)
     meals_by_uid = {}
     for m in all_meals:
@@ -5518,6 +5535,47 @@ def list_all_users_admin_db(force_refresh: bool = False) -> dict:
 
         u_subs = subs_by_uid.get(uid, [])
 
+        # Classify user_type: owner | itamar_coach | trainer | itamar_trainee | organic_trainee | admin | organic
+        coach_profile = coaches_by_owner_uid.get(uid)
+        tr_rec = trainee_records_map.get(uid)
+        tr_coach_id = (u.get("trainer_coach_id") or "").strip()
+        legacy_coach_id = (u.get("coach_id") or (tr_rec.get("coach_id") if tr_rec else "") or "").strip()
+        is_itamar_coach = (email in COACH_EMAILS or bool(u.get("is_coach"))) and not owner_flag
+
+        if owner_flag:
+            user_type = "owner"
+            user_type_label = "👑 בעלים"
+            user_type_detail = "מאמן + אדמין ראשי" if coach_profile else "מנהל ראשי"
+        elif is_itamar_coach:
+            user_type = "itamar_coach"
+            user_type_label = "⭐ מאמן של איתמר"
+            user_type_detail = "ליווי איתמר"
+        elif coach_profile or bool(u.get("is_trainer_portal")):
+            user_type = "trainer"
+            user_type_label = "🏋️‍♂️ מאמן"
+            if coach_profile:
+                user_type_detail = f"{coach_profile.get('studio_name') or coach_profile.get('display_name') or ''} ({coach_profile.get('coach_code') or ''})"
+            else:
+                user_type_detail = "פורטל מאמנים Pro"
+        elif legacy_coach_id == "itamar":
+            user_type = "itamar_trainee"
+            user_type_label = "🎯 מתאמן של איתמר"
+            user_type_detail = "תוכנית איתמר"
+        elif tr_coach_id or (legacy_coach_id and legacy_coach_id != "itamar"):
+            user_type = "organic_trainee"
+            user_type_label = "🔗 מתאמן אורגני"
+            c_obj = coaches_by_id.get(tr_coach_id or legacy_coach_id) or {}
+            c_disp = u.get("trainer_studio_name") or u.get("trainer_coach_name") or c_obj.get("studio_name") or c_obj.get("display_name") or "מאמן חיצוני"
+            user_type_detail = f"מאמן: {c_disp}"
+        elif is_admin:
+            user_type = "admin"
+            user_type_label = "🛡️ אדמין"
+            user_type_detail = "ניהול מערכת"
+        else:
+            user_type = "organic"
+            user_type_label = "🌱 אורגני"
+            user_type_detail = "עצמאי באפליקציה"
+
         users_list.append({
             "id": uid,
             "email": email or uid,
@@ -5527,6 +5585,9 @@ def list_all_users_admin_db(force_refresh: bool = False) -> dict:
             "is_admin": is_admin,
             "is_approved": is_approved,
             "is_blocked": is_blocked,
+            "user_type": user_type,
+            "user_type_label": user_type_label,
+            "user_type_detail": user_type_detail,
             "daily_ai_limit": daily_ai_limit,
             "ai_calls_today": ai_calls_today,
             "target_calories": int(targets.get("target_calories") or 1800),
@@ -10352,6 +10413,7 @@ def api_bind_coach_code(req: BindCoachCodeRequest, request: Request):
     except Exception:
         pass
 
+    _safe_invalidate_admin_cache()
     return {
         "status": "ok",
         "coach_type": "premium_trainer",
@@ -10361,6 +10423,13 @@ def api_bind_coach_code(req: BindCoachCodeRequest, request: Request):
         "is_approved": True,
         "message": f"חוברת בהצלחה למאמן {c_display}!"
     }
+
+
+def _safe_invalidate_admin_cache():
+    try:
+        invalidate_admin_users_cache()
+    except Exception:
+        pass
 
 
 @app.post("/api/user/unlink-coach")
@@ -10388,6 +10457,7 @@ def api_user_unlink_coach(request: Request):
             _LOCAL_USERS[uid].pop(k, None)
         _LOCAL_USERS[uid]["updated_at"] = now_iso
 
+    _safe_invalidate_admin_cache()
     return {"status": "ok", "message": "נותקת בהצלחה מהמאמן"}
 
 
@@ -10744,6 +10814,7 @@ def api_trainer_register(req: TrainerRegisterRequest, request: Request):
     except Exception:
         pass
 
+    _safe_invalidate_admin_cache()
     app_base = _resolve_app_base_url(request)
     coach_doc["join_link"] = f"{app_base}/join/{coach_code}"
     coach_doc["active_trainees_count"] = 0
@@ -10918,6 +10989,7 @@ def api_trainer_create_trainee(req: CoachTraineeCreateRequest, request: Request)
     if not (req.name or "").strip():
         raise HTTPException(status_code=400, detail="שם המתאמן הוא שדה חובה")
 
+    _safe_invalidate_admin_cache()
     app_base = _resolve_app_base_url(request)
     record = create_trainee_record(
         coach_id=coach["id"],
@@ -11074,6 +11146,7 @@ def api_trainer_unlink_trainee(trainee_uid: str, request: Request):
     else:
         delete_trainee_record(trainee_uid)
 
+    _safe_invalidate_admin_cache()
     return {"ok": True, "unlinked_id": trainee_uid, "message": "המתאמן נותק בהצלחה"}
 
 

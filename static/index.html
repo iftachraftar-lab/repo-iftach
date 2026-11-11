@@ -51,7 +51,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=134"></script>
+    <script src="/static/js/translations.js?v=135"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -4540,118 +4540,177 @@
                 </form>
             </div>
 
-            <!-- Users List & Search -->
+            <!-- Users Table, Type Filters & Search -->
             <div x-show="adminNavTab === 'users'" class="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h3 class="text-base sm:text-lg font-bold text-slate-900">👥 משתמשים רשומים במערכת</h3>
-                        <p class="text-xs text-slate-500">ניהול פרופילים, יעדים יומיים, צפייה ביומני תזונה וחסימת גישה</p>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900">👥 משתמשים רשומים במערכת (<span x-text="filteredAdminUsers.length"></span>)</h3>
+                        <p class="text-xs text-slate-500">תצוגה טבלאית מסודרת לפי סוג משתמש (מאמן, אורגני, מתאמן אורגני, מתאמן/מאמן של איתמר), יעדים ופעילות</p>
                     </div>
                     <input type="text"
                            x-model="adminSearchQuery"
-                           placeholder="🔍 חפש לפי שם או אימייל..."
-                           class="w-full sm:w-64 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:bg-white focus:border-indigo-500 outline-none">
+                           placeholder="🔍 חפש לפי שם, אימייל או שיוך..."
+                           class="w-full sm:w-72 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:bg-white focus:border-indigo-500 outline-none">
                 </div>
 
-                <div class="space-y-3">
-                    <template x-for="u in filteredAdminUsers" :key="u.id">
-                        <div class="p-4 rounded-2xl border transition flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-                             :class="u.is_blocked ? 'bg-rose-50/40 border-rose-200' : 'bg-slate-50/70 border-slate-200/80 hover:border-indigo-200'">
+                <!-- User Type Filter Pills -->
+                <div class="flex items-center gap-1.5 flex-wrap pb-1">
+                    <button type="button" @click="adminUserTypeFilter = 'all'"
+                            :class="adminUserTypeFilter === 'all' ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">
+                        הכל (<span x-text="adminUserTypeCounts.all || 0"></span>)
+                    </button>
+                    <button type="button" @click="adminUserTypeFilter = 'organic'"
+                            :class="adminUserTypeFilter === 'organic' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">
+                        🌱 אורגני (<span x-text="adminUserTypeCounts.organic || 0"></span>)
+                    </button>
+                    <button type="button" @click="adminUserTypeFilter = 'organic_trainee'"
+                            :class="adminUserTypeFilter === 'organic_trainee' ? 'bg-sky-600 text-white shadow-xs' : 'bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">
+                        🔗 מתאמן אורגני (<span x-text="adminUserTypeCounts.organic_trainee || 0"></span>)
+                    </button>
+                    <button type="button" @click="adminUserTypeFilter = 'trainer'"
+                            :class="adminUserTypeFilter === 'trainer' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">
+                        🏋️‍♂️ מאמן (<span x-text="adminUserTypeCounts.trainer || 0"></span>)
+                    </button>
+                    <button type="button" @click="adminUserTypeFilter = 'itamar_trainee'"
+                            :class="adminUserTypeFilter === 'itamar_trainee' ? 'bg-teal-600 text-white shadow-xs' : 'bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">
+                        🎯 מתאמן של איתמר (<span x-text="adminUserTypeCounts.itamar_trainee || 0"></span>)
+                    </button>
+                    <button type="button" @click="adminUserTypeFilter = 'itamar_coach'"
+                            :class="adminUserTypeFilter === 'itamar_coach' ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">
+                        ⭐ מאמן של איתמר (<span x-text="adminUserTypeCounts.itamar_coach || 0"></span>)
+                    </button>
+                    <button type="button" @click="adminUserTypeFilter = 'pending'"
+                            :class="adminUserTypeFilter === 'pending' ? 'bg-amber-500 text-white shadow-xs' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">
+                        ⏳ ממתין לאישור (<span x-text="adminUserTypeCounts.pending || 0"></span>)
+                    </button>
+                </div>
 
-                            <!-- User Identity -->
-                            <div class="flex items-center gap-3.5 min-w-0">
-                                <template x-if="u.picture">
-                                    <img :src="u.picture" alt="" class="w-11 h-11 rounded-2xl object-cover border border-slate-200 flex-shrink-0">
-                                </template>
-                                <template x-if="!u.picture">
-                                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-bold text-base flex items-center justify-center flex-shrink-0"
-                                         x-text="(u.name || u.email || 'U').slice(0,1).toUpperCase()"></div>
-                                </template>
+                <!-- Tabular Users Grid -->
+                <div class="overflow-x-auto rounded-2xl border border-slate-200/90">
+                    <table class="w-full text-right border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[11px] font-black">
+                                <th class="py-3 px-3.5 whitespace-nowrap">משתמש</th>
+                                <th class="py-3 px-3 whitespace-nowrap">סוג משתמש</th>
+                                <th class="py-3 px-3 whitespace-nowrap">סטטוס</th>
+                                <th class="py-3 px-3 whitespace-nowrap">היום / יעד</th>
+                                <th class="py-3 px-3 whitespace-nowrap">AI ופעילות</th>
+                                <th class="py-3 px-3.5 text-left whitespace-nowrap">פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            <template x-for="u in filteredAdminUsers" :key="u.id">
+                                <tr class="transition hover:bg-slate-50/90"
+                                    :class="u.is_blocked ? 'bg-rose-50/35' : (!u.is_approved && !u.is_owner ? 'bg-amber-50/30' : '')">
+                                    <!-- Col 1: User Identity -->
+                                    <td class="py-3 px-3.5">
+                                        <div class="flex items-center gap-2.5 min-w-[180px]">
+                                            <template x-if="u.picture">
+                                                <img :src="u.picture" alt="" class="w-9 h-9 rounded-xl object-cover border border-slate-200 flex-shrink-0">
+                                            </template>
+                                            <template x-if="!u.picture">
+                                                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0"
+                                                     x-text="(u.name || u.email || 'U').slice(0,1).toUpperCase()"></div>
+                                            </template>
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-slate-900 truncate max-w-[170px]" x-text="u.name"></div>
+                                                <div class="text-[11px] text-slate-500 font-mono truncate max-w-[170px]" dir="ltr" x-text="u.email"></div>
+                                            </div>
+                                        </div>
+                                    </td>
 
-                                <div class="min-w-0 space-y-1">
-                                    <div class="flex flex-wrap items-center gap-1.5">
-                                        <span class="font-bold text-sm text-slate-900 truncate" x-text="u.name"></span>
-                                        <span x-show="u.is_owner" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-                                            👑 בעלים (אתה)
-                                        </span>
-                                        <span x-show="u.is_admin && !u.is_owner" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
-                                            🛡️ אדמין
-                                        </span>
-                                        <span x-show="u.is_blocked" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
-                                            🚫 חסום
-                                        </span>
-                                        <span x-show="!u.is_blocked && u.is_approved === false" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
-                                            ⏳ ממתין לאישור כניסה
-                                        </span>
-                                        <span x-show="!u.is_blocked && u.is_approved !== false" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                                            ✓ מאושר ופעיל
-                                        </span>
-                                    </div>
-                                    <div class="text-xs text-slate-500 font-mono truncate" dir="ltr" x-text="u.email"></div>
-                                    <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-                                        <span>📅 פעילות אחרונה: <strong class="text-slate-700" x-text="u.last_active"></strong></span>
-                                        <span>🍽️ סה״כ ארוחות: <strong class="text-slate-700" x-text="u.total_meals_count"></strong></span>
-                                        <span>🤖 קריאות AI היום: <strong class="text-indigo-700" x-text="u.is_admin ? `${u.ai_calls_today || 0} / ∞` : `${u.ai_calls_today || 0} / ${u.daily_ai_limit ?? 15}`"></strong></span>
-                                        <span x-show="u.latest_weight">⚖️ משקל: <strong class="text-slate-700" x-text="`${u.latest_weight} ק״ג`"></strong></span>
-                                        <span x-show="u.push_devices_count > 0">🔔 פוש: <strong class="text-slate-700" x-text="u.push_devices_count"></strong></span>
-                                    </div>
-                                </div>
-                            </div>
+                                    <!-- Col 2: User Type Classification -->
+                                    <td class="py-3 px-3 whitespace-nowrap">
+                                        <div class="space-y-1">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black border"
+                                                  :class="{
+                                                      'bg-amber-100 text-amber-950 border-amber-300': u.user_type === 'owner',
+                                                      'bg-purple-100 text-purple-950 border-purple-300': u.user_type === 'itamar_coach',
+                                                      'bg-indigo-100 text-indigo-950 border-indigo-300': u.user_type === 'trainer',
+                                                      'bg-teal-100 text-teal-950 border-teal-300': u.user_type === 'itamar_trainee',
+                                                      'bg-sky-100 text-sky-950 border-sky-300': u.user_type === 'organic_trainee',
+                                                      'bg-slate-200 text-slate-900 border-slate-300': u.user_type === 'admin',
+                                                      'bg-emerald-100 text-emerald-950 border-emerald-300': !u.user_type || u.user_type === 'organic'
+                                                  }"
+                                                  x-text="u.user_type_label || '🌱 אורגני'"></span>
+                                            <div x-show="u.user_type_detail" class="text-[10px] text-slate-500 font-semibold truncate max-w-[160px]" x-text="u.user_type_detail"></div>
+                                        </div>
+                                    </td>
 
-                            <!-- Today's Stats & Actions -->
-                            <div class="flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-200/60">
-                                <!-- Today's Macro Badge -->
-                                <div class="bg-white px-3.5 py-2 rounded-xl border border-slate-200 text-xs space-y-0.5 min-w-[145px]">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <span class="text-[11px] text-slate-400">היום:</span>
-                                        <span class="font-extrabold text-slate-800" x-text="`${u.today_calories} / ${u.target_calories} קק״ל`"></span>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <span class="text-[11px] text-slate-400">חלבון:</span>
-                                        <span class="font-bold text-emerald-700" x-text="`${u.today_protein}g / ${u.target_protein}g`"></span>
-                                    </div>
-                                </div>
+                                    <!-- Col 3: Approval / Block Status -->
+                                    <td class="py-3 px-3 whitespace-nowrap">
+                                        <span x-show="u.is_blocked" class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800">🚫 חסום</span>
+                                        <span x-show="!u.is_blocked && u.is_approved === false" class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">⏳ ממתין לאישור</span>
+                                        <span x-show="!u.is_blocked && u.is_approved !== false" class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">✓ פעיל</span>
+                                    </td>
 
-                                <!-- Action Buttons -->
-                                <div class="flex flex-wrap items-center gap-1.5">
-                                    <button type="button"
-                                            x-show="u.is_approved === false && !u.is_owner"
-                                            @click="toggleApproveUserAdmin(u)"
-                                            class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-xs transition cursor-pointer"
-                                            title="אשר למשתמש זה להיכנס לאפליקציה ולהשתמש ב-AI">
-                                        ✅ אשר כניסה
-                                    </button>
-                                    <button type="button"
-                                            @click="inspectUserAdmin(u)"
-                                            class="px-3 py-2 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 hover:border-indigo-200 text-xs font-bold transition cursor-pointer"
-                                            title="צפה ביומן הארוחות והשקילות של המשתמש">
-                                        👁️ יומן
-                                    </button>
-                                    <button type="button"
-                                            @click="openAdminTargetModal(u)"
-                                            class="px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-slate-200 hover:border-emerald-200 text-xs font-bold transition cursor-pointer"
-                                            title="ערוך יעדי קלוריות, חלבון ומכסת AI יומית למשתמש">
-                                        🎯 יעדים ומכסת AI
-                                    </button>
-                                    <button type="button"
-                                            x-show="currentUser && u.id !== currentUser.id && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com'].includes((u.email || '').toLowerCase())"
-                                            @click="toggleBlockUserAdmin(u)"
-                                            class="px-3 py-2 rounded-xl text-xs font-bold border transition cursor-pointer"
-                                            :class="u.is_blocked ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' : 'bg-white hover:bg-amber-50 text-amber-700 border-slate-200 hover:border-amber-200'"
-                                            :title="u.is_blocked ? 'בטל חסימת משתמש' : 'חסום גישת משתמש למערכת'">
-                                        <span x-text="u.is_blocked ? '🔓 שחרר' : '🚫 חסום'"></span>
-                                    </button>
-                                    <button type="button"
-                                            x-show="currentUser && u.id !== currentUser.id && isSuperAdmin() && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com'].includes((u.email || '').toLowerCase())"
-                                            @click="deleteUserAdmin(u)"
-                                            class="p-2 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold transition cursor-pointer"
-                                            title="מחק משתמש וכל נתוניו (סופר-אדמין בלבד)">
-                                        🗑️
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
+                                    <!-- Col 4: Today Calories & Protein -->
+                                    <td class="py-3 px-3 whitespace-nowrap font-mono">
+                                        <div class="font-extrabold text-slate-800" x-text="`${u.today_calories} / ${u.target_calories} קק״ל`"></div>
+                                        <div class="text-[11px] font-bold text-emerald-700" x-text="`${u.today_protein}g / ${u.target_protein}g`"></div>
+                                    </td>
+
+                                    <!-- Col 5: AI Quota & Activity -->
+                                    <td class="py-3 px-3 whitespace-nowrap text-[11px] text-slate-600">
+                                        <div>🤖 <strong class="text-indigo-700" x-text="u.is_admin ? `${u.ai_calls_today || 0} / ∞` : `${u.ai_calls_today || 0} / ${u.daily_ai_limit ?? 15}`"></strong></div>
+                                        <div>🍽️ <strong x-text="u.total_meals_count"></strong> • 📅 <span x-text="u.last_active"></span></div>
+                                    </td>
+
+                                    <!-- Col 6: Actions -->
+                                    <td class="py-3 px-3.5 whitespace-nowrap text-left">
+                                        <div class="inline-flex items-center gap-1">
+                                            <button type="button"
+                                                    x-show="u.is_approved === false && !u.is_owner"
+                                                    @click="toggleApproveUserAdmin(u)"
+                                                    class="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold shadow-xs transition cursor-pointer"
+                                                    title="אשר למשתמש זה להיכנס לאפליקציה ולהשתמש ב-AI">
+                                                ✅ אשר
+                                            </button>
+                                            <button type="button"
+                                                    @click="inspectUserAdmin(u)"
+                                                    class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-indigo-700 border border-slate-200 text-[11px] font-bold transition cursor-pointer"
+                                                    title="צפה ביומן הארוחות והשקילות של המשתמש">
+                                                👁️ יומן
+                                            </button>
+                                            <button type="button"
+                                                    @click="openAdminTargetModal(u)"
+                                                    class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-emerald-700 border border-slate-200 text-[11px] font-bold transition cursor-pointer"
+                                                    title="ערוך יעדי קלוריות, חלבון ומכסת AI יומית למשתמש">
+                                                🎯 יעדים
+                                            </button>
+                                            <button type="button"
+                                                    x-show="currentUser && u.id !== currentUser.id && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com'].includes((u.email || '').toLowerCase())"
+                                                    @click="toggleBlockUserAdmin(u)"
+                                                    class="px-2 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer"
+                                                    :class="u.is_blocked ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white hover:bg-amber-50 text-amber-700 border-slate-200'"
+                                                    :title="u.is_blocked ? 'בטל חסימת משתמש' : 'חסום גישת משתמש למערכת'">
+                                                <span x-text="u.is_blocked ? '🔓' : '🚫'"></span>
+                                            </button>
+                                            <button type="button"
+                                                    x-show="currentUser && u.id !== currentUser.id && isSuperAdmin() && !['iftach.raftar@gmail.com', 'iftachraftar@gmail.com'].includes((u.email || '').toLowerCase())"
+                                                    @click="deleteUserAdmin(u)"
+                                                    class="px-2 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-[11px] font-bold transition cursor-pointer"
+                                                    title="מחק משתמש וכל נתוניו (סופר-אדמין בלבד)">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr x-show="filteredAdminUsers.length === 0">
+                                <td colspan="6" class="py-8 text-center text-xs text-slate-400 font-bold">
+                                    לא נמצאו משתמשים התואמים לסינון זה
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -8043,7 +8102,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=134').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=135').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -8990,6 +9049,7 @@
                 viewingTrainee: null,
                 coachingSubTab: 'summary',
                 adminNavTab: 'users',
+                adminUserTypeFilter: 'all',
                 adminCosts: null,
                 adminCostsLoading: false,
                 adminHealthTesting: false,
@@ -11106,13 +11166,32 @@
                     return this.recipes.filter(r => r.category === this.selectedRecipeCategory);
                 },
 
+                get adminUserTypeCounts() {
+                    const list = this.adminData?.users || [];
+                    const counts = { all: list.length, organic: 0, organic_trainee: 0, trainer: 0, itamar_trainee: 0, itamar_coach: 0, pending: 0 };
+                    for (const u of list) {
+                        const t = u.user_type || 'organic';
+                        if (counts[t] !== undefined) counts[t]++;
+                        if (!u.is_blocked && u.is_approved === false) counts.pending++;
+                    }
+                    return counts;
+                },
+
                 get filteredAdminUsers() {
                     const q = (this.adminSearchQuery || '').trim().toLowerCase();
-                    const list = this.adminData?.users || [];
+                    const typeF = this.adminUserTypeFilter || 'all';
+                    let list = this.adminData?.users || [];
+                    if (typeF === 'pending') {
+                        list = list.filter(u => !u.is_blocked && u.is_approved === false);
+                    } else if (typeF !== 'all') {
+                        list = list.filter(u => (u.user_type || 'organic') === typeF);
+                    }
                     if (!q) return list;
                     return list.filter(u =>
                         (u.name || '').toLowerCase().includes(q) ||
-                        (u.email || '').toLowerCase().includes(q)
+                        (u.email || '').toLowerCase().includes(q) ||
+                        (u.user_type_label || '').toLowerCase().includes(q) ||
+                        (u.user_type_detail || '').toLowerCase().includes(q)
                     );
                 },
 
@@ -12572,7 +12651,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=134');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=135');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
