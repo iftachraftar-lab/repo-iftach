@@ -1182,6 +1182,8 @@
   "הפוך קטן": "Small Cappuccino / Latte",
   "2 ביצים וקוטג׳": "2 Eggs & Cottage Cheese",
   "חזה עוף ואורז": "Chicken Breast & Rice",
+  "חזה עוף ואורז לבן": "Chicken Breast & White Rice",
+  "אורז לבן": "White Rice",
   "סלט טונה וביצה": "Tuna Salad & Egg",
   "יוגורט PRO / שייק": "PRO Yogurt / Protein Shake",
   "חלבי": "Dairy",
