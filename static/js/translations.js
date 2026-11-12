@@ -1791,6 +1791,14 @@
   "100 מ״ל": "100 ml",
   "נותר להיום": "Remaining today",
   "מעבר ליעד": "Above target",
+  "🍽️ תחושת שובע היום:": "🍽️ Today's Satiety:",
+  "תחושת שובע:": "Satiety:",
+  "✓ נשמר": "✓ Saved",
+  "1 · רעב": "1 · Hungry",
+  "2 · מעט רעב": "2 · Slightly hungry",
+  "3 · מאוזן": "3 · Balanced",
+  "4 · שבע": "4 · Satisfied",
+  "5 · מלא": "5 · Full",
   "סה״כ:": "Total:"
 };
 

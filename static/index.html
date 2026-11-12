@@ -51,7 +51,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=142"></script>
+    <script src="/static/js/translations.js?v=143"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -737,6 +737,14 @@
                                                 <div class="bg-sky-500 h-full rounded-full transition-all"
                                                      :style="`width: ${Math.min(100, Math.round(((t.today_water_ml || 0) / 2500) * 100))}%`"></div>
                                             </div>
+                                        </div>
+
+                                        <!-- Today Satiety Pill -->
+                                        <div x-show="t.today_satiety" class="pt-1 flex items-center justify-between text-[11px]">
+                                            <span class="font-bold text-slate-600">תחושת שובע:</span>
+                                            <span class="px-2 py-0.5 rounded-full font-bold"
+                                                  :class="t.today_satiety <= 2 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'"
+                                                  x-text="`🍽️ ${t.today_satiety}/5`"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -2203,85 +2211,19 @@
                 </div>
             </div>
 
-            <!-- End-of-Day Client Feeling & Satiety Check-In Card -->
-            <div x-show="!viewingTrainee" class="bg-white/90 backdrop-blur-xl rounded-3xl p-5 sm:p-6 shadow-[0_6px_24px_rgba(15,23,42,0.04)] border border-slate-200/80 space-y-4">
-                <div class="flex items-center justify-between gap-2 cursor-pointer select-none" @click="checkinExpanded = !checkinExpanded">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-lg flex-shrink-0">
-                            📝
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <h3 class="text-sm sm:text-base font-extrabold text-slate-800">פידבק סוף יום — איך הרגשת היום?</h3>
-                                <span x-show="dailyCheckinSaved" class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
-                                    ✓ נשמר להיום
-                                </span>
-                            </div>
-                            <p class="text-xs text-slate-500">תחושת שובע, הרגשה כללית ודירוג קצר שעוזר לדייק עבורך את התוכנית</p>
-                        </div>
-                    </div>
-                    <button type="button" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex-shrink-0 cursor-pointer">
-                        <span x-text="checkinExpanded ? 'צמצם ▲' : 'מלא עכשיו ▼'"></span>
-                    </button>
+            <!-- Minimal 1-Row Client Satiety Feedback (Auto-saves on 1 click) -->
+            <div x-show="!viewingTrainee" class="px-4 py-2.5 rounded-2xl bg-white/85 backdrop-blur-lg border border-slate-200/80 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-bold text-slate-700 whitespace-nowrap">🍽️ תחושת שובע היום:</span>
+                    <span x-show="dailyCheckinSaved" class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold whitespace-nowrap">✓ נשמר</span>
                 </div>
-
-                <div x-cloak x-show="checkinExpanded" x-transition class="pt-3 border-t border-slate-100 space-y-4 text-xs">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <!-- Satiety -->
-                        <div class="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/70 space-y-2">
-                            <div class="font-bold text-slate-700">🍽️ תחושת שובע היום</div>
-                            <div class="grid grid-cols-5 gap-1">
-                                <template x-for="opt in [{v:1, l:'רעב'}, {v:2, l:'מעט רעב'}, {v:3, l:'מאוזן'}, {v:4, l:'שבע'}, {v:5, l:'מלא'}]" :key="opt.v">
-                                    <button type="button" @click="dailyCheckin.satiety_rating = opt.v"
-                                            class="py-1.5 px-1 rounded-xl border text-[11px] font-bold transition cursor-pointer text-center"
-                                            :class="dailyCheckin.satiety_rating === opt.v ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'">
-                                        <span class="block text-xs font-black" x-text="opt.v"></span>
-                                        <span class="block text-[9px] truncate" x-text="opt.l"></span>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-
-                        <!-- General Feeling -->
-                        <div class="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/70 space-y-2">
-                            <div class="font-bold text-slate-700">✨ הרגשה כללית ואנרגיה</div>
-                            <div class="grid grid-cols-5 gap-1">
-                                <template x-for="opt in [{v:1, l:'עייף'}, {v:2, l:'כבד'}, {v:3, l:'רגיל'}, {v:4, l:'טוב'}, {v:5, l:'מצוין'}]" :key="opt.v">
-                                    <button type="button" @click="dailyCheckin.feeling_rating = opt.v"
-                                            class="py-1.5 px-1 rounded-xl border text-[11px] font-bold transition cursor-pointer text-center"
-                                            :class="dailyCheckin.feeling_rating === opt.v ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'">
-                                        <span class="block text-xs font-black" x-text="opt.v"></span>
-                                        <span class="block text-[9px] truncate" x-text="opt.l"></span>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-
-                        <!-- Overall Day Rating -->
-                        <div class="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/70 space-y-2">
-                            <div class="font-bold text-slate-700">⭐ דירוג היום שלי (1–5)</div>
-                            <div class="grid grid-cols-5 gap-1">
-                                <template x-for="n in [1,2,3,4,5]" :key="n">
-                                    <button type="button" @click="dailyCheckin.day_rating = n"
-                                            class="py-2 rounded-xl border text-xs font-black transition cursor-pointer flex items-center justify-center gap-0.5"
-                                            :class="dailyCheckin.day_rating >= n ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-100'">
-                                        <span>★</span>
-                                        <span x-text="n"></span>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <input type="text" x-model="dailyCheckin.notes"
-                               placeholder="הערה קצרה למאמן או לעצמך (אופציונלי — למשל: שבעתי מאוד בצהריים)..."
-                               class="flex-1 px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:bg-white focus:border-emerald-500">
-                        <button type="button" @click="saveDailyCheckin()" :disabled="checkinSaving"
-                                class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer flex-shrink-0 disabled:opacity-60">
-                            <span x-text="checkinSaving ? 'שומר...' : (dailyCheckinSaved ? 'עדכן פידבק יומי' : 'שמור פידבק יומי')"></span>
-                        </button>
-                    </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <template x-for="opt in [{v:1, l:'רעב'}, {v:2, l:'מעט רעב'}, {v:3, l:'מאוזן'}, {v:4, l:'שבע'}, {v:5, l:'מלא'}]" :key="opt.v">
+                        <button type="button" @click="saveSatietyQuick(opt.v)" :disabled="checkinSaving"
+                                class="px-2.5 py-1 rounded-xl border text-[11px] font-bold transition cursor-pointer disabled:opacity-60"
+                                :class="(dailyCheckinSaved && dailyCheckin.satiety_rating === opt.v) ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'"
+                                x-text="`${opt.v} · ${opt.l}`"></button>
+                    </template>
                 </div>
             </div>
 
@@ -3850,6 +3792,12 @@
                                                 <div class="bg-indigo-500 h-full rounded-full"
                                                      :style="`width: ${Math.min(100, Math.round(((tr.today_protein || 0) / (tr.target_protein || 120)) * 100))}%`"></div>
                                             </div>
+                                        </div>
+                                        <div x-show="tr.today_satiety" class="pt-1 flex items-center justify-between text-[11px]">
+                                            <span class="font-bold text-slate-600">תחושת שובע:</span>
+                                            <span class="px-2 py-0.5 rounded-full font-bold"
+                                                  :class="tr.today_satiety <= 2 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'"
+                                                  x-text="`🍽️ ${tr.today_satiety}/5`"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -8213,7 +8161,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=142').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=143').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12729,6 +12677,10 @@
                         }
                     } catch (e) {}
                 },
+                async saveSatietyQuick(rating) {
+                    this.dailyCheckin.satiety_rating = Number(rating);
+                    await this.saveDailyCheckin();
+                },
                 async saveDailyCheckin() {
                     this.checkinSaving = true;
                     try {
@@ -12906,7 +12858,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=142');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=143');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -16864,12 +16816,17 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     const wLine = this.weightData.latest_weight
                         ? `⚖️ משקל נוכחי: ${this.weightData.latest_weight} ק"ג` + (this.weightData.entries.length > 1 ? ` (שינוי: ${this.weightData.weight_change > 0 ? '+' : ''}${this.weightData.weight_change} ק"ג)` : '')
                         : '';
+                    const satDays = (this.dailyTrend || []).filter(d => d && d.satiety_rating);
+                    const satLine = satDays.length > 0
+                        ? `🍽️ ממוצע תחושת שובע השבוע: ${(satDays.reduce((a, d) => a + Number(d.satiety_rating), 0) / satDays.length).toFixed(1)}/5 (${satDays.length} ימים)`
+                        : '';
                     return [
                         `📊 *סיכום תזונה וכושר שבועי — NutriAgent AI*`,
                         `📅 ימים מתועדים השבוע: ${st.activeDays}/7`,
                         `🔥 ממוצע קלוריות יומי: ${st.avgCalories} / ${this.summary.target_calories} קק"ל`,
                         `💪 ממוצע חלבון יומי: ${st.avgProtein}g / ${this.summary.target_protein}g`,
                         `🏃‍♂️ קלוריות שנשרפו באימונים: ${st.totalBurned} קק"ל (${st.totalWorkouts} אימונים)`,
+                        satLine,
                         wLine
                     ].filter(Boolean).join('\n');
                 },

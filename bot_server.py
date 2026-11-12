@@ -1506,11 +1506,13 @@ def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
         # Attach live today metrics
         s = get_day_summary(user_id=uid)
         w = get_daily_water_db(user_id=uid)
+        ck = get_daily_checkin_db(user_id=uid)
         rec = dict(t)
         rec["today_calories"] = s.get("total_calories", 0)
         rec["remaining_calories"] = s.get("remaining_calories", t.get("target_calories", 1800))
         rec["today_protein"] = s.get("total_protein", 0)
         rec["today_water_ml"] = w.get("water_ml", 0)
+        rec["today_satiety"] = ck.get("satiety_rating") if ck else None
         rec["meals_count"] = len(s.get("meals", []))
         inv = t.get("invite_code", "")
         rec["telegram_link"] = f"https://t.me/{bot_name}?start=pair_{inv}"
@@ -1551,6 +1553,7 @@ def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
             seen_ids.add(uid)
             s = get_day_summary(user_id=uid)
             w = get_daily_water_db(user_id=uid)
+            ck = get_daily_checkin_db(user_id=uid)
             t_cal = int(s.get("target_calories") or u.get("target_calories") or 1800)
             t_prot = float(s.get("target_protein") or u.get("target_protein") or 120.0)
             l_code = u.get("link_code") or uid
@@ -1573,6 +1576,7 @@ def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
                 "remaining_calories": s.get("remaining_calories", t_cal),
                 "today_protein": s.get("total_protein", 0),
                 "today_water_ml": w.get("water_ml", 0),
+                "today_satiety": ck.get("satiety_rating") if ck else None,
                 "meals_count": len(s.get("meals", [])),
                 "telegram_link": f"https://t.me/{bot_name}?start=link_{l_code}",
                 "web_link": f"{app_base}/itamar",
@@ -7497,6 +7501,7 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
         else:
             day_water = int(_LOCAL_WATER.get(f"{uid}_{d}", 0))
 
+        ck_day = get_daily_checkin_db(log_date=d, user_id=uid)
         rolling_14_trend.append({
             "date": d,
             "calories": cal,
@@ -7504,6 +7509,7 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
             "net_calories": cal - burned,
             "protein_g": prot,
             "water_ml": day_water,
+            "satiety_rating": ck_day.get("satiety_rating") if ck_day else None,
             "meal_count": len(day_meals),
             "workout_count": len(day_workouts),
         })
@@ -11168,6 +11174,7 @@ def api_trainer_list_trainees(request: Request):
         seen_uids.add(t_uid)
         s = get_day_summary(user_id=t_uid)
         w = get_daily_water_db(user_id=t_uid)
+        ck = get_daily_checkin_db(user_id=t_uid)
         subs = get_push_subscriptions_db(user_id=t_uid)
         t_cal = int(s.get("target_calories") or u.get("target_calories") or 1800)
         t_prot = float(s.get("target_protein") or u.get("target_protein") or 120.0)
@@ -11187,6 +11194,7 @@ def api_trainer_list_trainees(request: Request):
             "today_protein": s.get("total_protein", 0),
             "target_protein": t_prot,
             "today_water_ml": w.get("water_ml", 0),
+            "today_satiety": ck.get("satiety_rating") if ck else None,
             "meals_count": len(s.get("meals", [])),
             "coach_note": u.get("trainer_coach_note") or "",
             "last_reminder_at": (u.get("last_trainer_reminder") or {}).get("sent_at") if isinstance(u.get("last_trainer_reminder"), dict) else None,
