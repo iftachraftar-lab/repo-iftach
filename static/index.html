@@ -58,7 +58,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=146"></script>
+    <script src="/static/js/translations.js?v=147"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -8191,7 +8191,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=146').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=147').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -11915,6 +11915,7 @@
             async init() {
                     this.startUxWatchdog();
                     this.initGoogleAnalytics();
+                    this.initGlobalButtonClickTracker();
                     // LOCAL ONLY BYPASS (Zero impact on production):
                     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
                     if (isLocalhost) {
@@ -12897,7 +12898,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=146');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=147');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -14335,6 +14336,36 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         });
                     }
                 } catch (e) {}
+            },
+
+            initGlobalButtonClickTracker() {
+                if (this._gaClickTrackerStarted) return;
+                this._gaClickTrackerStarted = true;
+                let lastKey = '';
+                let lastTs = 0;
+                document.addEventListener('click', (ev) => {
+                    try {
+                        if (!window.gtag || !this.adminGaMeasurementId) return;
+                        const btn = ev.target && ev.target.closest ? ev.target.closest('button, [role="button"]') : null;
+                        if (!btn || btn.disabled) return;
+                        const rawLabel = (btn.getAttribute('data-ga') || btn.getAttribute('aria-label') || btn.getAttribute('title') || btn.innerText || '').replace(/\s+/g, ' ').trim();
+                        const label = rawLabel.slice(0, 48);
+                        if (!label) return;
+                        const pageTab = (this.activeTab === 'summary' && this.coachingSubTab === 'trainees') ? 'summary:trainees' : (this.activeTab || 'summary');
+                        const now = Date.now();
+                        const dedupeKey = pageTab + '|' + label;
+                        if (dedupeKey === lastKey && (now - lastTs) < 250) return;
+                        lastKey = dedupeKey;
+                        lastTs = now;
+                        window.gtag('event', 'ui_button_click', {
+                            page_tab: pageTab,
+                            button_label: label,
+                            app_mode: this.appMode || 'full',
+                            user_role: this.getAnalyticsUserRole(),
+                            route_path: (window.location.pathname || '/').slice(0, 32)
+                        });
+                    } catch (e) {}
+                }, { passive: true, capture: true });
             },
 
             trackUsageEvent(eventName, meta = {}) {
