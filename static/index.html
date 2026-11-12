@@ -58,7 +58,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=145"></script>
+    <script src="/static/js/translations.js?v=146"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -8191,7 +8191,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=145').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=146').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12641,6 +12641,7 @@
                 async analyzeDayWithCoach() {
                     if (this.isCoachAnalyzedToday) {
                         this.showCoachPremiumModal = true;
+                        this.trackUsageEvent('ai_coach_premium_popup');
                         return;
                     }
                     this.coachLoading = true;
@@ -12664,6 +12665,7 @@
                         }
                         const insight = await res.json();
                         this.coachInsight = insight;
+                        this.trackUsageEvent('ai_coach_run');
                         if (this.currentUser) {
                             this.currentUser.coach_analyze_last_date = this.todayStr;
                             this.currentUser.coach_analyze_cached_insight = insight;
@@ -12677,6 +12679,7 @@
                 },
                 async requestCoachPremiumUpgrade() {
                     this.coachPremiumSending = true;
+                    this.trackUsageEvent('ai_coach_premium_request');
                     try {
                         const res = await fetch('/api/coach/analyze-premium-interest', { method: 'POST' });
                         const data = await res.json().catch(() => ({}));
@@ -12709,10 +12712,12 @@
                 },
                 async saveSatietyQuick(rating) {
                     this.dailyCheckin.satiety_rating = Number(rating);
+                    this.trackUsageEvent('checkin_satiety', { rating: Number(rating) });
                     await this.saveDailyCheckin();
                 },
                 async saveFeelingQuick(rating) {
                     this.dailyCheckin.feeling_rating = Number(rating);
+                    this.trackUsageEvent('checkin_feeling', { rating: Number(rating) });
                     await this.saveDailyCheckin();
                 },
                 async saveDailyCheckin() {
@@ -12892,7 +12897,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=145');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=146');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -13120,6 +13125,7 @@
                 },
 
                 async installPWA() {
+                    this.trackUsageEvent('pwa_install_click');
                     const promptEvent = window.deferredPWAPrompt || deferredPWAPrompt;
                     if (promptEvent) {
                         try {
@@ -13294,7 +13300,8 @@
                         return;
                     }
                     this.activeTab = tab;
-                    this.trackUsageEvent('tab_view_' + tab);
+                    this.trackUsageEvent('tab_view_' + tab, { screen_name: tab });
+                    this.trackUsageEvent('screen_view', { screen_name: tab });
                     if (tab === 'history') {
                         this.fetchHistory();
                         this.fetchWeight();
@@ -14303,13 +14310,42 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         window.gtag('js', new Date());
                     }
                     window.gtag('config', gaId);
+                    this.syncAnalyticsUserProperties();
+                } catch (e) {}
+            },
+
+            getAnalyticsUserRole() {
+                const u = this.currentUser;
+                if (!u) return 'guest';
+                if (u.is_super_admin) return 'owner';
+                if (u.is_admin) return 'admin';
+                if (u.has_trainer_portal) return 'trainer';
+                if (u.coach_id === 'itamar') return 'itamar_trainee';
+                if (u.trainer_coach_id) return 'organic_trainee';
+                return 'organic';
+            },
+
+            syncAnalyticsUserProperties() {
+                try {
+                    if (window.gtag && this.adminGaMeasurementId) {
+                        window.gtag('set', 'user_properties', {
+                            app_mode: this.appMode || 'full',
+                            user_role: this.getAnalyticsUserRole(),
+                            language: this.currentLang || 'he'
+                        });
+                    }
                 } catch (e) {}
             },
 
             trackUsageEvent(eventName, meta = {}) {
                 try {
                     if (window.gtag && this.adminGaMeasurementId) {
-                        window.gtag('event', eventName, meta);
+                        window.gtag('event', eventName, {
+                            app_mode: this.appMode || 'full',
+                            user_role: this.getAnalyticsUserRole(),
+                            language: this.currentLang || 'he',
+                            ...meta
+                        });
                     }
                     fetch('/api/analytics/event', {
                         method: 'POST',
@@ -14706,6 +14742,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         if (targetDate === this.todayStr) {
                             this.summary.water_ml = data.water_ml;
                         }
+                        this.trackUsageEvent('water_add', { amount_ml: amountMl });
                         this.showToast(`💧 נוספו ${amountMl} מ״ל מים! סה״כ: ${data.water_ml.toLocaleString()} מ״ל`);
                     }
                 } catch (e) {
@@ -14730,6 +14767,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         if (targetDate === this.todayStr) {
                             this.summary.water_ml = data.water_ml;
                         }
+                        this.trackUsageEvent('water_add', { amount_ml: amountMl });
                         this.showToast(`הופחתו ${amountMl} מ״ל`);
                     }
                 } catch (e) {
@@ -15525,6 +15563,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         if (targetDate === this.todayStr) {
                             this.summary.water_ml = data.water_ml;
                         }
+                        this.trackUsageEvent('water_add', { amount_ml: amountMl });
                         this.showToast(`💧 עודכן ל-${glassNum} כוסות (${data.water_ml.toLocaleString()} מ״ל)`);
                     }
                 } catch (e) {
@@ -15749,6 +15788,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         throw new Error(err.detail || 'שגיאה בשמירת הארוחה');
                     }
                     const saved = await res.json();
+                    this.trackUsageEvent('meal_log_confirmed', { source: payload.source, meal_type: payload.meal_type });
                     this.targetMealSlot = 'auto';
                     this.showMealConfirmModal = false;
                     await Promise.all([this.fetchSummary(), this.fetchHistory()]);
@@ -16249,6 +16289,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                             body: JSON.stringify(this.editForm)
                         });
                         if (!res.ok) throw new Error('Failed edit');
+                        this.trackUsageEvent('meal_edit');
                         this.mealToEdit = null;
                         await Promise.all([this.fetchSummary(), this.fetchHistory()]);
                         this.showToast('✏️ הארוחה עודכנה בהצלחה!');
@@ -16286,6 +16327,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                             throw new Error(err.detail || `שגיאה בשמירת השקילה (${res.status})`);
                         }
                         this.newWeightKg = null;
+                        this.trackUsageEvent('weight_log');
                         await this.fetchWeight();
                         this.showToast('⚖️ השקילה נשמרה בהצלחה!');
                     } catch (e) {
@@ -16871,12 +16913,14 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                 },
 
                 shareWeeklyReportWhatsApp() {
+                    this.trackUsageEvent('weekly_report_share', { channel: 'whatsapp' });
                     const text = this.buildWeeklyReportText();
                     const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
                     window.open(waUrl, '_blank', 'noopener');
                 },
 
                 async copyWeeklyReport() {
+                    this.trackUsageEvent('weekly_report_share', { channel: 'copy' });
                     const text = this.buildWeeklyReportText();
                     try {
                         await navigator.clipboard.writeText(text);
@@ -17018,6 +17062,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         const data = await res.json().catch(() => ({}));
                         if (!res.ok) throw new Error(data.detail || 'שגיאה באיתור הברקוד');
                         this.barcodeResult = data;
+                        this.trackUsageEvent('barcode_scan', { found: Boolean(data.found) });
                         if (data.found) {
                             this.barcodeGramsInput = data.serving_weight_g || data.package_weight_g || 100;
                             this.showToast(`✅ נמצא: ${data.product_name}`);
@@ -17082,6 +17127,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         const data = await res.json().catch(() => ({}));
                         if (!res.ok) throw new Error(data.detail || 'לא ניתן היה לקרוא את הברקוד');
                         this.barcodeResult = data;
+                        this.trackUsageEvent('barcode_scan', { found: Boolean(data.found) });
                         if (data.barcode && data.barcode !== 'PHOTO-SCAN') {
                             this.barcodeInput = data.barcode;
                         }
