@@ -1789,6 +1789,8 @@
   "הוסף 100 מ״ל": "Add 100 ml",
   "הפחת 100 מ״ל": "Remove 100 ml",
   "100 מ״ל": "100 ml",
+  "נותר להיום": "Remaining today",
+  "מעבר ליעד": "Above target",
   "סה״כ:": "Total:"
 };
 
@@ -1822,6 +1824,13 @@
                      .replace(/חריגת\s*יעד:\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Over budget: $1 kcal')
                      .replace(/חריגה(?:\s*של)?:\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Over target: $1 kcal')
                      .replace(/חריגה\s+של\s+(\d[\d,\.]*)/g, 'Over by $1')
+                     .replace(/(\d[\d,\.]*)\s*מתוך\s*(\d[\d,\.]*)\s*נאכלו/g, '$1 of $2 consumed')
+                     .replace(/נותר\s+להיום:?\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Remaining today: $1 kcal')
+                     .replace(/נותר\s+להיום\s+(\d[\d,\.]*)/g, 'Remaining today $1')
+                     .replace(/נותר\s*להיום/g, 'Remaining today')
+                     .replace(/נותר\s*לToday/g, 'Remaining today')
+                     .replace(/מעבר\s+ליעד:?\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Above target: $1 kcal')
+                     .replace(/מעבר\s+ליעד\s+(\d[\d,\.]*)/g, 'Above target $1')
                      .replace(/נותרו\s+לאכול\s+(\d[\d,\.]*)\s*קק[״"]ל/g, '$1 kcal left to eat')
                      .replace(/נותרו\s+לאכול\s+(\d[\d,\.]*)/g, '$1 left to eat')
                      .replace(/מעבר\s+ליעד\s+ב-(\d[\d,\.]*)\s*קק[״"]ל/g, '$1 kcal above target')
