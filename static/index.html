@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
+    <!-- Google Tag (GTM-PG33J2G4) -->
+    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PG33J2G4"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#059669">
@@ -51,7 +58,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=144"></script>
+    <script src="/static/js/translations.js?v=145"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -8184,7 +8191,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=144').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=145').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12885,7 +12892,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=144');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=145');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
