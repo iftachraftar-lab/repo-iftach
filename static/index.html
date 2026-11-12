@@ -51,7 +51,7 @@
     <!-- Lightweight In-House QR Code Generator (SVG / DataURL) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- NutriAgent Internationalization Dictionary & Dynamic Translation Engine -->
-    <script src="/static/js/translations.js?v=143"></script>
+    <script src="/static/js/translations.js?v=144"></script>
     <style>
         html, body {
             max-width: 100vw;
@@ -739,12 +739,16 @@
                                             </div>
                                         </div>
 
-                                        <!-- Today Satiety Pill -->
-                                        <div x-show="t.today_satiety" class="pt-1 flex items-center justify-between text-[11px]">
-                                            <span class="font-bold text-slate-600">תחושת שובע:</span>
-                                            <span class="px-2 py-0.5 rounded-full font-bold"
-                                                  :class="t.today_satiety <= 2 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'"
-                                                  x-text="`🍽️ ${t.today_satiety}/5`"></span>
+                                        <!-- Today Satiety & Feeling Pill -->
+                                        <div x-show="t.today_satiety || t.today_feeling" class="pt-1 flex items-center justify-between gap-1 text-[11px]">
+                                            <span class="font-bold text-slate-600">תחושה היום:</span>
+                                            <div class="flex items-center gap-1">
+                                                <span x-show="t.today_satiety" class="px-2 py-0.5 rounded-full font-bold"
+                                                      :class="t.today_satiety <= 2 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'"
+                                                      x-text="`🍽️ ${t.today_satiety}/5`"></span>
+                                                <span x-show="t.today_feeling" class="px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-900"
+                                                      x-text="`✨ ${t.today_feeling}/5`"></span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2211,19 +2215,34 @@
                 </div>
             </div>
 
-            <!-- Minimal 1-Row Client Satiety Feedback (Auto-saves on 1 click) -->
-            <div x-show="!viewingTrainee" class="px-4 py-2.5 rounded-2xl bg-white/85 backdrop-blur-lg border border-slate-200/80 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
-                <div class="flex items-center gap-2 min-w-0">
-                    <span class="font-bold text-slate-700 whitespace-nowrap">🍽️ תחושת שובע היום:</span>
-                    <span x-show="dailyCheckinSaved" class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold whitespace-nowrap">✓ נשמר</span>
+            <!-- Minimal Client Satiety & Energy Feedback (Auto-saves on 1 click) -->
+            <div x-show="!viewingTrainee" class="px-4 py-2.5 rounded-2xl bg-white/85 backdrop-blur-lg border border-slate-200/80 shadow-[0_2px_12px_rgba(15,23,42,0.03)] space-y-2 text-xs">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="font-bold text-slate-700 whitespace-nowrap">🍽️ תחושת שובע היום:</span>
+                        <span x-show="dailyCheckinSaved" class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold whitespace-nowrap">✓ נשמר</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <template x-for="opt in [{v:1, l:'רעב'}, {v:2, l:'מעט רעב'}, {v:3, l:'מאוזן'}, {v:4, l:'שבע'}, {v:5, l:'מלא'}]" :key="opt.v">
+                            <button type="button" @click="saveSatietyQuick(opt.v)" :disabled="checkinSaving"
+                                    class="px-2.5 py-1 rounded-xl border text-[11px] font-bold transition cursor-pointer disabled:opacity-60"
+                                    :class="(dailyCheckinSaved && dailyCheckin.satiety_rating === opt.v) ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'"
+                                    x-text="`${opt.v} · ${opt.l}`"></button>
+                        </template>
+                    </div>
                 </div>
-                <div class="flex items-center gap-1.5 flex-wrap">
-                    <template x-for="opt in [{v:1, l:'רעב'}, {v:2, l:'מעט רעב'}, {v:3, l:'מאוזן'}, {v:4, l:'שבע'}, {v:5, l:'מלא'}]" :key="opt.v">
-                        <button type="button" @click="saveSatietyQuick(opt.v)" :disabled="checkinSaving"
-                                class="px-2.5 py-1 rounded-xl border text-[11px] font-bold transition cursor-pointer disabled:opacity-60"
-                                :class="(dailyCheckinSaved && dailyCheckin.satiety_rating === opt.v) ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'"
-                                x-text="`${opt.v} · ${opt.l}`"></button>
-                    </template>
+                <div class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="font-bold text-slate-700 whitespace-nowrap">✨ הרגשה כללית ואנרגיה:</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <template x-for="opt in [{v:1, l:'עייף'}, {v:2, l:'כבד'}, {v:3, l:'רגיל'}, {v:4, l:'טוב'}, {v:5, l:'מצוין'}]" :key="opt.v">
+                            <button type="button" @click="saveFeelingQuick(opt.v)" :disabled="checkinSaving"
+                                    class="px-2.5 py-1 rounded-xl border text-[11px] font-bold transition cursor-pointer disabled:opacity-60"
+                                    :class="(dailyCheckinSaved && dailyCheckin.feeling_rating === opt.v) ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'"
+                                    x-text="`${opt.v} · ${opt.l}`"></button>
+                        </template>
+                    </div>
                 </div>
             </div>
 
@@ -3793,11 +3812,15 @@
                                                      :style="`width: ${Math.min(100, Math.round(((tr.today_protein || 0) / (tr.target_protein || 120)) * 100))}%`"></div>
                                             </div>
                                         </div>
-                                        <div x-show="tr.today_satiety" class="pt-1 flex items-center justify-between text-[11px]">
-                                            <span class="font-bold text-slate-600">תחושת שובע:</span>
-                                            <span class="px-2 py-0.5 rounded-full font-bold"
-                                                  :class="tr.today_satiety <= 2 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'"
-                                                  x-text="`🍽️ ${tr.today_satiety}/5`"></span>
+                                        <div x-show="tr.today_satiety || tr.today_feeling" class="pt-1 flex items-center justify-between gap-1 text-[11px]">
+                                            <span class="font-bold text-slate-600">תחושה היום:</span>
+                                            <div class="flex items-center gap-1">
+                                                <span x-show="tr.today_satiety" class="px-2 py-0.5 rounded-full font-bold"
+                                                      :class="tr.today_satiety <= 2 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'"
+                                                      x-text="`🍽️ ${tr.today_satiety}/5`"></span>
+                                                <span x-show="tr.today_feeling" class="px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-900"
+                                                      x-text="`✨ ${tr.today_feeling}/5`"></span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -8161,7 +8184,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=143').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=144').then(reg => {
                     reg.update();
                     if (reg.waiting) {
                         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -12681,6 +12704,10 @@
                     this.dailyCheckin.satiety_rating = Number(rating);
                     await this.saveDailyCheckin();
                 },
+                async saveFeelingQuick(rating) {
+                    this.dailyCheckin.feeling_rating = Number(rating);
+                    await this.saveDailyCheckin();
+                },
                 async saveDailyCheckin() {
                     this.checkinSaving = true;
                     try {
@@ -12858,7 +12885,7 @@
                     try {
                         let reg = await navigator.serviceWorker.getRegistration('/');
                         if (!reg) {
-                            reg = await navigator.serviceWorker.register('/sw.js?v=143');
+                            reg = await navigator.serviceWorker.register('/sw.js?v=144');
                         }
                         reg = await navigator.serviceWorker.ready;
                         await reg.update().catch(() => {});
@@ -16820,6 +16847,10 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                     const satLine = satDays.length > 0
                         ? `🍽️ ממוצע תחושת שובע השבוע: ${(satDays.reduce((a, d) => a + Number(d.satiety_rating), 0) / satDays.length).toFixed(1)}/5 (${satDays.length} ימים)`
                         : '';
+                    const feelDays = (this.dailyTrend || []).filter(d => d && d.feeling_rating);
+                    const feelLine = feelDays.length > 0
+                        ? `✨ ממוצע הרגשה ואנרגיה השבוע: ${(feelDays.reduce((a, d) => a + Number(d.feeling_rating), 0) / feelDays.length).toFixed(1)}/5 (${feelDays.length} ימים)`
+                        : '';
                     return [
                         `📊 *סיכום תזונה וכושר שבועי — NutriAgent AI*`,
                         `📅 ימים מתועדים השבוע: ${st.activeDays}/7`,
@@ -16827,6 +16858,7 @@ _הופק ישירות מאפליקציית NutriAgent AI_`;
                         `💪 ממוצע חלבון יומי: ${st.avgProtein}g / ${this.summary.target_protein}g`,
                         `🏃‍♂️ קלוריות שנשרפו באימונים: ${st.totalBurned} קק"ל (${st.totalWorkouts} אימונים)`,
                         satLine,
+                        feelLine,
                         wLine
                     ].filter(Boolean).join('\n');
                 },

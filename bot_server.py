@@ -1513,6 +1513,7 @@ def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
         rec["today_protein"] = s.get("total_protein", 0)
         rec["today_water_ml"] = w.get("water_ml", 0)
         rec["today_satiety"] = ck.get("satiety_rating") if ck else None
+        rec["today_feeling"] = ck.get("feeling_rating") if ck else None
         rec["meals_count"] = len(s.get("meals", []))
         inv = t.get("invite_code", "")
         rec["telegram_link"] = f"https://t.me/{bot_name}?start=pair_{inv}"
@@ -1577,6 +1578,7 @@ def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
                 "today_protein": s.get("total_protein", 0),
                 "today_water_ml": w.get("water_ml", 0),
                 "today_satiety": ck.get("satiety_rating") if ck else None,
+                "today_feeling": ck.get("feeling_rating") if ck else None,
                 "meals_count": len(s.get("meals", [])),
                 "telegram_link": f"https://t.me/{bot_name}?start=link_{l_code}",
                 "web_link": f"{app_base}/itamar",
@@ -7510,6 +7512,7 @@ def _fetch_user_history(uid: str, days: int = 14) -> dict:
             "protein_g": prot,
             "water_ml": day_water,
             "satiety_rating": ck_day.get("satiety_rating") if ck_day else None,
+            "feeling_rating": ck_day.get("feeling_rating") if ck_day else None,
             "meal_count": len(day_meals),
             "workout_count": len(day_workouts),
         })
@@ -11195,6 +11198,7 @@ def api_trainer_list_trainees(request: Request):
             "target_protein": t_prot,
             "today_water_ml": w.get("water_ml", 0),
             "today_satiety": ck.get("satiety_rating") if ck else None,
+            "today_feeling": ck.get("feeling_rating") if ck else None,
             "meals_count": len(s.get("meals", [])),
             "coach_note": u.get("trainer_coach_note") or "",
             "last_reminder_at": (u.get("last_trainer_reminder") or {}).get("sent_at") if isinstance(u.get("last_trainer_reminder"), dict) else None,
