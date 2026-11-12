@@ -1734,7 +1734,62 @@
   "יעד חלבון תקין הוא בין 30 ל-400 גרם": "Valid protein target is 30–400g",
   "🚫 הרשאת התראות חסומה בדפדפן": "🚫 Notifications blocked in browser",
   "כדי לקבל התראות בנייד, לחץ על אייקון המנעול / ההגדרות בשורת הכתובת ואפשר \"התראות (Notifications)\" ולאחר מכן לחץ על כפתור ההפעלה למטה.": "To receive notifications on mobile, tap the lock / site settings icon in the address bar, allow Notifications, then tap Enable below.",
-  "כרגע רק המחשב מחובר להתראות! פתח את האפליקציה בטלפון הנייד, לחץ על 🔔 התראות בראש המסך, ולחץ על הפעל התראות פוש בנייד.": "Only your desktop is connected right now! Open the app on your phone, tap the 🔔 bell icon at the top, and enable Push Notifications."
+  "כרגע רק המחשב מחובר להתראות! פתח את האפליקציה בטלפון הנייד, לחץ על 🔔 התראות בראש המסך, ולחץ על הפעל התראות פוש בנייד.": "Only your desktop is connected right now! Open the app on your phone, tap the 🔔 bell icon at the top, and enable Push Notifications.",
+  "+ בקבוק": "+ Bottle",
+  "הוסף כוס (250 מ״ל)": "Add cup (250 ml)",
+  "הפחת כוס (250 מ״ל)": "Remove cup (250 ml)",
+  "הוסף בקבוק (500 מ״ל / 2 כוסות)": "Add bottle (500 ml / 2 cups)",
+  "הוסף כוס מים": "Add water cup",
+  "הפחת כוס מים": "Remove water cup",
+  "הכוונה יומית רגועה": "Calm Daily Guidance",
+  "משוב בונה ונעים על היום שלך והצעות רכות להמשך — ללא שיפוטיות וללא ציון": "Constructive, warm feedback on your day with gentle suggestions — no judgment, no score",
+  "🌿 קבל הכוונה והצעות להיום": "🌿 Get Today's Guidance & Ideas",
+  "✨ ניתוח נוסף היום (פרימיום)": "✨ Extra Analysis Today (Premium)",
+  "המאמן מכין הכוונה...": "Preparing guidance...",
+  "🍽️ הצעה רכה להמשך היום:": "🍽️ Gentle Idea for Rest of Day:",
+  "💡 טיפ עדין מהמאמן:": "💡 Gentle Coach Tip:",
+  "📝 פידבק סוף יום — איך הרגשת היום?": "📝 End-of-Day Check-In — How did you feel?",
+  "פידבק סוף יום — איך הרגשת היום?": "End-of-Day Check-In — How did you feel?",
+  "✓ נשמר להיום": "✓ Saved for today",
+  "תחושת שובע, הרגשה כללית ודירוג קצר שעוזר לדייק עבורך את התוכנית": "Satiety, overall feeling & quick rating to help fine-tune your plan",
+  "מלא עכשיו ▼": "Fill Now ▼",
+  "🍽️ תחושת שובע היום": "🍽️ Today's Satiety",
+  "✨ הרגשה כללית ואנרגיה": "✨ Overall Feeling & Energy",
+  "⭐ דירוג היום שלי (1–5)": "⭐ My Day Rating (1–5)",
+  "רעב": "Hungry",
+  "מעט רעב": "Slightly hungry",
+  "מאוזן": "Balanced",
+  "שבע": "Satisfied",
+  "מלא": "Full",
+  "עייף": "Tired",
+  "כבד": "Heavy",
+  "רגיל": "Normal",
+  "טוב": "Good",
+  "מצוין": "Great",
+  "הערה קצרה למאמן או לעצמך (אופציונלי — למשל: שבעתי מאוד בצהריים)...": "Short note for your coach or yourself (optional)...",
+  "שמור פידבק יומי": "Save Daily Check-In",
+  "עדכן פידבק יומי": "Update Daily Check-In",
+  "שומר...": "Saving...",
+  "ניתוחי AI נוספים במסלול פרימיום": "Additional AI Analyses in Premium",
+  "הכוונה יומית אחת כבר הופקה עבורך היום בחינם": "One daily guidance analysis was already generated today for free",
+  "במסלול החינמי כלול ניתוח מאמן יומי אחד ביום כדי לשמור על מיקוד רגוע.": "The free plan includes 1 daily AI coach guidance per day to keep focus calm.",
+  "רוצה לקבל ניתוחים נוספים לאורך היום, התאמות בזמן אמת אחרי כל ארוחה והמלצות מורחבות? ניתן לשדרג למסלול הפרימיום.": "Want extra analyses throughout the day, real-time meal adjustments, and extended tips? Upgrade to Premium.",
+  "אולי מאוחר יותר": "Maybe later",
+  "💎 בקש שדרוג לפרימיום": "💎 Request Premium Upgrade",
+  "שולח בקשה...": "Sending request...",
+  "📝 פידבק תחושה יומי מהמתאמן:": "📝 Trainee Daily Feeling Check-In:",
+  "🍽️ שובע:": "🍽️ Satiety:",
+  "✨ הרגשה:": "✨ Feeling:",
+  "⭐ דירוג יום:": "⭐ Day Rating:",
+  "גודל כוס מים (מ״ל)": "Water Cup Size (ml)",
+  "ברירת מחדל: 250 מ״ל לכוס": "Default: 250 ml per cup",
+  "גודל כוס מים תקין הוא בין 100 ל-1,000 מ״ל": "Valid water cup size is between 100 and 1,000 ml",
+  "קק״ל נותרו לאכול": "kcal left to eat",
+  "קק״ל מעבר ליעד": "kcal above target",
+  "הוסף 100 מ״ל": "Add 100 ml",
+  "הפחת 100 מ״ל": "Remove 100 ml",
+  "100 מ״ל": "100 ml",
+  "סה״כ:": "Total:"
 };
 
     window.EN_TO_HE = {};
@@ -1767,6 +1822,13 @@
                      .replace(/חריגת\s*יעד:\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Over budget: $1 kcal')
                      .replace(/חריגה(?:\s*של)?:\s*(\d[\d,\.]*)\s*קק[״"]ל/g, 'Over target: $1 kcal')
                      .replace(/חריגה\s+של\s+(\d[\d,\.]*)/g, 'Over by $1')
+                     .replace(/נותרו\s+לאכול\s+(\d[\d,\.]*)\s*קק[״"]ל/g, '$1 kcal left to eat')
+                     .replace(/נותרו\s+לאכול\s+(\d[\d,\.]*)/g, '$1 left to eat')
+                     .replace(/מעבר\s+ליעד\s+ב-(\d[\d,\.]*)\s*קק[״"]ל/g, '$1 kcal above target')
+                     .replace(/מעבר\s+ליעד\s+ב-(\d[\d,\.]*)/g, '$1 above target')
+                     .replace(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*כוסות/g, '$1 / $2 cups')
+                     .replace(/(\d+(?:\.\d+)?)\s*כוסות/g, '$1 cups')
+                     .replace(/סה[״"]כ:\s*(\d[\d,\.]*)\s*\/\s*(\d[\d,\.]*)\s*מ[״"]ל/g, 'Total: $1 / $2 ml')
                      .replace(/נותרו\s+(\d[\d,\.]*)\s*קק[״"]ל/g, '$1 kcal left')
                      .replace(/נותרו\s+(\d[\d,\.]*)/g, '$1 left')
                      .replace(/(\d[\d,\.]*)\s*קק[״"]ל\s*סה[״"]כ/g, '$1 kcal total')

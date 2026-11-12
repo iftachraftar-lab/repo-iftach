@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriAgent AI — מפת תהליכים עסקיים וארכיטקטורת מערכת מעודכנת</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Heebo', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Heebo', sans-serif;
+            background-color: #090d16;
+            color: #e2e8f0;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(51, 65, 85, 0.7);
+            backdrop-filter: blur(12px);
+        }
+        .mermaid-wrap {
+            background: #0b1120;
+            border: 1px solid #1e293b;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            overflow-x: auto;
+            direction: ltr;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            min-width: 640px;
+        }
+        .code-pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(71, 85, 105, 0.6);
+            padding: 0.125rem 0.45rem;
+            border-radius: 0.375rem;
+            color: #93c5fd;
+            direction: ltr;
+            display: inline-block;
+        }
+        .nav-pill.active {
+            background: linear-gradient(135deg, #10b981, #0d9488);
+            color: #022c22;
+            font-weight: 800;
+            border-color: transparent;
+        }
+        @media print {
+            body { background: #ffffff !important; color: #0f172a !important; }
+            .no-print { display: none !important; }
+            .glass-card {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                border: 1px solid #cbd5e1 !important;
+                break-inside: avoid;
+            }
+            .mermaid-wrap {
+                background: #f8fafc !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+            h1, h2, h3, h4, strong { color: #0f172a !important; }
+            p, li, td, th { color: #334155 !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-emerald-500 selection:text-slate-950">
+
+    <!-- Sticky Top Navigation Bar -->
+    <header class="no-print sticky top-0 z-50 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-slate-950 font-black text-lg shadow-lg shadow-emerald-500/20">
+                        N
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-base sm:text-lg font-black text-white">NutriAgent AI — מדריך תהליכים עסקיים וארכיטקטורה</h1>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">PWA v139</span>
+                        </div>
+                        <p class="text-xs text-slate-400">מיפוי מלא מקצה לקצה לפי הקוד החי (<span class="font-mono">bot_server.py</span> + <span class="font-mono">static/index.html</span>)</p>
+                    </div>
+                </div>
+                <button onclick="window.print()" class="lg:hidden px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 cursor-pointer">
+                    🖨️ הדפס / PDF
+                </button>
+            </div>
+
+            <nav class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 text-xs">
+                <a href="#overview" class="nav-pill px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition">1. מפת על ו-3 המסלולים</a>
+                <a href="#comparison" class="nav-pill px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition">2. איתמר מול מאמני Pro</a>
+                <a href="#itamar-flow" class="nav-pill px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition">3. תהליך מוד איתמר</a>
+                <a href="#trainer-saas" class="nav-pill px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition">4. פורטל מאמנים Pro</a>
+                <a href="#organic-flow" class="nav-pill px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition">5. משתמש אורגני והרשאות</a>
+                <a href="#meal-ai" class="nav-pill px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition">6. תיעוד ארוחות, בוטים ו-AI</a>
+                <a href="#leads-cron" class="nav-pill px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition">7. לידים, אוטומציות ואדמין</a>
+                <a href="#architecture" class="nav-pill px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition">8. ארכיטקטורה מעודכנת</a>
+                <button onclick="window.print()" class="hidden lg:inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer whitespace-nowrap transition mr-1">
+                    🖨️ הדפס / PDF
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+
+        <!-- Hero Summary Banner -->
+        <section class="glass-card rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/50 space-y-5">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div class="space-y-3 max-w-3xl">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-black">
+                        <span>🧭</span>
+                        <span>הסבר פשוט וברור: איך כל העסק והמערכת עובדים ביחד</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-black text-white leading-tight">
+                        מערכת אחת עם <span class="text-emerald-400">3 חוויות שימוש שונות</span>, <span class="text-indigo-400">7 סוגי משתמשים</span> וערוצי כניסה מרובים
+                    </h2>
+                    <p class="text-sm sm:text-base text-slate-300 leading-relaxed">
+                        כדי להבין את NutriAgent AI בקלות, חשוב להפריד בין <strong>שני עולמות אימון נפרדים לגמרי</strong> שיושבים על אותו שרת:
+                        (1) <strong>מוד איתמר (<span class="code-pill">appMode='coaching'</span>)</strong> — חוויית פרימיום ייעודית למאמן הבית איתמר ולמתאמנים שלו עם תפריט מובנה של 5 ארוחות ביום,
+                        לעומת (2) <strong>פורטל המאמנים SaaS (<span class="code-pill">/trainers</span>)</strong> — מוצר B2B נפרד למאמנים ודיאטנים חיצוניים, שבו המתאמן נשאר בממשק הרגיל (<span class="code-pill">appMode='full'</span>) ומקבל ליווי, יעדים ותזכורות מהמאמן שלו.
+                    </p>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3 flex-shrink-0">
+                    <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
+                        <div class="text-2xl font-black text-emerald-400">3</div>
+                        <div class="text-[11px] text-slate-400 font-bold">מסלולי לקוח ראשיים</div>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
+                        <div class="text-2xl font-black text-indigo-400">7</div>
+                        <div class="text-[11px] text-slate-400 font-bold">סיווגי תפקידים (RBAC)</div>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
+                        <div class="text-2xl font-black text-amber-400">6+</div>
+                        <div class="text-[11px] text-slate-400 font-bold">דרכי דיווח ארוחה</div>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
+                        <div class="text-2xl font-black text-sky-400">v139</div>
+                        <div class="text-[11px] text-slate-400 font-bold">גרסת PWA + SW חיה</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 1: HIGH LEVEL ECOSYSTEM & ENTRY ROUTING -->
+        <section id="overview" class="glass-card rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="space-y-1">
+                <span class="text-xs font-black text-emerald-400 uppercase tracking-wider">חלק 1</span>
+                <h2 class="text-xl sm:text-2xl font-black text-white">מפת העל העסקית: מאיפה נכנסים ולאן מגיעים?</h2>
+                <p class="text-sm text-slate-400">כל כתובת כניסה (URL) או קישור הזמנה מפעילה מסלול עסקי אחר, שיטת אישור אחרת, וממשק משתמש מותאם.</p>
+            </div>
+
+            <div class="mermaid-wrap">
+                <div class="mermaid">
+flowchart TD
+    Entry["כניסת משתמש למערכת"] --> Route{"מאיזה קישור / ערוץ הגיע?"}
+
+    Route -->|"כתובת ראשית /"| OrganicAuth["התחברות Google OAuth"]
+    Route -->|"מוד איתמר /itamar או ?partner=itamar"| ItamarUI["דגל appPartner=itamar + appMode=coaching"]
+    Route -->|"פורטל מאמנים /trainers"| TrainerGate["דגל wantsTrainerPortal=true"]
+    Route -->|"קישור או QR של מאמן /join/CODE"| JoinPreview["טעינת תצוגה מקדימה של המאמן"]
+    Route -->|"לינק הזמנה אישי /?invite=INV"| InviteAuth["כניסה מיידית ללא סיסמה POST /api/auth/invite"]
+    Route -->|"טלגרם /start pair_INV או link_CODE"| TgLink["צימוד מיידי לצאט טלגרם"]
+
+    OrganicAuth --> CheckApproved{"האם המשתמש מאושר או אדמין?"}
+    CheckApproved -->|"לא is_approved=false"| PendingGate["מסך המתנה לאישור אדמין + אפשרות הזנת קוד מאמן"]
+    PendingGate -->|"הוזן קוד מאמן תקין"| AutoApprove["אישור אוטומטי ושיוך למאמן"]
+    PendingGate -->|"אדמין אישר בדשבורד"| ApprovedUser["גישה מאושרת"]
+    CheckApproved -->|"כן"| ApprovedUser
+
+    ItamarUI --> ItamarAuth["התחברות Google / קוד איתמר"] --> ItamarDash["חוויית איתמר: 5 סלוטים יומיים + שייק מהיר"]
+    TrainerGate --> GoogleT["התחברות Google"] --> TrainerCheck{"יש פרופיל מאמן?"}
+    TrainerCheck -->|"לא"| TrainerReg["טופס פתיחת סטודיו — 14 יום ניסיון חינם"]
+    TrainerCheck -->|"כן"| TrainerStudio["דשבורד מאמן Pro: קוד + QR + רשימת מתאמנים"]
+
+    JoinPreview --> GoogleJ["התחברות Google"] --> AutoBind["שיוך אוטומטי trainer_coach_id + אישור מיידי"] --> FullUI["ממשק מלא appMode=full + באנר מאמן"]
+    InviteAuth --> CoachType{"מי יצר את ההזמנה?"}
+    CoachType -->|"איתמר"| ItamarDash
+    CoachType -->|"מאמן פרימיום"| FullUI
+    ApprovedUser --> TermsAndOnb["הצהרת בריאות 2026-11 + שאלון יעדים BMR/TDEE"] --> FullUI
+                </div>
+            </div>
+
+            <!-- 7 Roles Cards -->
+            <div class="space-y-3 pt-2">
+                <h3 class="text-base font-black text-white">7 התפקידים הקיימים בשרת (<span class="code-pill">user_type</span> ב-<span class="code-pill">bot_server.py</span>):</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-400/30 space-y-1">
+                        <div class="font-black text-amber-300">👑 owner (סופר-אדמין / בעלים)</div>
+                        <p class="text-slate-300">יפתח ואורי. גישה ללא הגבלה ל-AI, ניהול אדמינים, אישור לידים, OAuth, Feature Flags ו-LLMOps Evals.</p>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-400/30 space-y-1">
+                        <div class="font-black text-indigo-300">🛡️ admin (מנהל מערכת)</div>
+                        <p class="text-slate-300">עוקף מסך המתנה. מנהל משתמשים, יעדים, עלויות, שגיאות צילום, דמו B2B ומאמני Pro.</p>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-purple-500/10 border border-purple-400/30 space-y-1">
+                        <div class="font-black text-purple-300">⭐ itamar_coach (מאמן איתמר)</div>
+                        <p class="text-slate-300">איתמר (<span class="font-mono">itamarfitk@gmail.com</span>). רואה טאב "רשימת המתאמנים של איתמר", יוצר הזמנות וצופה ביומנים.</p>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-400/30 space-y-1">
+                        <div class="font-black text-sky-300">🏋️‍♂️ trainer (מאמן פורטל Pro)</div>
+                        <p class="text-slate-300">מאמן חיצוני ב-SaaS. מקבל קוד אישי + QR, תקופת ניסיון 14 יום (עד 5 מתאמנים), עורך יעדים ושולח פוש.</p>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 space-y-1">
+                        <div class="font-black text-emerald-300">🎯 itamar_trainee (מתאמן איתמר)</div>
+                        <p class="text-slate-300"><span class="code-pill">coach_id='itamar'</span>. עובר אוטומטית למצב <span class="code-pill">coaching</span> עם סדר יום של 5 ארוחות מובנות.</p>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-teal-500/10 border border-teal-400/30 space-y-1">
+                        <div class="font-black text-teal-300">🔗 organic_trainee (מתאמן מאמן Pro)</div>
+                        <p class="text-slate-300"><span class="code-pill">trainer_coach_id</span> מקושר למאמן חיצוני. מאושר אוטומטית, עובד בממשק הרגיל <span class="code-pill">full</span>.</p>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-1 md:col-span-2">
+                        <div class="font-black text-slate-200">🌱 organic (משתמש עצמאי באפליקציה)</div>
+                        <p class="text-slate-300">נכנס מהכתובת הראשית ללא מאמן. עובר שער אישור מנהל, ממלא הצהרת בריאות + Onboarding (BMR/TDEE), ומשתמש בכל כלי ה-AI במכסה של 15 פעולות ליום.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: THE BIG COMPARISON (ITAMAR MODE VS PREMIUM TRAINER VS ORGANIC) -->
+        <section id="comparison" class="glass-card rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="space-y-1">
+                <span class="text-xs font-black text-amber-400 uppercase tracking-wider">חלק 2 — ההבחנה הכי חשובה במערכת</span>
+                <h2 class="text-xl sm:text-2xl font-black text-white">השוואה מלאה: מאמן למתאמן במוד איתמר מול מוד רגיל / פורטל מאמנים</h2>
+                <p class="text-sm text-slate-400">הטבלה הזו עושה סדר חד וברור בהבדלים בין שני מסלולי האימון והמסלול העצמאי.</p>
+            </div>
+
+            <div class="overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="w-full text-right text-xs sm:text-sm border-collapse">
+                    <thead class="bg-slate-950 text-slate-200 border-b border-slate-800">
+                        <tr>
+                            <th class="p-3.5 font-black">מאפיין / תהליך</th>
+                            <th class="p-3.5 font-black text-emerald-400">🎯 מוד איתמר (Itamar Flow)</th>
+                            <th class="p-3.5 font-black text-indigo-400">🏋️‍♂️ פורטל מאמנים Pro (לא איתמר)</th>
+                            <th class="p-3.5 font-black text-slate-300">🌱 משתמש אורגני עצמאי</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/80 bg-slate-900/50">
+                        <tr>
+                            <td class="p-3.5 font-bold text-white">כתובת כניסה ייעודית</td>
+                            <td class="p-3.5"><span class="code-pill">/itamar</span>, <span class="code-pill">/p/itamar</span>, <span class="code-pill">?partner=itamar</span></td>
+                            <td class="p-3.5">מאמן: <span class="code-pill">/trainers</span><br>מתאמן: <span class="code-pill">/join/{coach_code}</span></td>
+                            <td class="p-3.5"><span class="code-pill">/</span> (ברירת המחדל)</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3.5 font-bold text-white">שדה שיוך במסד הנתונים</td>
+                            <td class="p-3.5"><span class="code-pill">coach_id = "itamar"</span></td>
+                            <td class="p-3.5"><span class="code-pill">trainer_coach_id = "coach_..."</span></td>
+                            <td class="p-3.5">שניהם ריקים (<span class="code-pill">null</span>)</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3.5 font-bold text-white">מצב ממשק אצל המתאמן</td>
+                            <td class="p-3.5"><strong class="text-emerald-300">מצב מונחה (<span class="code-pill">appMode='coaching'</span>)</strong>:<br>5 סלוטים יומיים קבועים (בוקר, ביניים, צהריים מודגש כעיקרית, ארבע, ערב) + דילוג/החלפה/הצעת AI לסלוט</td>
+                            <td class="p-3.5"><strong class="text-indigo-300">מצב מלא (<span class="code-pill">appMode='full'</span>)</strong>:<br>יומן חופשי רגיל + באנר עליון "מלווה ע״י [שם הסטודיו]" + באנר תזכורת מהמאמן</td>
+                            <td class="p-3.5"><strong class="text-slate-200">מצב מלא (<span class="code-pill">appMode='full'</span>)</strong>:<br>יומן חופשי, סריקות, מתכונים, Wolt, קניות ואימונים</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3.5 font-bold text-white">איך מתבצע החיבור למאמן?</td>
+                            <td class="p-3.5">1. הזמנה שאיתמר יצר (<span class="code-pill">ITAMAR-NAME-XX</span>)<br>2. קוד מאמן (<span class="code-pill">itamar</span> / <span class="code-pill">fit2026</span> / <span class="code-pill">100</span>)<br>3. העברה ידנית ע״י אדמין (<span class="code-pill">/itamar-link</span>)</td>
+                            <td class="p-3.5">1. סריקת QR / קישור <span class="code-pill">/join/CODE</span><br>2. הקלדת <span class="code-pill">coach_code</span> במסך המתנה או בפרופיל<br>3. הזמנה אישית שיצר המאמן (<span class="code-pill">CODE-NAME-XX</span>)</td>
+                            <td class="p-3.5">ללא חיבור מאמן (יכול לבקש התאמה לדיאטן/מאמן כליד בתוך האפליקציה)</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3.5 font-bold text-white">שער אישור מנהל (Approval)</td>
+                            <td class="p-3.5">עוקף המתנה אם נכנס דרך <span class="code-pill">?invite=</span> או שויך ע״י אדמין</td>
+                            <td class="p-3.5"><strong class="text-emerald-300">אישור אוטומטי!</strong> הזנת קוד מאמן פעיל מדליקה <span class="code-pill">approved_by_owner=True</span></td>
+                            <td class="p-3.5"><strong class="text-amber-300">דורש אישור אדמין ידני</strong> (מסך המתנה + פוש למנהל)</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3.5 font-bold text-white">צפייה ביומן מתאמן</td>
+                            <td class="p-3.5">איתמר פותח את היומן של המתאמן <strong>בתוך טאב היומן הראשי</strong> (<span class="code-pill">viewingTrainee</span>)</td>
+                            <td class="p-3.5">מאמן רואה חלונית ייעודית בתוך <strong>פורטל המאמנים</strong> + גרף מגמה 7 ימים + עריכת יעדים והערה</td>
+                            <td class="p-3.5">פרטי לחלוטין למשתמש (ואדמין לצורך תמיכה)</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3.5 font-bold text-white">שליחת תזכורות</td>
+                            <td class="p-3.5">כפתור שיתוף לוואטסאפ עם קישורי הצטרפות וטלגרם + תזכורות ערב אוטומטיות</td>
+                            <td class="p-3.5"><strong class="text-indigo-300">שליחה ב-3 ערוצים בלחיצה:</strong> Web Push + טלגרם + באנר קבוע באפליקציה (<span class="code-pill">last_trainer_reminder</span>)</td>
+                            <td class="p-3.5">תזכורת ערב אוטומטית ב-20:00 (Web Push) + תזכורות מים מקומיות</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3.5 font-bold text-white">מודל עסקי ומכסות</td>
+                            <td class="p-3.5">חשבון שותף/בית ייעודי (ללא הגבלת מכסת מתאמנים; לוג תמונות מוגבל ל-15 בממשק איתמר)</td>
+                            <td class="p-3.5"><strong>SaaS למאמנים:</strong> Trial 14 יום (0₪, 5 מתאמנים) • Pro (149₪, 30) • Studio (349₪, 100)</td>
+                            <td class="p-3.5">שימוש חינמי מבוקר במכסת AI של <span class="code-pill">15</span> בקשות ליום למשתמש</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECTION 3: ITAMAR MODE END-TO-END FLOW -->
+        <section id="itamar-flow" class="glass-card rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <span class="text-xs font-black text-emerald-400 uppercase tracking-wider">חלק 3</span>
+                    <h2 class="text-xl sm:text-2xl font-black text-white">תהליך קצה-לקצה: מאמן למתאמן במוד איתמר (Itamar Coaching Mode)</h2>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 self-start">appMode = 'coaching'</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs sm:text-sm">
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2">
+                    <div class="font-black text-emerald-300">מסלול א': איתמר יוצר מתאמן חדש</div>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300">
+                        <li>איתמר נכנס ל-<span class="code-pill">/itamar</span> ועובר לטאב <strong>"רשימת המתאמנים של איתמר"</strong>.</li>
+                        <li>לוחץ <strong>"הוסף מתאמן חדש"</strong> (שם, טלפון, יעד קלוריות וחלבון).</li>
+                        <li>השרת (<span class="code-pill">POST /api/coach/trainees</span>) מייצר רשומה ב-<span class="code-pill">trainees</span> וגם ב-<span class="code-pill">users</span> עם <span class="code-pill">coach_id='itamar'</span> וקוד הזמנה <span class="code-pill">ITAMAR-NAME-XXXX</span>.</li>
+                        <li>מופקים מיידית: לינק טלגרם (<span class="code-pill">?start=pair_...</span>), לינק ווב (<span class="code-pill">/?invite=...</span>) והודעת וואטסאפ מוכנה.</li>
+                    </ol>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2">
+                    <div class="font-black text-sky-300">מסלול ב': משתמש קיים מתחבר לאיתמר</div>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300">
+                        <li>משתמש שנכנס דרך Google מזין את קוד המאמן (<span class="code-pill">itamar</span> / <span class="code-pill">איתמר</span> / <span class="code-pill">fit2026</span> / <span class="code-pill">100</span>).</li>
+                        <li>לחלופין, אדמין מערכת לוחץ בדשבורד הניהול על שיוך המשתמש לאיתמר (<span class="code-pill">PUT /api/admin/users/{uid}/itamar-link</span>).</li>
+                        <li>כל היסטוריית הארוחות והמשקלים נשמרת, והמשתמש מקבל <span class="code-pill">coach_id='itamar'</span>.</li>
+                        <li>בכניסה הבאה שלו (גם מ-<span class="code-pill">/</span>) הוא מזוהה אוטומטית ונכנס לחוויית ה-5 סלוטים!</li>
+                    </ol>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2">
+                    <div class="font-black text-purple-300">איך המתאמן חווה את היומיום במוד איתמר?</div>
+                    <ul class="list-disc list-inside space-y-1 text-slate-300">
+                        <li>סרגל התקדמות יומי (קלוריות, חלבון, מים + שייק מהיר).</li>
+                        <li><strong>5 סלוטים קשיחים:</strong> ארוחת בוקר, ביניים בוקר, ארוחת צהריים (מודגשת כ-⭐️ ארוחה עיקרית), ארוחת ארבע, ארוחת ערב.</li>
+                        <li>לכל סלוט: צילום, הקלטה, טקסט, <strong>דילוג (⏭️)</strong>, או <strong>"הצע לי ארוחה ב-AI"</strong> (<span class="code-pill">/api/meals/suggest-slot</span>) לפי תקציב הסלוט.</li>
+                        <li><strong>החזרה למצב אורגני:</strong> אם אדמין מנתק אותו מאיתמר (<span class="code-pill">link_itamar: false</span>), הקליינט מנקה את הדגל המקומי ומחזיר אותו ל-<span class="code-pill">/</span> במצב <span class="code-pill">full</span>.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mermaid-wrap">
+                <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Itamar as מאמן איתמר (/itamar)
+    participant UI as ממשק PWA (Alpine.js)
+    participant API as שרת FastAPI (bot_server.py)
+    participant DB as Firestore (trainees + users)
+    participant TG as בוט טלגרם (@Iftachtaskbot)
+    actor Trainee as מתאמן של איתמר
+
+    Itamar->>UI: לוחץ "הוסף מתאמן" ומזין שם, טלפון, יעד קלורי וחלבון
+    UI->>API: POST /api/coach/trainees
+    API->>DB: שמירת מתאמן (coach_id="itamar", invite_code="ITAMAR-...")
+    API-->>UI: מחזיר לינק טלגרם + לינק ווב + הודעת WhatsApp
+    Itamar->>Trainee: שולח קישור בוואטסאפ
+    alt המתאמן לוחץ על קישור הטלגרם
+        Trainee->>TG: /start pair_ITAMAR-...
+        TG->>API: link_telegram_Account(tg_chat_id, invite_code)
+        API->>DB: שמירה ב-telegram_links + סימון status=active
+        TG-->>Trainee: "חוברת בהצלחה לפלטפורמת התזונה של איתמר!"
+    else המתאמן פותח את קישור הווב /?invite=...
+        Trainee->>API: POST /api/auth/invite/{invite_code}
+        API-->>Trainee: מנפיק Session Token + מפעיל appMode="coaching" (5 סלוטים)
+    end
+    Trainee->>TG: שולח צילום צלחת / הודעה קולית / טקסט
+    TG->>API: process_chat_meal_message -> Gemini AI -> DB meals
+    Itamar->>UI: פותח "רשימת המתאמנים" -> לוחץ "צפה ביומן"
+    UI->>API: GET /api/coach/trainees/{id}/details
+    API-->>UI: מציג לאיתמר את יומן הארוחות, המים והמשקל של המתאמן בזמן אמת
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: PREMIUM TRAINERS PORTAL (NON-ITAMAR MULTI-COACH SAAS) -->
+        <section id="trainer-saas" class="glass-card rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <span class="text-xs font-black text-indigo-400 uppercase tracking-wider">חלק 4</span>
+                    <h2 class="text-xl sm:text-2xl font-black text-white">תהליך קצה-לקצה: פורטל מאמנים Pro (Multi-Coach SaaS — לא מוד איתמר)</h2>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-black bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 self-start">תשתית B2B נפרדת לחלוטין</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+                <div class="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-800/60 space-y-2">
+                    <div class="font-black text-indigo-300">שלב 1: הרשמת המאמן והפקת ערכת גיוס</div>
+                    <p class="text-slate-300 leading-relaxed">
+                        מאמן כושר או דיאטן נכנס ל-<span class="code-pill">/trainers</span>, מתחבר עם Google ונרשם ב-<span class="code-pill">POST /api/trainer/register</span>.
+                        נוצרת רשומת <span class="code-pill">coaches</span> עם <strong>14 יום ניסיון חינם</strong> (עד 5 מתאמנים), קוד ייחודי (כגון <span class="code-pill">DAN-4A2B</span>), קישור <span class="code-pill">/join/DAN-4A2B</span> וברקוד QR דינמי. במקביל נשלחת התראת פוש + טלגרם לאדמין.
+                    </p>
+                </div>
+                <div class="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-800/60 space-y-2">
+                    <div class="font-black text-emerald-300">שלב 2: הצטרפות המתאמן (ללא המתנה לאדמין!)</div>
+                    <p class="text-slate-300 leading-relaxed">
+                        המתאמן סורק QR / נכנס ל-<span class="code-pill">/join/CODE</span> (רואה תצוגה מקדימה ציבורית של שם הסטודיו עוד לפני ההתחברות!) ומתחבר עם Google.
+                        הקליינט מבצע <span class="code-pill">autoBindPendingCoachCode()</span>: השרת מוודא שהמנוי של המאמן פעיל ושיש מקום פנוי בחבילה, מצמיד <span class="code-pill">trainer_coach_id</span>, <strong>מכשיר אוטומטית את החשבון (<span class="code-pill">approved_by_owner=True</span>)</strong> ושולח פוש למאמן שמתאמן חדש הצטרף!
+                    </p>
+                </div>
+                <div class="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-800/60 space-y-2">
+                    <div class="font-black text-amber-300">שלב 3: ליווי שוטף, תזכורות ושדרוג חבילה</div>
+                    <p class="text-slate-300 leading-relaxed">
+                        המאמן צופה ביומני המתאמנים (<span class="code-pill">/api/trainer/trainees/{uid}/diary</span>), מעדכן יעדי קלוריות/חלבון והערה אישית (<span class="code-pill">PUT .../targets</span>), ושולח תזכורות בלחיצה (<span class="code-pill">POST .../remind</span>) ב-3 ערוצים: Web Push + טלגרם + באנר בתוך האפליקציה. לבקשת שדרוג ל-<strong>Pro (149₪)</strong> או <strong>Studio (349₪)</strong> נשלחת בקשה לאדמין להפעלה.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mermaid-wrap">
+                <div class="mermaid">
+flowchart TD
+    T1["1. מאמן נכנס ל-/trainers ומתחבר עם Google"] --> T2["2. POST /api/trainer/register -> קוד מאמן אישי + QR + Trial 14 יום"]
+    T2 --> T3["3. מאמן משתף קישור /join/CODE או QR (או יוצר הזמנה ידנית)"]
+    T3 --> T4["4. מתאמן סורק QR ומתחבר עם Google"]
+    T4 --> T5{"5. בדיקת מכסה ומנוי בשרת"}
+    T5 -->|"מנוי פג או מכסה מלאה"| T6["חסימה 403 — נדרש שדרוג חבילה"]
+    T6 -.->|"בקשת שדרוג"| T11["POST /api/trainer/upgrade-request -> אדמין מפעיל Pro/Studio"]
+    T5 -->|"מנוי פעיל ויש מקום"| T7["שיוך trainer_coach_id + אישור אוטומטי approved_by_owner=true"]
+    T7 --> T8["Web Push למאמן: מתאמן חדש התחבר!"]
+    T7 --> T9["המתאמן מנהל יומן רגיל (appMode=full) עם באנר סטודיו"]
+    T9 --> T10["המאמן צופה ביומן, מעדכן יעדים ושולח תזכורת (Push + TG + In-App)"]
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 5: ORGANIC USER & SECURITY / ONBOARDING GATES -->
+        <section id="organic-flow" class="glass-card rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="space-y-1">
+                <span class="text-xs font-black text-teal-400 uppercase tracking-wider">חלק 5</span>
+                <h2 class="text-xl sm:text-2xl font-black text-white">מסע משתמש אורגני: אבטחה, שער אישורים, הצהרת בריאות ו-Onboarding</h2>
+                <p class="text-sm text-slate-400">איך משתמש רגיל עובר מהמסך הראשון לשימוש מלא ומאובטח, ואיך נשמרת ההגנה על תקציב ה-AI.</p>
+            </div>
+
+            <div class="mermaid-wrap">
+                <div class="mermaid">
+flowchart TD
+    O1["כניסה ראשונה ל-/ (לא מחובר)"] --> O2["מסך התחברות Google Identity Services"]
+    O2 -->|"POST /api/auth/google"| O3["אימות ID Token מול Google + הנפקת HMAC session_token"]
+    O3 --> O4{"האם is_blocked = true?"}
+    O4 -->|"כן"| Blocked["חסימת גישה 403"]
+    O4 -->|"לא"| Approved{"האם is_approved = true או Admin?"}
+    Approved -->|"לא (משתמש חדש)"| Gate["שער המתנה לאישור (Pending Gate) + פוש לאדמין"]
+    Gate -->|"כפתור תזכורת לאדמין"| Ping["POST /api/user/ping-admin-approval"]
+    Gate -->|"הזנת קוד מאמן תקין"| Bind["POST /api/user/bind-coach-code -> שחרור מיידי"]
+    Gate -->|"אדמין מאשר בלשונית Admin"| Terms
+    Approved -->|"כן"| Terms{"האם אישר תנאים 2026-11-health-v1?"}
+    Bind --> Terms
+    Terms -->|"לא"| TermsModal["מודאל חובה: תנאי שימוש והצהרת בריאות -> POST /api/user/accept-terms"]
+    Terms -->|"כן"| Onb{"האם onboarding_completed?"}
+    TermsModal --> Onb
+    Onb -->|"לא"| Wizard["אשף פתיחה: גובה, משקל, גיל, מין, פעילות, שינה ומטרה"]
+    Wizard -->|"חישוב Mifflin-St Jeor BMR/TDEE"| SaveOnb["POST /api/user/onboarding -> שמירת יעדי קלוריות, חלבון ומים"]
+    SaveOnb --> ActiveApp["האפליקציה הפעילה (מכסת 15 ניתוחי AI ליום)"]
+    Onb -->|"כן"| ActiveApp
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
+                    <div class="font-black text-white">🔐 אימות סשן ופרטיות</div>
+                    <p class="text-slate-300">למעט תמיכה בפיתוח מקומי (<span class="code-pill">localhost/127.0.0.1</span>), בפרודקשן כל בקשה מחויבת ב-<span class="code-pill">session_token</span> חתום (Cookie HttpOnly + Header Interceptor בקליינט). קיימת גם מחיקה עצמית מלאה לפי GDPR ב-<span class="code-pill">POST /api/user/delete-account-self</span>.</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
+                    <div class="font-black text-white">⚡ ניהול מכסות AI יומיות</div>
+                    <p class="text-slate-300">הפונקציה <span class="code-pill">check_and_increment_ai_quota()</span> מגבילה כל משתמש (כולל מאמנים ומתאמנים) ל-<strong>15 ניתוחי AI ביום</strong> (ניתנים להגדלה פר משתמש ע״י אדמין). בעלים (Super Admin) פטורים ממגבלה, אך השימוש שלהם נספר למעקב עלויות.</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
+                    <div class="font-black text-white">🛡️ ניטור עצמי בצד לקוח (UX Watchdog)</div>
+                    <p class="text-slate-300">כל 3 שניות הקליינט בודק דגלי טעינה תקועים (מעל 25 שניות), משחרר אוטומטית את הממשק ומדווח ל-<span class="code-pill">/api/ux-telemetry</span> כדי למנוע קיפאון מוחלט אצל משתמשים בנייד.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 6: MULTIMODAL MEAL LOGGING, BOTS & AI PIPELINE -->
+        <section id="meal-ai" class="glass-card rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="space-y-1">
+                <span class="text-xs font-black text-sky-400 uppercase tracking-wider">חלק 6</span>
+                <h2 class="text-xl sm:text-2xl font-black text-white">צינור תיעוד הארוחות הרב-ערוצי ומנוע ה-AI (Multimodal Pipeline)</h2>
+                <p class="text-sm text-slate-400">איך כל צילום צלחת, הקלטה קולית, טקסט חופשי, ברקוד, Wolt או הודעה בטלגרם/וואטסאפ הופכים לרשומת מאקרו מאומתת.</p>
+            </div>
+
+            <div class="mermaid-wrap">
+                <div class="mermaid">
+flowchart TD
+    subgraph Inputs ["ערוצי קלט מהמשתמש"]
+        WebCam["מצלמת צלחת / גלריה (כיווץ Canvas)"]
+        WebVoice["הקלטת קול באפליקציה"]
+        WebText["טקסט חופשי / הזנה ידנית / מועדפים"]
+        Barcode["סורק ברקוד / מוצר בסופר"]
+        Wolt["התאמת תפריט ומנות Wolt"]
+        TG["בוט טלגרם (@Iftachtaskbot): טקסט/קול/תמונה"]
+        WA["WhatsApp Webhook (/api/whatsapp/webhook)"]
+    end
+
+    subgraph Unified ["מנוע עיבוד אחוד וגארדריילז"]
+        Flags["בדיקת Feature Flags + מכסת AI יומית"]
+        Safety["Red Teaming Shield: חסימת הוראות מסוכנות ו-Prompt Injection"]
+        Router{"נתב מודלים (Model Routing)"}
+        Fast["Fast Track: פריט פשוט <= 3 מילים (קפה/פרי) -> gemini-2.5-flash-lite"]
+        Deep["Deep Track: מנה מורכבת / צילום / קול -> gemini-2.5-flash (Failover Chain)"]
+        Forensics["Image Forensics & Histogram + Calibration Rules"]
+        FoodCheck{"האם זה באמת אוכל? (is_meal)"}
+    end
+
+    subgraph Outputs ["שמירה, משוב והמשך תהליך"]
+        Reject["דחייה מיידית (422) + שמירה ב-vision_analysis_logs + הצעה לעריכה ידנית"]
+        Resolve["חילוץ שעת אכילה וסיווג לסלוט (בוקר/צהריים/ערב/ביניים)"]
+        Stage1["בווב (Preview): חלון אישור שלב 1 לעריכה לפני שמירה"]
+        SaveDB["שמירה ב-Firestore (meals) + מעקב תיקוני משתמש (LLMOps Override)"]
+        Notify["עדכון טבעות מאקרו + התראת פוש / תשובת צאט מפורטת"]
+    end
+
+    WebCam --> Flags
+    WebVoice --> Flags
+    WebText --> Flags
+    TG -->|"process_chat_meal_message"| Flags
+    WA -->|"process_chat_meal_message"| Flags
+    Barcode -->|"Open Food Facts + Vision OCR"| SaveDB
+    Wolt -->|"Wolt Semantic Fitting"| SaveDB
+
+    Flags --> Safety
+    Safety -->|"תקין"| Router
+    Router -->|"פשוט"| Fast --> FoodCheck
+    Router -->|"מורכב"| Deep
+    WebCam --> Forensics --> Deep --> FoodCheck
+    FoodCheck -->|"לא מזון"| Reject
+    FoodCheck -->|"מזון תקין"| Resolve --> Stage1 --> SaveDB --> Notify
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
+                    <div class="font-black text-emerald-300">✈️ טלגרם ו-WhatsApp תחת מנוע אחד</div>
+                    <p class="text-slate-300">שני הערוצים מתנקזים לפונקציה <span class="code-pill">process_chat_meal_message()</span>. המשתמש מקשר את הטלגרם בקליק (<span class="code-pill">/start pair_CODE</span> או <span class="code-pill">/link email</span>), ויכול גם לדווח משקל (<span class="code-pill">/weight 78.5</span>), לבדוק סטטוס (<span class="code-pill">/status</span>) או לנתק (<span class="code-pill">/unlink</span>).</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
+                    <div class="font-black text-amber-300">📸 Image Forensics & Calibration</div>
+                    <p class="text-slate-300">לפני שליחת תמונה ל-Gemini מופעל ניתוח היסטוגרמה ותאורה, ונשלפים כללי כיול שנשמרו ע״י האדמין (<span class="code-pill">vision_calibration_rules</span>). אם ניתוח תמונה נכשל, השגיאה נרשמת ב-<span class="code-pill">user_photo_errors</span> ונשלחת התראה לאדמין.</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
+                    <div class="font-black text-indigo-300">🛒 סופרמרקט, Wolt, מקרר ואימונים</div>
+                    <p class="text-slate-300">מעבר לארוחות: סורק ברקוד ומוצרים ישראלי ("האם לקנות?"), סינון מנות וולט לפי יתרה קלורית, שף המקרר + רשימת קניות חכמה, ותיעוד אימונים (AI / צילום שעון / סנכרון Google Fit).</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 7: B2B LEADS, CRON AUTOMATIONS & ADMIN / LLMOPS -->
+        <section id="leads-cron" class="glass-card rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="space-y-1">
+                <span class="text-xs font-black text-rose-400 uppercase tracking-wider">חלק 7</span>
+                <h2 class="text-xl sm:text-2xl font-black text-white">לידים עסקיים, אוטומציות יומיות (Cron), ניהול ואדמין + LLMOps</h2>
+                <p class="text-sm text-slate-400">המנגנונים שמייצרים הכנסה עסקית, משמרים את המשתמשים, ומפקחים על דיוק ועלויות ה-AI.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Leads & Monetization -->
+                <div class="p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+                    <h3 class="text-base font-black text-amber-300 flex items-center gap-2">
+                        <span>💼</span>
+                        <span>תהליך לידים ושיתופי פעולה (B2B2C Marketplace)</span>
+                    </h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        בתוך האפליקציה קיימים 4 משפכי לידים עסקיים: <strong>אימון ניסיון / סטודיו</strong> (<span class="code-pill">/api/leads/workout</span>), <strong>תוספי תזונה ושייקים</strong> (<span class="code-pill">/api/leads/supplements</span>), <strong>התאמת דיאטן קליני / מאמן אישי</strong> (<span class="code-pill">/api/leads/expert</span>), ו<strong>גיוס מאמנים</strong> (<span class="code-pill">/api/leads/coach</span>).
+                    </p>
+                    <div class="mermaid-wrap">
+                        <div class="mermaid">
+flowchart TD
+    L1["1. משתמש ממלא טופס ליד באפליקציה"] --> L2["2. נשמר ב-leads + סטטוס משתמש הופך ל-pending"]
+    L2 --> L3["3. Web Push מיידי + הודעת טלגרם לאדמין עם כפתור WhatsApp"]
+    L3 --> L4["4. סופר-אדמין מאשר בלשונית לידים POST /api/admin/leads/ID/experts-access"]
+    L4 --> L5["5. גישת המשתמש נפתחת (approved) להטבה / מומחים"]
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Automated Daily Crons -->
+                <div class="p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+                    <h3 class="text-base font-black text-sky-300 flex items-center gap-2">
+                        <span>⏰</span>
+                        <span>משימות מתוזמנות אוטומטיות (Background Schedulers + Cloud Scheduler)</span>
+                    </h3>
+                    <div class="space-y-3 text-xs text-slate-300">
+                        <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                            <div class="font-black text-emerald-300">🌅 08:00 בבוקר (שעון ישראל) — דוח בריאות ועלויות לאדמין</div>
+                            <p class="mt-1">מתוזמן ב-<span class="code-pill">_admin_daily_0800_scheduler</span> וב-<span class="code-pill">/api/cron/daily-health-check</span>. בודק תקינות Firestore + Gemini, מחשב עלויות יחידה (Unit Economics), ושולח Web Push ירוק למנהלים (עם מנגנון Catch-up ומניעת כפילויות).</p>
+                        </div>
+                        <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                            <div class="font-black text-indigo-300">🌙 20:00 בערב (שעון ישראל) — תזכורת יומית למתאמנים</div>
+                            <p class="mt-1">מתוזמן ב-<span class="code-pill">_user_daily_2000_scheduler</span> וב-<span class="code-pill">/api/cron/daily-user-reminders</span>. שולח Web Push מותאם אישית לכל משתמש רשום: כמה קלוריות וחלבון נותרו להיום או ברכת הצלחה.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin 8 Tabs + LLMOps -->
+            <div class="p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-4">
+                <h3 class="text-base font-black text-white">🎛️ לוח הבקרה של האדמין (8 תתי-לשוניות) ומערך איכות ה-AI</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800"><strong class="text-white">👥 users:</strong> פילוח לפי 7 תפקידים, אישור/חסימה, שינוי מכסות ושיוך לאיתמר</div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800"><strong class="text-emerald-300">💰 costs:</strong> Unit Economics, עלויות Gemini/Cloud Run ותמחור מומלץ</div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800"><strong class="text-rose-300">🚨 errors:</strong> Watchdog של כשלי צילום משתמשים + סימון Resolved</div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800"><strong class="text-sky-300">🎯 demo:</strong> מחולל דמו B2B חי לפרזנטציות שותפים</div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800"><strong class="text-amber-300">📥 leads:</strong> ניהול ואישור פניות אימון, תוספים, מומחים ומאמנים</div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800"><strong class="text-slate-200">⚙️ settings:</strong> Feature Flags (טלגרם/וואטסאפ), OAuth, Telegram Target</div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800"><strong class="text-purple-300">🧠 llmops:</strong> Latency, תיקוני משתמשים (Overrides), אירועי Red Team והרצת Evals</div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800"><strong class="text-indigo-300">🏋️‍♂️ coaches:</strong> ניהול מאמני ה-SaaS, הארכת ניסיון ושדרוג Pro/Studio</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 8: UPDATED SYSTEM ARCHITECTURE -->
+        <section id="architecture" class="glass-card rounded-3xl p-6 sm:p-8 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <span class="text-xs font-black text-emerald-400 uppercase tracking-wider">חלק 8 — מעודכן לקוד הנוכחי</span>
+                    <h2 class="text-xl sm:text-2xl font-black text-white">ארכיטקטורת מערכת מעודכנת (Updated System Architecture)</h2>
+                    <p class="text-sm text-slate-400">מחליף ומעדכן את המפרט הישן (v63): כולל ערוצי צ׳אט מאוחדים, Multi-Coach SaaS, LLMOps & Evals, Cloud Run ו-Firestore.</p>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 self-start">GCP me-west1 (Tel Aviv)</span>
+            </div>
+
+            <div class="mermaid-wrap">
+                <div class="mermaid">
+flowchart TD
+    subgraph ClientLayer ["1. Client & PWA Layer (No-Build SPA)"]
+        direction LR
+        SPA["static/index.html (~18.4K שורות)<br/>Alpine.js 3.14.3 + Tailwind CSS"]
+        I18N["translations.js<br/>HE RTL / EN LTR"]
+        SW["sw.js (nutriagent-v139)<br/>Network-First + Web Push"]
+        Watchdog["Client UX Watchdog<br/>+ Media / QR / Canvas"]
+    end
+
+    subgraph IngressLayer ["2. Edge, CI/CD & Scheduler (GCP Cloud Run)"]
+        direction LR
+        CloudRun["Cloud Run: nutrition-service<br/>me-west1 Tel Aviv (:8080)"]
+        CloudBuild["cloudbuild.yaml + Dockerfile<br/>python:3.12-slim + Uvicorn"]
+        CloudSched["Cloud Scheduler & Lifespan<br/>08:00 Health | 20:00 Push"]
+        AgentWeb["Agentic Web Endpoints<br/>/llms.txt | /.well-known | /docs"]
+    end
+
+    subgraph BackendLayer ["3. Application & Security Layer (bot_server.py ~11.4K שורות)"]
+        direction LR
+        FastAPI["FastAPI Async Engine<br/>+ 7-Role RBAC & HMAC Auth"]
+        Quota["Daily AI Quota (15/day)<br/>+ Rate Limiter"]
+        CoachingEngines["Itamar Coaching Engine<br/>+ Multi-Coach SaaS Portal"]
+        ChatEngine["Unified Chat Engine + LLMOps<br/>Telegram / WhatsApp / Evals"]
+    end
+
+    subgraph AILayer ["4. Multimodal AI & External APIs"]
+        direction LR
+        GeminiRouter["Gemini Router: 2.5-flash-lite (Fast)<br/>2.5-flash -> 3.8-flash -> 1.5-flash"]
+        Guardrails["Red Teaming Shield + Non-Food Reject<br/>+ Image Forensics & Calibration"]
+        ExternalAPIs["Open Food Facts + Barcodes<br/>Wolt Fitting + Google Fit"]
+        MsgChannels["Telegram Bot + WhatsApp Webhook<br/>+ pywebpush VAPID"]
+    end
+
+    subgraph DataLayer ["5. Persistence Layer"]
+        direction LR
+        Firestore["Google Cloud Firestore<br/>users, meals, coaches, trainees, leads, vision_logs..."]
+        LocalMem["In-Memory Fallback (_LOCAL_*)<br/>פיתוח מקומי ובדיקות E2E"]
+    end
+
+    ClientLayer -->|"HTTPS REST + Session Token"| IngressLayer
+    IngressLayer --> BackendLayer
+    BackendLayer <--> AILayer
+    BackendLayer <--> DataLayer
+                </div>
+            </div>
+
+            <!-- Updated Data Model (ER Diagram) -->
+            <div class="space-y-3">
+                <h3 class="text-base font-black text-white">🗄️ מודל הנתונים העדכני ב-Firestore (כולל ישויות המאמנים, הטלגרם וה-LLMOps):</h3>
+                <div class="mermaid-wrap">
+                    <div class="mermaid">
+erDiagram
+    COACH ||--o{ USER : mentors_saas
+    COACH ||--o{ TRAINEE_INVITE : pre_provisions
+    USER ||--o{ MEAL : logs
+    USER ||--o{ WORKOUT : performs
+    USER ||--o{ WEIGHT : tracks
+    USER ||--o{ VISION_LOG : captures
+    USER ||--o{ PUSH_SUBSCRIPTION : subscribes
+    USER ||--o| TELEGRAM_LINK : pairs
+    USER ||--o{ LEAD : submits
+
+    COACH {
+        string id PK
+        string owner_uid FK
+        string coach_code
+        string display_name
+        string studio_name
+        string plan_tier
+        string subscription_status
+        int max_trainees
+        int monthly_price_ils
+    }
+    USER {
+        string id PK
+        string email
+        string user_type
+        boolean approved_by_owner
+        boolean is_admin
+        string coach_id
+        string trainer_coach_id FK
+        int daily_ai_limit
+        int ai_calls_today
+        boolean onboarding_completed
+    }
+    TRAINEE_INVITE {
+        string id PK
+        string coach_id FK
+        string invite_code
+        string linked_user_id
+        int target_calories
+        float target_protein
+        boolean telegram_linked
+        string status
+    }
+    MEAL {
+        string id PK
+        string user_id FK
+        string description
+        int calories
+        float protein_g
+        string meal_type
+        string log_date
+        string log_time
+        string source
+    }
+    TELEGRAM_LINK {
+        string tg_chat_id PK
+        string user_id FK
+        string coach_id
+    }
+                    </div>
+                </div>
+            </div>
+
+            <!-- QA & Deployment Gate Summary -->
+            <div class="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <h3 class="text-base font-black text-emerald-300">✅ שערי איכות ופריסה (QA Gates & CI/CD)</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                        <div class="font-mono font-bold text-white">python qa_guardian.py</div>
+                        <p class="text-slate-400 mt-1">36 בדיקות תקינות Backend, אבטחה, מסלולים ו-SW (חובה 36/36).</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                        <div class="font-mono font-bold text-white">python evals_runner.py</div>
+                        <p class="text-slate-400 mt-1">14 תרחישי Golden Dataset בעברית + Red Teaming (חובה 14/14).</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                        <div class="font-mono font-bold text-white">node tools/ux_ui_e2e_auditor.mjs</div>
+                        <p class="text-slate-400 mt-1">בדיקת דפדפן אמיתי דו-לשונית (HE RTL + EN LTR) וסנכרון מונים.</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                        <div class="font-mono font-bold text-white">python verify_qa.py</div>
+                        <p class="text-slate-400 mt-1">בדיקת תחביר HTML, תאימות Alpine.js, <span class="code-pill">$refs</span> ותגיות.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500">
+        NutriAgent AI — תיעוד תהליכים עסקיים וארכיטקטורה מעודכנת • הופק ישירות מתוך קוד המערכת החי
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'dark',
+                securityLevel: 'loose',
+                fontFamily: 'Heebo, sans-serif',
+                flowchart: {
+                    useMaxWidth: true,
+                    htmlLabels: true,
+                    curve: 'basis'
+                },
+                sequence: {
+                    useMaxWidth: true,
+                    mirrorActors: false
+                },
+                er: {
+                    useMaxWidth: true
+                },
+                themeVariables: {
+                    darkMode: true,
+                    background: '#0b1120',
+                    primaryColor: '#1e293b',
+                    primaryTextColor: '#f8fafc',
+                    primaryBorderColor: '#334155',
+                    lineColor: '#10b981',
+                    secondaryColor: '#1e1b4b',
+                    tertiaryColor: '#0f172a',
+                    clusterBkg: '#0f172a',
+                    clusterBorder: '#334155',
+                    fontSize: '13px'
+                }
+            });
+
+            // Highlight active nav pill on scroll
+            const links = document.querySelectorAll('nav a.nav-pill');
+            const sections = Array.from(links).map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+            const onScroll = () => {
+                let current = sections[0];
+                const y = window.scrollY + 140;
+                for (const sec of sections) {
+                    if (sec.offsetTop <= y) current = sec;
+                }
+                links.forEach(a => {
+                    const active = current && a.getAttribute('href') === '#' + current.id;
+                    a.classList.toggle('active', Boolean(active));
+                });
+            };
+            window.addEventListener('scroll', onScroll, { passive: true });
+            onScroll();
+        });
+    </script>
+</body>
+</html>

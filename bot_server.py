@@ -224,11 +224,11 @@ class GoogleFitSyncRequest(BaseModel):
 
 
 class DailyCoachInsight(BaseModel):
-    score: int = Field(description="ציון תזונה יומי בין 0 ל-100 בהתאם לעמידה ביעד הקלוריות והחלבון")
-    headline: str = Field(description="כותרת קצרה, אישית ומעודדת בעברית")
-    feedback: str = Field(description="ניתוח תמציתי וחכם של היום הנוכחי והמגמה השבועית בעברית")
-    next_meal_suggestion: str = Field(description="המלצה קונקרטית לארוחה הבאה או להמשך היום בהתאם ליתרת הקלוריות והחלבון")
-    tip: str = Field(description="טיפ פרקטי אחד לשיפור או התמדה")
+    mood_badge: str = Field(description="תגית מצב קצרה, חיובית ומכילה בעברית (למשל: 'בכיוון טוב', 'יום מאוזן', 'בונים הרגל')")
+    headline: str = Field(description="כותרת קצרה, חמה ומעודדת בעברית")
+    feedback: str = Field(description="משוב בונה, נעים ולא שיפוטי על היום הנוכחי והמגמה השבועית בעברית")
+    next_meal_suggestion: str = Field(description="הצעה רכה ומעשית להמשך היום או לארוחה הבאה בהתאם ליתרת הקלוריות והחלבון")
+    tip: str = Field(description="טיפ עדין ופרקטי אחד לשיפור או התמדה")
 
 
 class RecipeItem(BaseModel):
@@ -331,6 +331,7 @@ class TargetUpdateRequest(BaseModel):
     target_calories: int = Field(ge=500, le=10000)
     target_protein: int = Field(default=120, ge=20, le=500)
     water_target_ml: Optional[int] = Field(default=2500, ge=500, le=10000)
+    water_cup_ml: Optional[int] = Field(default=None, ge=100, le=1000)
     daily_ai_limit: Optional[int] = Field(default=None, ge=0, le=1000)
     height_cm: Optional[float] = Field(default=None, ge=100, le=250)
     weight_kg: Optional[float] = Field(default=None, ge=30, le=300)
@@ -582,6 +583,7 @@ _LOCAL_WEIGHTS: List[dict] = []
 _LOCAL_VAPID: Optional[dict] = None
 _LOCAL_PUSH_SUBS: List[dict] = []
 _LOCAL_WATER: dict = {}
+_LOCAL_CHECKINS: dict = {}
 _LOCAL_USERS: dict = {}
 _LOCAL_TRAINEES: dict = {}
 _LOCAL_COACHES: dict = {}
@@ -1427,6 +1429,55 @@ def get_daily_water_db(log_date: Optional[str] = None, user_id: str = "default")
     except Exception as e:
         print(f"ERROR get_daily_water_db: {e}")
     return {"water_ml": 0, "log_date": d_str, "user_id": uid}
+
+
+def get_daily_checkin_db(log_date: Optional[str] = None, user_id: str = "default") -> Optional[dict]:
+    uid = _normalize_user_id(user_id)
+    d_str = log_date or get_israel_today_str()
+    key = f"{uid}_{d_str}"
+    if not db:
+        val = _LOCAL_CHECKINS.get(key)
+        return dict(val) if val else None
+    try:
+        doc = db.collection("daily_checkins").document(key).get()
+        if doc.exists:
+            d = doc.to_dict() or {}
+            d["id"] = doc.id
+            return d
+    except Exception as e:
+        print(f"ERROR get_daily_checkin_db: {e}")
+    return None
+
+
+def save_daily_checkin_db(
+    user_id: str,
+    satiety_rating: int,
+    feeling_rating: int,
+    day_rating: int,
+    notes: str = "",
+    log_date: Optional[str] = None,
+) -> dict:
+    uid = _normalize_user_id(user_id)
+    d_str = log_date or get_israel_today_str()
+    key = f"{uid}_{d_str}"
+    now_iso = get_israel_now().isoformat()
+    payload = {
+        "id": key,
+        "user_id": uid,
+        "log_date": d_str,
+        "satiety_rating": max(1, min(5, int(satiety_rating))),
+        "feeling_rating": max(1, min(5, int(feeling_rating))),
+        "day_rating": max(1, min(5, int(day_rating))),
+        "notes": (notes or "").strip()[:400],
+        "updated_at": now_iso,
+    }
+    _LOCAL_CHECKINS[key] = dict(payload)
+    if db:
+        try:
+            db.collection("daily_checkins").document(key).set(payload, merge=True)
+        except Exception as e:
+            print(f"ERROR save_daily_checkin_db: {e}")
+    return payload
 
 
 def list_coach_trainees(coach_id: str = "itamar") -> List[dict]:
@@ -3624,7 +3675,7 @@ def analyze_meal_audio(audio_bytes: bytes, mime_type: str = "audio/webm", captio
     return NutritionExtraction(is_meal=False, calories=0, protein_g=0, summary=f"API_ERROR: {type(last_err).__name__}: {last_err}")
 
 
-def generate_daily_coach_insight(day_summary: dict, daily_trend: List[dict]) -> dict:
+def generate_daily_coach_insight(day_summary: dict, daily_trend: List[dict], daily_checkin: Optional[dict] = None) -> dict:
     total_cal = int(day_summary.get("total_calories", 0))
     target_cal = max(500, int(day_summary.get("target_calories", 1800)))
     total_prot = float(day_summary.get("total_protein", 0.0))
@@ -3633,35 +3684,38 @@ def generate_daily_coach_insight(day_summary: dict, daily_trend: List[dict]) -> 
     rem_prot = max(0.0, round(target_prot - total_prot, 1))
     meals = day_summary.get("meals", [])
 
-    # Heuristic fallback calculation
-    cal_ratio = total_cal / target_cal if target_cal else 0
-    prot_ratio = min(1.15, total_prot / target_prot) if target_prot else 0
     if total_cal == 0:
-        heuristic_score = 50
+        fallback_badge = "מתחילים בקצב שלך"
+    elif rem_cal >= -150 and total_prot >= target_prot * 0.7:
+        fallback_badge = "יום מאוזן ונעים"
+    elif rem_cal < -150:
+        fallback_badge = "יום גמיש — ממשיכים בנחת"
     else:
-        cal_score = max(0, 100 - int(abs(1.0 - cal_ratio) * 90))
-        prot_score = min(100, int(prot_ratio * 100))
-        heuristic_score = max(15, min(100, int(cal_score * 0.55 + prot_score * 0.45)))
+        fallback_badge = "בכיוון טוב"
 
     if not ai_client:
         if total_cal == 0:
             return {
-                "score": 60,
-                "headline": "היום שלך מוכן להמראה! 🚀",
-                "feedback": "עדיין לא תועדו ארוחות ליום זה. התחל בתיעוד ארוחת הבוקר או הקפה הראשון כדי שהמאמן יוכל לנתח את הקצב שלך.",
-                "next_meal_suggestion": f"מומלץ לפתוח בארוחה עשירה בחלבון (כ-30 גרם חלבון) כמו חביתה מ-2 ביצים וקוטג׳ 5%.",
-                "tip": "תיעוד בזמן אמת (מיד אחרי הארוחה או בהקלטה קולית קצרה) מעלה ב-80% את הסיכוי לעמוד ביעד היומי.",
+                "mood_badge": "מוכנים ליום חדש 🌱",
+                "headline": "יום חדש, התחלה רגועה ומאוזנת",
+                "feedback": "עדיין לא נרשמו ארוחות להיום. אפשר להתחיל בתיעוד קצר של הקפה או ארוחת הבוקר כדי שנראה יחד איך לבנות את המשך היום בנחת.",
+                "next_meal_suggestion": "פתיחה נעימה ומשביעה יכולה להיות חביתה מ-2 ביצים עם קוטג׳ 5% וירקות, או יוגורט חלבון עם פרי.",
+                "tip": "תיעוד מהיר מיד אחרי הארוחה חוסך התעסקות בערב ועוזר לשמור על תחושת שליטה רגועה.",
             }
+        checkin_note = ""
+        if daily_checkin and daily_checkin.get("satiety_rating"):
+            if int(daily_checkin["satiety_rating"]) <= 2:
+                checkin_note = " שים לב שדיווחת על רעב — כדאי לשלב יותר ירקות, מים וחלבון משביע."
         return {
-            "score": heuristic_score,
-            "headline": "קצב מצוין! שומרים על מיקוד ביעדים 💪" if heuristic_score >= 75 else "ממשיכים לדייק את האיזון היומי 🎯",
-            "feedback": f"צרכת עד כה {total_cal} מתוך {target_cal} קק״ל ו-{total_prot:.0f} מתוך {target_prot:.0f} גרם חלבון ({len(meals)} ארוחות מתועדות).",
+            "mood_badge": fallback_badge,
+            "headline": "כל הכבוד על המעקב היום 🌿" if rem_cal >= -150 else "יופי של תיעוד — ממשיכים באיזון רגוע 🌿",
+            "feedback": f"תיעדת עד כה {len(meals)} ארוחות ({total_cal} מתוך {target_cal} קק״ל ו-{total_prot:.0f}g מתוך {target_prot:.0f}g חלבון).{checkin_note}",
             "next_meal_suggestion": (
-                f"נותרו לך {rem_cal} קק״ל ו-{rem_prot:.0f} גרם חלבון — מומלץ לבחור מנה ממוקדת חלבון כמו סלט טונה וביצה או יוגורט PRO."
+                f"נשארו לך כ-{rem_cal} קק״ל ו-{rem_prot:.0f}g חלבון — רעיון קליל ונעים הוא סלט טונה עם ביצה, או יוגורט חלבון ופרי."
                 if rem_cal > 150
-                else "הגעת קרוב מאוד ליעד הקלורי היומי — אם אתה רעב, העדף ירקות ירוקים או חלבון רזה ושתה מים."
+                else "קרוב מאוד למסגרת היומית — אם מתחשק משהו קטן בערב, ירקות חתוכים, תה צמחים או חלבון קל יעשו עבודה מצוינת."
             ),
-            "tip": "שילוב מנת חלבון בכל ארוחה שומר על שובע ממושך ומונע נשנושים בשעות הערב.",
+            "tip": "שילוב של חלבון ושתייה מספקת לאורך היום תומך בשובע יציב ובאנרגיה נעימה.",
         }
 
     meals_desc = "\n".join(
@@ -3673,25 +3727,35 @@ def generate_daily_coach_insight(day_summary: dict, daily_trend: List[dict]) -> 
     avg_cal = int(sum(d["calories"] for d in active_days) / len(active_days)) if active_days else 0
     avg_prot = round(sum(d["protein_g"] for d in active_days) / len(active_days), 1) if active_days else 0.0
 
-    prompt = f"""אתה מאמן תזונה וכושר אישי חכם, מעודד ומקצועי בישראל.
-נתח את הנתונים של המשתמש ליום {day_summary.get('date')} והחזר משוב מובנה בעברית:
+    checkin_ctx = ""
+    if daily_checkin:
+        checkin_ctx = (
+            f"\nפידבק תחושה של המתאמן להיום: שובע {daily_checkin.get('satiety_rating', '-')}/5, "
+            f"הרגשה כללית {daily_checkin.get('feeling_rating', '-')}/5, "
+            f"דירוג יום {daily_checkin.get('day_rating', '-')}/5."
+        )
+        if daily_checkin.get("notes"):
+            checkin_ctx += f" הערה: {daily_checkin['notes']}"
 
-נתוני היום:
+    prompt = f"""אתה מאמן תזונה אישי חם, אמפתי, רגוע ומקצועי בישראל.
+חשוב מאוד: אל תיתן ציון מספרי, אל תבקר ואל תיצור תחושת אשמה — המטרה היא לגרום למשתמש להרגיש טוב, להבין מה עבד ולקבל הצעות רכות ובונות להמשך.
+
+נתוני היום ({day_summary.get('date')}):
 - קלוריות שנצרכו: {total_cal} מתוך יעד של {target_cal} קק"ל (יתרה: {rem_cal} קק"ל)
 - חלבון שנצרך: {total_prot:.1f} מתוך יעד של {target_prot:.0f} גרם (יתרה להשלמה: {rem_prot:.1f} גרם)
 - פירוט ארוחות היום:
-{meals_desc}
+{meals_desc}{checkin_ctx}
 
 מגמה ב-7 הימים האחרונים ({len(active_days)} ימים מתועדים):
 - ממוצע קלוריות יומי: {avg_cal} קק"ל
 - ממוצע חלבון יומי: {avg_prot} גרם
 
 הנחיות:
-1. קבע ציון תזונה יומי (score) בין 0 ל-100 המשקף את איכות העמידה ביעד הקלוריות, יחס החלבון ואיכות הבחירות (אם היום רק התחיל ויש מעט ארוחות אך הן טובות, תן ציון מעודד בהתאם לקצב).
-2. כתוב כותרת קצרה ואנרגטית (headline).
-3. תן משוב חכם ומדויק (feedback) שמתייחס לארוחות שנאכלו היום וליחס בין קלוריות לחלבון (ולמגמה השבועית אם רלוונטי).
-4. תן המלצה קונקרטית ומעשית לארוחה הבאה או להמשך היום (next_meal_suggestion) שתפגע בדיוק ביתרת הקלוריות ({rem_cal} קק"ל) והחלבון ({rem_prot:.0f}g) עם מאכלים ישראליים נפוצים.
-5. תן טיפ קצר ומנצח (tip)."""
+1. קבע תגית מצב קצרה, חיובית ומכילה (mood_badge) ללא מספרים (למשל: "יום מאוזן", "בכיוון טוב", "בונים רצף", "יום גמיש").
+2. כתוב כותרת קצרה, חמה ומעודדת (headline).
+3. כתוב משוב בונה ונעים (feedback) שמדגיש מה עבד טוב היום ומתייחס בעדינות לאיזון בין קלוריות לחלבון (ולתחושת השובע אם דווחה).
+4. תן הצעה רכה ופרקטית להמשך היום או לארוחה הבאה (next_meal_suggestion) שתשתלב בנוחות עם יתרת הקלוריות ({rem_cal} קק"ל) והחלבון ({rem_prot:.0f}g) עם מאכלים ישראליים זמינים.
+5. תן טיפ עדין וישים אחד (tip)."""
 
     try:
         response = ai_client.models.generate_content(
@@ -3703,17 +3767,19 @@ def generate_daily_coach_insight(day_summary: dict, daily_trend: List[dict]) -> 
             ),
         )
         parsed = DailyCoachInsight.model_validate_json(response.text)
-        data = parsed.model_dump()
-        data["score"] = max(0, min(100, int(data.get("score", heuristic_score))))
-        return data
+        return parsed.model_dump()
     except Exception as e:
         print(f"ERROR generate_daily_coach_insight: {type(e).__name__} - {e}")
         return {
-            "score": heuristic_score,
-            "headline": "המאמן האישי שלך מוכן 💪",
-            "feedback": f"עד כה תיעדת {total_cal}/{target_cal} קק״ל ו-{total_prot:.0f}/{target_prot:.0f} גרם חלבון.",
-            "next_meal_suggestion": f"נותרו {rem_cal} קק״ל ו-{rem_prot:.0f} גרם חלבון להשלמת היעד היומי.",
-            "tip": "הקפד על שתיית מים וחלוקת חלבון מאוזנת לאורך היום.",
+            "mood_badge": fallback_badge,
+            "headline": "המאמן האישי איתך 🌿",
+            "feedback": f"תיעדת עד כה {total_cal}/{target_cal} קק״ל ו-{total_prot:.0f}/{target_prot:.0f} גרם חלבון. כל צעד של מודעות מקדם אותך.",
+            "next_meal_suggestion": (
+                f"נשארו לך כ-{rem_cal} קק״ל ו-{rem_prot:.0f} גרם חלבון — אפשר לשלב ארוחה קלה ועשירה בחלבון."
+                if rem_cal > 150
+                else "הגעת קרוב למסגרת היומית — אם יש רעב קל, העדף ירקות או חלבון רזה ושתייה מרגיעה."
+            ),
+            "tip": "הקפד על שתיית מים וחלוקת חלבון נעימה לאורך היום.",
         }
 
 
@@ -5394,6 +5460,7 @@ def api_auth_me(request: Request, response: Response):
             else None
         ),
         "telegram_linked": is_telegram_linked_for_user(uid),
+        "water_cup_ml": int(user_doc.get("water_cup_ml") or 250),
         "features": get_feature_flags(),
     }
 
@@ -8043,12 +8110,14 @@ def api_coach_trainee_details(trainee_id: str, request: Request):
     s = get_day_summary(user_id=trainee_id)
     w = get_daily_water_db(user_id=trainee_id)
     weights = get_weights_db(limit=7, user_id=trainee_id)
+    checkin = get_daily_checkin_db(user_id=trainee_id)
     meals = (s.get("meals") or [])[:20]
     return {
         "trainee": t,
         "summary": s,
         "water": w,
         "weights": weights,
+        "daily_checkin": checkin,
         "recent_meals": meals,
     }
 
@@ -8131,7 +8200,8 @@ def api_coach_analyze(request: Request, req: Optional[CoachAnalyzeRequest] = Non
     d_str = (req.log_date if req and req.log_date else None) or today_il
     day_summary = get_day_summary(d_str, user_id=uid)
     hist = _fetch_user_history(uid=uid, days=7)
-    insight = generate_daily_coach_insight(day_summary=day_summary, daily_trend=hist.get("daily_trend", []))
+    checkin = get_daily_checkin_db(log_date=d_str, user_id=uid)
+    insight = generate_daily_coach_insight(day_summary=day_summary, daily_trend=hist.get("daily_trend", []), daily_checkin=checkin)
 
     # Persist today's usage & insight so refresh shows today's card and blocks repeat calls
     coach_cache_update = {
@@ -8149,6 +8219,53 @@ def api_coach_analyze(request: Request, req: Optional[CoachAnalyzeRequest] = Non
         _LOCAL_USERS[uid].update(coach_cache_update)
 
     return insight
+
+
+class DailyCheckinRequest(BaseModel):
+    satiety_rating: int
+    feeling_rating: int
+    day_rating: int
+    notes: Optional[str] = ""
+    log_date: Optional[str] = None
+
+
+@app.get("/api/checkin")
+def api_get_daily_checkin(request: Request, log_date: Optional[str] = None):
+    uid = require_approved_user(request)
+    d_str = log_date or get_israel_today_str()
+    checkin = get_daily_checkin_db(log_date=d_str, user_id=uid)
+    return {"checkin": checkin, "log_date": d_str}
+
+
+@app.post("/api/checkin")
+def api_save_daily_checkin(req: DailyCheckinRequest, request: Request):
+    uid = require_approved_user(request)
+    saved = save_daily_checkin_db(
+        user_id=uid,
+        satiety_rating=req.satiety_rating,
+        feeling_rating=req.feeling_rating,
+        day_rating=req.day_rating,
+        notes=req.notes or "",
+        log_date=req.log_date,
+    )
+    return {"ok": True, "checkin": saved}
+
+
+@app.post("/api/coach/analyze-premium-interest")
+def api_coach_analyze_premium_interest(request: Request):
+    uid = require_approved_user(request)
+    udoc = get_user_doc_db(uid)
+    u_name = udoc.get("name") or udoc.get("email") or uid
+    try:
+        dispatch_push_to_admins(
+            title="💎 התעניינות בחבילת פרימיום (ניתוח AI נוסף)",
+            body=f"{u_name} לחץ על פופאפ שדרוג פרימיום לניתוחי מאמן נוספים",
+            tag=f"premium-ai-coach-{uid}",
+            url="/?tab=admin",
+        )
+    except Exception:
+        pass
+    return {"ok": True, "message": "בקשתך התקבלה! נעדכן אותך בהקדם על פתיחת מסלול הפרימיום."}
 
 
 @app.put("/api/meals/{meal_id}")
@@ -8971,7 +9088,20 @@ def api_delete_weight(entry_id: str, request: Request):
 @app.put("/api/targets")
 def api_update_targets(req: TargetUpdateRequest, request: Request):
     uid = require_approved_user(request)
-    return set_targets(req.target_calories, req.target_protein, user_id=uid)
+    res = set_targets(req.target_calories, req.target_protein, user_id=uid)
+    if req.water_cup_ml is not None:
+        cup_ml = max(100, min(1000, int(req.water_cup_ml)))
+        if db and uid != "default":
+            try:
+                db.collection("users").document(uid).set({"water_cup_ml": cup_ml}, merge=True)
+            except Exception as e:
+                print(f"WARN saving water_cup_ml: {e}")
+        else:
+            if uid not in _LOCAL_USERS:
+                _LOCAL_USERS[uid] = {"id": uid}
+            _LOCAL_USERS[uid]["water_cup_ml"] = cup_ml
+        res["water_cup_ml"] = cup_ml
+    return res
 
 
 WOLT_CITIES = {
@@ -11147,6 +11277,7 @@ def api_trainer_trainee_diary(trainee_uid: str, request: Request, log_date: Opti
     summary = get_day_summary(d_str, user_id=trainee_uid)
     water = get_daily_water_db(d_str, user_id=trainee_uid)
     weights = get_weights_db(limit=7, user_id=trainee_uid)
+    checkin = get_daily_checkin_db(d_str, user_id=trainee_uid)
     hist = _fetch_user_history(uid=trainee_uid, days=7)
     return {
         "trainee": {
@@ -11162,6 +11293,7 @@ def api_trainer_trainee_diary(trainee_uid: str, request: Request, log_date: Opti
         "summary": summary,
         "water": water,
         "weights": weights,
+        "daily_checkin": checkin,
         "daily_trend": hist.get("daily_trend", []),
     }
 
